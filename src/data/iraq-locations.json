@@ -1,0 +1,164 @@
+[
+  {
+    "id": "baghdad",
+    "governorate": "Baghdad",
+    "governorateAr": "بغداد",
+    "governorateKu": "بەغدا",
+    "cities": ["Baghdad", "Abu Ghraib", "Mahmudiya"],
+    "citiesAr": ["بغداد", "أبو غريب", "المحمودية"],
+    "citiesKu": ["بەغدا", "ئەبو غرێب", "مەحمودییە"]
+  },
+  {
+    "id": "basra",
+    "governorate": "Basra",
+    "governorateAr": "البصرة",
+    "governorateKu": "بەسرە",
+    "cities": ["Basra", "Al-Zubair", "Al-Qurnah"],
+    "citiesAr": ["البصرة", "الزبير", "القرنة"],
+    "citiesKu": ["بەسرە", "زوبێر", "قورنە"]
+  },
+  {
+    "id": "erbil",
+    "governorate": "Erbil",
+    "governorateAr": "أربيل",
+    "governorateKu": "هەولێر",
+    "cities": ["Erbil", "Soran", "Koya", "Shaqlawa"],
+    "citiesAr": ["أربيل", "سوران", "كويه", "شقلاوة"],
+    "citiesKu": ["هەولێر", "سۆران", "کۆیە", "شەقڵاوە"]
+  },
+  {
+    "id": "sulaymaniyah",
+    "governorate": "Sulaymaniyah",
+    "governorateAr": "السليمانية",
+    "governorateKu": "سلێمانی",
+    "cities": ["Sulaymaniyah", "Rania", "Kalar", "Halabja", "Chamchamal"],
+    "citiesAr": ["السليمانية", "رانية", "كلار", "حلبجة", "جمجمال"],
+    "citiesKu": ["سلێمانی", "ڕانیە", "کەلار", "هەڵەبجە", "چەمچەماڵ"]
+  },
+  {
+    "id": "duhok",
+    "governorate": "Duhok",
+    "governorateAr": "دهوك",
+    "governorateKu": "دهۆک",
+    "cities": ["Duhok", "Zakho", "Amedi", "Akre"],
+    "citiesAr": ["دهوك", "زاخو", "العمادية", "عقرة"],
+    "citiesKu": ["دهۆک", "زاخۆ", "ئامێدی", "ئاکرێ"]
+  },
+  {
+    "id": "nineveh",
+    "governorate": "Nineveh",
+    "governorateAr": "نينوى",
+    "governorateKu": "نەینەوا",
+    "cities": ["Mosul", "Tal Afar", "Sinjar"],
+    "citiesAr": ["الموصل", "تلعفر", "سنجار"],
+    "citiesKu": ["مووسڵ", "تەلەعفەر", "شنگال"]
+  },
+  {
+    "id": "kirkuk",
+    "governorate": "Kirkuk",
+    "governorateAr": "كركوك",
+    "governorateKu": "کەرکووک",
+    "cities": ["Kirkuk", "Hawija", "Daquq"],
+    "citiesAr": ["كركوك", "الحويجة", "دقوق"],
+    "citiesKu": ["کەرکووک", "حەویجە", "داقووق"]
+  },
+  {
+    "id": "najaf",
+    "governorate": "Najaf",
+    "governorateAr": "النجف",
+    "governorateKu": "نەجەف",
+    "cities": ["Najaf", "Kufa"],
+    "citiesAr": ["النجف", "الكوفة"],
+    "citiesKu": ["نەجەف", "کووفە"]
+  },
+  {
+    "id": "karbala",
+    "governorate": "Karbala",
+    "governorateAr": "كربلاء",
+    "governorateKu": "کەربەلا",
+    "cities": ["Karbala", "Hindiya"],
+    "citiesAr": ["كربلاء", "الهندية"],
+    "citiesKu": ["کەربەلا", "هیندییە"]
+  },
+  {
+    "id": "babil",
+    "governorate": "Babil",
+    "governorateAr": "بابل",
+    "governorateKu": "بابل",
+    "cities": ["Hilla", "Mahawil"],
+    "citiesAr": ["الحلة", "المحاويل"],
+    "citiesKu": ["حیللە", "مەهاویل"]
+  },
+  {
+    "id": "anbar",
+    "governorate": "Anbar",
+    "governorateAr": "الأنبار",
+    "governorateKu": "ئەنبار",
+    "cities": ["Ramadi", "Fallujah", "Hit"],
+    "citiesAr": ["الرمادي", "الفلوجة", "هيت"],
+    "citiesKu": ["ڕەمادی", "فەلووجە", "هیت"]
+  },
+  {
+    "id": "diyala",
+    "governorate": "Diyala",
+    "governorateAr": "ديالى",
+    "governorateKu": "دیالە",
+    "cities": ["Baqubah", "Khanaqin"],
+    "citiesAr": ["بعقوبة", "خانقين"],
+    "citiesKu": ["بەعقووبە", "خانەقین"]
+  },
+  {
+    "id": "dhi_qar",
+    "governorate": "Dhi Qar",
+    "governorateAr": "ذي قار",
+    "governorateKu": "زی قار",
+    "cities": ["Nasiriyah", "Al-Shatrah"],
+    "citiesAr": ["الناصرية", "الشطرة"],
+    "citiesKu": ["ناسریە", "شەترە"]
+  },
+  {
+    "id": "maysan",
+    "governorate": "Maysan",
+    "governorateAr": "ميسان",
+    "governorateKu": "میسان",
+    "cities": ["Amarah"],
+    "citiesAr": ["العمارة"],
+    "citiesKu": ["عەمارە"]
+  },
+  {
+    "id": "muthanna",
+    "governorate": "Al-Muthanna",
+    "governorateAr": "المثنى",
+    "governorateKu": "سەماوە",
+    "cities": ["Samawah"],
+    "citiesAr": ["السماوة"],
+    "citiesKu": ["سەماوە"]
+  },
+  {
+    "id": "qadisiyah",
+    "governorate": "Al-Qadisiyah",
+    "governorateAr": "القادسية",
+    "governorateKu": "قادسیە",
+    "cities": ["Diwaniyah"],
+    "citiesAr": ["الديوانية"],
+    "citiesKu": ["دیوانیە"]
+  },
+  {
+    "id": "wasit",
+    "governorate": "Wasit",
+    "governorateAr": "واسط",
+    "governorateKu": "واست",
+    "cities": ["Kut"],
+    "citiesAr": ["الكوت"],
+    "citiesKu": ["کووت"]
+  },
+  {
+    "id": "halabja",
+    "governorate": "Halabja",
+    "governorateAr": "حلبجة",
+    "governorateKu": "هەڵەبجە",
+    "cities": ["Halabja"],
+    "citiesAr": ["حلبجة"],
+    "citiesKu": ["هەڵەبجە"]
+  }
+]

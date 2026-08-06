@@ -1,0 +1,89 @@
+const fs = require('fs');
+
+const indexCssPath = 'src/index.css';
+let cssContent = fs.readFileSync(indexCssPath, 'utf8');
+
+const themeAdditions = `
+  /* Terracotta (replaces indigo) */
+  --color-indigo-50: #fdf6f4;
+  --color-indigo-100: #f9ebe7;
+  --color-indigo-200: #f1d4cc;
+  --color-indigo-300: #e6b4a6;
+  --color-indigo-400: #d58b78;
+  --color-indigo-500: #b96a55;
+  --color-indigo-600: #a35541;
+  --color-indigo-700: #874332;
+  --color-indigo-800: #713a2d;
+  --color-indigo-900: #5d3328;
+  --color-indigo-950: #311710;
+
+  /* Sage Green (replaces sky) */
+  --color-sky-50: #f5f6f2;
+  --color-sky-100: #e8ece1;
+  --color-sky-200: #d2d9c4;
+  --color-sky-300: #b7c2a1;
+  --color-sky-400: #98a07c;
+  --color-sky-500: #818b63;
+  --color-sky-600: #656f4a;
+  --color-sky-700: #4f573b;
+  --color-sky-800: #414732;
+  --color-sky-900: #373c2c;
+  --color-sky-950: #1d2115;
+
+  /* Caramel (replaces pink) */
+  --color-pink-50: #fbf6f2;
+  --color-pink-100: #f6ebe2;
+  --color-pink-200: #ecd1bc;
+  --color-pink-300: #e1b290;
+  --color-pink-400: #c9865c;
+  --color-pink-500: #be6e40;
+  --color-pink-600: #b05732;
+  --color-pink-700: #934228;
+  --color-pink-800: #763623;
+  --color-pink-900: #5f2f21;
+  --color-pink-950: #33150d;
+
+  /* Warm Brown/Gray (replaces slate) */
+  --color-slate-50: #f6f3ed;
+  --color-slate-100: #e9dfcf;
+  --color-slate-200: #dfd6cf;
+  --color-slate-300: #cbbab0;
+  --color-slate-400: #b0988c;
+  --color-slate-500: #9a7d6e;
+  --color-slate-600: #866657;
+  --color-slate-700: #715246;
+  --color-slate-800: #5f453c;
+  --color-slate-900: #4f3b34;
+  --color-slate-950: #2b1e19;
+
+  /* Rust (replaces rose) */
+  --color-rose-50: #fbf5f4;
+  --color-rose-100: #f6e8e5;
+  --color-rose-200: #ecccd4;
+  --color-rose-300: #dfa69d;
+  --color-rose-400: #ce7768;
+  --color-rose-500: #b74f3e;
+  --color-rose-600: #9a3f2f;
+  --color-rose-700: #803325;
+  --color-rose-800: #6b2d22;
+  --color-rose-900: #59281e;
+  --color-rose-950: #2f110c;
+
+  /* Taupe (replaces amber) */
+  --color-amber-50: #f8f6f4;
+  --color-amber-100: #efeae5;
+  --color-amber-200: #e1d3c8;
+  --color-amber-300: #cdb6a5;
+  --color-amber-400: #c59e82;
+  --color-amber-500: #a9856a;
+  --color-amber-600: #906c52;
+  --color-amber-700: #785741;
+  --color-amber-800: #644a39;
+  --color-amber-900: #533e31;
+  --color-amber-950: #2d2018;
+`;
+
+cssContent = cssContent.replace('@theme {', '@theme {' + themeAdditions);
+
+fs.writeFileSync(indexCssPath, cssContent);
+console.log('Updated index.css with new theme colors');

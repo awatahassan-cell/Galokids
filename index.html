@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- SEO -->
+    <title>Galo Kids 🎈</title>
+    <meta name="description" content="Galo Kids — premium kids clothing and toys. Shop online with cash on delivery across Iraq, in three languages." />
+    <meta name="theme-color" content="#6366f1" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Open Graph / social sharing -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Galo Kids" />
+    <meta property="og:title" content="Galo Kids — Clothing & Toys for Little Explorers" />
+    <meta property="og:description" content="Premium kids clothing and toys. Cash on delivery across Iraq." />
+    <meta property="og:image" content="/icon.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Register the service worker for offline support + installability —
+      // but ONLY in production. On localhost/dev it breaks Vite's module loading,
+      // so there we actively unregister any previously installed worker.
+      (function () {
+        if (!('serviceWorker' in navigator)) return;
+        var host = location.hostname;
+        var isDev = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0';
+        if (isDev) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (r) { r.unregister(); });
+          });
+          if (window.caches && caches.keys) {
+            caches.keys().then(function (keys) { keys.forEach(function (k) { caches.delete(k); }); });
+          }
+          return;
+        }
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+      })();
+    </script>
+  </body>
+</html>

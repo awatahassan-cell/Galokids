@@ -1,0 +1,14 @@
+{
+  "name": "Galo Kids",
+  "short_name": "Galo Kids",
+  "description": "Galo Kids — clothing & toys store and POS",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fcf9f5",
+  "theme_color": "#6366f1",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
