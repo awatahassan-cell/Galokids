@@ -97,16 +97,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="absolute top-2 right-2 flex flex-col gap-1.5">
           <button
             onClick={handleWishlistClick}
-            className="p-1.5 sm:p-2 bg-white/90 backdrop-blur-sm rounded-full text-slate-400 hover:text-rose-500 transition-colors shadow-sm hover:scale-110"
+            className="w-8 h-8 sm:w-9 sm:h-9 bg-white/95 backdrop-blur-sm rounded-full text-slate-500 hover:text-rose-500 flex items-center justify-center transition-all shadow-md active:scale-90"
+            title={isWishlisted ? t('removeFromWishlist') || 'Remove' : t('addToWishlist') || 'Add'}
           >
-            <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
+            <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
           </button>
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setQuickViewOpen(true); }}
             title={t('quickView') || 'Quick view'}
-            className="p-1.5 sm:p-2 bg-white/90 backdrop-blur-sm rounded-full text-slate-400 hover:text-indigo-600 transition-colors shadow-sm hover:scale-110 opacity-0 group-hover:opacity-100"
+            className="w-8 h-8 sm:w-9 sm:h-9 bg-white/95 backdrop-blur-sm rounded-full text-slate-500 hover:text-indigo-600 flex items-center justify-center transition-all shadow-md active:scale-90 opacity-0 group-hover:opacity-100 hidden sm:flex"
           >
-            <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <Eye className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -173,18 +174,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 setTimeout(() => setAdded(false), 1500);
               }, 600);
             }}
-            className={`p-1.5 sm:p-2.5 rounded-full cursor-pointer flex items-center justify-center transition-all ${
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full cursor-pointer flex items-center justify-center transition-all shrink-0 active:scale-90 ${
               totalStock === 0 
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-sky-400 to-indigo-500 text-white hover:shadow-lg hover:shadow-sky-200 hover:scale-110'
+                : 'bg-gradient-to-r from-sky-400 to-indigo-500 text-white shadow-md hover:shadow-sky-200'
             }`}
           >
             {isAdding ? (
-              <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : added ? (
-              <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <Check className="w-4 h-4 text-white" />
             ) : (
-              <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <ShoppingCart className="w-4 h-4" />
             )}
           </button>
         </div>

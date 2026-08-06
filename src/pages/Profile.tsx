@@ -3,21 +3,29 @@ import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Navigate } from 'react-router-dom';
 import { User, Mail, Phone, MapPin, Lock, Shield, Calendar, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import iraqLocations from '../data/iraq-locations.json';
 
 const pTranslations = {
   en: {
     profileSettings: 'Profile Settings',
     profileSubtitle: 'Manage and update your personal account information.',
-    contactInfo: 'Contact Information',
+    contactInfo: 'Contact Information & Delivery Address',
     phone: 'Phone Number',
     phonePlaceholder: 'Enter your phone number',
-    address: 'Shipping/Billing Address',
-    addressPlaceholder: 'Enter your complete delivery address',
+    address: 'Street / Neighborhood Address',
+    addressPlaceholder: 'Enter neighborhood, main street, or landmark',
+    governorate: 'Governorate',
+    district: 'District (Qaza)',
+    subdistrict: 'Sub-district (Nahiya)',
+    selectGovernorate: 'Select Governorate',
+    selectDistrict: 'Select District',
+    selectSubdistrict: 'Select Sub-district',
+    optional: 'Optional',
     saveChanges: 'Save Changes',
     saving: 'Saving...',
     passwordConfirmation: 'Confirm New Password',
     newPasswordOptional: 'New Password (leave blank to keep current)',
-    profileUpdatedSuccess: 'Your profile has been updated successfully!',
+    profileUpdatedSuccess: 'Your profile and delivery settings updated successfully!',
     role: 'Account Role',
     joinDate: 'Join Date',
     admin: 'Administrator',
@@ -35,17 +43,24 @@ const pTranslations = {
   },
   ku: {
     profileSettings: 'ڕێکخستنەکانی پرۆفایل',
-    profileSubtitle: 'زانیارییە کەسییەکانی ئەکاونتەکەت بەڕێوەبەرە و نوێ بکەرەوە.',
-    contactInfo: 'زانیاری پەیوەندی',
+    profileSubtitle: 'زانیارییە کەسییەکانی ئەکاونتەکەت و ناونیشانی گەیاندن نوێ بکەرەوە.',
+    contactInfo: 'زانیاری پەیوەندی و ناونیشانی گەیاندن',
     phone: 'ژمارەی مۆبایل',
     phonePlaceholder: 'ژمارەی مۆبایلەکەت بنووسە',
-    address: 'ناونیشانی ناردن/پارەدان',
-    addressPlaceholder: 'ناونیشانی تەواوی گەیاندنەکەت بنووسە',
+    address: 'ناونیشانی گەڕەک و کۆڵان',
+    addressPlaceholder: 'ناوی گەڕەک، جادەی سەرەکی، یان نیشانەی دیار بنووسە',
+    governorate: 'پارێزگا',
+    district: 'قەزا',
+    subdistrict: 'ناحیە',
+    selectGovernorate: 'پارێزگا هەڵبژێرە',
+    selectDistrict: 'قەزا هەڵبژێرە',
+    selectSubdistrict: 'ناحیە هەڵبژێرە',
+    optional: 'ئارەزوومەندانە',
     saveChanges: 'پاشەکەوتکردنی گۆڕانکارییەکان',
     saving: 'پاشەکەوت دەکرێت...',
     passwordConfirmation: 'دوپاتکردنەوەی وشەی تێپەڕی نوێ',
     newPasswordOptional: 'وشەی تێپەڕی نوێ (بە بەتاڵی جێبهێڵە بۆ هێشتنەوەی هەنووکەیی)',
-    profileUpdatedSuccess: 'پرۆفایلەکەت بە سەرکەوتوویی نوێکرایەوە!',
+    profileUpdatedSuccess: 'زانیارییەکانت بە سەرکەوتوویی نوێکرانەوە!',
     role: 'ڕۆڵی ئەکاونت',
     joinDate: 'ڕێکەوتی بەشداربوون',
     admin: 'بەڕێوەبەر',
@@ -63,17 +78,24 @@ const pTranslations = {
   },
   ar: {
     profileSettings: 'إعدادات الملف الشخصي',
-    profileSubtitle: 'إدارة وتحديث معلومات حسابك الشخصي.',
-    contactInfo: 'معلومات الاتصال',
+    profileSubtitle: 'إدارة وتحديث معلومات حسابك الشخصي وعنوان التوصيل.',
+    contactInfo: 'معلومات الاتصال وعنوان التوصيل',
     phone: 'رقم الهاتف',
     phonePlaceholder: 'أدخل رقم هاتفك',
-    address: 'عنوان الشحن/الفواتير',
-    addressPlaceholder: 'أدخل عنوان التوصيل الكامل الخاص بك',
+    address: 'عنوان الشارع والحي',
+    addressPlaceholder: 'أدخل اسم الحي، الشارع الرئيسي، أو معلم بارز',
+    governorate: 'المحافظة',
+    district: 'القضاء',
+    subdistrict: 'الناحية',
+    selectGovernorate: 'اختر المحافظة',
+    selectDistrict: 'اختر القضاء',
+    selectSubdistrict: 'اختر الناحية',
+    optional: 'اختياري',
     saveChanges: 'حفظ التغييرات',
     saving: 'جاري الحفظ...',
     passwordConfirmation: 'تأكيد كلمة المرور الجديدة',
     newPasswordOptional: 'كلمة المرور الجديدة (اتركها فارغة للاحتفاظ بالحالية)',
-    profileUpdatedSuccess: 'تم تحديث ملفك الشخصي بنجاح!',
+    profileUpdatedSuccess: 'تم تحديث معلوماتك وعنوانك بنجاح!',
     role: 'دور الحساب',
     joinDate: 'تاريخ الانضمام',
     admin: 'مدير النظام',
@@ -103,7 +125,16 @@ export const Profile: React.FC = () => {
   const [name, setName] = useState(currentUser?.name || '');
   const [email, setEmail] = useState(currentUser?.email || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
-  const [address, setAddress] = useState(currentUser?.address || '');
+  
+  // Location States
+  const [selectedGovernorate, setSelectedGovernorate] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedSubdistrict, setSelectedSubdistrict] = useState('');
+  const [streetAddress, setStreetAddress] = useState('');
+
+  const [availableDistricts, setAvailableDistricts] = useState<any[]>([]);
+  const [availableSubdistricts, setAvailableSubdistricts] = useState<{ en: string; ar: string; ku: string }[]>([]);
+
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
 
@@ -113,13 +144,97 @@ export const Profile: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
+  // Dynamic Governorate update
+  useEffect(() => {
+    if (selectedGovernorate) {
+      const gov = iraqLocations.find(l => l.governorate === selectedGovernorate || l.id === selectedGovernorate);
+      if (gov && gov.districts) {
+        setAvailableDistricts(gov.districts);
+      } else {
+        setAvailableDistricts([]);
+      }
+    } else {
+      setAvailableDistricts([]);
+    }
+  }, [selectedGovernorate]);
+
+  // Dynamic District update
+  useEffect(() => {
+    if (selectedDistrict && availableDistricts.length > 0) {
+      const dist = availableDistricts.find(d => d.id === selectedDistrict || d.name === selectedDistrict);
+      if (dist && dist.subdistricts) {
+        const list = dist.subdistricts.map((sub: string, index: number) => ({
+          en: sub,
+          ar: dist.subdistrictsAr?.[index] || sub,
+          ku: dist.subdistrictsKu?.[index] || sub,
+        }));
+        setAvailableSubdistricts(list);
+      } else {
+        setAvailableSubdistricts([]);
+      }
+    } else {
+      setAvailableSubdistricts([]);
+    }
+  }, [selectedDistrict, availableDistricts]);
+
   // Sync state if currentUser updates
   useEffect(() => {
     if (currentUser) {
       setName(currentUser.name || '');
       setEmail(currentUser.email || '');
       setPhone(currentUser.phone || '');
-      setAddress(currentUser.address || '');
+
+      if (currentUser.address) {
+        const addrLower = currentUser.address.toLowerCase();
+        const matchedGov = iraqLocations.find(l =>
+          addrLower.includes(l.governorate.toLowerCase()) ||
+          addrLower.includes(l.governorateKu.toLowerCase()) ||
+          addrLower.includes(l.governorateAr.toLowerCase())
+        );
+
+        if (matchedGov) {
+          setSelectedGovernorate(matchedGov.governorate);
+          const dists = matchedGov.districts || [];
+          setAvailableDistricts(dists);
+
+          const matchedDist = dists.find(d =>
+            addrLower.includes(d.name.toLowerCase()) ||
+            (d.nameKu && addrLower.includes(d.nameKu.toLowerCase())) ||
+            (d.nameAr && addrLower.includes(d.nameAr.toLowerCase()))
+          );
+
+          if (matchedDist) {
+            setSelectedDistrict(matchedDist.id || matchedDist.name);
+
+            if (matchedDist.subdistricts) {
+              const list = matchedDist.subdistricts.map((sub: string, index: number) => ({
+                en: sub,
+                ar: matchedDist.subdistrictsAr?.[index] || sub,
+                ku: matchedDist.subdistrictsKu?.[index] || sub,
+              }));
+              setAvailableSubdistricts(list);
+
+              const matchedSub = matchedDist.subdistricts.find((sub, idx) => {
+                const subAr = matchedDist.subdistrictsAr?.[idx] || '';
+                const subKu = matchedDist.subdistrictsKu?.[idx] || '';
+                return addrLower.includes(sub.toLowerCase()) ||
+                  (subKu && addrLower.includes(subKu.toLowerCase())) ||
+                  (subAr && addrLower.includes(subAr.toLowerCase()));
+              });
+              if (matchedSub) {
+                setSelectedSubdistrict(matchedSub);
+              }
+            }
+          }
+        }
+
+        const addressMatch = currentUser.address.match(/\(([^)]+)\)/);
+        if (addressMatch && addressMatch[1]) {
+          setStreetAddress(addressMatch[1]);
+        } else {
+          setStreetAddress(currentUser.address);
+        }
+      }
     }
   }, [currentUser]);
 
@@ -179,11 +294,27 @@ export const Profile: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      // Build clean full address string
+      let fullAddress = streetAddress;
+      if (selectedGovernorate) {
+        const govObj = iraqLocations.find(l => l.governorate === selectedGovernorate || l.id === selectedGovernorate);
+        const govText = govObj 
+          ? (activeLang === 'ku' ? govObj.governorateKu : activeLang === 'ar' ? govObj.governorateAr : govObj.governorate) 
+          : selectedGovernorate;
+        
+        const distObj = availableDistricts.find(d => d.id === selectedDistrict || d.name === selectedDistrict);
+        const distText = distObj 
+          ? (activeLang === 'ku' ? (distObj.nameKu || distObj.name) : activeLang === 'ar' ? (distObj.nameAr || distObj.name) : distObj.name) 
+          : selectedDistrict;
+
+        fullAddress = `${govText}${distText ? ` - ${localT.district}: ${distText}` : ''}${selectedSubdistrict ? ` - ${localT.subdistrict}: ${selectedSubdistrict}` : ''}${streetAddress ? ` (${streetAddress})` : ''}`;
+      }
+
       const result = await updateProfile(
         name,
         email,
         phone || undefined,
-        address || undefined,
+        fullAddress || undefined,
         password || undefined,
         passwordConfirm || undefined
       );
@@ -333,7 +464,7 @@ export const Profile: React.FC = () => {
               </div>
 
               {/* Phone & Address */}
-              <div className="space-y-6">
+              <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-2">
                     <Phone className="w-4 h-4 text-slate-400" />
@@ -344,21 +475,96 @@ export const Profile: React.FC = () => {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder={localT.phonePlaceholder}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 placeholder-slate-400 text-sm"
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 placeholder-slate-400 text-sm dir-ltr text-right"
                   />
                 </div>
 
+                {/* Governorate & District Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Governorate */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-slate-400" />
+                      <span>{localT.governorate}</span>
+                    </label>
+                    <select
+                      value={selectedGovernorate}
+                      onChange={(e) => {
+                        setSelectedGovernorate(e.target.value);
+                        setSelectedDistrict('');
+                        setSelectedSubdistrict('');
+                      }}
+                      className="w-full border border-slate-300 bg-white rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 text-sm font-arabic"
+                    >
+                      <option value="">-- {localT.selectGovernorate} --</option>
+                      {iraqLocations.map((loc) => (
+                        <option key={loc.id} value={loc.governorate}>
+                          {activeLang === 'ku' ? loc.governorateKu : activeLang === 'ar' ? loc.governorateAr : loc.governorate}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* District (Qaza) */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      <span>{localT.district}</span>
+                    </label>
+                    <select
+                      value={selectedDistrict}
+                      onChange={(e) => {
+                        setSelectedDistrict(e.target.value);
+                        setSelectedSubdistrict('');
+                      }}
+                      disabled={!selectedGovernorate}
+                      className="w-full border border-slate-300 bg-white rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 text-sm disabled:bg-slate-100 disabled:text-slate-400 font-arabic"
+                    >
+                      <option value="">-- {localT.selectDistrict} --</option>
+                      {availableDistricts.map((dist) => (
+                        <option key={dist.id || dist.name} value={dist.id || dist.name}>
+                          {activeLang === 'ku' ? (dist.nameKu || dist.name) : activeLang === 'ar' ? (dist.nameAr || dist.name) : dist.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Subdistrict (Nahiya) */}
+                {availableSubdistricts.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span>{localT.subdistrict}</span>
+                      <span className="text-[11px] text-slate-400 font-normal">({localT.optional})</span>
+                    </label>
+                    <select
+                      value={selectedSubdistrict}
+                      onChange={(e) => setSelectedSubdistrict(e.target.value)}
+                      className="w-full border border-slate-300 bg-white rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 text-sm font-arabic"
+                    >
+                      <option value="">-- {localT.selectSubdistrict} --</option>
+                      {availableSubdistricts.map((sub, idx) => {
+                        const displayName = activeLang === 'ku' ? sub.ku : activeLang === 'ar' ? sub.ar : sub.en;
+                        return (
+                          <option key={idx} value={displayName}>
+                            {displayName}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+
+                {/* Street / Neighborhood */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-slate-400" />
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
                     {localT.address}
                   </label>
-                  <textarea
-                    rows={3}
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
+                  <input
+                    type="text"
+                    value={streetAddress}
+                    onChange={(e) => setStreetAddress(e.target.value)}
                     placeholder={localT.addressPlaceholder}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 placeholder-slate-400 text-sm"
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 placeholder-slate-400 text-sm font-arabic"
                   />
                 </div>
               </div>

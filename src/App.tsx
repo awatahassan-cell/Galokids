@@ -25,17 +25,19 @@ import { Sidebar } from './components/Sidebar';
 import { StoreProvider, useStore } from './store';
 import { Menu, Layers, UserCircle, ShoppingBag, Heart, LogOut, Globe, MonitorSmartphone, Package } from 'lucide-react';
 import { CartDrawer } from './components/CartDrawer';
-import { FloatingWhatsApp } from './components/FloatingWhatsApp';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { FeedbackProvider } from './components/ui/Feedback';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { Language } from './i18n/translations';
 import { SearchBar } from './components/SearchBar';
 import { LanguageDropdown } from './components/LanguageDropdown';
+import { InitialLanguageModal } from './components/InitialLanguageModal';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const { cart, currentUser, logout, storeSettings } = useStore();
   const { t, language, setLanguage } = useLanguage();
 
@@ -129,12 +131,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </nav>
 
             <div className="flex items-center space-x-1 sm:space-x-2">
-              <div className="hidden sm:block">
-                <SearchBar />
-              </div>
+              <SearchBar 
+                isMobileModalOpen={isMobileSearchOpen} 
+                onCloseMobileModal={() => setIsMobileSearchOpen(false)} 
+              />
 
-              {/* Language Dropdown */}
-              <LanguageDropdown className="mx-1" />
+              {/* Language Dropdown (Desktop Only) */}
+              <LanguageDropdown className="mx-1 hidden md:block" />
 
               <Link to="/wishlist" className="p-2.5 text-slate-500 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-all hidden sm:block group active:scale-95 border border-transparent hover:border-rose-100">
                 <Heart className="w-6 h-6 group-hover:scale-120 group-hover:rotate-6 transition-all" />
@@ -187,14 +190,20 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </header>
       )}
 
-      <main className="flex-grow flex flex-col">
+      <main className={`flex-grow flex flex-col ${!isAdminOrPos ? 'pb-16 md:pb-0' : ''}`}>
         {children}
       </main>
 
       {!isAdminOrPos && <Footer />}
-      {!isAdminOrPos && <FloatingWhatsApp />}
+      {!isAdminOrPos && (
+        <MobileBottomNav 
+          onOpenCart={() => setIsCartOpen(true)}
+          onOpenSearch={() => setIsMobileSearchOpen(true)}
+        />
+      )}
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <InitialLanguageModal />
     </div>
   );
 };

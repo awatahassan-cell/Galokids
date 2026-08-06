@@ -31,14 +31,14 @@ const ProductRow: React.FC<{
       viewport={{ once: true, margin: '-50px' }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
     >
-      <div className="px-4 sm:px-6 lg:px-8 mb-8 flex items-center justify-between">
+      <div className="px-4 sm:px-6 lg:px-8 mb-4 sm:mb-6 flex items-end justify-between gap-2">
         <div>
-          <h2 className={`text-3xl font-bold font-display tracking-tight ${titleClass || 'text-slate-900'}`}>{title}</h2>
-          {subtitle && <p className="text-slate-500 mt-2">{subtitle}</p>}
+          <h2 className={`text-xl sm:text-3xl font-extrabold font-display tracking-tight ${titleClass || 'text-slate-900'}`}>{title}</h2>
+          {subtitle && <p className="text-slate-500 text-xs sm:text-sm mt-0.5">{subtitle}</p>}
         </div>
         {linkTo && (
-          <Link to={linkTo} className="hidden sm:inline-flex items-center text-sm font-semibold text-sky-600 hover:text-sky-700 hover:underline underline-offset-4">
-            {shopAllLabel} <ArrowRight className="w-4 h-4 ml-1.5" />
+          <Link to={linkTo} className="inline-flex items-center text-xs sm:text-sm font-bold text-sky-600 hover:text-sky-700 bg-sky-50 px-3 py-1.5 rounded-full hover:bg-sky-100 transition-all shrink-0 active:scale-95">
+            {shopAllLabel} <ArrowRight className="w-3.5 h-3.5 ml-1 rtl:mr-1 rtl:ml-0 rtl:rotate-180" />
           </Link>
         )}
       </div>
@@ -106,7 +106,7 @@ export const Home: React.FC = () => {
         <CountdownBanner />
         <Hero />
 
-// Shop by category chips
+        {/* Shop by category chips */}
         {categories.length > 0 && (
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
