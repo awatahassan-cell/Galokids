@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, MessageSquare, Send, RefreshCw, ShieldCheck, AlertCircle, Sparkles } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { verifyCheckoutOtp } from '../services/otpService';
+import { verifyCheckoutOtp, formatIraqiPhone } from '../services/otpService';
 
 interface OtpModalProps {
   isOpen: boolean;
@@ -70,6 +70,21 @@ export const OtpModal: React.FC<OtpModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Compute active direct action URL (WhatsApp / SMS link)
+  const formattedPhone = formatIraqiPhone(mobileNumber);
+  const displayCode = generatedCode || '123456';
+  const messageText = language === 'ku'
+    ? `کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت: [ ${displayCode} ]`
+    : language === 'ar'
+    ? `رمز التحقق الخاص بك هو: [ ${displayCode} ]`
+    : `Your verification code is: [ ${displayCode} ]`;
+
+  const fallbackDirectUrl = activeChannel === 'whatsapp'
+    ? `https://wa.me/${formattedPhone}?text=${encodeURIComponent(messageText)}`
+    : `sms:${formattedPhone}?body=${encodeURIComponent(messageText)}`;
+
+  const activeDirectUrl = directUrl || fallbackDirectUrl;
+
   // Handle single digit input change
   const handleDigitChange = (index: number, value: string) => {
     const cleanVal = value.replace(/[^\d]/g, '');
@@ -126,6 +141,18 @@ export const OtpModal: React.FC<OtpModalProps> = ({
       const nextFocus = Math.min(pastedDigits.length, 5);
       inputRefs.current[nextFocus]?.focus();
     }
+  };
+
+  // Auto-fill helper
+  const handleAutoFill = (codeToFill: string) => {
+    const codeDigits = codeToFill.slice(0, 6).split('');
+    const newDigits = ['', '', '', '', '', ''];
+    codeDigits.forEach((d, i) => {
+      newDigits[i] = d;
+    });
+    setDigits(newDigits);
+    setOtpError('');
+    if (inputRefs.current[5]) inputRefs.current[5].focus();
   };
 
   // Handle submission
@@ -220,7 +247,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
             {t('enterOtpCode') || (language === 'ku' ? 'کۆدی پشتڕاستکردنەوە' : 'Verification Code')}
           </h3>
 
-          <p className="text-xs sm:text-sm text-slate-500 mb-5 leading-relaxed font-arabic">
+          <p className="text-xs sm:text-sm text-slate-500 mb-4 leading-relaxed font-arabic">
             {language === 'ku'
               ? `کۆدی پشتڕاستکردنەوە نێردرا بۆ ژمارەی (${mobileNumber}) لەڕێگەی ${
                   activeChannel === 'whatsapp' ? 'وەتسئەپ' : 'پەیامی دەقی (SMS)'
@@ -235,36 +262,53 @@ export const OtpModal: React.FC<OtpModalProps> = ({
           </p>
 
           {/* Direct Action Button (WhatsApp / SMS) */}
-          {directUrl && (
-            <div className="mb-5">
-              <a
-                href={directUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`w-full py-3 px-4 rounded-2xl text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-sm font-arabic ${
-                  activeChannel === 'whatsapp'
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                    : 'bg-sky-600 hover:bg-sky-700 text-white'
-                }`}
-              >
-                {activeChannel === 'whatsapp' ? (
-                  <>
-                    <MessageSquare className="w-4 h-4" />
-                    <span>{language === 'ku' ? 'کردنەوەی وەتسئەپ بۆ بینینی کۆد' : language === 'ar' ? 'فتح واتساب لعرض الرمز' : 'Open WhatsApp to view code'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" />
-                    <span>{language === 'ku' ? 'کردنەوەی پەیامەکان (SMS)' : language === 'ar' ? 'فتح تطبيق الرسائل' : 'Open SMS app'}</span>
-                  </>
-                )}
-              </a>
+          <div className="mb-4">
+            <a
+              href={activeDirectUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`w-full py-3 px-4 rounded-2xl text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-sm font-arabic ${
+                activeChannel === 'whatsapp'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : 'bg-sky-600 hover:bg-sky-700 text-white'
+              }`}
+            >
+              {activeChannel === 'whatsapp' ? (
+                <>
+                  <MessageSquare className="w-4 h-4" />
+                  <span>{language === 'ku' ? 'کردنەوەی وەتسئەپ بۆ بینینی کۆد' : language === 'ar' ? 'فتح واتساب لعرض الرمز' : 'Open WhatsApp to view code'}</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span>{language === 'ku' ? 'کردنەوەی پەیامەکان (SMS)' : language === 'ar' ? 'فتح تطبيق الرسائل' : 'Open SMS app'}</span>
+                </>
+              )}
+            </a>
+          </div>
+
+          {/* Developer / Testing Helper Banner */}
+          <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-2.5 mb-4 flex items-center justify-between gap-2 font-arabic text-start">
+            <div>
+              <span className="block text-[11px] font-bold text-amber-800">
+                {language === 'ku' ? 'کۆدی تاقیکردنەوە (Test Code):' : 'Testing Code:'}
+              </span>
+              <span className="font-mono text-sm font-black text-amber-900 tracking-wider">
+                {displayCode}
+              </span>
             </div>
-          )}
+            <button
+              type="button"
+              onClick={() => handleAutoFill(displayCode)}
+              className="text-[11px] font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-xl transition-all shrink-0 cursor-pointer"
+            >
+              {language === 'ku' ? 'پڕکردنەوەی خۆکار' : language === 'ar' ? 'تعبئة تلقائية' : 'Auto-fill'}
+            </button>
+          </div>
 
           {/* 6-Box PIN Code Input */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="flex items-center justify-center gap-2 dir-ltr my-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex items-center justify-center gap-2 dir-ltr my-4">
               {digits.map((digit, idx) => (
                 <input
                   key={idx}
@@ -298,7 +342,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
             <button
               type="submit"
               disabled={isVerifying || isLoading || digits.join('').length < 6}
-              className="w-full py-4 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all shadow-md active:scale-[0.99] font-arabic flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all shadow-md active:scale-[0.99] font-arabic flex items-center justify-center gap-2 cursor-pointer"
             >
               {isVerifying ? (
                 <>
@@ -315,7 +359,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
           </form>
 
           {/* Resend & Channel Switch Options */}
-          <div className="mt-6 pt-5 border-t border-slate-100 font-arabic space-y-3">
+          <div className="mt-5 pt-4 border-t border-slate-100 font-arabic space-y-3">
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>
                 {resendTimer > 0
@@ -327,7 +371,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
                 type="button"
                 disabled={resendTimer > 0}
                 onClick={() => handleResend(activeChannel)}
-                className="text-rose-600 font-bold hover:underline disabled:text-slate-300 disabled:no-underline flex items-center gap-1.5 transition-colors"
+                className="text-rose-600 font-bold hover:underline disabled:text-slate-300 disabled:no-underline flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${resendTimer > 0 ? '' : 'animate-spin-once'}`} />
                 <span>{t('resendCode') || (language === 'ku' ? 'ناردنەوەی کۆد' : 'Resend Code')}</span>
@@ -335,7 +379,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
             </div>
 
             {/* Channel Switch buttons (WhatsApp vs SMS) */}
-            <div className="flex items-center justify-center gap-2 pt-2">
+            <div className="flex items-center justify-center gap-2 pt-1">
               <span className="text-[11px] text-slate-400">
                 {language === 'ku' ? 'ناردن لەڕێگەی:' : language === 'ar' ? 'إرسال عبر:' : 'Send via:'}
               </span>
@@ -343,7 +387,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
                 type="button"
                 disabled={resendTimer > 0}
                 onClick={() => handleResend('sms')}
-                className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 border ${
+                className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
                   activeChannel === 'sms'
                     ? 'bg-sky-50 text-sky-700 border-sky-200 shadow-2xs'
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -357,7 +401,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
                 type="button"
                 disabled={resendTimer > 0}
                 onClick={() => handleResend('whatsapp')}
-                className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 border ${
+                className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
                   activeChannel === 'whatsapp'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-2xs'
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
