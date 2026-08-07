@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class OtpController extends Controller
 {
     /**
-     * Send real SMS OTP code to customer mobile number via SMS Gateway
+     * Send real SMS / WhatsApp OTP code to customer mobile number via OTPIQ (or SMS Gateway)
      */
     public function sendOtp(Request $request)
     {
@@ -34,14 +34,14 @@ class OtpController extends Controller
         // Prepare SMS Message text
         $message = "کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ {$code} ]";
 
-        // Dispatch real SMS via SMS Gateway API
+        // Dispatch real SMS/WhatsApp OTP via OTPIQ or SMS Gateway API
         $smsSent = $this->dispatchSms($phone, $message, $code);
 
         return response()->json([
             'success' => true,
-            'message' => 'کۆدی پشتڕاستکردنەوە لە ڕێگەی SMS نێردرا بۆ مۆبایلەکەت.',
+            'message' => 'کۆدی پشتڕاستکردنەوە نێردرا بۆ ژمارەی مۆبایلەکەت.',
             'phone' => $phone,
-            'sms_dispatched' => $smsSent,
+            'dispatched' => $smsSent,
         ]);
     }
 
@@ -94,39 +94,58 @@ class OtpController extends Controller
     }
 
     /**
-     * Dispatch SMS to Gateway API (Twilio, FastSMS, Infobip, or custom HTTP API)
+     * Dispatch OTP via OTPIQ API (docs.otpiq.com) or standard SMS Gateway API
      */
     private function dispatchSms(string $phone, string $message, int $code): bool
     {
-        Log::info("Dispatching SMS OTP code {$code} to {$phone}");
+        Log::info("Dispatching OTP code {$code} to {$phone}");
 
+        $otpiqApiKey = env('OTPIQ_API_KEY');
+        $otpiqUrl = env('OTPIQ_API_URL', 'https://api.otpiq.com/api/send');
+
+        // 1. If OTPIQ API Key is configured in .env
+        if ($otpiqApiKey) {
+            try {
+                $response = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $otpiqApiKey,
+                    'Accept'        => 'application/json',
+                    'Content-Type'  => 'application/json',
+                ])->post($otpiqUrl, [
+                    'phone'   => $phone,
+                    'code'    => (string)$code,
+                    'message' => $message,
+                ]);
+
+                if ($response->successful()) {
+                    Log::info("OTPIQ OTP successfully delivered to {$phone}");
+                    return true;
+                } else {
+                    Log::error("OTPIQ API error response for {$phone}: " . $response->body());
+                }
+            } catch (\Exception $e) {
+                Log::error("OTPIQ API exception for {$phone}: " . $e->getMessage());
+            }
+        }
+
+        // 2. Generic SMS Gateway Fallback if SMS_API_URL & SMS_API_KEY set
         $apiUrl = env('SMS_API_URL');
         $apiKey = env('SMS_API_KEY');
         $sender = env('SMS_SENDER_ID', 'GaloKids');
 
-        if (!$apiUrl || !$apiKey) {
-            Log::warning("SMS_API_URL or SMS_API_KEY not configured in .env file. Code: {$code} for {$phone}");
-            return false;
-        }
+        if ($apiUrl && $apiKey) {
+            try {
+                $response = Http::post($apiUrl, [
+                    'api_key' => $apiKey,
+                    'to'      => $phone,
+                    'from'    => $sender,
+                    'message' => $message,
+                    'code'    => $code,
+                ]);
 
-        try {
-            // Standard HTTP Gateway POST request
-            $response = Http::post($apiUrl, [
-                'api_key' => $apiKey,
-                'to'      => $phone,
-                'from'    => $sender,
-                'message' => $message,
-                'code'    => $code,
-            ]);
-
-            if ($response->successful()) {
-                Log::info("SMS successfully delivered to {$phone}");
-                return true;
-            } else {
-                Log::error("SMS Gateway response error for {$phone}: " . $response->body());
+                return $response->successful();
+            } catch (\Exception $e) {
+                Log::error("SMS Gateway exception for {$phone}: " . $e->getMessage());
             }
-        } catch (\Exception $e) {
-            Log::error("SMS Gateway exception for {$phone}: " . $e->getMessage());
         }
 
         return false;
