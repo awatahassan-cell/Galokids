@@ -13,7 +13,7 @@ import { OtpModal } from '../components/OtpModal';
 import { sendCheckoutOtp } from '../services/otpService';
 
 export const Checkout: React.FC = () => {
-  const { cart, clearCart, addOrder, currentUser, appliedCoupon, setAppliedCoupon, applyCoupon, coupons } = useStore();
+  const { cart, clearCart, addOrder, currentUser, appliedCoupon, setAppliedCoupon, applyCoupon, coupons, registerWithPhone } = useStore();
   const navigate = useNavigate();
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPlacing, setIsPlacing] = useState(false);
@@ -98,9 +98,9 @@ export const Checkout: React.FC = () => {
       if (currentUser.name) setFullName(currentUser.name);
       if (currentUser.phone) {
         setMobileNumber(currentUser.phone);
-        setIsPhoneVerified(true);
         setVerifiedPhone(currentUser.phone);
       }
+      setIsPhoneVerified(true);
 
       if (currentUser.address) {
         const fullAddr = currentUser.address;
@@ -281,9 +281,6 @@ export const Checkout: React.FC = () => {
     }
   }, [appliedCoupon, coupons, setAppliedCoupon]);
 
-  if (!currentUser) {
-    return null;
-  }
 
   const subtotal = cart.reduce((acc, item) => acc + Number(item.product.discountPrice || item.product.price || 0) * item.quantity, 0);
   const discountAmount = appliedCoupon ? (subtotal * (appliedCoupon.discountPercentage / 100)) : 0;
@@ -330,13 +327,16 @@ export const Checkout: React.FC = () => {
     }
   };
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isPlacing) return;
 
-    if (!isPhoneVerified) {
-      alert(t('pleaseVerifyPhoneFirst') || 'Please verify your phone number via OTP first!');
-      setShowOtpModal(true);
+    if (!currentUser && !isPhoneVerified) {
+      if (!mobileNumber.trim() || mobileNumber.trim().length < 8) {
+        alert(t('mobileNumber') + ' ' + (language === 'ku' ? 'دروست نییە' : 'is invalid'));
+        return;
+      }
+      handleSendOtp();
       return;
     }
 
@@ -353,11 +353,17 @@ export const Checkout: React.FC = () => {
     const formattedAddress = `${govText} - ${t('district')}: ${distText}${selectedSubdistrict ? ` - ${t('subdistrict')}: ${selectedSubdistrict}` : ''} (${address})`;
 
     setIsPlacing(true);
+
+    let activeUser = currentUser;
+    if (!activeUser && mobile) {
+      activeUser = await registerWithPhone(mobile, name);
+    }
+
     setTimeout(() => {
       addOrder({
-        userId: currentUser?.id || 'u2',
+        userId: activeUser?.id || 'u-guest',
         customerName: name,
-        customerEmail: currentUser?.email || '',
+        customerEmail: activeUser?.email || `${mobile.replace(/[^\d]/g, '')}@phone.user`,
         customerPhone: mobile,
         items: [...cart],
         totalAmount: totalAmount,
@@ -796,12 +802,15 @@ export const Checkout: React.FC = () => {
         channel={otpChannel}
         generatedCode={generatedOtp}
         directUrl={directOtpUrl}
-        onVerifySuccess={() => {
+        onVerifySuccess={async () => {
           setIsPhoneVerified(true);
           setVerifiedPhone(mobileNumber);
           setShowOtpModal(false);
           setOtpError('');
           setNotificationBanner(null);
+          if (!currentUser && mobileNumber) {
+            await registerWithPhone(mobileNumber, fullName || 'Customer');
+          }
         }}
         onResendOtp={(newChan) => handleSendOtp(newChan)}
       />

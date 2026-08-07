@@ -144,8 +144,8 @@ export const Products: React.FC = () => {
 
   return (
     <div className="flex-grow max-w-7xl mx-auto w-full">
-      <div className="px-4 sm:px-6 lg:px-8 mt-12 mb-8 flex items-center justify-between">
-        <h2 className={`text-3xl font-extrabold text-slate-900 tracking-tight ${isRTL ? 'font-arabic' : 'font-display'}`}>
+      <div className="px-4 sm:px-6 lg:px-8 mt-8 sm:mt-10 mb-6 flex items-center justify-between">
+        <h2 className={`text-lg sm:text-xl font-bold text-slate-900 tracking-tight ${isRTL ? 'font-arabic' : 'font-display'}`}>
           {searchQuery ? `${t('search')}: "${searchQuery}"` : t('allProducts')}
         </h2>
         <div className="flex items-center gap-3">

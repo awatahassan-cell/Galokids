@@ -11,6 +11,12 @@ function sanitizeApiUrl(urlStr?: string): string {
     clean = clean.slice(0, -1);
   }
 
+  // If an absolute HTTP/HTTPS URL is provided, map it to the proxy route /API/api
+  // because direct browser fetches to external domains fail due to CORS restrictions.
+  if (clean.startsWith('http://') || clean.startsWith('https://')) {
+    return DEFAULT_API_BASE;
+  }
+
   return clean || DEFAULT_API_BASE;
 }
 

@@ -90,47 +90,54 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {isPos ? null : isAdmin ? (
         <header className="sticky top-0 z-30 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] h-16 flex items-center">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between">
-            <Link to="/" className="flex items-center text-xl font-black text-slate-900 tracking-tight gap-3 group relative">
-              <div className="bg-gradient-to-tr from-pink-400 via-amber-300 to-sky-400 text-white p-2 rounded-xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-md border-2 border-white flex items-center justify-center">
-                <Layers className="w-4 h-4" />
-              </div>
-              <span className={`bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 bg-clip-text text-transparent font-black tracking-wide drop-shadow-sm flex items-center gap-1 ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'}`}>
-                Galo Kids <span className="text-sm">🎈</span>
-              </span>
+            <Link to="/" className="flex items-center gap-2 group relative" title={storeSettings?.store_name || "Galo Kids"}>
+              <img 
+                src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
+                alt={storeSettings?.store_name || "Galo Kids"} 
+                className="h-9 w-auto object-contain transition-transform group-hover:scale-105" 
+              />
             </Link>
           </div>
         </header>
       ) : (
         <header className="sticky top-0 z-30 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all duration-300">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+            {/* Left: Mobile Menu & Logo */}
+            <div className="flex items-center gap-3 shrink-0">
               <button 
-                className={`p-2.5 ${language === 'ar' || language === 'ku' ? '-mr-2' : '-ml-2'} text-slate-500 hover:text-rose-500 md:hidden transition-all bg-slate-50 hover:bg-rose-50 rounded-full active:scale-95 border border-slate-100 shadow-sm flex items-center justify-center`}
+                className="p-2.5 text-slate-500 hover:text-rose-500 md:hidden transition-all bg-slate-50 hover:bg-rose-50 rounded-full active:scale-95 border border-slate-100 shadow-sm flex items-center justify-center cursor-pointer"
                 onClick={() => setIsSidebarOpen(true)}
+                aria-label="Open Menu"
               >
                 <Menu className="w-5 h-5 text-rose-500" />
               </button>
-              <Link to="/" className="flex items-center text-2xl font-black text-slate-900 tracking-tight gap-3 group relative" title="Galo Kids">
-                <img src={storeSettings?.store_logo || "/assets/galo-logo.png"} alt={storeSettings?.store_name || "Galo Kids"} className="h-10 w-auto object-contain" />
+              <Link to="/" className="flex items-center group relative shrink-0" title={storeSettings?.store_name || "Galo Kids"}>
+                <img 
+                  src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
+                  alt={storeSettings?.store_name || "Galo Kids"} 
+                  className="h-10 md:h-12 w-auto object-contain transition-transform group-hover:scale-105" 
+                />
               </Link>
             </div>
             
-            <nav className="hidden md:flex items-center space-x-2">
-              <Link to="/" className={`px-5 py-2.5 rounded-full text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/' ? 'bg-rose-100 text-rose-700 shadow-sm border border-rose-200/50' : 'text-slate-500 hover:text-rose-600 hover:bg-rose-50/50'}`}>
+            {/* Center: Desktop Navigation Links */}
+            <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+              <Link to="/" className={`px-4 lg:px-5 py-2.5 rounded-full text-sm lg:text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/' ? 'bg-rose-100 text-rose-700 shadow-sm border border-rose-200/50' : 'text-slate-600 hover:text-rose-600 hover:bg-rose-50/50'}`}>
                 {t('home')}
               </Link>
-              <Link to="/products" className={`px-5 py-2.5 rounded-full text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/products' ? 'bg-sky-100 text-sky-700 shadow-sm border border-sky-200/50' : 'text-slate-500 hover:text-sky-600 hover:bg-sky-50/50'}`}>
+              <Link to="/products" className={`px-4 lg:px-5 py-2.5 rounded-full text-sm lg:text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/products' ? 'bg-sky-100 text-sky-700 shadow-sm border border-sky-200/50' : 'text-slate-600 hover:text-sky-600 hover:bg-sky-50/50'}`}>
                 {t('products')}
               </Link>
-              <Link to="/about" className={`px-5 py-2.5 rounded-full text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/about' ? 'bg-emerald-100 text-emerald-700 shadow-sm border border-emerald-200/50' : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
+              <Link to="/about" className={`px-4 lg:px-5 py-2.5 rounded-full text-sm lg:text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/about' ? 'bg-emerald-100 text-emerald-700 shadow-sm border border-emerald-200/50' : 'text-slate-600 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
                 {t('about')}
               </Link>
-              <Link to="/contact" className={`px-5 py-2.5 rounded-full text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/contact' ? 'bg-amber-100 text-amber-700 shadow-sm border border-amber-200/50' : 'text-slate-500 hover:text-amber-600 hover:bg-amber-50/50'}`}>
+              <Link to="/contact" className={`px-4 lg:px-5 py-2.5 rounded-full text-sm lg:text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/contact' ? 'bg-amber-100 text-amber-700 shadow-sm border border-amber-200/50' : 'text-slate-600 hover:text-amber-600 hover:bg-amber-50/50'}`}>
                 {t('contact')}
               </Link>
             </nav>
 
-            <div className="flex items-center space-x-1 sm:space-x-2">
+            {/* Right: Actions (Search, Language, Wishlist, Cart, Profile) */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <SearchBar 
                 isMobileModalOpen={isMobileSearchOpen} 
                 onCloseMobileModal={() => setIsMobileSearchOpen(false)} 
@@ -144,7 +151,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </Link>
               <button 
                 onClick={() => setIsCartOpen(true)}
-                className="p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all relative group active:scale-95 border border-transparent hover:border-indigo-100"
+                className="p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all relative group active:scale-95 border border-transparent hover:border-indigo-100 cursor-pointer"
+                aria-label="Shopping Cart"
               >
                 <ShoppingBag className="w-6 h-6 group-hover:scale-120 group-hover:-rotate-6 transition-all" />
                 {cartItemsCount > 0 && (
@@ -155,13 +163,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </button>
               
               {currentUser ? (
-                <div className="flex items-center gap-2 ml-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   {isStaffOrAdmin && (
                     <>
-                      <Link to="/pos" className="hidden sm:inline-flex items-center justify-center px-4 py-2 border-2 border-orange-100 rounded-full text-xs font-black text-orange-700 bg-orange-50 hover:bg-orange-100 hover:scale-105 transition-all shadow-sm">
-                        <MonitorSmartphone className="w-4 h-4 mr-1.5 text-orange-500 animate-pulse" /> {t('pos')}
+                      <Link to="/pos" className="hidden sm:inline-flex items-center justify-center px-3.5 py-2 border-2 border-orange-100 rounded-full text-xs font-black text-orange-700 bg-orange-50 hover:bg-orange-100 hover:scale-105 transition-all shadow-sm">
+                        <MonitorSmartphone className="w-4 h-4 mr-1 text-orange-500 animate-pulse" /> {t('pos')}
                       </Link>
-                      <Link to="/admin" className="hidden sm:inline-flex items-center justify-center px-4 py-2 border-2 border-rose-100 rounded-full text-xs font-black text-rose-700 bg-rose-50 hover:bg-rose-100 hover:scale-105 transition-all shadow-sm">
+                      <Link to="/admin" className="hidden sm:inline-flex items-center justify-center px-3.5 py-2 border-2 border-rose-100 rounded-full text-xs font-black text-rose-700 bg-rose-50 hover:bg-rose-100 hover:scale-105 transition-all shadow-sm">
                         🌟 {t('admin')}
                       </Link>
                     </>
@@ -174,15 +182,15 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   </Link>
                   <button 
                     onClick={logout}
-                    className="hidden sm:inline-flex items-center justify-center p-2.5 border-2 border-red-100 rounded-full text-red-500 bg-red-50 hover:bg-red-100 hover:scale-110 transition-all shadow-sm"
+                    className="hidden sm:inline-flex items-center justify-center p-2.5 border-2 border-red-100 rounded-full text-red-500 bg-red-50 hover:bg-red-100 hover:scale-110 transition-all shadow-sm cursor-pointer"
                     title={t('logout')}
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
-                <Link to="/login" className="hidden sm:inline-flex items-center justify-center px-4 py-2 border-2 border-emerald-100 rounded-full text-xs font-black text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:scale-105 transition-all shadow-sm ml-2">
-                  <UserCircle className="w-4 h-4 mr-1.5 text-emerald-500" /> {t('signIn')}
+                <Link to="/login" className="hidden sm:inline-flex items-center justify-center px-4 py-2 border-2 border-emerald-100 rounded-full text-xs font-black text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:scale-105 transition-all shadow-sm">
+                  <UserCircle className="w-4 h-4 mr-1 text-emerald-500" /> {t('signIn')}
                 </Link>
               )}
             </div>
@@ -255,7 +263,7 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/" element={<PageTransition key={location.pathname}><Home /></PageTransition>} />
         <Route path="/products" element={<PageTransition key={location.pathname}><Products /></PageTransition>} />
         <Route path="/product/:id" element={<PageTransition key={location.pathname}><ProductDetail /></PageTransition>} />
-        <Route path="/checkout" element={<UserProtectedRoute><PageTransition key={location.pathname}><Checkout /></PageTransition></UserProtectedRoute>} />
+        <Route path="/checkout" element={<PageTransition key={location.pathname}><Checkout /></PageTransition>} />
         <Route path="/wishlist" element={<PageTransition key={location.pathname}><Wishlist /></PageTransition>} />
         <Route path="/about" element={<PageTransition key={location.pathname}><About /></PageTransition>} />
         <Route path="/contact" element={<PageTransition key={location.pathname}><Contact /></PageTransition>} />

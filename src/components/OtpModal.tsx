@@ -261,31 +261,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
                 }.`}
           </p>
 
-          {/* Direct Action Button (WhatsApp / SMS) */}
-          <div className="mb-4">
-            <a
-              href={activeDirectUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`w-full py-3 px-4 rounded-2xl text-xs font-bold flex items-center justify-center gap-2.5 transition-all shadow-sm font-arabic ${
-                activeChannel === 'whatsapp'
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  : 'bg-sky-600 hover:bg-sky-700 text-white'
-              }`}
-            >
-              {activeChannel === 'whatsapp' ? (
-                <>
-                  <MessageSquare className="w-4 h-4" />
-                  <span>{language === 'ku' ? 'کردنەوەی وەتسئەپ بۆ بینینی کۆد' : language === 'ar' ? 'فتح واتساب لعرض الرمز' : 'Open WhatsApp to view code'}</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span>{language === 'ku' ? 'کردنەوەی پەیامەکان (SMS)' : language === 'ar' ? 'فتح تطبيق الرسائل' : 'Open SMS app'}</span>
-                </>
-              )}
-            </a>
-          </div>
+
 
           {/* 6-Box PIN Code Input */}
           <form onSubmit={handleSubmit} className="space-y-4">

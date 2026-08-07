@@ -78,6 +78,8 @@ interface StoreContextType {
   updateUser: (user: User) => void;
   addUser: (userData: any) => void;
   login: (email: string, password?: string) => Promise<boolean>;
+  loginWithPhone: (phone: string, name?: string) => Promise<User | null>;
+  registerWithPhone: (phone: string, name: string) => Promise<User | null>;
   logout: () => void;
   register: (name: string, email: string, password?: string) => Promise<boolean>;
   updateProfile: (name: string, email: string, phone?: string, address?: string, password?: string, passwordConfirmation?: string) => Promise<{ success: boolean; message: string }>;
@@ -1595,6 +1597,82 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
+  const registerWithPhone = async (phone: string, name: string): Promise<User | null> => {
+    const cleanPhone = phone.trim();
+    if (!cleanPhone) return null;
+
+    // Check if user with this phone or email already exists
+    const existing = users.find(u => u.phone === cleanPhone || (u.phone && u.phone.replace(/[^\d]/g, '') === cleanPhone.replace(/[^\d]/g, '')) || u.email === `${cleanPhone.replace(/[^\d]/g, '')}@phone.user`);
+    if (existing) {
+      const updatedUser = { ...existing, name: name?.trim() || existing.name || `موشتەری (${cleanPhone.slice(-4)})` };
+      setCurrentUser(updatedUser);
+      localStorage.setItem('kidskart_user', JSON.stringify(updatedUser));
+      return updatedUser;
+    }
+
+    const newUser: User = {
+      id: `u-${Date.now()}`,
+      name: name?.trim() || `موشتەری (${cleanPhone.slice(-4)})`,
+      phone: cleanPhone,
+      email: `${cleanPhone.replace(/[^\d]/g, '')}@phone.user`,
+      role: 1,
+      joinDate: new Date().toISOString().split('T')[0]
+    };
+
+    try {
+      const res = await fetch(`${LARAVEL_API_BASE}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(convertKeysToSnakeCase({
+          name: newUser.name,
+          email: newUser.email,
+          phone: cleanPhone,
+          password: 'password123',
+          passwordConfirmation: 'password123'
+        }))
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const camelData = convertKeysToCamelCase(data);
+        if (camelData.accessToken) {
+          localStorage.setItem('kidskart_auth_token', camelData.accessToken);
+        }
+        if (camelData.user) {
+          const apiUser = { ...camelData.user, phone: cleanPhone, name: newUser.name };
+          localStorage.setItem('kidskart_user', JSON.stringify(apiUser));
+          setCurrentUser(apiUser);
+          setUsers(prev => [...prev, apiUser]);
+          return apiUser;
+        }
+      }
+    } catch (e) {
+      console.warn('Backend registerWithPhone note:', e);
+    }
+
+    setUsers(prev => {
+      const updated = [...prev, newUser];
+      localStorage.setItem('kidskart_users_local', JSON.stringify(updated));
+      return updated;
+    });
+    setCurrentUser(newUser);
+    localStorage.setItem('kidskart_user', JSON.stringify(newUser));
+    return newUser;
+  };
+
+  const loginWithPhone = async (phone: string, name?: string): Promise<User | null> => {
+    const cleanPhone = phone.trim();
+    if (!cleanPhone) return null;
+
+    const existing = users.find(u => u.phone === cleanPhone || (u.phone && u.phone.replace(/[^\d]/g, '') === cleanPhone.replace(/[^\d]/g, '')) || u.email === `${cleanPhone.replace(/[^\d]/g, '')}@phone.user`);
+    if (existing) {
+      setCurrentUser(existing);
+      localStorage.setItem('kidskart_user', JSON.stringify(existing));
+      return existing;
+    }
+
+    return registerWithPhone(cleanPhone, name || '');
+  };
+
   const updateProfile = async (
     name: string,
     email: string,
@@ -1675,7 +1753,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       updateCartItemQuantity, clearCart, toggleWishlist, addReview, updateOrderStatus, addExpense, addOrder,
       deleteProduct, deleteCategory, deleteExpense, deleteUser, deleteOrder, addUser,
       updateProduct, updateCategory, updateExpense, updateUser,
-      login, logout, register, updateProfile,
+      login, loginWithPhone, registerWithPhone, logout, register, updateProfile,
       reviews, reviewsPagination, refreshReviews,
       coupons, appliedCoupon, setAppliedCoupon, addCoupon, updateCoupon, deleteCoupon, applyCoupon, fetchSalesReport, fetchCashierReport,
       fetchBestSellers, recordRecentlyViewed, getRecentlyViewedIds, trackOrder, lookupCustomer,

@@ -106,66 +106,81 @@ export const Home: React.FC = () => {
         <CountdownBanner />
         <Hero />
 
-        {/* Shop by category chips */}
+        {/* Shop by category cards */}
         {categories.length > 0 && (
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="px-4 sm:px-6 lg:px-8 mt-12"
+            className="px-4 sm:px-6 lg:px-8 mt-8 sm:mt-12"
           >
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className={`text-xl sm:text-2xl font-black tracking-tight text-slate-900 ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-display'}`}>
+                {language === 'ku' ? 'پۆلەکان' : language === 'ar' ? 'الأقسام' : 'Categories'}
+              </h2>
+              <Link 
+                to="/products" 
+                className={`text-xs sm:text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors ${language === 'ar' || language === 'ku' ? 'font-arabic' : ''}`}
+              >
+                {t('shopAll')} &rarr;
+              </Link>
+            </div>
+
+            <div className="flex gap-3 sm:gap-5 overflow-x-auto scrollbar-hide pb-4 pt-1 snap-x snap-mandatory">
               {categories.map((c, idx) => {
-                const kidColors = [
+                const kidPalettes = [
                   {
-                    bg: 'bg-rose-50/70 hover:bg-rose-100/80 border-rose-100/60',
-                    iconBg: 'bg-rose-100 text-rose-500',
-                    text: 'text-rose-700',
+                    cardBg: 'bg-[#FFFBEB] hover:bg-[#FEF3C7]',
+                    badgeBg: 'bg-[#FEF08A]/70 text-[#D97706]',
+                    textColor: 'text-[#B45309]',
                   },
                   {
-                    bg: 'bg-sky-50/70 hover:bg-sky-100/80 border-sky-100/60',
-                    iconBg: 'bg-sky-100 text-sky-500',
-                    text: 'text-sky-700',
+                    cardBg: 'bg-[#F0F9FF] hover:bg-[#E0F2FE]',
+                    badgeBg: 'bg-[#BAE6FD]/70 text-[#0284C7]',
+                    textColor: 'text-[#0369A1]',
                   },
                   {
-                    bg: 'bg-amber-50/70 hover:bg-amber-100/80 border-amber-100/60',
-                    iconBg: 'bg-amber-100 text-amber-500',
-                    text: 'text-amber-700',
+                    cardBg: 'bg-[#FFF1F2] hover:bg-[#FFE4E6]',
+                    badgeBg: 'bg-[#FECDD3]/70 text-[#E11D48]',
+                    textColor: 'text-[#BE123C]',
                   },
                   {
-                    bg: 'bg-emerald-50/70 hover:bg-emerald-100/80 border-emerald-100/60',
-                    iconBg: 'bg-emerald-100 text-emerald-500',
-                    text: 'text-emerald-700',
+                    cardBg: 'bg-[#F0FDF4] hover:bg-[#DCFCE7]',
+                    badgeBg: 'bg-[#BBF7D0]/70 text-[#16A34A]',
+                    textColor: 'text-[#15803D]',
                   },
                   {
-                    bg: 'bg-purple-50/70 hover:bg-purple-100/80 border-purple-100/60',
-                    iconBg: 'bg-purple-100 text-purple-500',
-                    text: 'text-purple-700',
+                    cardBg: 'bg-[#FAF5FF] hover:bg-[#F3E8FF]',
+                    badgeBg: 'bg-[#E9D5FF]/70 text-[#9333EA]',
+                    textColor: 'text-[#7E22CE]',
                   },
                   {
-                    bg: 'bg-orange-50/70 hover:bg-orange-100/80 border-orange-100/60',
-                    iconBg: 'bg-orange-100 text-orange-500',
-                    text: 'text-orange-700',
+                    cardBg: 'bg-[#FFF7ED] hover:bg-[#FFEDD5]',
+                    badgeBg: 'bg-[#FED7AA]/70 text-[#EA580C]',
+                    textColor: 'text-[#C2410C]',
                   },
                 ];
-                const color = kidColors[idx % kidColors.length];
+                const palette = kidPalettes[idx % kidPalettes.length];
                 return (
                   <motion.div
                     key={c.id}
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.2, delay: idx * 0.03 }}
+                    whileHover={{ scale: 1.04, y: -4 }}
+                    whileTap={{ scale: 0.96 }}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.25, delay: idx * 0.04 }}
+                    className="snap-start"
                   >
                     <Link
                       to={`/products?category=${encodeURIComponent(c.slug || c.name)}`}
-                      className={`flex flex-col items-center gap-2.5 min-w-[94px] p-3.5 rounded-2xl border transition-all shadow-xs hover:shadow-sm ${color.bg}`}
+                      className={`flex flex-col items-center justify-center w-[125px] sm:w-[150px] md:w-[165px] h-[145px] sm:h-[170px] p-4 sm:p-5 rounded-[26px] sm:rounded-[32px] transition-all shadow-xs hover:shadow-md cursor-pointer ${palette.cardBg}`}
                     >
-                      <span className={`w-12 h-12 rounded-full flex items-center justify-center ${color.iconBg}`}>
-                        <CategoryIcon name={c.icon} />
+                      <div className={`w-14 h-14 sm:w-18 sm:h-18 rounded-full flex items-center justify-center transition-transform hover:rotate-6 ${palette.badgeBg}`}>
+                        <CategoryIcon name={c.icon || c.name} className="w-7 h-7 sm:w-9 sm:h-9" />
+                      </div>
+                      <span className={`mt-3 text-sm sm:text-base font-extrabold whitespace-nowrap text-center font-arabic ${palette.textColor}`}>
+                        {getCategoryName(c)}
                       </span>
-                      <span className={`text-xs font-black whitespace-nowrap ${color.text}`}>{getCategoryName(c)}</span>
                     </Link>
                   </motion.div>
                 );
