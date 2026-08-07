@@ -211,14 +211,18 @@ export const Checkout: React.FC = () => {
   }, [resendTimer]);
 
   // Send OTP
-  const handleSendOtp = async (channelOverride?: 'whatsapp' | 'sms') => {
+  const handleSendOtp = async (channelOverride?: any) => {
     if (!mobileNumber.trim() || mobileNumber.trim().length < 8) {
       alert(t('mobileNumber') + ' ' + (language === 'ku' ? 'دروست نییە' : 'is invalid'));
       return;
     }
 
-    const activeChannel = channelOverride || otpChannel;
-    if (channelOverride) setOtpChannel(channelOverride);
+    const activeChannel: 'whatsapp' | 'sms' =
+      typeof channelOverride === 'string' && (channelOverride === 'whatsapp' || channelOverride === 'sms')
+        ? channelOverride
+        : otpChannel;
+
+    if (typeof channelOverride === 'string') setOtpChannel(activeChannel);
 
     setIsSendingOtp(true);
     setOtpError('');

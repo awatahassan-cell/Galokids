@@ -9,7 +9,8 @@ export interface OtpResponse {
 
 // Format Iraqi phone numbers to standard format (e.g. 07501234567 -> 9647501234567)
 export const formatIraqiPhone = (phone: string): string => {
-  let clean = phone.replace(/[^\d]/g, '');
+  const safePhone = typeof phone === 'string' ? phone : String(phone || '');
+  let clean = safePhone.replace(/[^\d]/g, '');
   if (clean.startsWith('0')) {
     clean = clean.substring(1);
   }
@@ -30,7 +31,11 @@ export const sendCheckoutOtp = async (
   channel: 'whatsapp' | 'sms' = 'sms',
   language: string = 'ku'
 ): Promise<OtpResponse> => {
-  const formattedPhone = formatIraqiPhone(rawPhone);
+  const safeRawPhone = typeof rawPhone === 'string' ? rawPhone : String(rawPhone || '');
+  const safeChannel: 'whatsapp' | 'sms' = typeof channel === 'string' && channel === 'whatsapp' ? 'whatsapp' : 'sms';
+  const safeLang = typeof language === 'string' ? language : 'ku';
+
+  const formattedPhone = formatIraqiPhone(safeRawPhone);
   const localCode = Math.floor(100000 + Math.random() * 900000).toString();
 
   // Cache fallback code locally
@@ -43,14 +48,14 @@ export const sendCheckoutOtp = async (
     const res = await apiFetch('send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: formattedPhone, channel, raw_phone: rawPhone }),
+      body: JSON.stringify({ phone: formattedPhone, channel: safeChannel, raw_phone: safeRawPhone }),
     });
 
     if (res.ok) {
       const data = await res.json();
       return {
         success: true,
-        message: data.message || (language === 'ku' ? 'کۆدەکە بۆ مۆبایلەکەت نێردرا' : 'OTP sent to your phone'),
+        message: data.message || (safeLang === 'ku' ? 'کۆدەکە بۆ مۆبایلەکەت نێردرا' : 'OTP sent to your phone'),
       };
     }
   } catch (err) {
@@ -59,14 +64,14 @@ export const sendCheckoutOtp = async (
 
   // Direct channel link fallback if Laravel API is not reachable
   const messageText =
-    language === 'ku'
+    safeLang === 'ku'
       ? `کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ ${localCode} ]`
-      : language === 'ar'
+      : safeLang === 'ar'
       ? `رمز التحقق الخاص بك لطلبك هو: [ ${localCode} ]`
       : `Your order verification code is: [ ${localCode} ]`;
 
   let directUrl = '';
-  if (channel === 'whatsapp') {
+  if (safeChannel === 'whatsapp') {
     directUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(messageText)}`;
   } else {
     directUrl = `sms:${formattedPhone}?body=${encodeURIComponent(messageText)}`;
@@ -76,7 +81,7 @@ export const sendCheckoutOtp = async (
     success: true,
     code: localCode,
     directUrl,
-    message: language === 'ku' ? 'کۆدەکە ئامادەکرا' : 'OTP Code sent',
+    message: safeLang === 'ku' ? 'کۆدەکە ئامادەکرا' : 'OTP Code sent',
   };
 };
 
@@ -87,8 +92,11 @@ export const verifyCheckoutOtp = async (
   rawPhone: string,
   submittedCode: string
 ): Promise<{ success: boolean; message?: string }> => {
-  const formattedPhone = formatIraqiPhone(rawPhone);
-  const cleanCode = submittedCode.trim();
+  const safeRawPhone = typeof rawPhone === 'string' ? rawPhone : String(rawPhone || '');
+  const safeSubmittedCode = typeof submittedCode === 'string' ? submittedCode : String(submittedCode || '');
+
+  const formattedPhone = formatIraqiPhone(safeRawPhone);
+  const cleanCode = safeSubmittedCode.trim();
 
   // Universal testing bypass code for developer convenience
   if (cleanCode === '123456') {
@@ -99,7 +107,7 @@ export const verifyCheckoutOtp = async (
     const res = await apiFetch('verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: formattedPhone, code: cleanCode, raw_phone: rawPhone }),
+      body: JSON.stringify({ phone: formattedPhone, code: cleanCode, raw_phone: safeRawPhone }),
     });
 
     if (res.ok) {
