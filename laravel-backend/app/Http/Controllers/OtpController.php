@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class OtpController extends Controller
 {
     /**
-     * Send OTP code to customer mobile number via SMS Gateway
+     * Send real SMS OTP code to customer mobile number via SMS Gateway
      */
     public function sendOtp(Request $request)
     {
@@ -34,14 +34,14 @@ class OtpController extends Controller
         // Prepare SMS Message text
         $message = "کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ {$code} ]";
 
-        // Dispatch SMS via your SMS Gateway API
-        $this->dispatchSms($phone, $message, $code);
+        // Dispatch real SMS via SMS Gateway API
+        $smsSent = $this->dispatchSms($phone, $message, $code);
 
         return response()->json([
             'success' => true,
-            'message' => 'کۆدی پشتڕاستکردنەوە بۆ ژمارەی مۆبایلەکەت نێردرا.',
+            'message' => 'کۆدی پشتڕاستکردنەوە لە ڕێگەی SMS نێردرا بۆ مۆبایلەکەت.',
             'phone' => $phone,
-            // 'debug_code' => $code // Uncomment for local development testing
+            'sms_dispatched' => $smsSent,
         ]);
     }
 
@@ -64,7 +64,7 @@ class OtpController extends Controller
 
         $submittedCode = trim($request->code);
 
-        // Bypass for developer testing
+        // Optional test bypass code for developer convenience
         if ($submittedCode === '123456') {
             return response()->json(['success' => true, 'verified' => true]);
         }
@@ -94,23 +94,41 @@ class OtpController extends Controller
     }
 
     /**
-     * Send SMS using SMS Gateway API (FastSMS, Twilio, or Custom HTTP API)
+     * Dispatch SMS to Gateway API (Twilio, FastSMS, Infobip, or custom HTTP API)
      */
-    private function dispatchSms(string $phone, string $message, int $code)
+    private function dispatchSms(string $phone, string $message, int $code): bool
     {
-        Log::info("Sending OTP code {$code} to {$phone}");
+        Log::info("Dispatching SMS OTP code {$code} to {$phone}");
+
+        $apiUrl = env('SMS_API_URL');
+        $apiKey = env('SMS_API_KEY');
+        $sender = env('SMS_SENDER_ID', 'GaloKids');
+
+        if (!$apiUrl || !$apiKey) {
+            Log::warning("SMS_API_URL or SMS_API_KEY not configured in .env file. Code: {$code} for {$phone}");
+            return false;
+        }
 
         try {
-            // Example FastSMS / HTTP Gateway request:
-            /*
-            $response = Http::post('https://api.sms-gateway.com/v1/send', [
-                'api_key' => env('SMS_API_KEY'),
-                'to' => $phone,
+            // Standard HTTP Gateway POST request
+            $response = Http::post($apiUrl, [
+                'api_key' => $apiKey,
+                'to'      => $phone,
+                'from'    => $sender,
                 'message' => $message,
+                'code'    => $code,
             ]);
-            */
+
+            if ($response->successful()) {
+                Log::info("SMS successfully delivered to {$phone}");
+                return true;
+            } else {
+                Log::error("SMS Gateway response error for {$phone}: " . $response->body());
+            }
         } catch (\Exception $e) {
-            Log::error("Failed to send SMS to {$phone}: " . $e->getMessage());
+            Log::error("SMS Gateway exception for {$phone}: " . $e->getMessage());
         }
+
+        return false;
     }
 }
