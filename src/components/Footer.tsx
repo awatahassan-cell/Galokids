@@ -140,13 +140,13 @@ export const Footer: React.FC = () => {
                 <Layers className="w-6 h-6" />
               </div>
               <span className="font-black text-2xl text-slate-900 tracking-wide">
-                Galo Kids <span className="text-xl">🎈</span>
+                {storeSettings?.store_name || (language === 'ku' ? 'گەلۆ کیدس' : language === 'ar' ? 'غالو كيدز' : 'Galo Kids')} <span className="text-xl">🎈</span>
               </span>
             </Link>
             
             <p className="text-xs text-slate-600 leading-relaxed font-medium max-w-sm md:max-w-none">
               {language === 'ku' 
-                ? 'گەڵۆ کیدس، باشترین و جوانترین پۆشاک و یاری منداڵان بە کواڵیتی بەرز و دڵنیا. بە خۆشەویستییەوە هەمیشە لە خزمەتی منداڵە نازدارەکانتانداین.'
+                ? 'گەلۆ کیدس، باشترین و جوانترین پۆشاک و یاری منداڵان بە کواڵیتی بەرز و دڵنیا. بە خۆشەویستییەوە هەمیشە لە خزمەتی منداڵە نازدارەکانتانداین.'
                 : language === 'ar'
                 ? 'غالو كيدز، أحدث وأجمل ملابس وألعاب الأطفال بجودة عالية. نسعى دائماً لتقديم الأفضل لأطفالكم الأحبة.'
                 : 'Galo Kids offers premium clothing and toys for little explorers. Curated with love, designed for everyday play and memorable moments.'
@@ -364,16 +364,16 @@ export const Footer: React.FC = () => {
         {/* Bottom Bar: Copyright & Terms */}
         <div className="mt-6 pt-6 border-t border-slate-200/60 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs font-semibold text-slate-500 text-center">
           <p className="text-center sm:text-left">
-            © {new Date().getFullYear()} <span className="text-slate-900 font-extrabold">Galo Kids</span>. {language === 'ku' ? 'هەموو مافەکانی پارێزراوە.' : language === 'ar' ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}
+            © {new Date().getFullYear()} <span className="text-slate-900 font-extrabold">{storeSettings?.store_name || (language === 'ku' ? 'گەلۆ کیدس' : language === 'ar' ? 'غالو كيدز' : 'Galo Kids')}</span>. {language === 'ku' ? 'هەموو مافەکانی پارێزراوە.' : language === 'ar' ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}
           </p>
 
           <div className="flex items-center justify-center gap-4">
             <Link to="/faq" className="hover:text-rose-600 transition-colors">
-              {language === 'ku' ? 'مەرجەکان' : language === 'ar' ? 'الشروط' : 'Terms'}
+              {language === 'ku' ? 'مەرج و یاساکان' : language === 'ar' ? 'الشروط والأحكام' : 'Terms & Conditions'}
             </Link>
             <span className="text-slate-300">•</span>
             <Link to="/shipping-returns" className="hover:text-rose-600 transition-colors">
-              {language === 'ku' ? 'تایبەتمەندی' : language === 'ar' ? 'الخصوصية' : 'Privacy'}
+              {language === 'ku' ? 'سیاسەتی تایبەتمەندی' : language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
             </Link>
           </div>
         </div>

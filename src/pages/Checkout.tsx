@@ -471,7 +471,7 @@ export const Checkout: React.FC = () => {
                         </div>
                         <p className="text-xs text-slate-300 truncate mt-1">
                           {currentUser.phone && <span className="mr-3 dir-ltr font-mono font-bold text-slate-200">{currentUser.phone}</span>}
-                          {currentUser.email && <span className="text-slate-400">{currentUser.email}</span>}
+                          {currentUser.email && !currentUser.email.includes('@phone.user') && <span className="text-slate-400">{currentUser.email}</span>}
                         </p>
                       </div>
                     </div>

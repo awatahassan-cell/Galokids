@@ -368,5 +368,327 @@
         "subdistrictsKu": ["سەفوان", "ئوم قەسر"]
       }
     ]
+  },
+  {
+    "id": "anbar",
+    "governorate": "Anbar",
+    "governorateAr": "الأنبار",
+    "governorateKu": "ئەنبار",
+    "districts": [
+      {
+        "id": "ramadi",
+        "name": "Ramadi Central",
+        "nameAr": "مركز الرمادي",
+        "nameKu": "سەنتەری ڕەمادی",
+        "subdistricts": ["Ramadi", "Habbaniya", "Khalidiya"],
+        "subdistrictsAr": ["الرمادي", "الحبانية", "الخالدية"],
+        "subdistrictsKu": ["ڕەمادی", "حەبانییە", "خالیدییە"]
+      },
+      {
+        "id": "fallujah",
+        "name": "Fallujah",
+        "nameAr": "الفلوجة",
+        "nameKu": "فەللووجە",
+        "subdistricts": ["Fallujah", "Garrma", "Amiriyat Al-Fallujah"],
+        "subdistrictsAr": ["الفلوجة", "الكرمة", "عامرية الفلوجة"],
+        "subdistrictsKu": ["فەللووجە", "گەرمە", "عامرییەی فەللووجە"]
+      },
+      {
+        "id": "hit",
+        "name": "Hit",
+        "nameAr": "هيت",
+        "nameKu": "هێت",
+        "subdistricts": ["Hit", "Kubaisa", "Baghdadi"],
+        "subdistrictsAr": ["هيت", "كبيسة", "البغدادي"],
+        "subdistrictsKu": ["هێت", "کوبەیسە", "بەغدادی"]
+      }
+    ]
+  },
+  {
+    "id": "babil",
+    "governorate": "Babil",
+    "governorateAr": "بابل",
+    "governorateKu": "بابل",
+    "districts": [
+      {
+        "id": "hilla",
+        "name": "Hilla Central",
+        "nameAr": "مركز الحلة",
+        "nameKu": "سەنتەری حللە",
+        "subdistricts": ["Hilla", "Kifl", "Musayab Project"],
+        "subdistrictsAr": ["الحلة", "الكفل", "مشروع المسيب"],
+        "subdistrictsKu": ["حللە", "کفل", "مەشرووعی موسەییب"]
+      },
+      {
+        "id": "musayab",
+        "name": "Musayab",
+        "nameAr": "المسيب",
+        "nameKu": "موسەییب",
+        "subdistricts": ["Musayab Center", "Saddat Al-Hindiya", "Jurf Al-Sakhar"],
+        "subdistrictsAr": ["مركز المسيب", "سدة الهندية", "جرف الصخر"],
+        "subdistrictsKu": ["سەنتەری موسەییب", "سەدەی هیندییە", "جورف ئەلسەخر"]
+      }
+    ]
+  },
+  {
+    "id": "diyala",
+    "governorate": "Diyala",
+    "governorateAr": "ديالى",
+    "governorateKu": "دیالە",
+    "districts": [
+      {
+        "id": "baqubah",
+        "name": "Baqubah Central",
+        "nameAr": "مركز بعقوبة",
+        "nameKu": "سەنتەری بەعقووبە",
+        "subdistricts": ["Baqubah", "Buhriz", "Kanaan"],
+        "subdistrictsAr": ["بعقوبة", "بهرز", "كنعان"],
+        "subdistrictsKu": ["بەعقووبە", "بوهریز", "کەنعان"]
+      },
+      {
+        "id": "khanaqin",
+        "name": "Khanaqin",
+        "nameAr": "خانقين",
+        "nameKu": "خانەقین",
+        "subdistricts": ["Khanaqin Center", "Saadiya", "Jalawla", "Mandali"],
+        "subdistrictsAr": ["مركز خانقين", "السعدية", "جلولاء", "مندلي"],
+        "subdistrictsKu": ["سەنتەری خانەقین", "سەعدییە", "جەلەولا", "مەندەلی"]
+      },
+      {
+        "id": "muqdadiya",
+        "name": "Muqdadiya",
+        "nameAr": "المقدادية",
+        "nameKu": "مەقدادییە",
+        "subdistricts": ["Muqdadiya Center", "Abi Saida"],
+        "subdistrictsAr": ["مركز المقدادية", "أبي صيدا"],
+        "subdistrictsKu": ["سەنتەری مەقدادییە", "ئەبی سەیدا"]
+      }
+    ]
+  },
+  {
+    "id": "dhi_qar",
+    "governorate": "Dhi Qar",
+    "governorateAr": "ذي قار",
+    "governorateKu": "ذی قار",
+    "districts": [
+      {
+        "id": "nasiriyah",
+        "name": "Nasiriyah Central",
+        "nameAr": "مركز الناصرية",
+        "nameKu": "سەنتەری ناسرییە",
+        "subdistricts": ["Nasiriyah", "Batha", "Shatrah"],
+        "subdistrictsAr": ["الناصرية", "البطحاء", "الشترة"],
+        "subdistrictsKu": ["ناسرییە", "بەتحا", "شەترە"]
+      },
+      {
+        "id": "suq_al_shuyukh",
+        "name": "Suq Al-Shuyukh",
+        "nameAr": "سوق الشيوخ",
+        "nameKu": "سووق ئەلشیووخ",
+        "subdistricts": ["Suq Al-Shuyukh Center", "Fadliya"],
+        "subdistrictsAr": ["مركز سوق الشيوخ", "الفضلية"],
+        "subdistrictsKu": ["سەنتەری سووق ئەلشیووخ", "فەزلییە"]
+      }
+    ]
+  },
+  {
+    "id": "karbala",
+    "governorate": "Karbala",
+    "governorateAr": "كربلاء",
+    "governorateKu": "کەربەلا",
+    "districts": [
+      {
+        "id": "karbala_center",
+        "name": "Karbala Central",
+        "nameAr": "مركز كربلاء",
+        "nameKu": "سەنتەری کەربەلا",
+        "subdistricts": ["Karbala City", "Hurr", "Tableya"],
+        "subdistrictsAr": ["مدينة كربلاء", "الثرثار", "الجدول الغربي"],
+        "subdistrictsKu": ["شاری کەربەلا", "حور", "جدوەل ئەلغەربی"]
+      },
+      {
+        "id": "hindiya",
+        "name": "Hindiya",
+        "nameAr": "الهندية",
+        "nameKu": "هیندییە",
+        "subdistricts": ["Hindiya Center", "Kifil"],
+        "subdistrictsAr": ["مركز الهندية", "الكفل"],
+        "subdistrictsKu": ["سەنتەری هیندییە", "کفل"]
+      }
+    ]
+  },
+  {
+    "id": "maysan",
+    "governorate": "Maysan",
+    "governorateAr": "ميسان",
+    "governorateKu": "میسان",
+    "districts": [
+      {
+        "id": "amarah",
+        "name": "Amarah Central",
+        "nameAr": "مركز العمارة",
+        "nameKu": "سەنتەری عەمارە",
+        "subdistricts": ["Amarah", "Kumait", "Ali Al-Gharbi"],
+        "subdistrictsAr": ["العمارة", "كميت", "علي الغربي"],
+        "subdistrictsKu": ["عەمارە", "کومەیت", "عەلی ئەلغەربی"]
+      },
+      {
+        "id": "majar_al_kabir",
+        "name": "Majar Al-Kabir",
+        "nameAr": "المجر الكبير",
+        "nameKu": "مەجەر ئەلکەبیر",
+        "subdistricts": ["Majar Al-Kabir", "Kahla"],
+        "subdistrictsAr": ["المجر الكبير", "الكحلاء"],
+        "subdistrictsKu": ["مەجەر ئەلکەبیر", "کەحلا"]
+      }
+    ]
+  },
+  {
+    "id": "muthanna",
+    "governorate": "Muthanna",
+    "governorateAr": "المثنى",
+    "governorateKu": "موسەننا",
+    "districts": [
+      {
+        "id": "samawah",
+        "name": "Samawah Central",
+        "nameAr": "مركز السماوة",
+        "nameKu": "سەنتەری سەماوە",
+        "subdistricts": ["Samawah", "Warka", "Sawa"],
+        "subdistrictsAr": ["السماوة", "الوركاء", "ساوة"],
+        "subdistrictsKu": ["سەماوە", "وەڕکا", "ساوە"]
+      },
+      {
+        "id": "rumaitha",
+        "name": "Rumaitha",
+        "nameAr": "الرميثة",
+        "nameKu": "ڕومەیسە",
+        "subdistricts": ["Rumaitha Center", "Hilal"],
+        "subdistrictsAr": ["مركز الرميثة", "الهلال"],
+        "subdistrictsKu": ["سەنتەری ڕومەیسە", "هیلال"]
+      }
+    ]
+  },
+  {
+    "id": "najaf",
+    "governorate": "Najaf",
+    "governorateAr": "النجف",
+    "governorateKu": "نەجەف",
+    "districts": [
+      {
+        "id": "najaf_center",
+        "name": "Najaf Central",
+        "nameAr": "مركز النجف",
+        "nameKu": "سەنتەری نەجەف",
+        "subdistricts": ["Old City", "Kufa", "Abbasiya"],
+        "subdistrictsAr": ["المدينة القديمة", "الكوفة", "العباسية"],
+        "subdistrictsKu": ["شاری کۆن", "کووفە", "عەباسییە"]
+      },
+      {
+        "id": "manathera",
+        "name": "Manathera",
+        "nameAr": "المناذرة",
+        "nameKu": "مەنازیرە",
+        "subdistricts": ["Manathera Center", "Hirra"],
+        "subdistrictsAr": ["مركز المناذرة", "الحيرة"],
+        "subdistrictsKu": ["سەنتەری مەنازیرە", "حیرە"]
+      }
+    ]
+  },
+  {
+    "id": "qadisiyyah",
+    "governorate": "Al-Qadisiyyah",
+    "governorateAr": "القادسية",
+    "governorateKu": "قادسییە (دیوانییە)",
+    "districts": [
+      {
+        "id": "diwaniyah",
+        "name": "Diwaniyah Central",
+        "nameAr": "مركز الديوانية",
+        "nameKu": "سەنتەری دیوانییە",
+        "subdistricts": ["Diwaniyah", "Saniya", "Shafiya"],
+        "subdistrictsAr": ["الديوانية", "السنية", "الشافعية"],
+        "subdistrictsKu": ["دیوانییە", "سەنییە", "شافعییە"]
+      },
+      {
+        "id": "afak",
+        "name": "Afak",
+        "nameAr": "عفك",
+        "nameKu": "عەفەک",
+        "subdistricts": ["Afak Center", "Nafar"],
+        "subdistrictsAr": ["مركز عفك", "نفر"],
+        "subdistrictsKu": ["سەنتەری عەفەک", "نەفەر"]
+      }
+    ]
+  },
+  {
+    "id": "saladin",
+    "governorate": "Saladin",
+    "governorateAr": "صلاح الدين",
+    "governorateKu": "سەڵاحەدین",
+    "districts": [
+      {
+        "id": "tikrit",
+        "name": "Tikrit Central",
+        "nameAr": "مركز تكريت",
+        "nameKu": "سەنتەری تکریت",
+        "subdistricts": ["Tikrit", "Al-Alam"],
+        "subdistrictsAr": ["تكريت", "العلم"],
+        "subdistrictsKu": ["تکریت", "عەلەم"]
+      },
+      {
+        "id": "samarra",
+        "name": "Samarra",
+        "nameAr": "سامراء",
+        "nameKu": "سامەڕا",
+        "subdistricts": ["Samarra Center", "Dijla"],
+        "subdistrictsAr": ["مركز سامراء", "دجلة"],
+        "subdistrictsKu": ["سەنتەری سامەڕا", "دیجلە"]
+      },
+      {
+        "id": "balad",
+        "name": "Balad",
+        "nameAr": "بلد",
+        "nameKu": "بەلەد",
+        "subdistricts": ["Balad Center", "Dujail", "Ishaqi"],
+        "subdistrictsAr": ["مركز بلد", "الدجيل", "الإسحاقي"],
+        "subdistrictsKu": ["سەنتەری بەلەد", "دوجەیل", "ئیسحاقی"]
+      },
+      {
+        "id": "tuz_khurmatu",
+        "name": "Tuz Khurmatu",
+        "nameAr": "طوز خورماتو",
+        "nameKu": "تۆزخورماتوو",
+        "subdistricts": ["Tuz Center", "Yengija", "Amerli"],
+        "subdistrictsAr": ["مركز طوز", "ينكجة", "آمرلي"],
+        "subdistrictsKu": ["سەنتەری تۆز", "ینگیجە", "ئامرلی"]
+      }
+    ]
+  },
+  {
+    "id": "wasit",
+    "governorate": "Wasit",
+    "governorateAr": "واسط",
+    "governorateKu": "واست",
+    "districts": [
+      {
+        "id": "kut",
+        "name": "Kut Central",
+        "nameAr": "مركز الكوت",
+        "nameKu": "سەنتەری کووت",
+        "subdistricts": ["Kut", "Wassit", "Sheikh Saad"],
+        "subdistrictsAr": ["الكوت", "واسط", "الشيخ سعد"],
+        "subdistrictsKu": ["کووت", "واست", "شێخ سەعد"]
+      },
+      {
+        "id": "suwaira",
+        "name": "Suwaira",
+        "nameAr": "الصويرة",
+        "nameKu": "سوێرە",
+        "subdistricts": ["Suwaira Center", "Zubaidiya"],
+        "subdistrictsAr": ["مركز الصويرة", "الزبيدية"],
+        "subdistrictsKu": ["سەنتەری سوێرە", "زوبەیدییە"]
+      }
+    ]
   }
 ]

@@ -40,6 +40,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const { cart, currentUser, logout, storeSettings } = useStore();
   const { t, language, setLanguage } = useLanguage();
+  const isRTL = language === 'ar' || language === 'ku';
+
+  const MobileMenuButton = (
+    <button 
+      className="p-2.5 text-slate-500 hover:text-rose-500 md:hidden transition-all bg-slate-50 hover:bg-rose-50 rounded-full active:scale-95 border border-slate-100 shadow-sm flex items-center justify-center cursor-pointer shrink-0"
+      onClick={() => setIsSidebarOpen(true)}
+      aria-label="Open Menu"
+    >
+      <Menu className="w-5 h-5 text-rose-500" />
+    </button>
+  );
 
   useEffect(() => {
     document.documentElement.dir = language === 'ar' || language === 'ku' ? 'rtl' : 'ltr';
@@ -86,7 +97,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAdminOrPos = isAdmin || isPos;
 
   return (
-    <div className={`min-h-screen bg-[#fcf9f5] flex flex-col ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'} selection:bg-rose-200 selection:text-rose-900`}>
+    <div className={`min-h-screen bg-white flex flex-col ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'} selection:bg-rose-200 selection:text-rose-900`}>
       {isPos ? null : isAdmin ? (
         <header className="sticky top-0 z-30 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] h-16 flex items-center">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between">
@@ -104,13 +115,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
             {/* Left: Mobile Menu & Logo */}
             <div className="flex items-center gap-3 shrink-0">
-              <button 
-                className="p-2.5 text-slate-500 hover:text-rose-500 md:hidden transition-all bg-slate-50 hover:bg-rose-50 rounded-full active:scale-95 border border-slate-100 shadow-sm flex items-center justify-center cursor-pointer"
-                onClick={() => setIsSidebarOpen(true)}
-                aria-label="Open Menu"
-              >
-                <Menu className="w-5 h-5 text-rose-500" />
-              </button>
+              {!isRTL && MobileMenuButton}
               <Link to="/" className="flex items-center group relative shrink-0" title={storeSettings?.store_name || "Galo Kids"}>
                 <img 
                   src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
@@ -193,6 +198,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <UserCircle className="w-4 h-4 mr-1 text-emerald-500" /> {t('signIn')}
                 </Link>
               )}
+              {isRTL && MobileMenuButton}
             </div>
           </div>
         </header>

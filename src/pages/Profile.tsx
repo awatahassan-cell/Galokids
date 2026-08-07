@@ -33,7 +33,7 @@ const pTranslations = {
     customer: 'Registered Customer',
     fullName: 'Full Name',
     fullNamePlaceholder: 'Enter your full name',
-    emailAddress: 'Email Address',
+    emailAddress: 'Email Address (Optional)',
     emailPlaceholder: 'Enter your email address',
     passwordsDoNotMatch: 'Passwords do not match.',
     passwordTooShort: 'Password must be at least 8 characters long.',
@@ -68,7 +68,7 @@ const pTranslations = {
     customer: 'کڕیاری تۆمارکراو',
     fullName: 'ناوی تەواو',
     fullNamePlaceholder: 'ناوی تەواوت بنووسە',
-    emailAddress: 'ناونیشانی ئیمەیڵ',
+    emailAddress: 'ناونیشانی ئیمەیڵ (ئارەزوومەندانە)',
     emailPlaceholder: 'ئیمەیڵەکەت بنووسە',
     passwordsDoNotMatch: 'وشە تێپەڕەکان وەک یەک نین.',
     passwordTooShort: 'پێویستە وشەی تێپەڕ لانی کەم ٨ پیت یان ژمارە بێت.',
@@ -103,7 +103,7 @@ const pTranslations = {
     customer: 'عميل مسجل',
     fullName: 'الاسم الكامل',
     fullNamePlaceholder: 'أدخل اسمك الكامل',
-    emailAddress: 'البريد الإلكتروني',
+    emailAddress: 'البريد الإلكتروني (اختياري)',
     emailPlaceholder: 'أدخل بريدك الإلكتروني',
     passwordsDoNotMatch: 'كلمات المرور غير متطابقة.',
     passwordTooShort: 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.',
@@ -123,7 +123,7 @@ export const Profile: React.FC = () => {
 
   // Form State
   const [name, setName] = useState(currentUser?.name || '');
-  const [email, setEmail] = useState(currentUser?.email || '');
+  const [email, setEmail] = useState((currentUser?.email && !currentUser.email.includes('@phone.user')) ? currentUser.email : '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
   
   // Location States
@@ -181,7 +181,7 @@ export const Profile: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       setName(currentUser.name || '');
-      setEmail(currentUser.email || '');
+      setEmail((currentUser.email && !currentUser.email.includes('@phone.user')) ? currentUser.email : '');
       setPhone(currentUser.phone || '');
 
       if (currentUser.address) {
@@ -263,9 +263,7 @@ export const Profile: React.FC = () => {
       errors.name = localT.requiredField;
     }
 
-    if (!email.trim()) {
-      errors.email = localT.requiredField;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errors.email = localT.invalidEmail;
     }
 
@@ -310,9 +308,11 @@ export const Profile: React.FC = () => {
         fullAddress = `${govText}${distText ? ` - ${localT.district}: ${distText}` : ''}${selectedSubdistrict ? ` - ${localT.subdistrict}: ${selectedSubdistrict}` : ''}${streetAddress ? ` (${streetAddress})` : ''}`;
       }
 
+      const finalEmail = email.trim() || currentUser?.email || `${(phone || currentUser?.phone || '0000').replace(/[^\d]/g, '')}@phone.user`;
+
       const result = await updateProfile(
         name,
-        email,
+        finalEmail,
         phone || undefined,
         fullAddress || undefined,
         password || undefined,
@@ -354,7 +354,9 @@ export const Profile: React.FC = () => {
               <User className="w-10 h-10" />
             </div>
             <h2 className="text-xl font-bold text-slate-900 line-clamp-1">{currentUser.name}</h2>
-            <p className="text-slate-500 text-sm mt-1 line-clamp-1">{currentUser.email}</p>
+            {currentUser.email && !currentUser.email.includes('@phone.user') && (
+              <p className="text-slate-500 text-sm mt-1 line-clamp-1">{currentUser.email}</p>
+            )}
 
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border mt-4 ${roleInfo.color}`}>
               <Shield className="w-3.5 h-3.5 mr-1 ml-1" />

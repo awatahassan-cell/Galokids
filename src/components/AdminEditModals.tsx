@@ -365,7 +365,7 @@ export const AdminEditModals: React.FC<Props> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1 text-slate-700">{L("Email")}</label>
-                <input type="email" required value={editingUser.email || ""} onChange={e => setEditingUser({...editingUser, email: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500" />
+                <input type="email" value={editingUser.email && !editingUser.email.includes('@phone.user') ? editingUser.email : ""} onChange={e => setEditingUser({...editingUser, email: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1 text-slate-700">{L("Role")}</label>

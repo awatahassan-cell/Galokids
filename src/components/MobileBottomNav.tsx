@@ -75,20 +75,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenCart, on
         )}
       </Link>
 
-      <button
-        type="button"
-        onClick={onOpenCart}
-        className="flex items-center justify-center p-2.5 rounded-2xl text-slate-400 hover:text-slate-600 transition-all active:scale-90 relative"
-        title={t('yourCart') || 'سەبەتە'}
-      >
-        <ShoppingCart className="w-5 h-5 stroke-[2.2]" />
-        {cartItemsCount > 0 && (
-          <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs animate-pulse">
-            {cartItemsCount}
-          </span>
-        )}
-      </button>
-
       <Link
         to={currentUser ? "/profile" : "/login"}
         className={`flex items-center justify-center p-2.5 rounded-2xl transition-all duration-200 relative active:scale-90 ${

@@ -57,6 +57,24 @@ export interface Expense {
   date: string;
 }
 
+export interface PromoSlide {
+  id: string;
+  badgeKu?: string;
+  badgeAr?: string;
+  badgeEn?: string;
+  titleKu: string;
+  titleAr?: string;
+  titleEn?: string;
+  subtitleKu?: string;
+  subtitleAr?: string;
+  subtitleEn?: string;
+  ctaKu?: string;
+  ctaAr?: string;
+  ctaEn?: string;
+  imageUrl: string;
+  link?: string;
+}
+
 export interface PromoBanner {
   imageUrl: string;
   titleEn: string;
@@ -67,6 +85,7 @@ export interface PromoBanner {
   subtitleAr: string;
   isActive: boolean;
   endDate?: string; // ISO datetime for an optional promo countdown
+  slides?: PromoSlide[];
 }
 
 export interface Product {
@@ -115,4 +134,22 @@ export interface Coupon {
   isActive: boolean;
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
+}
+
+export interface HeroSlide {
+  id: string;
+  badgeKu: string;
+  badgeAr: string;
+  badgeEn: string;
+  titleKu: string;
+  titleAr: string;
+  titleEn: string;
+  subtitleKu: string;
+  subtitleAr: string;
+  subtitleEn: string;
+  ctaKu: string;
+  ctaAr: string;
+  ctaEn: string;
+  image: string;
+  link: string;
 }

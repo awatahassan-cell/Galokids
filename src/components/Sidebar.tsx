@@ -13,7 +13,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { currentUser, logout, categories } = useStore();
+  const { currentUser, logout, categories, storeSettings } = useStore();
   const { t, language, setLanguage } = useLanguage();
   const location = useLocation();
   const [isProductsExpanded, setIsProductsExpanded] = useState(false);
@@ -184,12 +184,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               <Layers className="w-5 h-5" />
             </div>
             <span className={`bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 bg-clip-text text-transparent font-extrabold tracking-wide drop-shadow-sm ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'}`}>
-              Galo Kids
+              {storeSettings?.store_name || (language === 'ku' ? 'گەلۆ کیدس' : 'Galo Kids')}
             </span>
           </Link>
           <div className="flex items-center gap-2.5 relative z-10">
             {currentUser && (
-              <div className="w-8 h-8 bg-gradient-to-tr from-pink-400 via-purple-400 to-sky-400 text-white rounded-xl flex items-center justify-center font-black text-xs border-2 border-white shadow-sm" title={currentUser.name || currentUser.email}>
+              <div className="w-8 h-8 bg-gradient-to-tr from-pink-400 via-purple-400 to-sky-400 text-white rounded-xl flex items-center justify-center font-black text-xs border-2 border-white shadow-sm" title={currentUser.name || (currentUser.email && !currentUser.email.includes('@phone.user') ? currentUser.email : currentUser.phone || '')}>
                 {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : '👤'}
               </div>
             )}

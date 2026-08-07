@@ -252,7 +252,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
   const [promoBanner, setPromoBanner] = useState<PromoBanner>(() => {
     const saved = localStorage.getItem('promoBanner');
-    return saved ? JSON.parse(saved) : { 
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.warn('Error parsing saved promoBanner:', e);
+      }
+    }
+    return { 
       imageUrl: 'https://images.unsplash.com/photo-1514090458221-65bb69cf63e6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
       titleEn: 'Summer Sale Collection',
       titleKu: 'کۆکراوەی داشکاندنی هاوینە',
@@ -260,9 +267,49 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       subtitleEn: 'Up to 50% off on selected items',
       subtitleKu: 'تا ٪٥٠ داشکاندن بۆ هەندێک کاڵا',
       subtitleAr: 'خصم يصل إلى 50٪ على عناصر محددة',
-      isActive: true
+      isActive: true,
+      slides: [
+        {
+          id: '1',
+          badgeKu: 'داشکاندنی هاوینە',
+          badgeAr: 'تخفيضات الصيف',
+          badgeEn: 'Summer Sale',
+          titleKu: 'کۆکراوەی داشکاندنی هاوینە',
+          titleAr: 'مجموعة تخفيضات الصيف',
+          titleEn: 'Summer Sale Collection',
+          subtitleKu: 'تا ٪٥٠ داشکاندن بۆ هەندێک کاڵا',
+          subtitleAr: 'خصم يصل إلى 50٪ على منتجات مختارة',
+          subtitleEn: 'Up to 50% discount on selected items',
+          ctaKu: 'سەیری بەرهەمەکان بکە',
+          ctaAr: 'استكشف المنتجات',
+          ctaEn: 'Explore Products',
+          imageUrl: 'https://images.unsplash.com/photo-1514090458221-65bb69cf63e6?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80',
+          link: '/products',
+        },
+        {
+          id: '2',
+          badgeKu: 'دیاری تایبەت',
+          badgeAr: 'هدية خاصة',
+          badgeEn: 'Special Gift',
+          titleKu: 'دیاری و یاریی ناوازە',
+          titleAr: 'ألعاب وهدايا مميزة',
+          titleEn: 'Unique Toys & Gifts',
+          subtitleKu: 'شێوازی نوێ و تایبەت بۆ منداڵە نازدارەکانتان',
+          subtitleAr: 'تشكيلة رائعة ومميزة لأطفالكم الصغار',
+          subtitleEn: 'Exclusive collection for your little ones',
+          ctaKu: 'ئێستا بکڕە',
+          ctaAr: 'تسوق الآن',
+          ctaEn: 'Shop Now',
+          imageUrl: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?auto=format&fit=crop&q=80&w=1600',
+          link: '/products',
+        }
+      ]
     };
   });
+
+  useEffect(() => {
+    localStorage.setItem('promoBanner', JSON.stringify(promoBanner));
+  }, [promoBanner]);
 
   const [coupons, setCoupons] = useState<Coupon[]>(() => {
     const saved = localStorage.getItem('coupons');

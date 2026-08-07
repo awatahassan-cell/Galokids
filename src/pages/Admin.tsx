@@ -19,6 +19,8 @@ import { AdminSalesReport } from "../components/AdminSalesReport";
 import { LowStockAlert } from "../components/LowStockAlert";
 import { useToast, useConfirm } from "../components/ui/Feedback";
 import { AdminStoreSettings } from "../components/AdminStoreSettings";
+import { AdminHeroSettings } from "../components/AdminHeroSettings";
+import { AdminPromoBannerSettings } from "../components/AdminPromoBannerSettings";
 import { adminTr } from "../i18n/adminDict";
 
 const getDaysInMonth = (year: number, month: number) => {
@@ -2461,7 +2463,7 @@ export const Admin: React.FC = () => {
               {users.map((user, index) => (
                 <tr key={user.id || index}>
                   <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{user.name}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">{user.email}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">{user.email && !user.email.includes('@phone.user') ? user.email : '-'}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
                     {(() => {
                       const r = Number(user.role);
@@ -3108,75 +3110,11 @@ export const Admin: React.FC = () => {
         )}
 
         {activeTab === 'banner' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-6">{L("Manage Promo Banner")}</h2>
-          <div className="space-y-6 max-w-2xl">
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <span className="font-medium text-slate-900">{L("Banner is Active")}</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer" 
-                  checked={bannerState.isActive} 
-                  onChange={(e) => setBannerState({...bannerState, isActive: e.target.checked})} 
-                />
-                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-              </label>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Image URL")}</label>
-              <input type="text" value={bannerState.imageUrl || ""} onChange={e => setBannerState({...bannerState, imageUrl: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Countdown end (optional)")}</label>
-              <input type="datetime-local" value={(bannerState as any).endDate || ""} onChange={e => setBannerState({...bannerState, endDate: e.target.value} as any)} className="w-full border border-slate-300 rounded-lg py-2 px-3" />
-              <p className="text-xs text-slate-400 mt-1">{L("Shows a live countdown on the home page until this time.")}</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Title (EN)")}</label>
-                <input type="text" value={bannerState.titleEn || ""} onChange={e => setBannerState({...bannerState, titleEn: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Title (KU)")}</label>
-                <input type="text" dir="rtl" value={bannerState.titleKu || ""} onChange={e => setBannerState({...bannerState, titleKu: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Title (AR)")}</label>
-                <input type="text" dir="rtl" value={bannerState.titleAr || ""} onChange={e => setBannerState({...bannerState, titleAr: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Subtitle (EN)")}</label>
-                <input type="text" value={bannerState.subtitleEn || ""} onChange={e => setBannerState({...bannerState, subtitleEn: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Subtitle (KU)")}</label>
-                <input type="text" dir="rtl" value={bannerState.subtitleKu || ""} onChange={e => setBannerState({...bannerState, subtitleKu: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Subtitle (AR)")}</label>
-                <input type="text" dir="rtl" value={bannerState.subtitleAr || ""} onChange={e => setBannerState({...bannerState, subtitleAr: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3" />
-              </div>
-            </div>
-
-            <button 
-              onClick={() => {
-                updatePromoBanner(bannerState);
-                toast('Banner updated successfully ✅');
-              }} 
-              className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 flex items-center"
-            >
-              <Save className="w-4 h-4 mr-2" /> {L("Save Banner")}
-            </button>
+          <div className="space-y-8">
+            <AdminHeroSettings />
+            <AdminPromoBannerSettings />
           </div>
-        </div>
-      )}
+        )}
 
       {activeTab === 'settings' && isAdmin && (
         <div className="space-y-6">
