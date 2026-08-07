@@ -10,12 +10,17 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\OtpController;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
 */
+
+// Public OTP Verification routes
+Route::post('/send-otp', [OtpController::class, 'sendOtp'])->middleware('throttle:15,1');
+Route::post('/verify-otp', [OtpController::class, 'verifyOtp'])->middleware('throttle:20,1');
 
 // Public Authentication routes
 // SECURITY: throttle to slow down brute-force / credential-stuffing attacks.

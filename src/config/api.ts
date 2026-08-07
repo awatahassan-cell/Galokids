@@ -1,3 +1,4 @@
+export const REMOTE_API_BASE = 'https://galo.prodental.dev/API/api';
 export const DEFAULT_API_BASE = '/API/api';
 
 const envBase = (import.meta as any).env?.VITE_API_BASE;
@@ -6,23 +7,11 @@ function sanitizeApiUrl(urlStr?: string): string {
   if (!urlStr || typeof urlStr !== 'string') return DEFAULT_API_BASE;
 
   let clean = urlStr.replace(/[^\x00-\x7F]/g, '').trim();
-  clean = clean.replace(/%[a-fA-F0-9]{2}/g, (match) => {
-    try {
-      const decoded = decodeURIComponent(match);
-      return /[^\x00-\x7F]/.test(decoded) ? '' : match;
-    } catch {
-      return match;
-    }
-  });
-
   while (clean.endsWith('/')) {
     clean = clean.slice(0, -1);
   }
 
-  // If environment variable is set to galo.prodental.dev direct URL, use the default proxy URL to avoid CORS
-  if (!clean || clean.includes('galo.prodental.dev')) return DEFAULT_API_BASE;
-
-  return clean;
+  return clean || DEFAULT_API_BASE;
 }
 
 export const API_BASE_URL = sanitizeApiUrl(envBase);
@@ -30,6 +19,17 @@ export const API_BASE_URL = sanitizeApiUrl(envBase);
 export async function apiFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const primaryUrl = `${API_BASE_URL}${cleanEndpoint}`;
-  return fetch(primaryUrl, options);
-}
+  
+  try {
+    const res = await fetch(primaryUrl, options);
+    if (res.ok || res.status === 401 || res.status === 422 || res.status === 400 || res.status === 404) {
+      return res;
+    }
+  } catch (err) {
+    console.warn(`Primary API fetch (${primaryUrl}) failed, trying direct fallback to remote API (${REMOTE_API_BASE})...`, err);
+  }
 
+  // Fallback to direct remote API URL
+  const fallbackUrl = `${REMOTE_API_BASE}${cleanEndpoint}`;
+  return fetch(fallbackUrl, options);
+}

@@ -10,6 +10,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { getColorHex } from '../utils/colors';
 import iraqLocations from '../data/iraq-locations.json';
 import { OtpModal } from '../components/OtpModal';
+import { sendCheckoutOtp } from '../services/otpService';
 
 export const Checkout: React.FC = () => {
   const { cart, clearCart, addOrder, currentUser, appliedCoupon, setAppliedCoupon, applyCoupon, coupons } = useStore();
@@ -210,57 +211,37 @@ export const Checkout: React.FC = () => {
   }, [resendTimer]);
 
   // Send OTP
-  const handleSendOtp = () => {
+  const handleSendOtp = async (channelOverride?: 'whatsapp' | 'sms') => {
     if (!mobileNumber.trim() || mobileNumber.trim().length < 8) {
       alert(t('mobileNumber') + ' ' + (language === 'ku' ? 'دروست نییە' : 'is invalid'));
       return;
     }
 
+    const activeChannel = channelOverride || otpChannel;
+    if (channelOverride) setOtpChannel(channelOverride);
+
     setIsSendingOtp(true);
     setOtpError('');
     
-    // Generate random 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
+    try {
+      const res = await sendCheckoutOtp(mobileNumber, activeChannel, language);
+      if (res.success) {
+        if (res.code) {
+          setGeneratedOtp(res.code);
+        }
+        if (res.directUrl) {
+          setDirectOtpUrl(res.directUrl);
+        }
 
-    const formattedPhone = formatIraqiPhone(mobileNumber);
-    const messageText = language === 'ku' 
-      ? `کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ ${code} ]`
-      : language === 'ar'
-      ? `رمز التحقق الخاص بك لطلبك هو: [ ${code} ]`
-      : `Your order verification code is: [ ${code} ]`;
-
-    let targetUrl = '';
-    if (otpChannel === 'whatsapp') {
-      targetUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(messageText)}`;
-    } else {
-      targetUrl = `sms:${formattedPhone}?body=${encodeURIComponent(messageText)}`;
-    }
-    setDirectOtpUrl(targetUrl);
-
-    setTimeout(() => {
-      setIsSendingOtp(false);
-      setShowOtpModal(true);
-      setResendTimer(60);
-      setInputOtp('');
-
-      // Auto-open WhatsApp / SMS app
-      try {
-        window.open(targetUrl, '_blank');
-      } catch (e) {
-        console.error('Failed to open deep link automatically', e);
+        setShowOtpModal(true);
+        setResendTimer(60);
       }
-
-      const channelName = otpChannel === 'whatsapp' ? 'WhatsApp' : 'SMS';
-      const msg = language === 'ku' 
-        ? `کۆدی پشتڕاستکردنەوە (OTP) بۆ ${channelName} نێردرا: [ ${code} ]`
-        : language === 'ar'
-        ? `تم إرسال رمز التحقق (OTP) عبر ${channelName}: [ ${code} ]`
-        : `Verification OTP sent via ${channelName}: [ ${code} ]`;
-      
-      setNotificationBanner(msg);
-      setTimeout(() => setNotificationBanner(null), 10000);
-    }, 600);
+    } catch (err: any) {
+      console.error('Error sending OTP:', err);
+      alert(language === 'ku' ? 'تکایە دووبارە تاقیبکەرەوە' : 'Failed to send OTP. Please try again.');
+    } finally {
+      setIsSendingOtp(false);
+    }
   };
 
   // Verify OTP
@@ -818,7 +799,7 @@ export const Checkout: React.FC = () => {
           setOtpError('');
           setNotificationBanner(null);
         }}
-        onResendOtp={handleSendOtp}
+        onResendOtp={(newChan) => handleSendOtp(newChan)}
       />
     </div>
   );
