@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 class OtpController extends Controller
 {
     /**
-     * Send real SMS / WhatsApp OTP code to customer mobile number via OTPIQ (or SMS Gateway)
+     * Send real SMS / WhatsApp OTP code to customer mobile number via OTPIQ
      */
     public function sendOtp(Request $request)
     {
@@ -26,7 +26,7 @@ class OtpController extends Controller
         }
 
         // Generate 6-digit OTP code
-        $code = rand(100000, 999999);
+        $code = (string)rand(100000, 999999);
 
         // Store OTP in Cache for 5 minutes
         Cache::put("otp_{$phone}", $code, now()->addMinutes(5));
@@ -34,7 +34,7 @@ class OtpController extends Controller
         // Prepare SMS Message text
         $message = "کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ {$code} ]";
 
-        // Dispatch real SMS/WhatsApp OTP via OTPIQ or SMS Gateway API
+        // Dispatch real SMS/WhatsApp OTP via OTPIQ API
         $smsSent = $this->dispatchSms($phone, $message, $code);
 
         return response()->json([
@@ -94,16 +94,15 @@ class OtpController extends Controller
     }
 
     /**
-     * Dispatch OTP via OTPIQ API (docs.otpiq.com) or standard SMS Gateway API
+     * Dispatch OTP via OTPIQ API (https://api.otpiq.com/api/sms)
      */
-    private function dispatchSms(string $phone, string $message, int $code): bool
+    private function dispatchSms(string $phone, string $message, string $code): bool
     {
         Log::info("Dispatching OTP code {$code} to {$phone}");
 
-        $otpiqApiKey = env('OTPIQ_API_KEY');
-        $otpiqUrl = env('OTPIQ_API_URL', 'https://api.otpiq.com/api/send');
+        $otpiqApiKey = env('OTPIQ_API_KEY', 'sk_dev_189dc6187a0fc78ea31dc39b86ec17584f2d5582');
+        $otpiqUrl = env('OTPIQ_API_URL', 'https://api.otpiq.com/api/sms');
 
-        // 1. If OTPIQ API Key is configured in .env
         if ($otpiqApiKey) {
             try {
                 $response = Http::withHeaders([
@@ -111,40 +110,20 @@ class OtpController extends Controller
                     'Accept'        => 'application/json',
                     'Content-Type'  => 'application/json',
                 ])->post($otpiqUrl, [
-                    'phone'   => $phone,
-                    'code'    => (string)$code,
-                    'message' => $message,
+                    'phoneNumber'      => $phone,
+                    'smsType'          => 'verification',
+                    'verificationCode' => $code,
+                    'provider'         => 'auto',
                 ]);
 
                 if ($response->successful()) {
-                    Log::info("OTPIQ OTP successfully delivered to {$phone}");
+                    Log::info("OTPIQ OTP successfully delivered to {$phone}. Response: " . $response->body());
                     return true;
                 } else {
                     Log::error("OTPIQ API error response for {$phone}: " . $response->body());
                 }
             } catch (\Exception $e) {
                 Log::error("OTPIQ API exception for {$phone}: " . $e->getMessage());
-            }
-        }
-
-        // 2. Generic SMS Gateway Fallback if SMS_API_URL & SMS_API_KEY set
-        $apiUrl = env('SMS_API_URL');
-        $apiKey = env('SMS_API_KEY');
-        $sender = env('SMS_SENDER_ID', 'GaloKids');
-
-        if ($apiUrl && $apiKey) {
-            try {
-                $response = Http::post($apiUrl, [
-                    'api_key' => $apiKey,
-                    'to'      => $phone,
-                    'from'    => $sender,
-                    'message' => $message,
-                    'code'    => $code,
-                ]);
-
-                return $response->successful();
-            } catch (\Exception $e) {
-                Log::error("SMS Gateway exception for {$phone}: " . $e->getMessage());
             }
         }
 
