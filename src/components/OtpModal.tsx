@@ -287,25 +287,6 @@ export const OtpModal: React.FC<OtpModalProps> = ({
             </a>
           </div>
 
-          {/* Developer / Testing Helper Banner */}
-          <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-2.5 mb-4 flex items-center justify-between gap-2 font-arabic text-start">
-            <div>
-              <span className="block text-[11px] font-bold text-amber-800">
-                {language === 'ku' ? 'کۆدی تاقیکردنەوە (Test Code):' : 'Testing Code:'}
-              </span>
-              <span className="font-mono text-sm font-black text-amber-900 tracking-wider">
-                {displayCode}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleAutoFill(displayCode)}
-              className="text-[11px] font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-xl transition-all shrink-0 cursor-pointer"
-            >
-              {language === 'ku' ? 'پڕکردنەوەی خۆکار' : language === 'ar' ? 'تعبئة تلقائية' : 'Auto-fill'}
-            </button>
-          </div>
-
           {/* 6-Box PIN Code Input */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex items-center justify-center gap-2 dir-ltr my-4">
