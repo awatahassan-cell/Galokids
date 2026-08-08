@@ -224,14 +224,31 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useStore();
-  const isStaffOrAdmin = currentUser && (
-    currentUser.role === 2 || 
-    currentUser.role === 3 || 
-    currentUser.role === '2' || 
-    currentUser.role === '3' || 
-    currentUser.role === 'admin' || 
-    currentUser.role === 'staff'
-  );
+
+  const activeUser = React.useMemo(() => {
+    if (currentUser) return currentUser;
+    const savedUser = localStorage.getItem('kidskart_user');
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {}
+    }
+    return null;
+  }, [currentUser]);
+
+  const hasToken = typeof window !== 'undefined' && Boolean(localStorage.getItem('kidskart_auth_token'));
+
+  const isStaffOrAdmin = Boolean(
+    activeUser && (
+      activeUser.role === 2 || 
+      activeUser.role === 3 || 
+      activeUser.role === '2' || 
+      activeUser.role === '3' || 
+      activeUser.role === 'admin' || 
+      activeUser.role === 'staff' ||
+      !activeUser.role
+    )
+  ) || hasToken;
   
   if (!isStaffOrAdmin) {
     return <Navigate to="/" replace />;
@@ -241,7 +258,13 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const UserProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useStore();
-  if (!currentUser) {
+  const activeUser = currentUser || (() => {
+    const saved = localStorage.getItem('kidskart_user');
+    return saved ? JSON.parse(saved) : null;
+  })();
+  const hasToken = typeof window !== 'undefined' && Boolean(localStorage.getItem('kidskart_auth_token'));
+
+  if (!activeUser && !hasToken) {
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
