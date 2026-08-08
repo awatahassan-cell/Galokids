@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useStore } from '../store';
 import { formatIQDLabel } from '../utils/currency';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, DollarSign, Package, Percent, RefreshCcw, Users } from 'lucide-react';
+import { TrendingUp, DollarSign, Package, Percent, RefreshCcw, Users, Store, Globe } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
 
@@ -42,6 +42,20 @@ export const AdminSalesReport: React.FC = () => {
   // Reload automatically when a preset changes the dates.
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to]);
 
+  const totalPosSales = useMemo(() => {
+    if (cashiers && Array.isArray(cashiers.cashiers)) {
+      return cashiers.cashiers.reduce((sum: number, c: any) => sum + Number(c.pos_total || 0), 0);
+    }
+    return Number(report?.pos_revenue || 0);
+  }, [cashiers, report]);
+
+  const totalOnlineSales = useMemo(() => {
+    if (cashiers && Array.isArray(cashiers.cashiers)) {
+      return cashiers.cashiers.reduce((sum: number, c: any) => sum + Number(c.online_total || 0), 0);
+    }
+    return Number(report?.online_revenue || 0);
+  }, [cashiers, report]);
+
   const stat = (label: string, value: string, Icon: any, color: string) => (
     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
       <div className="flex items-center justify-between mb-2">
@@ -67,7 +81,7 @@ export const AdminSalesReport: React.FC = () => {
           <label className="block text-xs font-bold text-slate-500 mb-1">{L("Channel")}</label>
           <select value={channel} onChange={e => setChannel(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
             <option value="">{L("All")}</option>
-            <option value="online">{L("Online")}</option>
+            <option value="online">{L("Online (Website)")}</option>
             <option value="pos">{L("In-store (POS)")}</option>
           </select>
         </div>
@@ -93,6 +107,45 @@ export const AdminSalesReport: React.FC = () => {
             {stat(L('Gross Profit'), formatIQDLabel(report.gross_profit), TrendingUp, 'bg-indigo-50 text-indigo-600')}
             {stat(L('Net Profit'), formatIQDLabel(report.net_profit), Percent, 'bg-rose-50 text-rose-600')}
             {stat(L('Orders'), String(report.order_count), Package, 'bg-amber-50 text-amber-600')}
+          </div>
+
+          {/* POS vs Website Breakdown Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-200">
+                  <Store className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-base">{L("POS Sales (In-Store)")}</h4>
+                  <p className="text-xs text-slate-500">{L("In-store cashier transactions")}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-black text-indigo-900">{formatIQDLabel(totalPosSales)}</p>
+                <span className="inline-block mt-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                  POS ({L("In-store")})
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200">
+                  <Globe className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-base">{L("Website Sales (Online)")}</h4>
+                  <p className="text-xs text-slate-500">{L("Online website customer orders")}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-black text-emerald-900">{formatIQDLabel(totalOnlineSales)}</p>
+                <span className="inline-block mt-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                  Web ({L("Online")})
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

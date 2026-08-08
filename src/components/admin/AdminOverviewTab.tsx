@@ -1,10 +1,24 @@
-import React, { useMemo } from 'react';
-import { Calendar, ShoppingBag, Package, BarChart3, DollarSign, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Calendar, ShoppingBag, Package, BarChart3, DollarSign, TrendingDown, TrendingUp, AlertTriangle, Store, Globe, Filter } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
 import { formatIQD, formatIQDLabel } from '../../utils/currency';
 import { Order, Product, Expense } from '../../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+
+export const isPosOrder = (order: any): boolean => {
+  if (!order) return false;
+  if (order.channel === 'pos' || order.source === 'pos' || order.isPos === true) return true;
+  if (order.shippingAddress && (
+    order.shippingAddress.includes('POS') || 
+    order.shippingAddress.includes('In-Store') || 
+    order.shippingAddress.includes('حضوري') ||
+    order.shippingAddress.includes('لە فرۆشگا')
+  )) return true;
+  if (order.customerEmail === 'cashier@galokids.com') return true;
+  if (order.userId === 'u1') return true;
+  return false;
+};
 
 export interface AdminOverviewTabProps {
   orderFilterPeriod: 'today' | 'week' | 'month';
@@ -35,6 +49,14 @@ export interface AdminOverviewTabProps {
     filteredExpenses: any[];
     netProfit: number;
     filteredOrders: Order[];
+    posRevenue?: number;
+    posOrderCount?: number;
+    posCogs?: number;
+    posGrossProfit?: number;
+    webRevenue?: number;
+    webOrderCount?: number;
+    webCogs?: number;
+    webGrossProfit?: number;
   };
   products: Product[];
   orders: Order[];
@@ -61,6 +83,13 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
 }) => {
   const { language } = useLanguage();
   const L = (key: string) => adminTr(key, language);
+  const [selectedChannel, setSelectedChannel] = useState<'all' | 'pos' | 'online'>('all');
+
+  const displayOrders = useMemo(() => {
+    if (selectedChannel === 'pos') return reportData.filteredOrders.filter(isPosOrder);
+    if (selectedChannel === 'online') return reportData.filteredOrders.filter(o => !isPosOrder(o));
+    return reportData.filteredOrders;
+  }, [reportData.filteredOrders, selectedChannel]);
 
   const chartData = useMemo(() => {
     const dataMap = new Map<string, { month: string; revenue: number; expense: number }>();
@@ -306,10 +335,115 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
           </div>
         </div>
 
+        {/* Channel Breakdown Cards (POS vs Website) */}
+        <div className="mb-8 bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-indigo-600" />
+              {L("Separated Channel Breakdown")}
+            </h3>
+            <span className="text-xs text-slate-500 font-semibold">{L("Summary of order count and money totals for POS and website.")}</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* POS Card */}
+            <div className="bg-white border border-indigo-100 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-200">
+                    <Store className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-slate-900 text-base">{L("POS Sales (In-Store)")}</h4>
+                    <p className="text-xs text-slate-500">{L("In-store cashier transactions")}</p>
+                  </div>
+                </div>
+                <span className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  {reportData.posOrderCount ?? 0} {L("Orders")}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-indigo-100/80">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">{L("POS Revenue")}</span>
+                  <p className="text-lg font-black text-indigo-900 mt-0.5">{formatIQDLabel(reportData.posRevenue ?? 0)}</p>
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">{L("Gross Profit")}</span>
+                  <p className="text-lg font-black text-emerald-600 mt-0.5">{formatIQDLabel(reportData.posGrossProfit ?? 0)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Website Card */}
+            <div className="bg-white border border-emerald-100 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200">
+                    <Globe className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-slate-900 text-base">{L("Website Sales (Online)")}</h4>
+                    <p className="text-xs text-slate-500">{L("Online website customer orders")}</p>
+                  </div>
+                </div>
+                <span className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  {reportData.webOrderCount ?? 0} {L("Orders")}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-emerald-100/80">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">{L("Website Revenue")}</span>
+                  <p className="text-lg font-black text-emerald-900 mt-0.5">{formatIQDLabel(reportData.webRevenue ?? 0)}</p>
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase">{L("Gross Profit")}</span>
+                  <p className="text-lg font-black text-indigo-600 mt-0.5">{formatIQDLabel(reportData.webGrossProfit ?? 0)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Period Transactions List */}
         <div>
-          <h3 className="text-sm font-bold text-slate-800 mb-3">{L("Transactions / Orders in Period")}</h3>
-          {reportData.filteredOrders.length === 0 ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <Filter className="w-4 h-4 text-indigo-600" />
+              {L("Transactions / Orders in Period")}
+            </h3>
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setSelectedChannel('all')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  selectedChannel === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {L("All Channels")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedChannel('pos')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  selectedChannel === 'pos' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🏬 {L("In-store (POS)")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedChannel('online')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  selectedChannel === 'online' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🌐 {L("Online (Website)")}
+              </button>
+            </div>
+          </div>
+
+          {displayOrders.length === 0 ? (
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 text-center text-slate-400 text-xs">
               {L("No order transactions recorded for this period.")}
             </div>
@@ -319,6 +453,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
                 <thead>
                   <tr className="bg-slate-50">
                     <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Order ID")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Channel")}</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Customer")}</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Total")}</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Est. Cost")}</th>
@@ -326,7 +461,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {reportData.filteredOrders.map((order, index) => {
+                  {displayOrders.map((order, index) => {
                     let orderCogs = 0;
                     if (order.items && order.items.length > 0) {
                       order.items.forEach(item => {
@@ -338,9 +473,22 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
                       orderCogs = Number(order.totalAmount || 0) * 0.4;
                     }
 
+                    const pos = isPosOrder(order);
+
                     return (
                       <tr key={order.id || index} className="hover:bg-slate-50 text-xs">
                         <td className="px-3 py-2 whitespace-nowrap font-mono text-slate-500">{order.id}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {pos ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-indigo-100 text-indigo-800">
+                              <Store className="w-3 h-3" /> POS ({L("In-store")})
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-emerald-100 text-emerald-800">
+                              <Globe className="w-3 h-3" /> Web ({L("Online")})
+                            </span>
+                          )}
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap text-slate-900 font-semibold">{order.customerName}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-slate-900 font-bold">{formatIQDLabel(Number(order.totalAmount || 0))}</td>
                         <td className="px-3 py-2 whitespace-nowrap text-slate-500">{formatIQDLabel(orderCogs)}</td>
