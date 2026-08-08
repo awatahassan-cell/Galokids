@@ -1324,6 +1324,56 @@ export const Admin: React.FC = () => {
           )}
           {activeTab === 'overview' && isAdmin && (
         <div className="space-y-8">
+          {/* Top Order Status KPI Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div 
+              onClick={() => setActiveTab('orders')}
+              className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-4 rounded-2xl shadow-sm cursor-pointer hover:scale-[1.02] transition-transform relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold font-arabic opacity-90">{language === 'ku' ? 'تازە / چاوەڕوان' : language === 'ar' ? 'جديد / قيد الانتظار' : 'New / Pending'}</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping"></span>
+              </div>
+              <div className="text-3xl font-black font-mono mt-2">{orderCounts.newAndPending}</div>
+              <div className="text-[11px] font-arabic opacity-85 mt-1">{language === 'ku' ? 'داواکاری نوێی کڕیاران' : 'New customer orders'}</div>
+            </div>
+
+            <div 
+              onClick={() => setActiveTab('orders')}
+              className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-2xl shadow-sm cursor-pointer hover:scale-[1.02] transition-transform"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold font-arabic opacity-90">{language === 'ku' ? 'نێردراوە' : language === 'ar' ? 'تم الإرسال' : 'Shipped'}</span>
+                <ShoppingBag className="w-4 h-4 opacity-80" />
+              </div>
+              <div className="text-3xl font-black font-mono mt-2">{orderCounts.shipped}</div>
+              <div className="text-[11px] font-arabic opacity-85 mt-1">{language === 'ku' ? 'لە ڕێگەی گەیاندنە' : 'In delivery transit'}</div>
+            </div>
+
+            <div 
+              onClick={() => setActiveTab('orders')}
+              className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-4 rounded-2xl shadow-sm cursor-pointer hover:scale-[1.02] transition-transform"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold font-arabic opacity-90">{language === 'ku' ? 'گەیەنراوە' : language === 'ar' ? 'تم التسليم' : 'Delivered'}</span>
+                <Package className="w-4 h-4 opacity-80" />
+              </div>
+              <div className="text-3xl font-black font-mono mt-2">{orderCounts.delivered}</div>
+              <div className="text-[11px] font-arabic opacity-85 mt-1">{language === 'ku' ? 'بە سەرکەوتوویی تەسلیمکراوە' : 'Delivered successfully'}</div>
+            </div>
+
+            <div 
+              onClick={() => setActiveTab('orders')}
+              className="bg-slate-900 text-white p-4 rounded-2xl shadow-sm cursor-pointer hover:scale-[1.02] transition-transform"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold font-arabic opacity-90">{language === 'ku' ? 'کۆی گشتی' : language === 'ar' ? 'الإجمالي' : 'Total'}</span>
+                <BarChart3 className="w-4 h-4 text-indigo-400" />
+              </div>
+              <div className="text-3xl font-black font-mono mt-2">{orderCounts.total}</div>
+              <div className="text-[11px] font-arabic opacity-85 mt-1">{language === 'ku' ? 'گشتی داواکارییەکان' : 'Total recorded orders'}</div>
+            </div>
+          </div>
           {/* Business Reports Section */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
@@ -2339,30 +2389,34 @@ export const Admin: React.FC = () => {
 
       {activeTab === 'orders' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 overflow-x-auto">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100 font-arabic">
             <div>
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                <span>{L("Manage Orders")}</span>
+                <span>{language === 'ku' ? 'بەڕێوەبردنی داواکارییەکان' : language === 'ar' ? 'إدارة الطلبات' : 'Manage Orders'}</span>
                 <span className="px-3 py-1 text-xs font-bold bg-indigo-100 text-indigo-800 rounded-full">
-                  {orderCounts.total} {L("Total")}
+                  {orderCounts.total} {language === 'ku' ? 'کۆی گشتی' : 'Total'}
                 </span>
               </h2>
-              <p className="text-xs text-slate-500 mt-1">{L("View, filter and update status of customer orders")}</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {language === 'ku'
+                  ? 'بینین، پاڵاوتن و نوێکردنەوەی باری داواکارییەکانی کڕیاران'
+                  : 'View, filter and update status of customer orders'}
+              </p>
             </div>
 
             {/* Status Counter Badges */}
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-bold shadow-sm">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-                <span>{L("New / Pending")}:</span>
+                <span>{language === 'ku' ? 'تازە / چاوەڕوان' : 'New / Pending'}:</span>
                 <span className="px-2 py-0.5 bg-amber-200 text-amber-900 rounded-lg font-mono text-sm font-black">{orderCounts.newAndPending}</span>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200/80 text-blue-900 text-xs font-bold">
-                <span>{L("Shipped")}:</span>
+                <span>{language === 'ku' ? 'نێردراوە' : 'Shipped'}:</span>
                 <span className="px-2 py-0.5 bg-blue-200 text-blue-900 rounded-lg font-mono text-sm font-bold">{orderCounts.shipped}</span>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-900 text-xs font-bold">
-                <span>{L("Delivered")}:</span>
+                <span>{language === 'ku' ? 'گەیەنراوە' : 'Delivered'}:</span>
                 <span className="px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-lg font-mono text-sm font-bold">{orderCounts.delivered}</span>
               </div>
             </div>
