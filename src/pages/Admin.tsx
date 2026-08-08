@@ -26,6 +26,8 @@ import { AdminHeader } from "../components/admin/AdminHeader";
 import { AdminNavigationSidebar } from "../components/admin/AdminNavigationSidebar";
 import { AdminOverviewTab } from "../components/admin/AdminOverviewTab";
 import { AdminOrdersTab } from "../components/admin/AdminOrdersTab";
+import { AdminLabelsTab } from "../components/admin/AdminLabelsTab";
+import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
 
 const getDaysInMonth = (year: number, month: number) => {
   return new Date(year, month, 0).getDate();
@@ -2623,83 +2625,11 @@ export const Admin: React.FC = () => {
       )}
 
       {activeTab === 'labels' && isAdmin && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-6">{L("Generate & Print Product Labels")}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Product")}</label>
-              <select
-                value={labelProductId}
-                onChange={(e) => setLabelProductId(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg py-2 px-3"
-              >
-                <option value="">{L("Select product")}</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.barcode || '-'})</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Copies")}</label>
-              <input
-                type="number"
-                min={1}
-                max={500}
-                value={labelCopies}
-                onChange={(e) => setLabelCopies(Math.max(1, Number(e.target.value || 1)))}
-                className="w-full border border-slate-300 rounded-lg py-2 px-3"
-              />
-            </div>
-          </div>
-          <div className="mt-5 flex items-center gap-3">
-            <button
-              onClick={handlePrintLabels}
-              className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-indigo-700"
-            >
-              {L("Print Labels")}
-            </button>
-          </div>
-        </div>
+        <AdminLabelsTab products={products} />
       )}
 
       {activeTab === 'barcode-stickers' && isAdmin && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-6">{L("Print Barcode Stickers")}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Product")}</label>
-              <select
-                value={barcodeProductId}
-                onChange={(e) => setBarcodeProductId(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg py-2 px-3"
-              >
-                <option value="">{L("Select product")}</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.barcode || '-'})</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Copies")}</label>
-              <input
-                type="number"
-                min={1}
-                max={500}
-                value={barcodeCopies}
-                onChange={(e) => setBarcodeCopies(Math.max(1, Number(e.target.value || 1)))}
-                className="w-full border border-slate-300 rounded-lg py-2 px-3"
-              />
-            </div>
-          </div>
-          <div className="mt-5 flex items-center gap-3">
-            <button
-              onClick={handlePrintBarcodeStickers}
-              className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-indigo-700"
-            >
-              {L("Print Barcode Stickers")}
-            </button>
-          </div>
-        </div>
+        <AdminBarcodeTab products={products} />
       )}
 
       {activeTab === 'translations' && (
