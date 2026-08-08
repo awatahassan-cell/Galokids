@@ -998,10 +998,18 @@ export const Admin: React.FC = () => {
           </div>
           <div>
             <h4 className="text-xs font-black text-amber-950">
-              ({lowStockProducts.length}) {L("products low in stock!")}
+              {language === 'ku'
+                ? `(${lowStockProducts.length}) بەرهەم ستۆکیان کەمە!`
+                : language === 'ar'
+                ? `(${lowStockProducts.length}) منتجات مخزونها منخفض!`
+                : `(${lowStockProducts.length}) products low in stock!`}
             </h4>
             <p className="text-[11px] font-bold text-amber-800/90 mt-0.5">
-              {L("Some products have variations with stock less than 15 units. Please restock soon.")}
+              {language === 'ku'
+                ? 'هەندێک بەرهەم جۆرەکانیان کەمتر لە ١٥ دانەیان تێدا ماوە. تکایە بە زوویی ستۆک پڕبکەرەوە.'
+                : language === 'ar'
+                ? 'بعض المنتجات تحتوي على تنويعات مخزونها أقل من 15 قطعة. يرجى إعادة التعبئة قريباً.'
+                : 'Some products have variations with stock less than 15 units. Please restock soon.'}
             </p>
           </div>
         </div>
@@ -1011,7 +1019,7 @@ export const Admin: React.FC = () => {
             onClick={() => setActiveTab('products')}
             className="px-4 py-1.5 bg-amber-900 text-white text-xs font-bold rounded-full hover:bg-amber-950 transition-all cursor-pointer shadow-2xs"
           >
-            {L("View Products")}
+            {language === 'ku' ? 'بینینی بەرهەمەکان' : language === 'ar' ? 'عرض المنتجات' : 'View Products'}
           </button>
           {activeTab !== 'products' && (
             <button
@@ -1028,7 +1036,7 @@ export const Admin: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-screen bg-gradient-to-br from-[#D2E0F2] via-[#E8EEF8] to-[#DFE9F5] p-3 sm:p-5 lg:p-6 flex flex-col lg:flex-row gap-6 [&_button]:cursor-pointer [&_a]:cursor-pointer font-arabic text-slate-800 relative overflow-hidden">
+    <div className="w-full min-h-screen lg:h-screen bg-gradient-to-br from-[#D2E0F2] via-[#E8EEF8] to-[#DFE9F5] p-2.5 sm:p-5 lg:p-6 flex flex-col lg:flex-row gap-4 sm:gap-6 [&_button]:cursor-pointer [&_a]:cursor-pointer font-arabic text-slate-800 relative overflow-y-auto lg:overflow-hidden">
         <AdminNavigationSidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}

@@ -1545,12 +1545,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       });
   };
 
-  const login = async (email: string, password = 'password') => {
+  const login = async (loginInput: string, password = 'password') => {
     try {
       const res = await fetch(`${LARAVEL_API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(convertKeysToSnakeCase({ email, password }))
+        body: JSON.stringify({ login: loginInput, email: loginInput, password })
       });
       const data = await res.json();
       const camelData = convertKeysToCamelCase(data);
@@ -1570,7 +1570,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     } catch (err) {
       console.warn('Login note:', err);
       // Fallback local logic
-      const user = users.find(u => u.email === email);
+      const user = users.find(u => u.email === loginInput || u.phone === loginInput);
       if (user) {
         setCurrentUser(user);
         localStorage.setItem('kidskart_user', JSON.stringify(user));
@@ -1644,40 +1644,24 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
-  const registerWithPhone = async (phone: string, name: string): Promise<User | null> => {
+  const registerWithPhone = async (phone: string, name?: string): Promise<User | null> => {
+    return loginWithPhone(phone, name);
+  };
+
+  const loginWithPhone = async (phone: string, name?: string): Promise<User | null> => {
     const cleanPhone = phone.trim();
     if (!cleanPhone) return null;
 
-    // Check if user with this phone or email already exists
-    const existing = users.find(u => u.phone === cleanPhone || (u.phone && u.phone.replace(/[^\d]/g, '') === cleanPhone.replace(/[^\d]/g, '')) || u.email === `${cleanPhone.replace(/[^\d]/g, '')}@phone.user`);
-    if (existing) {
-      const updatedUser = { ...existing, name: name?.trim() || existing.name || `موشتەری (${cleanPhone.slice(-4)})` };
-      setCurrentUser(updatedUser);
-      localStorage.setItem('kidskart_user', JSON.stringify(updatedUser));
-      return updatedUser;
-    }
-
-    const newUser: User = {
-      id: `u-${Date.now()}`,
-      name: name?.trim() || `موشتەری (${cleanPhone.slice(-4)})`,
-      phone: cleanPhone,
-      email: `${cleanPhone.replace(/[^\d]/g, '')}@phone.user`,
-      role: 1,
-      joinDate: new Date().toISOString().split('T')[0]
-    };
-
     try {
-      const res = await fetch(`${LARAVEL_API_BASE}/register`, {
+      const res = await fetch(`${LARAVEL_API_BASE}/login-with-phone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(convertKeysToSnakeCase({
-          name: newUser.name,
-          email: newUser.email,
+        body: JSON.stringify({
           phone: cleanPhone,
-          password: 'password123',
-          passwordConfirmation: 'password123'
-        }))
+          name: name ? name.trim() : undefined,
+        }),
       });
+
       if (res.ok) {
         const data = await res.json();
         const camelData = convertKeysToCamelCase(data);
@@ -1685,39 +1669,39 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           localStorage.setItem('kidskart_auth_token', camelData.accessToken);
         }
         if (camelData.user) {
-          const apiUser = { ...camelData.user, phone: cleanPhone, name: newUser.name };
-          localStorage.setItem('kidskart_user', JSON.stringify(apiUser));
-          setCurrentUser(apiUser);
-          setUsers(prev => [...prev, apiUser]);
-          return apiUser;
+          localStorage.setItem('kidskart_user', JSON.stringify(camelData.user));
+          setCurrentUser(camelData.user);
+          setUsers(prev => {
+            const exists = prev.some(u => u.id === camelData.user.id);
+            return exists ? prev.map(u => u.id === camelData.user.id ? camelData.user : u) : [...prev, camelData.user];
+          });
+          return camelData.user;
         }
       }
-    } catch (e) {
-      console.warn('Backend registerWithPhone note:', e);
+    } catch (err) {
+      console.warn('loginWithPhone API call failed, using local user provisioning fallback:', err);
     }
 
-    setUsers(prev => {
-      const updated = [...prev, newUser];
-      localStorage.setItem('kidskart_users_local', JSON.stringify(updated));
-      return updated;
-    });
+    // Check local existing user
+    const existing = users.find(u => u.phone === cleanPhone || (u.phone && u.phone.replace(/[^\d]/g, '') === cleanPhone.replace(/[^\d]/g, '')));
+    if (existing) {
+      const updatedUser = { ...existing, name: name?.trim() || existing.name || `کڕیار (${cleanPhone.slice(-4)})` };
+      setCurrentUser(updatedUser);
+      localStorage.setItem('kidskart_user', JSON.stringify(updatedUser));
+      return updatedUser;
+    }
+
+    const newUser: User = {
+      id: `u-${Date.now()}`,
+      name: name?.trim() || `کڕیار (${cleanPhone.slice(-4)})`,
+      phone: cleanPhone,
+      role: 1,
+      joinDate: new Date().toISOString().split('T')[0]
+    };
     setCurrentUser(newUser);
     localStorage.setItem('kidskart_user', JSON.stringify(newUser));
+    setUsers(prev => [...prev, newUser]);
     return newUser;
-  };
-
-  const loginWithPhone = async (phone: string, name?: string): Promise<User | null> => {
-    const cleanPhone = phone.trim();
-    if (!cleanPhone) return null;
-
-    const existing = users.find(u => u.phone === cleanPhone || (u.phone && u.phone.replace(/[^\d]/g, '') === cleanPhone.replace(/[^\d]/g, '')) || u.email === `${cleanPhone.replace(/[^\d]/g, '')}@phone.user`);
-    if (existing) {
-      setCurrentUser(existing);
-      localStorage.setItem('kidskart_user', JSON.stringify(existing));
-      return existing;
-    }
-
-    return registerWithPhone(cleanPhone, name || '');
   };
 
   const updateProfile = async (

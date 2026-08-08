@@ -115,66 +115,6 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
 
   return (
     <>
-      {/* Mobile Drawer Backdrop */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-40 transition-opacity md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Mobile Drawer */}
-      <div 
-        className={`fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} w-72 bg-white/95 backdrop-blur-xl shadow-2xl z-50 transform transition-transform duration-300 ${
-          isMobileMenuOpen ? 'translate-x-0' : isRTL ? 'translate-x-full' : '-translate-x-full'
-        } flex flex-col md:hidden font-arabic`}
-      >
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-900 text-white">
-          <span className="text-sm font-black tracking-tight">Galo Kids Admin</span>
-          <button 
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {navGroups.map((group, gIdx) => {
-            const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin);
-            if (visibleItems.length === 0) return null;
-            return (
-              <div key={gIdx} className="space-y-1">
-                <span className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">{group.title}</span>
-                {visibleItems.map(item => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={`mobile-${item.id}`}
-                      onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }}
-                      className={`w-full flex items-center justify-between py-2.5 px-4 rounded-2xl text-xs font-bold transition-all ${
-                        isActive ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className="w-4 h-4" />
-                        <span>{item.label}</span>
-                      </div>
-                      {Boolean(item.badge) && (item.badge || 0) > 0 && (
-                        <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-rose-500 text-white">
-                          {item.badge}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Desktop Floating Shell Sidebar (Clean Fit Inside Parent Container) */}
       <div 
         className={`hidden lg:flex shrink-0 flex-col bg-white/70 backdrop-blur-xl border border-white/80 shadow-xs rounded-[2.5rem] py-5 h-full font-arabic transition-all duration-300 z-30 overflow-x-hidden ${
@@ -295,6 +235,84 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
           className="fixed -translate-y-1/2 pointer-events-none bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-2xl border border-slate-700 font-arabic animate-in fade-in zoom-in-95 duration-100 z-[99999]"
         >
           {activeTooltip.label}
+        </div>
+      )}
+
+      {/* Mobile Overlay Drawer */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-[99999] font-arabic">
+          {/* Dark Glass Backdrop */}
+          <div
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity animate-in fade-in duration-200"
+          />
+
+          {/* Drawer Content Capsule */}
+          <div className={`fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} w-[280px] sm:w-[320px] bg-white/95 backdrop-blur-2xl shadow-2xl p-5 border-r border-white/80 flex flex-col justify-between animate-in slide-in-from-${isRTL ? 'right' : 'left'} duration-300`}>
+            <div>
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
+                <span className="font-black text-sm text-slate-900">
+                  {L("Navigation")}
+                </span>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4 max-h-[calc(100vh-140px)] overflow-y-auto hide-scrollbar">
+                {navGroups.map((group, gIdx) => {
+                  const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin);
+                  if (visibleItems.length === 0) return null;
+
+                  return (
+                    <div key={`mob-group-${gIdx}`} className="space-y-2">
+                      <h4 className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {group.title}
+                      </h4>
+                      <div className="space-y-1">
+                        {visibleItems.map(item => {
+                          const Icon = item.icon;
+                          const isActive = activeTab === item.id;
+
+                          return (
+                            <button
+                              key={`mob-item-${item.id}`}
+                              onClick={() => {
+                                setActiveTab(item.id);
+                                setIsMobileMenuOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between py-3 px-4 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                                isActive
+                                  ? 'bg-slate-900 text-white shadow-md'
+                                  : 'text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
+                                <span>{item.label}</span>
+                              </div>
+                              {Boolean(item.badge) && (item.badge || 0) > 0 && (
+                                <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-rose-500 text-white">
+                                  {item.badge}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 text-center">
+              <span className="text-[10px] font-bold text-slate-400">Galo Kids Admin © 2026</span>
+            </div>
+          </div>
         </div>
       )}
     </>

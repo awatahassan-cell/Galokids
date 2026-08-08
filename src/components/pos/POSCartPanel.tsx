@@ -74,7 +74,7 @@ export const POSCartPanel: React.FC<POSCartPanelProps> = ({
   };
 
   return (
-    <div className="w-full lg:w-[400px] xl:w-[440px] bg-white/80 backdrop-blur-xl border border-white/90 rounded-[2.5rem] p-5 shadow-xl flex flex-col h-full overflow-hidden font-arabic shrink-0">
+    <div className="w-full lg:w-[400px] xl:w-[440px] bg-white/85 backdrop-blur-xl border border-white/90 rounded-3xl lg:rounded-[2.5rem] p-3.5 sm:p-5 shadow-xl flex flex-col h-auto lg:h-full overflow-visible lg:overflow-hidden font-arabic shrink-0">
       
       {/* Customer Info Section */}
       <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3 mb-3 space-y-2 shrink-0">

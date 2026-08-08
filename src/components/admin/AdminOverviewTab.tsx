@@ -94,10 +94,10 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
   const barChartData = useMemo(() => {
     const months = ['MAY', 'JUN', 'JUL', 'AUG', 'SEP'];
     return months.map((m, idx) => ({
-      month: m,
+      month: L(m),
       value: idx === 2 ? 45000 : (idx + 1) * 8000 + 12000,
     }));
-  }, []);
+  }, [language]);
 
   const lineHealthData = useMemo(() => [
     { name: '1', val: 7.26 },
@@ -251,8 +251,10 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
                     🛍️
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-slate-900">{order.customerName || L('Guest Customer')}</h4>
-                    <span className="text-[10px] text-slate-400">Order #{order.id}</span>
+                    <h4 className="text-xs font-bold text-slate-900">
+                      {order.customerName ? L(order.customerName) : L('Guest Customer')}
+                    </h4>
+                    <span className="text-[10px] text-slate-400">{L("Order")} #{order.id}</span>
                   </div>
                 </div>
 
@@ -261,7 +263,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
                     order.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' :
                     order.status === 'shipped' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
                   }`}>
-                    {order.status}
+                    {L(order.status || 'delivered')}
                   </span>
                   <span className="text-xs font-black text-slate-900">{formatIQD(Number(order.totalAmount || 0))}</span>
                 </div>

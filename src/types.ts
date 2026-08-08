@@ -29,7 +29,7 @@ export interface Review {
 export interface User {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   role: 1 | 2 | 3 | '1' | '2' | '3' | 'admin' | 'customer' | 'staff';
   joinDate: string;
   phone?: string;

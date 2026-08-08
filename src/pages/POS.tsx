@@ -573,7 +573,7 @@ export const POS: React.FC = () => {
   const isRTL = language === 'ar' || language === 'ku';
 
   return (
-    <div className="w-full h-screen bg-gradient-to-br from-[#D2E0F2] via-[#E8EEF8] to-[#DFE9F5] p-3 sm:p-5 flex flex-col gap-4 font-arabic overflow-hidden">
+    <div className="w-full min-h-screen lg:h-screen bg-gradient-to-br from-[#D2E0F2] via-[#E8EEF8] to-[#DFE9F5] p-2.5 sm:p-5 flex flex-col gap-3 sm:gap-4 font-arabic overflow-y-auto lg:overflow-hidden relative">
       <POSNavbar
         shift={shift}
         heldOrdersCount={heldOrders.length}
@@ -590,7 +590,7 @@ export const POS: React.FC = () => {
       />
 
       {/* Main Terminal Workspace Area */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden gap-5 min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-visible lg:overflow-hidden gap-4 sm:gap-5 min-h-0">
         <POSProductGrid
           products={products}
           search={search}
@@ -603,46 +603,76 @@ export const POS: React.FC = () => {
         />
 
         {/* Cashier Register Cart Panel */}
-        <POSCartPanel
-          posCart={posCart}
-          updateQuantity={updateQuantity}
-          removeItem={removeItem}
-          clearCart={() => {
-            setPosCart([]);
-            setDiscountAmt('');
-            setCashReceived('');
-            setCustomerName('');
-            setCustomerPhone('');
-            setCustomerInfo(null);
-            localStorage.removeItem('pos_active_draft');
-          }}
-          discountAmt={discountAmt}
-          setDiscountAmt={setDiscountAmt}
-          discountMode={discountMode}
-          setDiscountMode={setDiscountMode}
-          paymentMethod={paymentMethod}
-          setPaymentMethod={setPaymentMethod}
-          cashReceived={cashReceived}
-          setCashReceived={setCashReceived}
-          setUserEditedCash={setUserEditedCash}
-          customerName={customerName}
-          setCustomerName={setCustomerName}
-          customerPhone={customerPhone}
-          setCustomerPhone={setCustomerPhone}
-          customerInfo={customerInfo}
-          lookupCustomer={lookupCustomer}
-          subtotal={subtotalVal}
-          discountNum={discountVal}
-          total={total}
-          changeDue={changeDue}
-          handleCheckout={handleCheckout}
-          holdCurrentSale={holdCurrentSale}
-          heldOrdersCount={heldOrders.length}
-          setShowHeld={setShowHeld}
-          lastReceipt={lastReceipt}
-          printReceipt={printReceipt}
-        />
+        <div id="pos-cart-section">
+          <POSCartPanel
+            posCart={posCart}
+            updateQuantity={updateQuantity}
+            removeItem={removeItem}
+            clearCart={() => {
+              setPosCart([]);
+              setDiscountAmt('');
+              setCashReceived('');
+              setCustomerName('');
+              setCustomerPhone('');
+              setCustomerInfo(null);
+              localStorage.removeItem('pos_active_draft');
+            }}
+            discountAmt={discountAmt}
+            setDiscountAmt={setDiscountAmt}
+            discountMode={discountMode}
+            setDiscountMode={setDiscountMode}
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+            cashReceived={cashReceived}
+            setCashReceived={setCashReceived}
+            setUserEditedCash={setUserEditedCash}
+            customerName={customerName}
+            setCustomerName={setCustomerName}
+            customerPhone={customerPhone}
+            setCustomerPhone={setCustomerPhone}
+            customerInfo={customerInfo}
+            lookupCustomer={lookupCustomer}
+            subtotal={subtotalVal}
+            discountNum={discountVal}
+            total={total}
+            changeDue={changeDue}
+            handleCheckout={handleCheckout}
+            holdCurrentSale={holdCurrentSale}
+            heldOrdersCount={heldOrders.length}
+            setShowHeld={setShowHeld}
+            lastReceipt={lastReceipt}
+            printReceipt={printReceipt}
+          />
+        </div>
       </div>
+
+      {/* Mobile Floating Sticky Cart Quick Action Bar */}
+      {posCart.length > 0 && (
+        <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40">
+          <button
+            onClick={() => {
+              const el = document.getElementById('pos-cart-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="w-full bg-slate-900/95 backdrop-blur-xl border border-white/20 text-white p-3.5 px-5 rounded-full shadow-2xl flex items-center justify-between cursor-pointer active:scale-95 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-2xs">
+                {posCart.reduce((sum, item) => sum + item.quantity, 0)}
+              </div>
+              <span className="font-bold text-xs">
+                {language === 'ku' ? 'سەبەتەی کاشێر' : language === 'ar' ? 'سلة أمين الصندوق' : 'Cart Items'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-black text-sm text-emerald-400">
+                {formatIQDLabel(total)}
+              </span>
+              <ShoppingBag className="w-4 h-4 text-indigo-400" />
+            </div>
+          </button>
+        </div>
+      )}
 
 
       {/* Shift open / close modal */}

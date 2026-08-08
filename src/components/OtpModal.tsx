@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, MessageSquare, Send, RefreshCw, ShieldCheck, AlertCircle, Sparkles } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { verifyCheckoutOtp, formatIraqiPhone } from '../services/otpService';
+import { useStore } from '../store';
 
 interface OtpModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
   isLoading = false,
 }) => {
   const { t, language } = useLanguage();
+  const { loginWithPhone } = useStore();
 
   // 6 digit PIN input states
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
@@ -177,12 +179,14 @@ export const OtpModal: React.FC<OtpModalProps> = ({
     try {
       // Direct generated code check or service check
       if (enteredCode === generatedCode || enteredCode === '123456') {
+        try { await loginWithPhone(mobileNumber); } catch (e) {}
         onVerifySuccess();
         return;
       }
 
       const res = await verifyCheckoutOtp(mobileNumber, enteredCode);
       if (res.success) {
+        try { await loginWithPhone(mobileNumber); } catch (e) {}
         onVerifySuccess();
       } else {
         setOtpError(

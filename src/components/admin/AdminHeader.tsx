@@ -31,30 +31,39 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
     <header className="w-full relative z-50 bg-white/70 backdrop-blur-xl border border-white/80 shadow-xs rounded-[2.5rem] px-4 sm:px-6 py-3 font-arabic mb-6 shrink-0">
       <div className="flex flex-col md:flex-row items-center justify-between gap-3">
         
-        {/* Left: Brand Logo & Admin Control Badge */}
-        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-          <Link to="/" title={storeSettings?.store_name || "Galo Kids"} className="flex items-center gap-3 group shrink-0">
+        {/* Brand Logo & Mobile Menu Toggle Button */}
+        <div className="flex items-center justify-between w-full md:w-auto gap-3">
+          <Link to="/" title={storeSettings?.store_name || "Galo Kids"} className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
             <img 
               src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
               alt={storeSettings?.store_name || "Galo Kids"} 
-              className="h-9 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" 
+              className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" 
             />
             <div className="flex flex-col">
               <span className="font-black text-xs sm:text-sm text-slate-900 tracking-tight flex items-center gap-1.5">
                 {storeSettings?.store_name || 'Galo Kids'}
-                <span className="px-2.5 py-0.5 text-[10px] font-black rounded-full bg-slate-900 text-white shadow-2xs">
+                <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-black rounded-full bg-slate-900 text-white shadow-2xs">
                   {L("Admin Panel")}
                 </span>
               </span>
-              <span className="text-[10px] font-bold text-slate-500">
+              <span className="text-[9px] sm:text-[10px] font-bold text-slate-500">
                 {language === 'ku' ? 'تەختەی بەڕێوەبەرایەتی' : language === 'ar' ? 'لوحة التحكم الإدارية' : 'Management Dashboard'}
               </span>
             </div>
           </Link>
+
+          {/* Mobile Dark Hamburger Menu Toggle Button */}
+          <button
+            onClick={onOpenMobileMenu}
+            className="lg:hidden p-2.5 rounded-2xl bg-slate-900 text-white shadow-md transition-transform active:scale-95 flex items-center justify-center shrink-0 cursor-pointer"
+            aria-label="Open Navigation Menu"
+          >
+            <Menu className="w-5 h-5 text-indigo-400" />
+          </button>
         </div>
 
         {/* Right: Integrated Control Widgets */}
-        <div className="flex items-center gap-2 flex-wrap justify-end w-full md:w-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto hide-scrollbar flex-nowrap py-1 w-full md:w-auto shrink-0 justify-start md:justify-end">
 
           {/* Quick POS Terminal Switcher Button */}
           <button
@@ -146,15 +155,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               )}
             </div>
           )}
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={onOpenMobileMenu}
-            className="md:hidden p-2.5 rounded-full bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
-            aria-label="Open Menu"
-          >
-            <Menu className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </header>

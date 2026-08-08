@@ -26,6 +26,7 @@ Route::post('/verify-otp', [OtpController::class, 'verifyOtp'])->middleware('thr
 // SECURITY: throttle to slow down brute-force / credential-stuffing attacks.
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/login-with-phone', [AuthController::class, 'phoneLoginOrRegister'])->middleware('throttle:15,1');
 
 // Public resource routes
 Route::get('/products/best-sellers', [ProductController::class, 'bestSellers']);

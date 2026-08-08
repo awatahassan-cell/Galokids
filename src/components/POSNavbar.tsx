@@ -81,54 +81,67 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
 
   return (
     <>
-      <header className="w-full relative z-50 bg-white/70 backdrop-blur-xl border border-white/80 shadow-xs rounded-[2.5rem] px-4 sm:px-6 py-3 font-arabic shrink-0">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+      <header className="w-full relative z-50 bg-white/80 backdrop-blur-xl border border-white/90 shadow-md rounded-3xl sm:rounded-[2.5rem] px-3.5 sm:px-6 py-2.5 sm:py-3 font-arabic shrink-0">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-3">
           
-          {/* Left: Brand Logo & Terminal Badge */}
+          {/* Top Row on Mobile / Left Area on Desktop: Brand Logo & User Controls */}
           <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-            <Link to="/" title={storeSettings?.store_name || "Galo Kids"} className="flex items-center gap-3 group shrink-0">
+            <Link to="/" title={storeSettings?.store_name || "Galo Kids"} className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
               <img 
                 src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
                 alt={storeSettings?.store_name || "Galo Kids"} 
-                className="h-9 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" 
+                className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" 
               />
               <div className="flex flex-col">
                 <span className="font-black text-xs sm:text-sm text-slate-900 tracking-tight flex items-center gap-1.5">
                   {storeSettings?.store_name || 'Galo Kids'}
-                  <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-slate-900 text-white shadow-2xs">
+                  <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-black rounded-full bg-slate-900 text-white shadow-2xs">
                     POS
                   </span>
                 </span>
-                <span className="text-[10px] font-bold text-slate-500">
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-500">
                   {language === 'ku' ? 'تێرمیناڵی کاشێر' : language === 'ar' ? 'محطة أمين الصندوق' : 'Cashier Terminal'}
                 </span>
               </div>
             </Link>
+
+            {/* Mobile User Profile & Language Quick Access */}
+            <div className="flex items-center gap-1.5 md:hidden">
+              <LanguageDropdown />
+              {currentUser && (
+                <button
+                  onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                  className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-2xs cursor-pointer active:scale-95"
+                >
+                  {(currentUser.name || currentUser.username || 'C').charAt(0).toUpperCase()}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Right: Quick Control Actions */}
-          <div className="flex items-center gap-2 flex-wrap justify-end w-full md:w-auto">
+          {/* Action Pills Track: Horizontally Scrollable on Mobile */}
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto hide-scrollbar flex-nowrap py-0.5 w-full md:w-auto shrink-0 justify-start md:justify-end">
             
             {/* Shift Status Button */}
             <button
               onClick={shift ? onOpenCloseShiftModal : onOpenShiftModal}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5 border ${
+              className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl text-[11px] sm:text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5 shrink-0 border ${
                 shift 
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' 
                   : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
               }`}
             >
               <Clock className="w-3.5 h-3.5" />
-              <span>{shift ? L("Close Shift") : L("Open Shift")}</span>
+              <span className="whitespace-nowrap">{shift ? L("Close Shift") : L("Open Shift")}</span>
             </button>
 
             {/* Held Orders Button */}
             <button
               onClick={onOpenHeldOrders}
-              className="px-3.5 py-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5 relative"
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl text-[11px] sm:text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5 relative shrink-0"
             >
               <Layers className="w-3.5 h-3.5 text-indigo-600" />
-              <span>{L("Held Sales")}</span>
+              <span className="whitespace-nowrap">{L("Held Sales")}</span>
               {heldOrdersCount > 0 && (
                 <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-2xs animate-pulse">
                   {heldOrdersCount}
@@ -139,17 +152,17 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
             {/* Return Order Button */}
             <button
               onClick={onOpenReturnModal}
-              className="px-3.5 py-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5"
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl text-[11px] sm:text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5 shrink-0"
             >
               <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
-              <span>{L("Refund")}</span>
+              <span className="whitespace-nowrap">{L("Refund")}</span>
             </button>
 
             {/* Reprint Receipt Button */}
             {lastReceipt && (
               <button
                 onClick={onReprintLastReceipt}
-                className="p-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95"
+                className="p-1.5 sm:p-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
                 title={L("Reprint Last Receipt")}
               >
                 <Printer className="w-4 h-4 text-indigo-600" />
@@ -160,28 +173,30 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
             {isAdminOnly && (
               <Link
                 to="/admin"
-                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-[11px] sm:text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <LayoutDashboard className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{L("Admin Panel")}</span>
+                <span className="whitespace-nowrap">{L("Admin Panel")}</span>
               </Link>
             )}
 
             {/* Home Link */}
             <Link
               to="/"
-              className="p-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95"
+              className="p-1.5 sm:p-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
               title={t('home') || 'Home'}
             >
               <Home className="w-4 h-4" />
             </Link>
 
-            {/* Language Dropdown */}
-            <LanguageDropdown />
+            {/* Desktop Language Dropdown */}
+            <div className="hidden md:block">
+              <LanguageDropdown />
+            </div>
 
-            {/* User Profile Dropdown Capsule */}
+            {/* Desktop User Profile Capsule Dropdown */}
             {currentUser && (
-              <div className="relative">
+              <div className="relative hidden md:block">
                 <button
                   onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
                   className="flex items-center gap-2.5 px-3 py-1.5 bg-white/80 hover:bg-white border border-slate-200/80 rounded-full text-xs font-bold text-slate-800 shadow-2xs transition-all cursor-pointer active:scale-95"
