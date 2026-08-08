@@ -4,6 +4,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
 import { Order, PaginationMeta } from '../../types';
 import { Pagination } from '../Pagination';
+import { useConfirm, useToast } from '../ui/Feedback';
 
 export interface AdminOrdersTabProps {
   orders: Order[];
@@ -20,8 +21,8 @@ export interface AdminOrdersTabProps {
   deleteOrder: (orderId: string) => void;
   ordersPagination: PaginationMeta;
   refreshOrders: (page?: number, limit?: number) => void;
-  confirmDialog: (options: any) => Promise<boolean>;
-  toast: (msg: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+  confirmDialog?: (options: any) => Promise<boolean>;
+  toast?: (msg: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
 export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
@@ -31,11 +32,15 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   deleteOrder,
   ordersPagination,
   refreshOrders,
-  confirmDialog,
-  toast,
+  confirmDialog: propConfirmDialog,
+  toast: propToast,
 }) => {
   const { language } = useLanguage();
   const L = (key: string) => adminTr(key, language);
+  const hookConfirm = useConfirm();
+  const hookToast = useToast();
+  const confirmDialog = propConfirmDialog || hookConfirm;
+  const toast = propToast || hookToast;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 overflow-x-auto">
@@ -116,12 +121,18 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                     type="button"
                     onClick={async () => {
                       if (await confirmDialog({
-                        title: 'Delete order?',
-                        message: `Order #${order.id} will be deleted and its stock returned to inventory.`,
-                        confirmText: 'Delete', cancelText: 'Cancel', danger: true,
+                        title: L('Delete order?'),
+                        message: language === 'ku'
+                          ? `داواکاری #${order.id} دەسڕدرێتەوە و ستۆکەکەی دەگەڕێندرێتەوە بۆ کۆگا.`
+                          : language === 'ar'
+                          ? `سيتم حذف الطلب #${order.id} وإعادة مخزونه إلى الكتالوج.`
+                          : `Order #${order.id} will be deleted and its stock returned to inventory.`,
+                        confirmText: L('Delete'),
+                        cancelText: L('Cancel'),
+                        danger: true,
                       })) {
                         deleteOrder(order.id);
-                        toast('Order deleted');
+                        toast(L('Order deleted and stock restored ✅'));
                       }
                     }}
                     className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50 cursor-pointer"

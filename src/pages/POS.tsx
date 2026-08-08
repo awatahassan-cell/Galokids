@@ -8,6 +8,9 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { getColorHex } from '../utils/colors';
 import { useToast } from '../components/ui/Feedback';
 import { POSNavbar } from '../components/POSNavbar';
+import { POSProductGrid } from '../components/pos/POSProductGrid';
+import { POSCartPanel } from '../components/pos/POSCartPanel';
+import { adminTr } from '../i18n/adminDict';
 
 export const POS: React.FC = () => {
   const { products, addOrder, productsPagination, refreshProducts, lookupCustomer,
@@ -91,6 +94,7 @@ export const POS: React.FC = () => {
     } else toast(res.message || 'Refund failed', 'error');
   };
   const { t, language } = useLanguage();
+  const L = (key: string) => adminTr(key, language);
   const [search, setSearch] = useState('');
   
   // Quick Add State
@@ -584,336 +588,63 @@ export const POS: React.FC = () => {
         }}
         onOpenReturnModal={() => setShowReturn(true)}
       />
-      <div className={`flex-grow flex flex-col md:flex-row max-w-7xl mx-auto w-full ${isRTL ? 'md:flex-row-reverse' : ''}`}>
-        {/* Products Section */}
-        <div className="w-full md:w-2/3 p-4 md:p-6 flex flex-col h-[calc(100vh-64px)] overflow-hidden">
-        <div className="mb-4 text-left">
-          <label className={`block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ${isRTL ? 'mr-1 text-right font-arabic' : 'ml-1'}`}>
-            {t('customerDetails') || 'Customer Details'}
-          </label>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className={`flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-900 font-medium ${isRTL ? 'text-right font-arabic' : ''}`}
-              placeholder={t('customerPlaceholder') || "Full Name (e.g. Ali Ahmed)"}
-            />
-            <input
-              type="tel"
-              value={customerPhone}
-              onChange={(e) => { setCustomerPhone(e.target.value); setCustomerInfo(null); }}
-              onBlur={async () => {
-                if (customerPhone.replace(/\D/g, '').length >= 7) {
-                  const info = await lookupCustomer(customerPhone);
-                  if (info?.found) {
-                    setCustomerInfo(info);
-                    if (info.name && !customerName) setCustomerName(info.name);
-                  } else setCustomerInfo(null);
-                }
-              }}
-              className={`w-40 px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-900 font-medium ${isRTL ? 'text-right font-arabic' : ''}`}
-              placeholder={t('mobileNumber') || 'Phone'}
-            />
-          </div>
-          {customerInfo?.found && (
-            <div className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
-              ⭐ {t('returningCustomer') || 'Returning customer'} · {customerInfo.orders_count} {t('myOrders') || 'orders'} · {formatIQDLabel(Number(customerInfo.total_spent || 0))}
-            </div>
-          )}
-        </div>
-        <div className="mb-4 flex gap-2">
-          <div className="relative flex-grow">
-            <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5`} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                // Barcode scanners type the code then send Enter. If exactly one
-                // product matches the scanned barcode, add it straight to the cart.
-                if (e.key !== 'Enter') return;
-                const code = search.trim().toLowerCase();
-                if (!code) return;
-                const match = products.find(p => (p.barcode || '').toLowerCase() === code)
-                  || (filteredProducts.length === 1 ? filteredProducts[0] : undefined);
-                if (match) {
-                  const firstVar = (match.variations || []).find(v => v.stockQuantity > 0) || (match.variations || [])[0];
-                  if (firstVar) {
-                    addToPosCart(match, firstVar);
-                    setSearch('');
-                  }
-                }
-              }}
-              className={`w-full ${isRTL ? 'pr-10 pl-4 text-right font-arabic' : 'pl-10 pr-4'} py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-slate-900`}
-              placeholder={t('searchProducts') || "Search by name or barcode..."}
-            />
-          </div>
-          <button
-            onClick={() => setShowReturn(true)}
-            className={`bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 font-bold px-3.5 py-3 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm whitespace-nowrap border border-slate-200 active:scale-95 ${isRTL ? 'flex-row-reverse font-arabic' : ''}`}
-            title={t('returnRefund') || 'Return'}
-          >
-            <RotateCcw className="w-4 h-4 text-rose-500" />
-            <span className="hidden sm:inline">{t('returnRefund') || 'Return'}</span>
-          </button>
-          <button
-            onClick={() => setShowQuickAdd(true)}
-            className={`bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-3 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm whitespace-nowrap ${isRTL ? 'flex-row-reverse font-arabic' : ''}`}
-          >
-            <Plus className="w-5 h-5" />
-            {t('quickAdd') || 'Quick Add'}
-          </button>
+      <div className={`flex-grow flex flex-col md:flex-row max-w-7xl mx-auto w-full h-[calc(100vh-64px)] overflow-hidden ${isRTL ? 'md:flex-row-reverse' : ''}`}>
+        {/* Products Catalog Area */}
+        <div className="w-full md:w-2/3 p-3.5 sm:p-4 flex flex-col h-full overflow-hidden">
+          <POSProductGrid
+            products={products}
+            search={search}
+            setSearch={setSearch}
+            addToPosCart={addToPosCart}
+            setShowReturn={setShowReturn}
+            setShowQuickAdd={setShowQuickAdd}
+            productsPagination={productsPagination}
+            refreshProducts={refreshProducts}
+          />
         </div>
 
-        <div className="flex-grow overflow-y-auto hide-scrollbar">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
-            {displayedProducts.map(product => (
-              <div 
-                key={product.id} 
-                onClick={() => {
-                  const firstVar = (product.variations || []).find(v => v.stockQuantity > 0) || (product.variations || [])[0];
-                  if (firstVar) {
-                    addToPosCart(product, firstVar);
-                  }
-                }}
-                className="bg-white rounded-lg border border-slate-200 p-1.5 hover:border-indigo-400 hover:shadow-sm transition-all cursor-pointer relative group flex flex-col justify-between"
-              >
-                <div>
-                  {(() => {
-                    const totalStock = (product.variations || []).reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
-                    return (
-                      <span className={`absolute top-1 ${isRTL ? 'left-1' : 'right-1'} z-10 text-[8px] font-black px-1 py-0.2 rounded shadow-xs ${totalStock === 0 ? 'bg-rose-500 text-white' : totalStock <= 5 ? 'bg-amber-500 text-white' : 'bg-slate-900/80 text-white'}`}>
-                        {totalStock === 0 ? (t('outOfStock') || 'Out') : `${totalStock}`}
-                      </span>
-                    );
-                  })()}
-                  <img src={product.imageUrl} alt={getProductName(product)} className="w-full h-14 sm:h-16 object-cover rounded-md mb-1 bg-slate-50" />
-                  <h3 className={`font-bold text-slate-900 text-[11px] leading-tight truncate ${isRTL ? 'text-right font-arabic' : ''}`} title={getProductName(product)}>{getProductName(product)}</h3>
-                  <p className={`font-black text-indigo-600 text-[11px] mb-1 ${isRTL ? 'text-right' : ''}`}>{formatIQDLabel(Number(product.price || 0))}</p>
-                </div>
-
-                {/* Variations list with direct select */}
-                <div className={`flex flex-wrap gap-0.5 ${isRTL ? 'flex-row-reverse' : ''}`} onClick={(e) => e.stopPropagation()}>
-                  {(product.variations || []).map(v => {
-                    const out = (v.stockQuantity || 0) <= 0;
-                    return (
-                    <button
-                      key={v.id}
-                      disabled={out}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (out) { toast('This variation is out of stock', 'error'); return; }
-                        addToPosCart(product, v);
-                      }}
-                      className={`px-1 py-0.5 text-[9px] rounded font-bold border transition-colors ${out ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed line-through' : 'bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 border-slate-200/80 hover:border-indigo-300'}`}
-                    >
-                      <span className={`inline-flex items-center gap-0.5 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <span className="w-1.5 h-1.5 rounded-full border border-slate-300 shrink-0" style={{ backgroundColor: getColorHex(v.color) }} title={v.color} />
-                        {v.size} <span className="opacity-60 text-[8px]">({v.stockQuantity ?? 0})</span>
-                      </span>
-                    </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {productsPagination && productsPagination.lastPage > 1 && (
-          <div className="mt-4 border-t border-slate-100 pt-3 shrink-0">
-            <Pagination meta={productsPagination} onPageChange={(page) => refreshProducts(page, 20, { search })} />
-          </div>
-        )}
+        {/* Cashier Register Cart Panel */}
+        <POSCartPanel
+          posCart={posCart}
+          updateQuantity={updateQuantity}
+          removeItem={removeItem}
+          clearCart={() => {
+            setPosCart([]);
+            setDiscountAmt('');
+            setCashReceived('');
+            setCustomerName('');
+            setCustomerPhone('');
+            setCustomerInfo(null);
+            localStorage.removeItem('pos_active_draft');
+          }}
+          discountAmt={discountAmt}
+          setDiscountAmt={setDiscountAmt}
+          discountMode={discountMode}
+          setDiscountMode={setDiscountMode}
+          paymentMethod={paymentMethod}
+          setPaymentMethod={setPaymentMethod}
+          cashReceived={cashReceived}
+          setCashReceived={setCashReceived}
+          setUserEditedCash={setUserEditedCash}
+          customerName={customerName}
+          setCustomerName={setCustomerName}
+          customerPhone={customerPhone}
+          setCustomerPhone={setCustomerPhone}
+          customerInfo={customerInfo}
+          lookupCustomer={lookupCustomer}
+          subtotal={subtotalVal}
+          discountNum={discountVal}
+          total={total}
+          changeDue={changeDue}
+          handleCheckout={handleCheckout}
+          holdCurrentSale={holdCurrentSale}
+          heldOrdersCount={heldOrders.length}
+          setShowHeld={setShowHeld}
+          lastReceipt={lastReceipt}
+          printReceipt={printReceipt}
+        />
       </div>
 
-      {/* Cart Section */}
-      <div className={`w-full md:w-1/3 bg-white ${isRTL ? 'border-r' : 'border-l'} border-slate-200 flex flex-col h-[calc(100vh-64px)]`}>
-        <div className={`p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-          <h2 className={`text-lg font-bold text-slate-900 flex items-center ${isRTL ? 'font-arabic' : ''}`}>
-            <Receipt className={`w-5 h-5 ${isRTL ? 'ml-2' : 'mr-2'} text-indigo-600`} /> {t('yourCart')}
-          </h2>
-          <div className="flex items-center gap-1.5 flex-wrap justify-end">
-            {/* Suspended Sales (Held Orders) List */}
-            <button
-              onClick={() => setShowHeld(true)}
-              className="relative text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200/60 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition-all active:scale-95"
-              title={t('heldOrders') || 'Suspended Sales'}
-            >
-              <Clock className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden xl:inline">{t('heldOrders') || 'Suspended'}</span>
-              {heldOrders.length > 0 && (
-                <span className="min-w-[16px] h-4 px-1 bg-amber-600 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">{heldOrders.length}</span>
-              )}
-            </button>
-
-            {/* Reprint Last Receipt */}
-            {lastReceipt && (
-              <button
-                onClick={() => printReceipt(lastReceipt.orderItems, lastReceipt.totals, lastReceipt.customerName, lastReceipt.invoiceNo)}
-                className="text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition-all active:scale-95"
-                title={t('reprintReceipt') || 'Reprint last receipt'}
-              >
-                <Printer className="w-3.5 h-3.5 text-slate-500" />
-              </button>
-            )}
-
-            {/* Suspend Current Sale */}
-            <button
-              onClick={holdCurrentSale}
-              disabled={posCart.length === 0}
-              className="text-xs font-bold text-amber-800 bg-amber-100/60 hover:bg-amber-100 border border-amber-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 disabled:opacity-40 transition-all active:scale-95 shadow-sm"
-              title={t('hold') || 'Suspend Sale'}
-            >
-              <Pause className="w-3.5 h-3.5 text-amber-600" />
-              <span>{t('hold') || 'Suspend'}</span>
-            </button>
-
-            {/* Clear Cart */}
-            <button
-              onClick={() => {
-                if (window.confirm(language === 'ku' ? 'دڵنیای لە پاککردنەوەی سەبەتەکە؟' : language === 'ar' ? 'هل أنت متأكد من مسح السلة؟' : 'Are you sure you want to clear the cart?')) {
-                  setPosCart([]);
-                  setDiscountAmt('');
-                  setCashReceived('');
-                  setCustomerName('');
-                  setCustomerPhone('');
-                  setCustomerInfo(null);
-                  localStorage.removeItem('pos_active_draft');
-                }
-              }}
-              className="text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all active:scale-95 shadow-sm"
-              title={t('clear') || 'Clear'}
-            >
-              <Trash2 className="w-3.5 h-3.5 text-red-500" />
-              <span className="hidden xl:inline">{t('clear')}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-grow overflow-y-auto p-4 space-y-4 hide-scrollbar">
-          {posCart.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400">
-              <ShoppingBag className="w-12 h-12 mb-2 opacity-20" />
-              <p className={isRTL ? 'font-arabic' : ''}>{t('emptyCart')}</p>
-            </div>
-          ) : (
-            posCart.map((item, idx) => (
-              <div key={`${item.product.id}-${item.variation.id}-${idx}`} className={`flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <img src={item.product.imageUrl} alt={getProductName(item.product)} className="w-12 h-12 object-cover rounded-lg" />
-                <div className={`flex-grow ${isRTL ? 'text-right' : ''}`}>
-                  <h4 className={`text-sm font-medium text-slate-900 leading-tight ${isRTL ? 'font-arabic' : ''}`}>{getProductName(item.product)}</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    <span className={`inline-flex items-center gap-1.5 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <span className="w-2.5 h-2.5 rounded-full border border-slate-200" style={{ backgroundColor: getColorHex(item.variation.color) }} title={item.variation.color} /> 
-                      {item.variation.size}
-                    </span>
-                  </p>
-                  <p className="text-sm font-bold text-indigo-600 mt-1">{formatIQDLabel(Number(item.product.price || 0) * item.quantity)}</p>
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <button onClick={() => updateQuantity(item.product.id, item.variation.id, 1)} className="p-1 bg-white border border-slate-200 rounded shadow-sm hover:bg-slate-50 text-slate-600">
-                    <Plus className="w-3 h-3" />
-                  </button>
-                  <span className="text-sm font-bold w-6 text-center text-slate-900">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.product.id, item.variation.id, -1)} className="p-1 bg-white border border-slate-200 rounded shadow-sm hover:bg-slate-50 text-slate-600">
-                    <Minus className="w-3 h-3" />
-                  </button>
-                </div>
-                <button 
-                  onClick={() => removeItem(item.product.id, item.variation.id)}
-                  className={`p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ${isRTL ? 'mr-1' : 'ml-1'}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="p-4 border-t border-slate-200 bg-white">
-          <div className={`flex justify-between items-center mb-3 ${isRTL ? 'flex-row-reverse font-arabic' : ''}`}>
-            <span className="text-slate-600 font-medium">{t('subtotal')}</span>
-            <span className="text-slate-900 font-bold">{formatIQDLabel(posCart.reduce((sum, item) => sum + (Number(item.product.price || 0) * item.quantity), 0))}</span>
-          </div>
-          
-          <div className={`flex items-center justify-between mb-4 gap-3 ${isRTL ? 'flex-row-reverse font-arabic' : ''}`}>
-            <span className="text-slate-600 font-medium shrink-0">{t('discount') || 'Discount'}</span>
-            <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <div className="flex rounded-lg overflow-hidden border border-slate-200">
-                <button type="button" onClick={() => setDiscountMode('amount')}
-                  className={`px-2.5 py-1.5 text-xs font-bold ${discountMode === 'amount' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500'}`}>$</button>
-                <button type="button" onClick={() => setDiscountMode('percent')}
-                  className={`px-2.5 py-1.5 text-xs font-bold ${discountMode === 'percent' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500'}`}>%</button>
-              </div>
-              <input
-                type="number"
-                min="0"
-                placeholder="0"
-                value={discountAmt}
-                onChange={(e) => setDiscountAmt(e.target.value)}
-                className="w-[90px] px-2.5 py-1.5 border border-slate-200 rounded-lg text-slate-900 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-right"
-              />
-            </div>
-          </div>
-
-          {/* Payment method */}
-          <div className={`flex gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-            {(['cash', 'card'] as const).map(m => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setPaymentMethod(m)}
-                className={`flex-1 py-2 rounded-lg text-sm font-bold border transition-colors ${paymentMethod === m ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-              >
-                {m === 'cash' ? (t('cash') || 'Cash') : (t('card') || 'Card')}
-              </button>
-            ))}
-          </div>
-
-          {paymentMethod === 'cash' && (
-            <div className={`flex items-center justify-between mb-3 gap-4 ${isRTL ? 'flex-row-reverse font-arabic' : ''}`}>
-              <span className="text-slate-600 font-medium shrink-0">{t('cashReceived') || 'Cash received'}</span>
-              <div className="relative max-w-[140px]">
-                <input
-                  type="number"
-                  min="0"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={cashReceived}
-                  onChange={(e) => {
-                    setUserEditedCash(true);
-                    setCashReceived(e.target.value);
-                  }}
-                  className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-900 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 text-right"
-                />
-              </div>
-            </div>
-          )}
-
-          {paymentMethod === 'cash' && cashVal > 0 && (
-            <div className={`flex items-center justify-between mb-3 ${isRTL ? 'flex-row-reverse font-arabic' : ''}`}>
-              <span className="text-slate-600 font-medium">{t('change') || 'Change'}</span>
-              <span className={`font-black ${cashVal >= total ? 'text-emerald-600' : 'text-red-500'}`}>{formatIQDLabel(changeDue)}</span>
-            </div>
-          )}
-
-          <div className={`flex justify-between items-center mb-6 pt-4 border-t border-slate-100 ${isRTL ? 'flex-row-reverse font-arabic' : ''}`}>
-            <span className="text-lg font-bold text-slate-900">{t('total')}</span>
-            <span className="text-2xl font-black text-indigo-600">{formatIQDLabel(total)}</span>
-          </div>
-          
-          <button 
-            onClick={handleCheckout}
-            disabled={posCart.length === 0}
-            className={`w-full bg-indigo-600 text-white font-bold text-lg py-4 rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-md ${isRTL ? 'flex-row-reverse font-arabic' : ''}`}
-          >
-            <CreditCard className={`w-6 h-6 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-            {t('pay')} {formatIQDLabel(total)}
-          </button>
-        </div>
-      </div>
 
       {/* Shift open / close modal */}
       {showShiftModal && (
@@ -1155,30 +886,30 @@ export const POS: React.FC = () => {
       {/* Quick Add Modal */}
       {showQuickAdd && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full max-w-md overflow-hidden font-arabic">
             <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Quick Add Item</h3>
-              <button onClick={() => setShowQuickAdd(false)} className="text-slate-400 hover:text-slate-600 p-1">
+              <h3 className="text-lg font-bold text-slate-900">{L("Quick Add Item")}</h3>
+              <button onClick={() => setShowQuickAdd(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             <form onSubmit={handleQuickAddSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Item Name</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Item Name")}</label>
                 <input 
                   type="text" 
-                  value={quickName} 
+                  value={quickName === 'Generic Item' ? L('Generic Item') : quickName} 
                   onChange={e => setQuickName(e.target.value)} 
                   required 
-                  placeholder="e.g. Custom Garment" 
+                  placeholder={L("Generic Item")} 
                   className="w-full border border-slate-300 rounded-lg py-2 px-3 text-slate-900 focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Price *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{L("Price *")}</label>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -1187,11 +918,11 @@ export const POS: React.FC = () => {
                     onChange={e => setQuickPrice(e.target.value)} 
                     required 
                     placeholder="25.00" 
-                    className="w-full border border-slate-300 rounded-lg py-2 px-3 text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-slate-300 rounded-lg py-2 px-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Cost - Optional</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{L("Cost - Optional")}</label>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -1199,14 +930,14 @@ export const POS: React.FC = () => {
                     value={quickCost} 
                     onChange={e => setQuickCost(e.target.value)} 
                     placeholder="10.00" 
-                    className="w-full border border-slate-300 rounded-lg py-2 px-3 text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                    className="w-full border border-slate-300 rounded-lg py-2 px-3 text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Color (Optional)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{L("Color (Optional)")}</label>
                   <input 
                     type="text" 
                     value={quickColor} 
@@ -1216,7 +947,7 @@ export const POS: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Size (Optional)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{L("Size (Optional)")}</label>
                   <input 
                     type="text" 
                     value={quickSize} 
@@ -1228,20 +959,20 @@ export const POS: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Quantity")}</label>
                 <div className="flex items-center gap-3">
                   <button 
                     type="button" 
                     onClick={() => setQuickQuantity(q => Math.max(1, q - 1))}
-                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 font-bold"
+                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 font-bold cursor-pointer"
                   >
                     <Minus className="w-4 h-4" />
                   </button>
-                  <span className="text-lg font-bold w-12 text-center text-slate-900">{quickQuantity}</span>
+                  <span className="text-lg font-bold w-12 text-center text-slate-900 font-mono">{quickQuantity}</span>
                   <button 
                     type="button" 
                     onClick={() => setQuickQuantity(q => q + 1)}
-                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 font-bold"
+                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-700 font-bold cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -1252,16 +983,16 @@ export const POS: React.FC = () => {
                 <button 
                   type="button" 
                   onClick={() => setShowQuickAdd(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {L("Cancel")}
                 </button>
                 <button 
                   type="submit" 
-                  className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1 shadow-sm"
+                  className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1 shadow-sm cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  Add to Cart
+                  {L("Add to Cart")}
                 </button>
               </div>
             </form>
@@ -1269,6 +1000,5 @@ export const POS: React.FC = () => {
         </div>
       )}
     </div>
-  </div>
-);
+  );
 };
