@@ -57,41 +57,41 @@ export const AdminSalesReport: React.FC = () => {
   }, [cashiers, report]);
 
   const stat = (label: string, value: string, Icon: any, color: string) => (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+    <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-5 rounded-[2rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</span>
-        <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${color}`}><Icon className="w-4 h-4" /></span>
+        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
+        <span className={`w-8 h-8 rounded-xl flex items-center justify-center ${color}`}><Icon className="w-4 h-4" /></span>
       </div>
       <p className="text-2xl font-black text-slate-900">{value}</p>
     </div>
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-3 bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+    <div className="space-y-6 font-arabic">
+      <div className="flex flex-wrap items-end gap-3 bg-white/80 backdrop-blur-xl border border-white/80 p-5 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
         <div>
           <label className="block text-xs font-bold text-slate-500 mb-1">{L("From")}</label>
-          <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+          <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="bg-slate-100/80 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
         <div>
           <label className="block text-xs font-bold text-slate-500 mb-1">{L("To")}</label>
-          <input type="date" value={to} onChange={e => setTo(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+          <input type="date" value={to} onChange={e => setTo(e.target.value)} className="bg-slate-100/80 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
         <div>
           <label className="block text-xs font-bold text-slate-500 mb-1">{L("Channel")}</label>
-          <select value={channel} onChange={e => setChannel(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+          <select value={channel} onChange={e => setChannel(e.target.value)} className="bg-slate-100/80 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
             <option value="">{L("All")}</option>
             <option value="online">{L("Online (Website)")}</option>
             <option value="pos">{L("In-store (POS)")}</option>
           </select>
         </div>
-        <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 bg-indigo-600 text-white font-bold px-5 py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60">
+        <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 bg-slate-900 text-white font-bold px-6 py-2.5 rounded-full hover:bg-slate-800 transition-all shadow-md disabled:opacity-60 cursor-pointer">
           <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {loading ? L('Loading...') : L('Run')}
         </button>
         <div className="flex gap-2 ml-auto">
           {([['today', L('Today')], ['month', L('This Month')], ['year', L('This Year')]] as const).map(([k, label]) => (
             <button key={k} onClick={() => setPreset(k)}
-              className="text-xs font-bold px-3 py-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+              className="text-xs font-bold px-4 py-2 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-900 hover:text-white transition-all cursor-pointer">
               {label}
             </button>
           ))}

@@ -163,12 +163,12 @@ function convertKeysToCamelCase(obj: any): any {
       newObj.imageUrl = newObj.images[0];
     }
 
-    // Normalize user role to integer (1, 2, or 3)
+    // Normalize user role (1 = Admin/Owner, 2 = Staff/Cashier, 3 = Admin)
     if (Object.prototype.hasOwnProperty.call(newObj, 'role')) {
       const r = newObj.role;
-      if (r === 3 || r === '3' || r === 'admin') {
-        newObj.role = 3;
-      } else if (r === 2 || r === '2' || r === 'staff') {
+      if (r === 1 || r === '1' || r === 3 || r === '3' || r === 'admin' || r === 'owner') {
+        newObj.role = 1;
+      } else if (r === 2 || r === '2' || r === 'staff' || r === 'cashier') {
         newObj.role = 2;
       } else {
         newObj.role = 1;

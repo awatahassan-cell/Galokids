@@ -1,5 +1,5 @@
 import { STANDARD_COLORS, STANDARD_SIZES } from '../data';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { API_BASE_URL } from '../config/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -52,6 +52,7 @@ export const Admin: React.FC = () => {
     if (!currentUser) return true;
     const roleStr = String(currentUser.role).toLowerCase();
     return (
+      roleStr === '1' ||
       roleStr === '3' || 
       roleStr === 'admin' || 
       roleStr === '2' || 
@@ -67,18 +68,25 @@ export const Admin: React.FC = () => {
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  const { tab } = useParams<{ tab: string }>();
+  const { tab: urlTab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
-  const validTabs = ['overview', 'reports', 'products', 'categories', 'orders', 'users', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings'];
-  
-  let activeTab = validTabs.includes(tab || '') ? tab : null;
-  if (!activeTab) {
-    activeTab = isAdmin ? 'overview' : 'products';
-  }
+  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'categories', 'orders', 'users', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings'], []);
 
-  const setActiveTab = (newTab: string) => {
-    navigate(`/admin/${newTab}`);
-  };
+  const [activeTab, setActiveTabState] = useState<string>(() => {
+    if (urlTab && validTabs.includes(urlTab)) return urlTab;
+    return isAdmin ? 'overview' : 'products';
+  });
+
+  useEffect(() => {
+    if (urlTab && validTabs.includes(urlTab) && urlTab !== activeTab) {
+      setActiveTabState(urlTab);
+    }
+  }, [urlTab, validTabs]);
+
+  const setActiveTab = useCallback((newTab: string) => {
+    setActiveTabState(newTab);
+    window.history.replaceState(null, '', `/admin/${newTab}`);
+  }, []);
 
   // Coupons State
   const [couponCode, setAdminCouponCode] = useState('');
@@ -960,11 +968,67 @@ export const Admin: React.FC = () => {
     openPrintWindow('Barcode Stickers', `<div class="grid">${stickers}</div>`);
   };
 
-  return (
-    <div className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 py-8 [&_button]:cursor-pointer [&_a]:cursor-pointer">
-      <AdminHeader onOpenMobileMenu={() => setIsMobileMenuOpen(true)} />
+  const [isAlertDismissedToday, setIsAlertDismissedToday] = useState<boolean>(() => {
+    try {
+      const until = localStorage.getItem('low_stock_alert_dismissed_until');
+      if (!until) return false;
+      return Date.now() < Number(until);
+    } catch (e) {
+      return false;
+    }
+  });
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+  const handleDismissAlert = () => {
+    try {
+      const nextDay = Date.now() + 24 * 60 * 60 * 1000;
+      localStorage.setItem('low_stock_alert_dismissed_until', String(nextDay));
+      setIsAlertDismissedToday(true);
+    } catch (e) {}
+  };
+
+  const LowStockAlert = () => {
+    if (lowStockProducts.length === 0) return null;
+    if (activeTab !== 'products' && isAlertDismissedToday) return null;
+
+    return (
+      <div className="bg-amber-50/90 backdrop-blur-md border border-amber-200/80 p-4 rounded-3xl shadow-xs flex items-center justify-between gap-4 font-arabic animate-in fade-in duration-200">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
+            ⚠️
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-amber-950">
+              ({lowStockProducts.length}) {L("products low in stock!")}
+            </h4>
+            <p className="text-[11px] font-bold text-amber-800/90 mt-0.5">
+              {L("Some products have variations with stock less than 15 units. Please restock soon.")}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setActiveTab('products')}
+            className="px-4 py-1.5 bg-amber-900 text-white text-xs font-bold rounded-full hover:bg-amber-950 transition-all cursor-pointer shadow-2xs"
+          >
+            {L("View Products")}
+          </button>
+          {activeTab !== 'products' && (
+            <button
+              onClick={handleDismissAlert}
+              className="p-1.5 text-amber-700 hover:text-amber-950 rounded-full hover:bg-amber-200/50 transition-colors cursor-pointer"
+              title={L("Dismiss for 24h")}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="w-full h-screen bg-gradient-to-br from-[#D2E0F2] via-[#E8EEF8] to-[#DFE9F5] p-3 sm:p-5 lg:p-6 flex flex-col lg:flex-row gap-6 [&_button]:cursor-pointer [&_a]:cursor-pointer font-arabic text-slate-800 relative overflow-hidden">
         <AdminNavigationSidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -972,19 +1036,21 @@ export const Admin: React.FC = () => {
           isMobileMenuOpen={isMobileMenuOpen}
           setIsMobileMenuOpen={setIsMobileMenuOpen}
           newAndPendingOrdersCount={orderCounts.newAndPending}
+          currentUser={currentUser}
         />
 
-        {/* Content Area */}
-        <div className="md:col-span-3 space-y-8">
+        {/* Main Content Area (Hidden Scrollbar like Sidebar) */}
+        <div className="flex-1 min-w-0 w-full h-full overflow-y-auto hide-scrollbar space-y-6 pb-12">
+          <AdminHeader onOpenMobileMenu={() => setIsMobileMenuOpen(true)} currentUser={currentUser} />
           <LowStockAlert />
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 12, scale: 0.995 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.995 }}
-              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1.0] }}
-              className="space-y-8"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeInOut" }}
+              className="space-y-8 overflow-hidden"
             >
           {activeTab === 'reports' && isAdmin && (
             <div className="space-y-4">
@@ -1318,12 +1384,12 @@ export const Admin: React.FC = () => {
       )}
 
       {activeTab === 'categories' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-slate-900">{L("Categories Management")}</h2>
+            <h2 className="text-xl font-black text-slate-900">{L("Categories Management")}</h2>
             <button
               onClick={() => setIsAddingCategory(true)}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center shadow-sm text-sm"
+              className="bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold hover:bg-slate-800 transition-all flex items-center shadow-md text-xs cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4 mr-2" /> {L("Add Category")}
             </button>
@@ -1447,9 +1513,9 @@ export const Admin: React.FC = () => {
       )}
 
       {activeTab === 'products' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <h2 className="text-lg font-bold text-slate-900">{L("Products Management")}</h2>
+            <h2 className="text-xl font-black text-slate-900">{L("Products Management")}</h2>
             <div className="flex items-center gap-2">
               <div className="relative max-w-xs">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1458,12 +1524,12 @@ export const Admin: React.FC = () => {
                   placeholder={L("Search products...")}
                   value={productSearchQuery}
                   onChange={(e) => setProductSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full pl-9 pr-4 py-2.5 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                 />
               </div>
               <button
                 onClick={() => setIsAddingProduct(true)}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center shadow-sm text-sm shrink-0"
+                className="bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold hover:bg-slate-800 transition-all flex items-center shadow-md text-xs shrink-0 cursor-pointer active:scale-95"
               >
                 <Plus className="w-4 h-4 mr-2" /> {L("Add Product")}
               </button>
@@ -1809,12 +1875,12 @@ export const Admin: React.FC = () => {
       )}
 
       {activeTab === 'users' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 overflow-x-auto">
+        <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)] overflow-x-auto">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-slate-900">{L("Users Management")}</h2>
+            <h2 className="text-xl font-black text-slate-900">{L("Users Management")}</h2>
             <button
               onClick={() => setIsAddingUser(true)}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center shadow-sm text-sm"
+              className="bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold hover:bg-slate-800 transition-all flex items-center shadow-md text-xs cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4 mr-2" /> {L("Add User")}
             </button>
@@ -1972,12 +2038,12 @@ export const Admin: React.FC = () => {
       )}
 
       {activeTab === 'expenses' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-bold text-slate-900">{L("Expenses Management")}</h2>
+            <h2 className="text-xl font-black text-slate-900">{L("Expenses Management")}</h2>
             <button
               onClick={() => setIsAddingExpense(true)}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center shadow-sm text-sm"
+              className="bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold hover:bg-slate-800 transition-all flex items-center shadow-md text-xs cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4 mr-2" /> {L("Add Expense")}
             </button>
@@ -2083,7 +2149,7 @@ export const Admin: React.FC = () => {
       )}
 
       {activeTab === 'reviews' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 overflow-x-auto">
+        <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)] overflow-x-auto">
           <h2 className="text-lg font-semibold text-slate-900 mb-6">{L("Product Reviews")}</h2>
           <table className="min-w-full divide-y divide-slate-200">
             <thead>
@@ -2586,7 +2652,7 @@ export const Admin: React.FC = () => {
       )}
 
       {activeTab === 'translations' && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <Languages className="w-6 h-6 text-indigo-600" />
@@ -2671,7 +2737,6 @@ export const Admin: React.FC = () => {
             </motion.div>
           </AnimatePresence>
         </div>
-      </div>
       <AdminEditModals
         editingCategory={editingCategory}
         setEditingCategory={setEditingCategory}

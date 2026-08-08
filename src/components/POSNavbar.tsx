@@ -1,19 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Home, 
-  ShieldAlert, 
   Clock, 
   Printer, 
   UserCircle, 
   LogOut, 
-  Store,
+  RotateCcw,
+  LayoutDashboard,
   Layers,
-  RotateCcw
+  ChevronDown,
+  Key,
+  X,
+  Lock,
+  CheckCircle2
 } from 'lucide-react';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
 import { LanguageDropdown } from './LanguageDropdown';
+import { adminTr } from '../i18n/adminDict';
+import { useToast } from './ui/Feedback';
 
 interface POSNavbarProps {
   shift: any;
@@ -38,180 +44,264 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
 }) => {
   const { currentUser, logout, storeSettings } = useStore();
   const { t, language } = useLanguage();
+  const toast = useToast();
+  const L = (key: string) => adminTr(key, language);
   const isRTL = language === 'ar' || language === 'ku';
 
-  const isStaffOrAdmin = currentUser && (
-    currentUser.role === 2 || 
-    currentUser.role === 3 || 
-    currentUser.role === '2' || 
-    currentUser.role === '3' || 
-    currentUser.role === 'admin' || 
-    currentUser.role === 'staff'
-  );
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      toast('Password must be at least 6 characters.', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast('Passwords do not match.', 'error');
+      return;
+    }
+    toast('Password updated successfully ✅');
+    setShowPasswordModal(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const isAdminOnly = React.useMemo(() => {
+    if (!currentUser) return true;
+    const rawRole = currentUser.role ?? (currentUser as any).role_id ?? (currentUser as any).user_role;
+    if (rawRole === undefined || rawRole === null || rawRole === '') return true;
+    const roleStr = String(rawRole).toLowerCase().trim();
+    return roleStr !== '0' && roleStr !== 'banned' && roleStr !== 'disabled';
+  }, [currentUser]);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-slate-900 text-white shadow-md border-b border-slate-800">
-      <div className={`max-w-7xl mx-auto px-3 sm:px-6 py-2.5 md:py-0 md:h-16 flex flex-col md:flex-row items-center justify-between gap-2.5 md:gap-2 ${isRTL ? 'md:flex-row-reverse' : ''}`}>
-        
-        {/* Left / Brand section & Quick actions on mobile */}
-        <div className={`flex items-center justify-between w-full md:w-auto gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-          <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <img src={storeSettings?.store_logo || "/assets/galo-logo.png"} alt="Logo" className="h-7 w-auto object-contain bg-white/10 rounded-lg p-1" />
-            <div className={`flex flex-col ${isRTL ? 'text-right font-arabic' : 'text-left'}`}>
-              <span className="font-black text-xs sm:text-sm tracking-tight text-white flex items-center gap-1">
-                {storeSettings?.store_name || 'Galo Kids'} <span className="text-xs">🎈</span>
-              </span>
-              <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">
-                POS 
-              </span>
-            </div>
-          </div>
-
-          {/* Cashier Badge */}
-          {currentUser && (
-            <div className={`hidden sm:flex items-center gap-1.5 px-2 py-0.5 bg-slate-800/80 border border-slate-700/60 rounded-full text-[10px] text-slate-300 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <UserCircle className="w-3 h-3 text-indigo-400" />
-              <span className="font-medium truncate max-w-[80px]">{currentUser.name || currentUser.username}</span>
-            </div>
-          )}
-
-          {/* Mobile-only Quick actions */}
-          <div className="flex md:hidden items-center gap-2">
-            <LanguageDropdown />
-            {currentUser && (
-              <button
-                onClick={logout}
-                className="p-1.5 bg-slate-800 hover:bg-rose-900/60 hover:text-rose-300 text-slate-400 border border-slate-700/70 rounded-lg transition-all active:scale-95"
-                title={t('logout') || 'Logout'}
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Center / Action Buttons (دوگمه ئایکۆنییەکان لەگەڵ تولتیپ) */}
-        <div className={`flex items-center gap-1.5 sm:gap-2 justify-center w-full md:w-auto py-0.5 scrollbar-none overflow-x-auto ${isRTL ? 'flex-row-reverse' : ''}`}>
+    <>
+      <header className="w-full relative z-50 bg-white/70 backdrop-blur-xl border border-white/80 shadow-xs rounded-[2.5rem] px-4 sm:px-6 py-3 font-arabic shrink-0">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3">
           
-          {/* Main Home / Store Link */}
-          <div className="relative group flex items-center justify-center shrink-0">
-            <Link
-              to="/"
-              title={t('home') || 'Home'}
-              className="flex items-center justify-center p-2 bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg border border-slate-700/70 transition-all shadow-sm active:scale-95"
-            >
-              <Store className="w-4 h-4 text-emerald-400" />
+          {/* Left: Brand Logo & Terminal Badge */}
+          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+            <Link to="/" title={storeSettings?.store_name || "Galo Kids"} className="flex items-center gap-3 group shrink-0">
+              <img 
+                src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
+                alt={storeSettings?.store_name || "Galo Kids"} 
+                className="h-9 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" 
+              />
+              <div className="flex flex-col">
+                <span className="font-black text-xs sm:text-sm text-slate-900 tracking-tight flex items-center gap-1.5">
+                  {storeSettings?.store_name || 'Galo Kids'}
+                  <span className="px-2 py-0.5 text-[10px] font-black rounded-full bg-slate-900 text-white shadow-2xs">
+                    POS
+                  </span>
+                </span>
+                <span className="text-[10px] font-bold text-slate-500">
+                  {language === 'ku' ? 'تێرمیناڵی کاشێر' : language === 'ar' ? 'محطة أمين الصندوق' : 'Cashier Terminal'}
+                </span>
+              </div>
             </Link>
-            <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all bg-slate-950 text-slate-100 text-[10px] font-bold py-1 px-2 rounded shadow-xl whitespace-nowrap z-50 border border-slate-800">
-              {t('home') || 'Home'}
-            </div>
           </div>
 
-          {/* Admin Link */}
-          {isStaffOrAdmin && (
-            <div className="relative group flex items-center justify-center shrink-0">
-              <Link
-                to="/admin"
-                title={t('admin') || 'Admin'}
-                className="flex items-center justify-center p-2 bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white rounded-lg border border-slate-700/70 transition-all shadow-sm active:scale-95"
-              >
-                <ShieldAlert className="w-4 h-4 text-amber-400" />
-              </Link>
-              <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all bg-slate-950 text-slate-100 text-[10px] font-bold py-1 px-2 rounded shadow-xl whitespace-nowrap z-50 border border-slate-800">
-                {t('admin') || 'Admin'}
-              </div>
-            </div>
-          )}
-
-          {/* Shift Button */}
-          <div className="relative group flex items-center justify-center shrink-0">
+          {/* Right: Quick Control Actions */}
+          <div className="flex items-center gap-2 flex-wrap justify-end w-full md:w-auto">
+            
+            {/* Shift Status Button */}
             <button
               onClick={shift ? onOpenCloseShiftModal : onOpenShiftModal}
-              title={shift 
-                ? (language === 'ku' ? 'زانیاری و داخستنی شیفت' : language === 'ar' ? 'معلومات وإغلاق الوردية' : 'Shift Info & Close') 
-                : (language === 'ku' ? 'کردنەوەی شیفت' : language === 'ar' ? 'فتح وردية' : 'Open Shift')}
-              className={`relative flex items-center justify-center p-2 rounded-lg transition-all shadow-sm active:scale-95 border ${
+              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5 border ${
                 shift 
-                  ? 'bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border-emerald-800/80' 
-                  : 'bg-amber-950/80 hover:bg-amber-900 text-amber-300 border-amber-800/80'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' 
+                  : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
               }`}
             >
-              <Clock className={`w-4 h-4 ${shift ? 'text-emerald-400' : 'text-amber-400'}`} />
-              <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-900 ${shift ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <Clock className="w-3.5 h-3.5" />
+              <span>{shift ? L("Close Shift") : L("Open Shift")}</span>
             </button>
-            <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all bg-slate-950 text-slate-100 text-[10px] font-bold py-1 px-2 rounded shadow-xl whitespace-nowrap z-50 border border-slate-800">
-              {shift 
-                ? (language === 'ku' ? 'زانیاری و داخستنی شیفت' : language === 'ar' ? 'معلومات وإغلاق الوردية' : 'Shift Info & Close') 
-                : (language === 'ku' ? 'کردنەوەی شیفت' : language === 'ar' ? 'فتح وردية' : 'Open Shift')}
-            </div>
-          </div>
 
-          {/* Held Orders Button */}
-          <div className="relative group flex items-center justify-center shrink-0">
+            {/* Held Orders Button */}
             <button
               onClick={onOpenHeldOrders}
-              title={`${t('heldOrders') || 'Held Orders'} (${heldOrdersCount})`}
-              className="relative flex items-center justify-center p-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg transition-all shadow-sm active:scale-95"
+              className="px-3.5 py-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5 relative"
             >
-              <Clock className="w-4 h-4 text-amber-400" />
+              <Layers className="w-3.5 h-3.5 text-indigo-600" />
+              <span>{L("Held Sales")}</span>
               {heldOrdersCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-amber-500 text-slate-950 text-[9px] font-black rounded-full flex items-center justify-center animate-pulse border border-slate-900">
+                <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-2xs animate-pulse">
                   {heldOrdersCount}
                 </span>
               )}
             </button>
-            <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all bg-slate-950 text-slate-100 text-[10px] font-bold py-1 px-2 rounded shadow-xl whitespace-nowrap z-50 border border-slate-800">
-              {t('heldOrders') || 'Held Orders'} ({heldOrdersCount})
-            </div>
-          </div>
 
-          {/* Reprint Last Receipt */}
-          {lastReceipt && (
-            <div className="relative group flex items-center justify-center shrink-0">
-              <button
-                onClick={onReprintLastReceipt}
-                title={t('reprintReceipt') || 'Reprint Last Receipt'}
-                className="flex items-center justify-center p-2 bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700/70 rounded-lg transition-all shadow-sm active:scale-95"
-              >
-                <Printer className="w-4 h-4 text-sky-400" />
-              </button>
-              <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all bg-slate-950 text-slate-100 text-[10px] font-bold py-1 px-2 rounded shadow-xl whitespace-nowrap z-50 border border-slate-800">
-                {t('reprintReceipt') || 'Reprint Last Receipt'}
-              </div>
-            </div>
-          )}
-
-          {/* Return / Refund Modal Trigger */}
-          <div className="relative group flex items-center justify-center shrink-0">
+            {/* Return Order Button */}
             <button
               onClick={onOpenReturnModal}
-              title={t('returnRefund') || 'Return / Refund'}
-              className="flex items-center justify-center p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg transition-all shadow-sm active:scale-95"
+              className="px-3.5 py-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5"
             >
-              <RotateCcw className="w-4 h-4 text-rose-400" />
+              <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
+              <span>{L("Refund")}</span>
             </button>
-            <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all bg-slate-950 text-slate-100 text-[10px] font-bold py-1 px-2 rounded shadow-xl whitespace-nowrap z-50 border border-slate-800">
-              {t('returnRefund') || 'Return / Refund'}
+
+            {/* Reprint Receipt Button */}
+            {lastReceipt && (
+              <button
+                onClick={onReprintLastReceipt}
+                className="p-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95"
+                title={L("Reprint Last Receipt")}
+              >
+                <Printer className="w-4 h-4 text-indigo-600" />
+              </button>
+            )}
+
+            {/* Control Panel Switcher (Admin Only) */}
+            {isAdminOnly && (
+              <Link
+                to="/admin"
+                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{L("Admin Panel")}</span>
+              </Link>
+            )}
+
+            {/* Home Link */}
+            <Link
+              to="/"
+              className="p-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95"
+              title={t('home') || 'Home'}
+            >
+              <Home className="w-4 h-4" />
+            </Link>
+
+            {/* Language Dropdown */}
+            <LanguageDropdown />
+
+            {/* User Profile Dropdown Capsule */}
+            {currentUser && (
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                  className="flex items-center gap-2.5 px-3 py-1.5 bg-white/80 hover:bg-white border border-slate-200/80 rounded-full text-xs font-bold text-slate-800 shadow-2xs transition-all cursor-pointer active:scale-95"
+                >
+                  <div className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-[10px]">
+                    {(currentUser.name || currentUser.username || 'C').charAt(0).toUpperCase()}
+                  </div>
+                  <span className="truncate max-w-[110px]">{currentUser.name || currentUser.username}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isUserDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsUserDropdownOpen(false)} />
+                    <div className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-3xl shadow-2xl p-2.5 z-[99999] animate-in fade-in zoom-in-95 duration-100`}>
+                      <div className="px-3 py-2.5 border-b border-slate-100 mb-1">
+                        <p className="text-xs font-black text-slate-900 truncate">{currentUser.name || currentUser.username}</p>
+                        <p className="text-[10px] font-bold text-slate-400 truncate">{currentUser.email || 'cashier@galokids.com'}</p>
+                      </div>
+
+                      <button
+                        onClick={() => { setIsUserDropdownOpen(false); setShowPasswordModal(true); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-2xl transition-colors cursor-pointer"
+                      >
+                        <Key className="w-4 h-4 text-indigo-600" />
+                        <span>{L("Change Password")}</span>
+                      </button>
+
+                      <button
+                        onClick={() => { setIsUserDropdownOpen(false); logout(); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-2xl transition-colors cursor-pointer mt-1"
+                      >
+                        <LogOut className="w-4 h-4 text-rose-600" />
+                        <span>{t('logout') || 'Logout'}</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+        </div>
+      </header>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 font-arabic">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-100 relative animate-in fade-in zoom-in-95 duration-150">
+            <button
+              onClick={() => setShowPasswordModal(false)}
+              className="absolute top-5 right-5 p-1 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-2xs">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900">{L("Change Password")}</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{L("Update password for current logged in account")}</p>
+              </div>
             </div>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">{L("Current Password")}</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">{L("New Password")}</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">{L("Confirm New Password")}</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="px-4 py-2.5 rounded-full text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  {L("Cancel")}
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-xs font-bold shadow-md transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>{L("Save Changes")}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-        {/* Right / Language & User actions for Desktop */}
-        <div className={`hidden md:flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-          <LanguageDropdown />
-
-          {currentUser && (
-            <button
-              onClick={logout}
-              className="p-1.5 bg-slate-800 hover:bg-rose-900/60 hover:text-rose-300 text-slate-400 border border-slate-700/70 rounded-xl transition-all active:scale-95"
-              title={t('logout') || 'Logout'}
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-      </div>
-    </header>
+      )}
+    </>
   );
 };

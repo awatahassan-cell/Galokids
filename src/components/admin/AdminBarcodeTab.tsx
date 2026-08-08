@@ -127,13 +127,13 @@ export const AdminBarcodeTab: React.FC<AdminBarcodeTabProps> = ({ products }) =>
   return (
     <div className="space-y-6 font-arabic">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 rounded-2xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-extrabold flex items-center gap-2">
+      <div className="bg-slate-900 text-white p-6 md:p-7 rounded-[2.5rem] shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden">
+        <div className="relative z-10">
+          <h2 className="text-xl font-black flex items-center gap-2">
             <Tags className="w-6 h-6 text-indigo-400" />
             {language === 'ku' ? 'چاپکردنی ستیکەری بارکۆد' : language === 'ar' ? 'طباعة ملصقات البارشود' : 'Barcode Stickers Generator'}
           </h2>
-          <p className="text-xs text-slate-300 mt-1">
+          <p className="text-xs text-slate-300 mt-1 font-medium">
             {language === 'ku'
               ? 'دیاری کردنی قەبارە و بەرزی بارکۆد، دەرکەوتنی ناو و نرخ بەپێی ویستی خۆت'
               : 'Customize barcode sticker dimensions, barcode height, and custom visibility'}
@@ -142,9 +142,9 @@ export const AdminBarcodeTab: React.FC<AdminBarcodeTabProps> = ({ products }) =>
 
         <button
           onClick={handlePrint}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+          className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-full font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 relative z-10"
         >
-          <Printer className="w-5 h-5" />
+          <Printer className="w-4 h-4" />
           <span>{language === 'ku' ? 'چاپکردنی ستیکەرەکان' : language === 'ar' ? 'طباعة الملصقات' : 'Print Barcode Stickers'}</span>
         </button>
       </div>
@@ -153,8 +153,8 @@ export const AdminBarcodeTab: React.FC<AdminBarcodeTabProps> = ({ products }) =>
         {/* Settings Control Panel */}
         <div className="lg:col-span-2 space-y-6">
           {/* Select Product & Copies Card */}
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+          <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)] space-y-4">
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
               <Sliders className="w-4 h-4 text-indigo-600" />
               {language === 'ku' ? 'دیاری کردنی بەرهەم و ژمارەی کۆپی' : 'Select Product & Copies'}
             </h3>

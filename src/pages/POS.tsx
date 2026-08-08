@@ -573,7 +573,7 @@ export const POS: React.FC = () => {
   const isRTL = language === 'ar' || language === 'ku';
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50/50">
+    <div className="w-full h-screen bg-gradient-to-br from-[#D2E0F2] via-[#E8EEF8] to-[#DFE9F5] p-3 sm:p-5 flex flex-col gap-4 font-arabic overflow-hidden">
       <POSNavbar
         shift={shift}
         heldOrdersCount={heldOrders.length}
@@ -588,20 +588,19 @@ export const POS: React.FC = () => {
         }}
         onOpenReturnModal={() => setShowReturn(true)}
       />
-      <div className={`flex-grow flex flex-col md:flex-row max-w-7xl mx-auto w-full h-[calc(100vh-64px)] overflow-hidden ${isRTL ? 'md:flex-row-reverse' : ''}`}>
-        {/* Products Catalog Area */}
-        <div className="w-full md:w-2/3 p-3.5 sm:p-4 flex flex-col h-full overflow-hidden">
-          <POSProductGrid
-            products={products}
-            search={search}
-            setSearch={setSearch}
-            addToPosCart={addToPosCart}
-            setShowReturn={setShowReturn}
-            setShowQuickAdd={setShowQuickAdd}
-            productsPagination={productsPagination}
-            refreshProducts={refreshProducts}
-          />
-        </div>
+
+      {/* Main Terminal Workspace Area */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden gap-5 min-h-0">
+        <POSProductGrid
+          products={products}
+          search={search}
+          setSearch={setSearch}
+          addToPosCart={addToPosCart}
+          setShowReturn={setShowReturn}
+          setShowQuickAdd={setShowQuickAdd}
+          productsPagination={productsPagination}
+          refreshProducts={refreshProducts}
+        />
 
         {/* Cashier Register Cart Panel */}
         <POSCartPanel

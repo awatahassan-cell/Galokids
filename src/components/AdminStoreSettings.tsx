@@ -50,14 +50,14 @@ export const AdminStoreSettings: React.FC = () => {
     helpText?: string
   ) => (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5">
+      <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
         {icon} {label}
       </label>
       <input
         value={form[key]}
         onChange={e => setForm({ ...form, [key]: e.target.value })}
         placeholder={placeholder}
-        className="w-full border border-slate-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none transition-colors"
+        className="w-full bg-slate-100/80 border border-slate-200 rounded-2xl py-2.5 px-4 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
       />
       {helpText && <p className="text-xs text-slate-400 mt-1">{helpText}</p>}
     </div>
@@ -74,13 +74,13 @@ export const AdminStoreSettings: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8">
-      {/* SECTION 1: Store Receipt Info */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-1 flex items-center gap-2">
+    <div className="space-y-6 font-arabic">
+      {/* SECTION 1: Store Info for POS Receipts */}
+      <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
+        <h2 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
           <Store className="w-5 h-5 text-indigo-600" /> {L("Store Info (receipts)")}
         </h2>
-        <p className="text-sm text-slate-500 mb-6">{L("Shown on the top of every POS receipt.")}</p>
+        <p className="text-xs text-slate-500 mb-6 font-medium">{L("Shown on the top of every POS receipt.")}</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {field('store_name', L('Store name'), 'Galo Kids')}
@@ -100,17 +100,17 @@ export const AdminStoreSettings: React.FC = () => {
           <img
             src={form.store_logo}
             alt="logo preview"
-            className="h-16 mt-4 object-contain rounded border border-slate-100 p-1"
+            className="h-16 mt-4 object-contain rounded-2xl border border-slate-200 p-1"
           />
         )}
       </div>
 
       {/* SECTION 2: Website Contact Details & Social Media */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-1 flex items-center gap-2">
+      <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
+        <h2 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
           <Phone className="w-5 h-5 text-indigo-600" /> {L("Store Contact Details")}
         </h2>
-        <p className="text-sm text-slate-500 mb-6">{L("Shown on the website contact page and footer.")}</p>
+        <p className="text-xs text-slate-500 mb-6 font-medium">{L("Shown on the website contact page and footer.")}</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {field(

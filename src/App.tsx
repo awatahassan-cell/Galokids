@@ -98,19 +98,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <div className={`min-h-screen bg-white flex flex-col ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'} selection:bg-rose-200 selection:text-rose-900`}>
-      {isPos ? null : isAdmin ? (
-        <header className="sticky top-0 z-30 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] h-16 flex items-center">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2 group relative" title={storeSettings?.store_name || "Galo Kids"}>
-              <img 
-                src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
-                alt={storeSettings?.store_name || "Galo Kids"} 
-                className="h-9 w-auto object-contain transition-transform group-hover:scale-105" 
-              />
-            </Link>
-          </div>
-        </header>
-      ) : (
+      {isAdminOrPos ? null : (
         <header className="sticky top-0 z-30 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all duration-300">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
             {/* Left: Mobile Menu & Logo */}
