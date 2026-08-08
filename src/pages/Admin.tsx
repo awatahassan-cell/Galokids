@@ -350,6 +350,34 @@ export const Admin: React.FC = () => {
     });
   }, [products]);
 
+  const orderCounts = useMemo(() => {
+    let pending = 0;
+    let processing = 0;
+    let shipped = 0;
+    let delivered = 0;
+    let cancelled = 0;
+
+    orders.forEach(o => {
+      const s = String(o.status || '').toLowerCase();
+      if (s === 'pending' || s === 'new') pending++;
+      else if (s === 'processing') processing++;
+      else if (s === 'shipped') shipped++;
+      else if (s === 'delivered') delivered++;
+      else if (s === 'cancelled') cancelled++;
+      else pending++;
+    });
+
+    return {
+      total: ordersPagination?.total || orders.length,
+      pending,
+      processing,
+      shipped,
+      delivered,
+      cancelled,
+      newAndPending: pending + processing
+    };
+  }, [orders, ordersPagination]);
+
   // Daily, Monthly, Yearly Reporting state & calculations
   const todayStr = new Date().toISOString().split('T')[0];
   const currentMonthStr = todayStr.substring(0, 7);
@@ -976,13 +1004,20 @@ export const Admin: React.FC = () => {
           </button>
           <button
             onClick={() => { setActiveTab('orders'); setIsMobileMenuOpen(false); }}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
+            className={`flex items-center justify-between w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
               activeTab === 'orders'
                 ? 'bg-indigo-50 text-indigo-700 shadow-sm'
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`}
           >
-            <ShoppingBag className="w-4 h-4 mr-3" /> {t('manageOrders')}
+            <div className="flex items-center">
+              <ShoppingBag className="w-4 h-4 mr-3" /> {t('manageOrders')}
+            </div>
+            {orderCounts.newAndPending > 0 && (
+              <span className="px-2.5 py-0.5 text-xs font-bold bg-rose-500 text-white rounded-full shadow-sm animate-pulse">
+                {orderCounts.newAndPending}
+              </span>
+            )}
           </button>
           <button
             onClick={() => { setActiveTab('users'); setIsMobileMenuOpen(false); }}
@@ -1150,13 +1185,20 @@ export const Admin: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('orders')}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
+            className={`flex items-center justify-between w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
               activeTab === 'orders'
                 ? 'bg-indigo-50 text-indigo-700 shadow-sm'
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`}
           >
-            <ShoppingBag className="w-4 h-4 mr-3" /> {t('manageOrders')}
+            <div className="flex items-center">
+              <ShoppingBag className="w-4 h-4 mr-3" /> {t('manageOrders')}
+            </div>
+            {orderCounts.newAndPending > 0 && (
+              <span className="px-2.5 py-0.5 text-xs font-bold bg-rose-500 text-white rounded-full shadow-sm animate-pulse">
+                {orderCounts.newAndPending}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -2297,7 +2339,34 @@ export const Admin: React.FC = () => {
 
       {activeTab === 'orders' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 overflow-x-auto">
-          <h2 className="text-lg font-semibold text-slate-900 mb-6">{L("Manage Orders")}</h2>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3">
+                <span>{L("Manage Orders")}</span>
+                <span className="px-3 py-1 text-xs font-bold bg-indigo-100 text-indigo-800 rounded-full">
+                  {orderCounts.total} {L("Total")}
+                </span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">{L("View, filter and update status of customer orders")}</p>
+            </div>
+
+            {/* Status Counter Badges */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-bold shadow-sm">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                <span>{L("New / Pending")}:</span>
+                <span className="px-2 py-0.5 bg-amber-200 text-amber-900 rounded-lg font-mono text-sm font-black">{orderCounts.newAndPending}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200/80 text-blue-900 text-xs font-bold">
+                <span>{L("Shipped")}:</span>
+                <span className="px-2 py-0.5 bg-blue-200 text-blue-900 rounded-lg font-mono text-sm font-bold">{orderCounts.shipped}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-900 text-xs font-bold">
+                <span>{L("Delivered")}:</span>
+                <span className="px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-lg font-mono text-sm font-bold">{orderCounts.delivered}</span>
+              </div>
+            </div>
+          </div>
           <table className="min-w-full divide-y divide-slate-200">
             <thead>
               <tr>
