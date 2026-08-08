@@ -247,17 +247,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
     return [];
   });
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('kidskart_user');
-    if (savedUser) {
-      try {
-        return convertKeysToCamelCase(JSON.parse(savedUser));
-      } catch (e) {
-        console.warn('Error parsing saved user from localStorage:', e);
-      }
-    }
-    return null;
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   
   const [promoBanner, setPromoBanner] = useState<PromoBanner>(() => {

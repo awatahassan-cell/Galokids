@@ -287,11 +287,16 @@ export const Admin: React.FC = () => {
     };
   }, [orders, coupons, couponDatePreset, couponStartDate, couponEndDate]);
 
-  const isPosOrder = (order: Order) => {
+  const isPosOrder = (order: any): boolean => {
+    if (!order) return false;
+    if (order.channel === 'pos' || order.source === 'pos' || order.isPos === true) return true;
     const addr = String(order.shippingAddress || '').toLowerCase();
     const email = String(order.customerEmail || '').toLowerCase();
     const name = String(order.customerName || '').toLowerCase();
-    return addr.includes('pos') || addr.includes('in-store') || email.includes('cashier') || name.includes('pos cash sale');
+    if (addr.includes('pos') || addr.includes('in-store') || addr.includes('لە فرۆشگا') || addr.includes('حضوري')) return true;
+    if (email.includes('cashier') || email === 'cashier@galokids.com') return true;
+    if (name.includes('pos cash sale') || order.userId === 'u1') return true;
+    return false;
   };
 
   const getOrderEstimatedCost = (order: Order) => {
@@ -438,9 +443,29 @@ export const Admin: React.FC = () => {
     let totalCogs = 0;
     const totalOrderCount = filteredOrders.length;
 
+    let posRevenue = 0;
+    let posOrderCount = 0;
+    let posCogs = 0;
+
+    let webRevenue = 0;
+    let webOrderCount = 0;
+    let webCogs = 0;
+
     filteredOrders.forEach(order => {
-      totalRevenue += Number(order.totalAmount || 0);
-      totalCogs += getOrderEstimatedCost(order);
+      const rev = Number(order.totalAmount || 0);
+      const cogs = getOrderEstimatedCost(order);
+      totalRevenue += rev;
+      totalCogs += cogs;
+
+      if (isPosOrder(order)) {
+        posRevenue += rev;
+        posOrderCount += 1;
+        posCogs += cogs;
+      } else {
+        webRevenue += rev;
+        webOrderCount += 1;
+        webCogs += cogs;
+      }
     });
 
     const totalExpenseAmt = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -459,7 +484,15 @@ export const Admin: React.FC = () => {
       netProfit,
       grossMargin,
       netMargin,
-      totalOrderCount
+      totalOrderCount,
+      posRevenue,
+      posOrderCount,
+      posCogs,
+      posGrossProfit: posRevenue - posCogs,
+      webRevenue,
+      webOrderCount,
+      webCogs,
+      webGrossProfit: webRevenue - webCogs,
     };
   }, [orders, expenses, reportPeriod, selectedDate, selectedMonth, selectedYear, products]);
 
