@@ -22,6 +22,10 @@ import { AdminStoreSettings } from "../components/AdminStoreSettings";
 import { AdminHeroSettings } from "../components/AdminHeroSettings";
 import { AdminPromoBannerSettings } from "../components/AdminPromoBannerSettings";
 import { adminTr } from "../i18n/adminDict";
+import { AdminHeader } from "../components/admin/AdminHeader";
+import { AdminNavigationSidebar } from "../components/admin/AdminNavigationSidebar";
+import { AdminOverviewTab } from "../components/admin/AdminOverviewTab";
+import { AdminOrdersTab } from "../components/admin/AdminOrdersTab";
 
 const getDaysInMonth = (year: number, month: number) => {
   return new Date(year, month, 0).getDate();
@@ -350,14 +354,39 @@ export const Admin: React.FC = () => {
     });
   }, [products]);
 
+  const [orderFilterPeriod, setOrderFilterPeriod] = useState<'today' | 'week' | 'month'>('today');
+
   const orderCounts = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgoStr = sevenDaysAgoDate.toISOString().split('T')[0];
+    const currentMonthStr = todayStr.substring(0, 7);
+
+    const filtered = orders.filter(o => {
+      const rawDate = o.date || o.createdAt || '';
+      const dateStr = String(rawDate).split('T')[0];
+      if (!dateStr || dateStr.length < 10) return true;
+
+      if (orderFilterPeriod === 'today') {
+        return dateStr === todayStr;
+      }
+      if (orderFilterPeriod === 'week') {
+        return dateStr >= sevenDaysAgoStr;
+      }
+      if (orderFilterPeriod === 'month') {
+        return dateStr.startsWith(currentMonthStr);
+      }
+      return true;
+    });
+
     let pending = 0;
     let processing = 0;
     let shipped = 0;
     let delivered = 0;
     let cancelled = 0;
 
-    orders.forEach(o => {
+    filtered.forEach(o => {
       const s = String(o.status || '').toLowerCase();
       if (s === 'pending' || s === 'new') pending++;
       else if (s === 'processing') processing++;
@@ -368,7 +397,7 @@ export const Admin: React.FC = () => {
     });
 
     return {
-      total: ordersPagination?.total || orders.length,
+      total: filtered.length,
       pending,
       processing,
       shipped,
@@ -376,7 +405,7 @@ export const Admin: React.FC = () => {
       cancelled,
       newAndPending: pending + processing
     };
-  }, [orders, ordersPagination]);
+  }, [orders, orderFilterPeriod]);
 
   // Daily, Monthly, Yearly Reporting state & calculations
   const todayStr = new Date().toISOString().split('T')[0];
@@ -898,408 +927,18 @@ export const Admin: React.FC = () => {
 
   return (
     <div className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 py-8 [&_button]:cursor-pointer [&_a]:cursor-pointer">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('adminDashboard')}</h1>
-          <p className="text-slate-500 mt-2 hidden sm:block">{L("Manage your inventory, products, orders, users, and finances.")}</p>
-        </div>
-        <button
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="md:hidden p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
-      </div>
+      <AdminHeader onOpenMobileMenu={() => setIsMobileMenuOpen(true)} />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        
-        {/* Mobile Navigation Drawer */}
-        <>
-          {/* Backdrop */}
-          {isMobileMenuOpen && (
-            <div 
-              className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 transition-opacity md:hidden"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
-          )}
+        <AdminNavigationSidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isAdmin={isAdmin}
+          isMobileMenuOpen={isMobileMenuOpen}
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+          newAndPendingOrdersCount={orderCounts.newAndPending}
+        />
 
-          {/* Sidebar Panel */}
-          <div 
-            className={`fixed inset-y-0 left-0 w-72 bg-white shadow-2xl z-50 transform transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${
-              isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-            } flex flex-col md:hidden`}
-          >
-            <div className="flex items-center justify-between p-6 border-b border-slate-100/80">
-              <span className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                Admin Dashboard
-              </span>
-              <button 
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto py-6 px-4">
-              <div className="space-y-1 mb-8">
-                <h3 className="px-4 text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">{L("Management")}</h3>
-                
-                
-          {isAdmin && (
-            <button
-              onClick={() => { setActiveTab('overview'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'overview'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 mr-3" /> {L("Overview & Reports")}
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => { setActiveTab('calendar'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'calendar'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Calendar className="w-4 h-4 mr-3" /> {L("Calendar Reports")}
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => { setActiveTab('reports'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'reports'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <TrendingUp className="w-4 h-4 mr-3" /> {L("Profit Report")}
-            </button>
-          )}
-          <button
-            onClick={() => { setActiveTab('products'); setIsMobileMenuOpen(false); }}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'products'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Package className="w-4 h-4 mr-3" /> {t('products')}
-          </button>
-          <button
-            onClick={() => { setActiveTab('categories'); setIsMobileMenuOpen(false); }}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'categories'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Tags className="w-4 h-4 mr-3" /> {t('allCategories')}
-          </button>
-          <button
-            onClick={() => { setActiveTab('orders'); setIsMobileMenuOpen(false); }}
-            className={`flex items-center justify-between w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'orders'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <div className="flex items-center">
-              <ShoppingBag className="w-4 h-4 mr-3" /> {t('manageOrders')}
-            </div>
-            {orderCounts.newAndPending > 0 && (
-              <span className="px-2.5 py-0.5 text-xs font-bold bg-rose-500 text-white rounded-full shadow-sm animate-pulse">
-                {orderCounts.newAndPending}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => { setActiveTab('users'); setIsMobileMenuOpen(false); }}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'users'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Users className="w-4 h-4 mr-3" /> {t('usersManagement')}
-          </button>
-          <button
-            onClick={() => { setActiveTab('expenses'); setIsMobileMenuOpen(false); }}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'expenses'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <DollarSign className="w-4 h-4 mr-3" /> {t('manageExpenses')}
-          </button>
-          <button
-            onClick={() => { setActiveTab('reviews'); setIsMobileMenuOpen(false); }}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'reviews'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Star className="w-4 h-4 mr-3" /> {t('customerReviews')}
-          </button>
-          <button
-            onClick={() => { setActiveTab('coupons'); setIsMobileMenuOpen(false); }}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'coupons'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Ticket className="w-4 h-4 mr-3" /> {L("Coupons")}
-          </button>
-          <button
-            onClick={() => { setActiveTab('banner'); setIsMobileMenuOpen(false); }}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'banner'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <ImageIcon className="w-4 h-4 mr-3" /> {L("Banner")}
-          </button>
-          {isAdmin && (
-            <button
-              onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'settings'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Settings className="w-4 h-4 mr-3" /> {L("Settings")}
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => { setActiveTab('translations'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'translations'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Languages className="w-4 h-4 mr-3" /> {L("Translations")}
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => { setActiveTab('labels'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'labels'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <FileText className="w-4 h-4 mr-3" /> {L("Print Labels")}
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => { setActiveTab('barcode-stickers'); setIsMobileMenuOpen(false); }}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'barcode-stickers'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Tags className="w-4 h-4 mr-3" /> {L("Barcode Stickers")}
-            </button>
-          )}
-        
-              
-              </div>
-            </div>
-          </div>
-        </>
-
-        {/* Desktop Vertical Navigation Menu */}
-        <div className="hidden md:flex md:col-span-1 flex-col space-y-1 bg-white p-4 rounded-2xl border border-slate-200 h-fit">
-          
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'overview'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 mr-3" /> {L("Overview & Reports")}
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('calendar')}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'calendar'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Calendar className="w-4 h-4 mr-3" /> {L("Calendar Reports")}
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('reports')}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'reports'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <TrendingUp className="w-4 h-4 mr-3" /> {L("Profit Report")}
-            </button>
-          )}
-          <button
-            onClick={() => setActiveTab('products')}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'products'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Package className="w-4 h-4 mr-3" /> {t('products')}
-          </button>
-          <button
-            onClick={() => setActiveTab('categories')}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'categories'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Tags className="w-4 h-4 mr-3" /> {t('allCategories')}
-          </button>
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`flex items-center justify-between w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'orders'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <div className="flex items-center">
-              <ShoppingBag className="w-4 h-4 mr-3" /> {t('manageOrders')}
-            </div>
-            {orderCounts.newAndPending > 0 && (
-              <span className="px-2.5 py-0.5 text-xs font-bold bg-rose-500 text-white rounded-full shadow-sm animate-pulse">
-                {orderCounts.newAndPending}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'users'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Users className="w-4 h-4 mr-3" /> {t('usersManagement')}
-          </button>
-          <button
-            onClick={() => setActiveTab('expenses')}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'expenses'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <DollarSign className="w-4 h-4 mr-3" /> {t('manageExpenses')}
-          </button>
-          <button
-            onClick={() => setActiveTab('reviews')}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'reviews'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Star className="w-4 h-4 mr-3" /> {t('customerReviews')}
-          </button>
-          <button
-            onClick={() => setActiveTab('coupons')}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'coupons'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Ticket className="w-4 h-4 mr-3" /> {L("Coupons")}
-          </button>
-          <button
-            onClick={() => setActiveTab('banner')}
-            className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-              activeTab === 'banner'
-                ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <ImageIcon className="w-4 h-4 mr-3" /> {L("Banner")}
-          </button>
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'settings'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Settings className="w-4 h-4 mr-3" /> {L("Settings")}
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('translations')}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'translations'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Languages className="w-4 h-4 mr-3" /> {L("Translations")}
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('labels')}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'labels'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <FileText className="w-4 h-4 mr-3" /> {L("Print Labels")}
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('barcode-stickers')}
-              className={`flex items-center w-full py-2.5 px-4 text-sm font-medium rounded-xl transition-all ${
-                activeTab === 'barcode-stickers'
-                  ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Tags className="w-4 h-4 mr-3" /> {L("Barcode Stickers")}
-            </button>
-          )}
-        
-        </div>
         {/* Content Area */}
         <div className="md:col-span-3 space-y-8">
           <LowStockAlert />
@@ -1322,297 +961,27 @@ export const Admin: React.FC = () => {
               <AdminSalesReport />
             </div>
           )}
+
           {activeTab === 'overview' && isAdmin && (
-        <div className="space-y-8">
-          {/* Top Order Status KPI Summary Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div 
-              onClick={() => setActiveTab('orders')}
-              className="bg-gradient-to-br from-amber-500 to-amber-600 text-white p-4 rounded-2xl shadow-sm cursor-pointer hover:scale-[1.02] transition-transform relative overflow-hidden"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold font-arabic opacity-90">{language === 'ku' ? 'تازە / چاوەڕوان' : language === 'ar' ? 'جديد / قيد الانتظار' : 'New / Pending'}</span>
-                <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping"></span>
-              </div>
-              <div className="text-3xl font-black font-mono mt-2">{orderCounts.newAndPending}</div>
-              <div className="text-[11px] font-arabic opacity-85 mt-1">{language === 'ku' ? 'داواکاری نوێی کڕیاران' : 'New customer orders'}</div>
-            </div>
-
-            <div 
-              onClick={() => setActiveTab('orders')}
-              className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-2xl shadow-sm cursor-pointer hover:scale-[1.02] transition-transform"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold font-arabic opacity-90">{language === 'ku' ? 'نێردراوە' : language === 'ar' ? 'تم الإرسال' : 'Shipped'}</span>
-                <ShoppingBag className="w-4 h-4 opacity-80" />
-              </div>
-              <div className="text-3xl font-black font-mono mt-2">{orderCounts.shipped}</div>
-              <div className="text-[11px] font-arabic opacity-85 mt-1">{language === 'ku' ? 'لە ڕێگەی گەیاندنە' : 'In delivery transit'}</div>
-            </div>
-
-            <div 
-              onClick={() => setActiveTab('orders')}
-              className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-4 rounded-2xl shadow-sm cursor-pointer hover:scale-[1.02] transition-transform"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold font-arabic opacity-90">{language === 'ku' ? 'گەیەنراوە' : language === 'ar' ? 'تم التسليم' : 'Delivered'}</span>
-                <Package className="w-4 h-4 opacity-80" />
-              </div>
-              <div className="text-3xl font-black font-mono mt-2">{orderCounts.delivered}</div>
-              <div className="text-[11px] font-arabic opacity-85 mt-1">{language === 'ku' ? 'بە سەرکەوتوویی تەسلیمکراوە' : 'Delivered successfully'}</div>
-            </div>
-
-            <div 
-              onClick={() => setActiveTab('orders')}
-              className="bg-slate-900 text-white p-4 rounded-2xl shadow-sm cursor-pointer hover:scale-[1.02] transition-transform"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold font-arabic opacity-90">{language === 'ku' ? 'کۆی گشتی' : language === 'ar' ? 'الإجمالي' : 'Total'}</span>
-                <BarChart3 className="w-4 h-4 text-indigo-400" />
-              </div>
-              <div className="text-3xl font-black font-mono mt-2">{orderCounts.total}</div>
-              <div className="text-[11px] font-arabic opacity-85 mt-1">{language === 'ku' ? 'گشتی داواکارییەکان' : 'Total recorded orders'}</div>
-            </div>
-          </div>
-          {/* Business Reports Section */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 pb-6 border-b border-slate-100">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 flex items-center">
-                  <BarChart3 className="w-5 h-5 mr-2 text-indigo-600" />
-                  {L("Financial Reports & Business Analytics")}
-                </h2>
-                <p className="text-sm text-slate-500 mt-1">{L("Select reporting interval and date period to view itemized metrics, COGS, and profitability.")}</p>
-              </div>
-
-              {/* Toggles & Date Picker */}
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="bg-slate-100 p-1 rounded-xl flex">
-                  {(['daily', 'monthly', 'yearly'] as const).map((period) => (
-                    <button
-                      key={period}
-                      type="button"
-                      onClick={() => setReportPeriod(period)}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
-                        reportPeriod === period
-                          ? 'bg-white text-indigo-600 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      {L(period)}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Date/Period Picker Controls */}
-                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  {reportPeriod === 'daily' && (
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="bg-transparent border-none text-xs font-semibold text-slate-700 focus:outline-none"
-                    />
-                  )}
-                  {reportPeriod === 'monthly' && (
-                    <input
-                      type="month"
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(e.target.value)}
-                      className="bg-transparent border-none text-xs font-semibold text-slate-700 focus:outline-none"
-                    />
-                  )}
-                  {reportPeriod === 'yearly' && (
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(e.target.value)}
-                      className="bg-transparent border-none text-xs font-semibold text-slate-700 focus:outline-none cursor-pointer"
-                    >
-                      {['2024', '2025', '2026', '2027', '2028'].map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Performance KPI Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-              <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl">
-                <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">{L("Gross Sales")}</span>
-                  <DollarSign className="w-4 h-4 text-emerald-600" />
-                </div>
-                <p className="text-lg font-extrabold text-slate-900 mt-2">{formatIQDLabel(reportData.totalRevenue)}</p>
-                <p className="text-xs text-slate-500 mt-1">{reportData.totalOrderCount} {L("transactions")}</p>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl">
-                <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{L("Product Costs (COGS)")}</span>
-                  <Package className="w-4 h-4 text-slate-400" />
-                </div>
-                <p className="text-lg font-extrabold text-slate-900 mt-2">{formatIQDLabel(reportData.totalCogs)}</p>
-                <p className="text-xs text-slate-500 mt-1">{L("Based on catalog costs")}</p>
-              </div>
-
-              <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-xl">
-                <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-rose-800 uppercase tracking-wider">{L("Expenses")}</span>
-                  <TrendingDown className="w-4 h-4 text-rose-600" />
-                </div>
-                <p className="text-lg font-extrabold text-slate-900 mt-2">{formatIQDLabel(reportData.totalExpenseAmt)}</p>
-                <p className="text-xs text-slate-500 mt-1">{reportData.filteredExpenses.length} {L("operating costs")}</p>
-              </div>
-
-              <div className={`p-4 rounded-xl border ${reportData.netProfit >= 0 ? 'bg-indigo-50 border-indigo-100' : 'bg-red-50 border-red-100'}`}>
-                <div className="flex justify-between items-start">
-                  <span className={`text-xs font-bold uppercase tracking-wider ${reportData.netProfit >= 0 ? 'text-indigo-800' : 'text-red-800'}`}>{L("Net Profit")}</span>
-                  <TrendingUp className={`w-4 h-4 ${reportData.netProfit >= 0 ? 'text-indigo-600' : 'text-red-600'}`} />
-                </div>
-                <p className="text-lg font-extrabold text-slate-900 mt-2">{formatIQDLabel(reportData.netProfit)}</p>
-                <p className="text-xs text-slate-500 mt-1">{L("Revenue - COGS - Expenses")}</p>
-              </div>
-
-              <div className="bg-amber-50/50 border border-amber-100 p-4 rounded-xl col-span-2 lg:col-span-1">
-                <div className="flex justify-between items-start">
-                  <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">{L("Net Profit Margin")}</span>
-                  <Star className="w-4 h-4 text-amber-500" />
-                </div>
-                <p className="text-lg font-extrabold text-slate-900 mt-2">{reportData.netMargin}%</p>
-                <p className="text-xs text-slate-500 mt-1">{L("Gross Margin")}: {reportData.grossMargin}%</p>
-              </div>
-            </div>
-
-            {/* Period Transactions List */}
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 mb-3">{L("Transactions / Orders in Period")}</h3>
-              {reportData.filteredOrders.length === 0 ? (
-                <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 text-center text-slate-400 text-xs">
-                  {L("No order transactions recorded for this period.")}
-                </div>
-              ) : (
-                <div className="overflow-x-auto border border-slate-100 rounded-xl">
-                  <table className="min-w-full divide-y divide-slate-100">
-                    <thead>
-                      <tr className="bg-slate-50">
-                        <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Order ID")}</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Customer")}</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Total")}</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Est. Cost")}</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Net Margin")}</th>
-                        <th className="px-3 py-2 text-left text-xs font-bold text-slate-500 uppercase">{L("Status")}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {reportData.filteredOrders.map((order, index) => {
-                        let orderCogs = 0;
-                        if (order.items && order.items.length > 0) {
-                          order.items.forEach(item => {
-                            const actualProduct = products.find(p => p.id === item?.product?.id);
-                            const itemCost = actualProduct?.cost ?? item.product?.cost ?? ((item.product?.price || 0) * 0.4);
-                            orderCogs += itemCost * item.quantity;
-                          });
-                        } else {
-                          orderCogs = Number(order.totalAmount || 0) * 0.4;
-                        }
-                        const orderProfit = Number(order.totalAmount || 0) - orderCogs;
-                        const orderMargin = Number(order.totalAmount || 0) > 0 ? (orderProfit / Number(order.totalAmount || 0)) * 100 : 0;
-
-                        return (
-                          <tr key={order.id || index} className="hover:bg-slate-50 text-xs">
-                            <td className="px-3 py-2 whitespace-nowrap font-mono text-slate-500">{order.id}</td>
-                            <td className="px-3 py-2 whitespace-nowrap text-slate-900 font-semibold">{order.customerName}</td>
-                            <td className="px-3 py-2 whitespace-nowrap text-slate-900 font-bold">{formatIQDLabel(Number(order.totalAmount || 0))}</td>
-                            <td className="px-3 py-2 whitespace-nowrap text-slate-500">{formatIQDLabel(orderCogs)}</td>
-                            <td className="px-3 py-2 whitespace-nowrap">
-                              <span className={`px-1.5 py-0.5 rounded font-bold ${orderMargin >= 45 ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700'}`}>
-                                {orderMargin}% {L("Profit")}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 whitespace-nowrap">
-                              <span className={`px-1.5 py-0.5 rounded-full font-semibold ${
-                                order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                                order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-slate-100 text-slate-800'
-                              }`}>
-                                {L(order.status)}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Financial Overview Chart */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-6 flex items-center">
-                <BarChart3 className="w-5 h-5 mr-2 text-indigo-500" />
-                {L("Monthly Revenue & Expenses")}
-              </h2>
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickMargin={10} />
-                    <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(value) => formatIQD(Number(value || 0))} />
-                    <RechartsTooltip 
-                      formatter={(value: number) => [formatIQDLabel(Number(value || 0)), '']}
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                    <Line type="monotone" name={L("Revenue")} dataKey="revenue" stroke="#10b981" strokeWidth={3} activeDot={{ r: 8 }} />
-                    <Line type="monotone" name={L("Expenses")} dataKey="expense" stroke="#ef4444" strokeWidth={3} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Low Stock Alerts */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-6 flex items-center">
-                <AlertTriangle className="w-5 h-5 mr-2 text-amber-500" />
-                {L("Low Stock Alerts")}
-              </h2>
-              {lowStockProducts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-48 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  <Package className="w-10 h-10 mb-2 text-slate-400" />
-                  <p>{L("All products are well stocked!")}</p>
-                </div>
-              ) : (
-                <div className="space-y-4 overflow-y-auto pr-2 max-h-72 hide-scrollbar">
-                  {lowStockProducts.map((product, index) => (
-                    <div key={product.id || index} className="flex items-center p-4 bg-amber-50 rounded-xl border border-amber-100">
-                      <div className="w-12 h-12 rounded-lg bg-white overflow-hidden flex-shrink-0 border border-amber-200">
-                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="ml-4 flex-grow">
-                        <h4 className="font-medium text-slate-900 text-sm truncate">{product.name}</h4>
-                        <p className="text-xs text-slate-500 mt-0.5">{L("Barcode")}: {product.barcode}</p>
-                      </div>
-                      <div className="text-right ml-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          {product.totalStock} {L("in stock")}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+            <AdminOverviewTab
+              orderFilterPeriod={orderFilterPeriod}
+              setOrderFilterPeriod={setOrderFilterPeriod}
+              orderCounts={orderCounts}
+              setActiveTab={setActiveTab}
+              reportPeriod={reportPeriod}
+              setReportPeriod={setReportPeriod}
+              selectedDate={selectedDate}
+              setSelectedDate={setSelectedDate}
+              selectedMonth={selectedMonth}
+              setSelectedMonth={setSelectedMonth}
+              selectedYear={selectedYear}
+              setSelectedYear={setSelectedYear}
+              reportData={reportData}
+              products={products}
+              orders={orders}
+              expenses={expenses}
+            />
+          )}
 
       {activeTab === 'calendar' && isAdmin && (
         <div className="space-y-6">
