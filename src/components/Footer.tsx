@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Layers, Instagram, Facebook, Mail, Phone, MapPin, 
-  ShieldCheck, CheckCircle2, ArrowRight, Video, Ghost, 
-  Truck, RefreshCw, Award, Headphones, MessageSquare, Heart, Sparkles, CreditCard, Send,
-  Package, Info, PhoneCall, HelpCircle, Compass, Ruler
+  Mail, Send, ChevronRight, Shield, Leaf, Heart
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -12,8 +9,6 @@ import { useStore } from '../store';
 export const Footer: React.FC = () => {
   const { language } = useLanguage();
   const { storeSettings } = useStore();
-  const isRTL = language === 'ar' || language === 'ku';
-
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
 
@@ -26,359 +21,197 @@ export const Footer: React.FC = () => {
     }
   };
 
-  const phoneValue = storeSettings.store_phone || '+964 750 000 0000';
-  const cleanPhone = phoneValue.replace(/[^\d+]/g, '');
-  const emailValue = storeSettings.contact_email || 'hello@galokids.com';
+  const phoneValue = storeSettings.store_phone || '+01 (88) 282 7777';
+  const emailValue = storeSettings.contact_email || 'hello@vastraakids.com';
   const addressValue = storeSettings.store_address || (
-    language === 'ku' ? 'سلێمانی - كوردستان - عێراق' : language === 'ar' ? 'السليمانية - كوردستان - العراق' : 'Sulaymaniyah, Kurdistan, Iraq'
+    language === 'ku' ? 'سلێمانی - كوردستان - عێراق' : language === 'ar' ? 'السليمانية - كوردستان - العراق' : 'Beverley Rd Brooklyn, New York 11226, USA.'
   );
 
-  const socialLinks = [];
-  if (storeSettings.instagram_url) {
-    socialLinks.push({ icon: Instagram, href: storeSettings.instagram_url, label: 'Instagram', hoverColor: 'hover:bg-gradient-to-tr hover:from-amber-500 hover:via-rose-500 hover:to-purple-600 hover:text-white' });
-  } else {
-    socialLinks.push({ icon: Instagram, href: '#', label: 'Instagram', hoverColor: 'hover:bg-gradient-to-tr hover:from-amber-500 hover:via-rose-500 hover:to-purple-600 hover:text-white' });
-  }
-
-  if (storeSettings.facebook_url) {
-    socialLinks.push({ icon: Facebook, href: storeSettings.facebook_url, label: 'Facebook', hoverColor: 'hover:bg-blue-600 hover:text-white' });
-  } else {
-    socialLinks.push({ icon: Facebook, href: '#', label: 'Facebook', hoverColor: 'hover:bg-blue-600 hover:text-white' });
-  }
-
-  if (storeSettings.tiktok_url) {
-    socialLinks.push({ icon: Video, href: storeSettings.tiktok_url, label: 'TikTok', hoverColor: 'hover:bg-slate-900 hover:text-white' });
-  }
-
-  if (storeSettings.snapchat_url) {
-    socialLinks.push({ icon: Ghost, href: storeSettings.snapchat_url, label: 'Snapchat', hoverColor: 'hover:bg-yellow-400 hover:text-slate-900' });
-  }
-
   return (
-    <footer className="bg-gradient-to-b from-rose-50/40 via-white to-amber-50/30 text-slate-700 mt-16 relative overflow-hidden font-arabic border-t border-rose-100/80 shadow-xs">
+    <footer className="vk2-footer2 bg-[#161622] text-slate-300 mt-20 relative font-arabic border-t border-slate-800/80 shadow-2xl">
       
-      {/* Top Colorful Brand Accent Line */}
-      <div className="h-1.5 w-full bg-gradient-to-r from-rose-400 via-amber-400 via-emerald-400 to-sky-400"></div>
-
-      {/* 1. Value Proposition Highlights Bar (Centred on mobile) */}
-      <div className="border-b border-rose-100/60 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-            
-            {/* Feature 1 */}
-            <div className={`flex flex-col sm:flex-row items-center text-center gap-2.5 sm:gap-3 p-3.5 rounded-2xl bg-rose-50/60 border border-rose-100/80 transition-all hover:bg-rose-50 ${isRTL ? 'sm:text-right sm:flex-row-reverse' : 'sm:text-left'}`}>
-              <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Truck className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <h4 className="text-xs font-black text-slate-900 truncate">
-                  {language === 'ku' ? 'گەیاندنی خێرا' : language === 'ar' ? 'توصيل سريع' : 'Fast Delivery'}
-                </h4>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">
-                  {language === 'ku' ? 'بۆ سەرجەم شارەکان' : language === 'ar' ? 'لكافة المحافظات' : 'To all cities'}
-                </p>
-              </div>
-            </div>
-
-            {/* Feature 2 */}
-            <div className={`flex flex-col sm:flex-row items-center text-center gap-2.5 sm:gap-3 p-3.5 rounded-2xl bg-amber-50/60 border border-amber-100/80 transition-all hover:bg-amber-50 ${isRTL ? 'sm:text-right sm:flex-row-reverse' : 'sm:text-left'}`}>
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Award className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <h4 className="text-xs font-black text-slate-900 truncate">
-                  {language === 'ku' ? 'کواڵیتی مسۆگەر' : language === 'ar' ? 'جودة مضمونة' : 'Guaranteed Quality'}
-                </h4>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">
-                  {language === 'ku' ? 'باشترین پۆشاک و یاری' : language === 'ar' ? 'أفضل الملابس والألعاب' : 'Best kids apparel'}
-                </p>
-              </div>
-            </div>
-
-            {/* Feature 3 */}
-            <div className={`flex flex-col sm:flex-row items-center text-center gap-2.5 sm:gap-3 p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-100/80 transition-all hover:bg-emerald-50 ${isRTL ? 'sm:text-right sm:flex-row-reverse' : 'sm:text-left'}`}>
-              <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <RefreshCw className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <h4 className="text-xs font-black text-slate-900 truncate">
-                  {language === 'ku' ? 'گۆڕینەوەی ئاسان' : language === 'ar' ? 'استبدال سهل' : 'Easy Exchange'}
-                </h4>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">
-                  {language === 'ku' ? 'تا ٧ ڕۆژ دوای وەرگرتن' : language === 'ar' ? 'خلال ٧ أيام' : 'Within 7 days'}
-                </p>
-              </div>
-            </div>
-
-            {/* Feature 4 */}
-            <div className={`flex flex-col sm:flex-row items-center text-center gap-2.5 sm:gap-3 p-3.5 rounded-2xl bg-sky-50/60 border border-sky-100/80 transition-all hover:bg-sky-50 ${isRTL ? 'sm:text-right sm:flex-row-reverse' : 'sm:text-left'}`}>
-              <div className="w-10 h-10 rounded-xl bg-sky-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Headphones className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <h4 className="text-xs font-black text-slate-900 truncate">
-                  {language === 'ku' ? 'پشتگیری بەردەوام' : language === 'ar' ? 'دعم مستمر' : '24/7 Support'}
-                </h4>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">
-                  {language === 'ku' ? 'خزمەتگوزاری بەکارهێنەران' : language === 'ar' ? 'خدمة العملاء' : 'Customer care'}
-                </p>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Main Footer Content Column Grid (Centered on mobile) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-10">
-        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-8 text-center ${isRTL ? 'md:text-right' : 'md:text-left'}`}>
+      {/* Newsletter Strip */}
+      <div className="vk2-footer2-newsletter bg-gradient-to-r from-[#D81B60] via-[#C2185B] to-[#8E24AA] py-8 sm:py-10 px-4 sm:px-6 lg:px-8 text-white shadow-xl">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           
-          {/* Brand & Store Info (4 Cols) */}
-          <div className="lg:col-span-4 space-y-5 flex flex-col items-center md:items-start">
-            <Link to="/" className="inline-flex items-center gap-3 group">
-              <div className="bg-gradient-to-tr from-rose-500 via-amber-400 to-sky-400 text-white p-2.5 rounded-2xl group-hover:scale-105 transition-all shadow-md shadow-rose-200">
-                <Layers className="w-6 h-6" />
-              </div>
-              <span className="font-black text-2xl text-slate-900 tracking-wide">
-                {storeSettings?.store_name || (language === 'ku' ? 'گەلۆ کیدس' : language === 'ar' ? 'غالو كيدز' : 'Galo Kids')} <span className="text-xl">🎈</span>
-              </span>
-            </Link>
-            
-            <p className="text-xs text-slate-600 leading-relaxed font-medium max-w-sm md:max-w-none">
-              {language === 'ku' 
-                ? 'گەلۆ کیدس، باشترین و جوانترین پۆشاک و یاری منداڵان بە کواڵیتی بەرز و دڵنیا. بە خۆشەویستییەوە هەمیشە لە خزمەتی منداڵە نازدارەکانتانداین.'
-                : language === 'ar'
-                ? 'غالو كيدز، أحدث وأجمل ملابس وألعاب الأطفال بجودة عالية. نسعى دائماً لتقديم الأفضل لأطفالكم الأحبة.'
-                : 'Galo Kids offers premium clothing and toys for little explorers. Curated with love, designed for everyday play and memorable moments.'
-              }
-            </p>
-
-            {/* Direct Contact List - All centered on mobile */}
-            <div className="space-y-3 pt-1 w-full flex flex-col items-center md:items-start">
-              <div className={`flex items-center justify-center md:justify-start gap-3 text-slate-700 text-xs font-semibold ${isRTL ? 'md:flex-row-reverse' : ''}`}>
-                <div className="w-8 h-8 rounded-xl bg-rose-100/80 text-rose-600 flex items-center justify-center shrink-0">
-                  <MapPin className="w-4 h-4" />
-                </div>
-                <span>{addressValue}</span>
-              </div>
-              
-              <a 
-                href={`tel:${cleanPhone}`} 
-                className={`flex items-center justify-center md:justify-start gap-3 text-slate-700 text-xs font-semibold hover:text-rose-600 transition-colors ${isRTL ? 'md:flex-row-reverse' : ''}`}
-              >
-                <div className="w-8 h-8 rounded-xl bg-emerald-100/80 text-emerald-600 flex items-center justify-center shrink-0">
-                  <Phone className="w-4 h-4" />
-                </div>
-                <span dir="ltr" className="font-extrabold">{phoneValue}</span>
-              </a>
-
-              <a 
-                href={`mailto:${emailValue}`} 
-                className={`flex items-center justify-center md:justify-start gap-3 text-slate-700 text-xs font-semibold hover:text-rose-600 transition-colors ${isRTL ? 'md:flex-row-reverse' : ''}`}
-              >
-                <div className="w-8 h-8 rounded-xl bg-sky-100/80 text-sky-600 flex items-center justify-center shrink-0">
-                  <Mail className="w-4 h-4" />
-                </div>
-                <span>{emailValue}</span>
-              </a>
+          <div className="flex items-center gap-4 text-center md:text-left rtl:md:text-right">
+            <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 hidden sm:flex">
+              <Mail className="w-7 h-7" />
             </div>
-
-            {/* Direct WhatsApp Quick Chat */}
-            <div className="pt-1 flex justify-center md:justify-start w-full">
-              <a
-                href={`https://wa.me/${cleanPhone}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all shadow-sm active:scale-95 cursor-pointer ${isRTL ? 'flex-row-reverse' : ''}`}
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>
-                  {language === 'ku' ? 'گفتوگۆی ڕاستەوخۆ لە وەتسئەپ' : language === 'ar' ? 'محادثة مباشرة عبر واتساب' : 'Chat on WhatsApp'}
-                </span>
-              </a>
-            </div>
-          </div>
-
-          {/* Quick Links Column (2 Cols) */}
-          <div className="lg:col-span-2 space-y-4">
-            <h3 className={`text-xs font-black text-slate-900 uppercase tracking-wider flex items-center justify-center gap-2 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>{language === 'ku' ? 'بەستەرە خێراکان' : language === 'ar' ? 'روابط سريعة' : 'Quick Links'}</span>
-            </h3>
-            <ul className="space-y-3">
-              <li>
-                <Link to="/products" className={`text-xs text-slate-600 hover:text-rose-600 font-bold transition-colors flex items-center justify-center gap-2.5 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-                  <Package className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                  <span>{language === 'ku' ? 'هەموو بەرهەمەکان' : language === 'ar' ? 'جميع المنتجات' : 'All Products'}</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/about" className={`text-xs text-slate-600 hover:text-rose-600 font-bold transition-colors flex items-center justify-center gap-2.5 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-                  <Info className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>{language === 'ku' ? 'دەربارەی ئێمە' : language === 'ar' ? 'عن المتجر' : 'About Us'}</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/contact" className={`text-xs text-slate-600 hover:text-rose-600 font-bold transition-colors flex items-center justify-center gap-2.5 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-                  <PhoneCall className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>{language === 'ku' ? 'پەیوەندیمان پێوە بکە' : language === 'ar' ? 'اتصل بنا' : 'Contact Us'}</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/wishlist" className={`text-xs text-slate-600 hover:text-rose-600 font-bold transition-colors flex items-center justify-center gap-2.5 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-                  <Heart className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                  <span>{language === 'ku' ? 'دڵخوازەکانم' : language === 'ar' ? 'المفضلة' : 'Wishlist'}</span>
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Support Links Column (2 Cols) */}
-          <div className="lg:col-span-2 space-y-4">
-            <h3 className={`text-xs font-black text-slate-900 uppercase tracking-wider flex items-center justify-center gap-2 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>{language === 'ku' ? 'پشتیوانی و یارمەتی' : language === 'ar' ? 'الدعم والمساعدة' : 'Support'}</span>
-            </h3>
-            <ul className="space-y-3">
-              <li>
-                <Link to="/faq" className={`text-xs text-slate-600 hover:text-rose-600 font-bold transition-colors flex items-center justify-center gap-2.5 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-                  <HelpCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>{language === 'ku' ? 'پڕسیارە باوەکان' : language === 'ar' ? 'الأسئلة الشائعة' : 'FAQs'}</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/shipping-returns" className={`text-xs text-slate-600 hover:text-rose-600 font-bold transition-colors flex items-center justify-center gap-2.5 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-                  <Truck className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                  <span>{language === 'ku' ? 'گەیاندن و گەڕاندنەوە' : language === 'ar' ? 'الشحن والاسترجاع' : 'Shipping & Returns'}</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/track" className={`text-xs text-slate-600 hover:text-rose-600 font-bold transition-colors flex items-center justify-center gap-2.5 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-                  <Compass className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                  <span>{language === 'ku' ? 'بەدواداچوونی داواکاری' : language === 'ar' ? 'تتبع الطلب' : 'Track Order'}</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/size-guide" className={`text-xs text-slate-600 hover:text-rose-600 font-bold transition-colors flex items-center justify-center gap-2.5 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-                  <Ruler className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>{language === 'ku' ? 'ڕێنمایی سایز' : language === 'ar' ? 'دليل المقاسات' : 'Size Guide'}</span>
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Newsletter & Social Column (4 Cols) */}
-          <div className="lg:col-span-4 space-y-5">
-            <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3">
-              <div className={`flex items-center justify-center gap-2 ${isRTL ? 'md:flex-row-reverse md:justify-start' : 'md:justify-start'}`}>
-                <Send className="w-4 h-4 text-sky-500" />
-                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                  {language === 'ku' ? 'بەشداربە لە هەواڵنامە' : language === 'ar' ? 'اشترك في النشرة البريدية' : 'Newsletter'}
-                </h3>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                {language === 'ku' 
-                  ? 'بۆ وەرگرتنی نوێترین داشکاندن و بەرهەمە نوێیەکان ئیمەیڵەکەت تۆمار بکە.'
-                  : language === 'ar'
-                  ? 'احصل على أحدث العروض والخصومات الحصرية مباشرة في بريدك.'
-                  : 'Subscribe to get unique discount offers, special kid events & news.'
-                }
+            <div>
+              <h3 className="text-xl sm:text-2xl font-black mb-1">
+                {language === 'ku' ? 'تێکەڵ بە خێزانی گەلۆ کیدس بە!' : language === 'ar' ? 'انضم إلى عائلة غالو كيدز!' : 'Join the Vastraa Kids Family!'}
+              </h3>
+              <p className="text-xs sm:text-sm text-pink-100 font-bold">
+                {language === 'ku' ? 'داشکاندنی تایبەت و نوێترین پۆشاکەکان ڕاستەوخۆ وەربگرە.' : language === 'ar' ? 'احصل على العروض الحصرية والأخبار مباشرة في بريدك.' : 'Get exclusive deals, new arrivals & style tips straight to your inbox.'}
               </p>
-              
-              {isSubscribed ? (
-                <div className={`flex items-center justify-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-extrabold animate-fade-in ${isRTL ? 'md:flex-row-reverse' : ''}`}>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>
-                    {language === 'ku' ? 'سوپاس! ئیمەیڵەکەت بە سەرکەوتوویی تۆمارکرا. 🎉' : language === 'ar' ? 'شكراً! تم الاشتراك بنجاح 🎉' : 'Subscribed successfully! 🎉'}
-                  </span>
-                </div>
-              ) : (
-                <form onSubmit={handleSubscribe} className="space-y-2">
-                  <div className="relative flex items-center">
-                    <input 
-                      type="email" 
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder={language === 'ku' ? 'ئیمەیڵەکەت بنووسە...' : language === 'ar' ? 'أدخل بريدك الإلكتروني...' : 'Enter your email...'}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3.5 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all font-bold text-slate-800 placeholder-slate-400 text-center md:text-right"
-                    />
-                    <button 
-                      type="submit"
-                      aria-label="Submit subscription"
-                      className={`absolute ${isRTL ? 'left-1.5' : 'right-1.5'} p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-all active:scale-95 cursor-pointer shadow-xs`}
-                    >
-                      <ArrowRight className={`w-4 h-4 transform ${isRTL ? 'rotate-180' : ''}`} />
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-
-            {/* Social Media Channels */}
-            <div className="space-y-2 text-center md:text-right">
-              <span className="block text-xs font-black text-slate-700">
-                {language === 'ku' ? 'تۆڕە کۆمەڵایەتییەکانمان:' : language === 'ar' ? 'تابعنا على:' : 'Follow Us:'}
-              </span>
-              <div className={`flex items-center justify-center gap-2 flex-wrap ${isRTL ? 'md:justify-start' : 'md:justify-start'}`}>
-                {socialLinks.map((social, idx) => (
-                  <a
-                    key={idx}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={social.label}
-                    className={`p-2.5 bg-white text-slate-600 border border-slate-200 rounded-xl transition-all duration-300 ${social.hoverColor} hover:scale-105 active:scale-95 shadow-xs`}
-                  >
-                    <social.icon className="w-4.5 h-4.5" />
-                  </a>
-                ))}
-              </div>
             </div>
           </div>
 
+          <form onSubmit={handleSubscribe} className="w-full md:w-auto">
+            <div className="bg-white rounded-full p-1.5 flex items-center shadow-lg w-full md:w-[420px]">
+              <input 
+                type="email" 
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={language === 'ku' ? 'ئیمەیڵەکەت بنووسە' : language === 'ar' ? 'أدخل بريدك الإلكتروني' : 'Enter your email address'} 
+                className="bg-transparent text-slate-800 text-xs font-bold px-4 py-2 flex-grow focus:outline-none placeholder:text-slate-400"
+              />
+              <button 
+                type="submit"
+                className="bg-[#1E1E2C] hover:bg-[#FF6584] text-white text-xs font-black px-6 py-2.5 rounded-full transition-all flex items-center gap-2 cursor-pointer shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{isSubscribed ? 'Subscribed!' : 'Subscribe'}</span>
+              </button>
+            </div>
+          </form>
+
         </div>
-
-        {/* Payment & Delivery Badges Bar */}
-        <div className="mt-10 pt-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/60 shadow-xs text-center">
-          <div className={`flex items-center justify-center gap-2 text-xs font-bold text-slate-700 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
-            <CreditCard className="w-4 h-4 text-rose-500" />
-            <span>
-              {language === 'ku' ? 'شێوازەکانی پارەدان:' : language === 'ar' ? 'طرق الدفع المتاحة:' : 'Accepted Payments:'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap justify-center">
-            <span className="text-[11px] font-black text-amber-800 bg-amber-50 border border-amber-200/80 px-3 py-1 rounded-lg">
-              💵 {language === 'ku' ? 'پارەدان لەکاتی وەرگرتن' : language === 'ar' ? 'الدفع عند الاستلام' : 'Cash on Delivery'}
-            </span>
-            <span className="text-[11px] font-black text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-3 py-1 rounded-lg">
-              💳 FastPay / FIB / Qi Card
-            </span>
-            <span className="text-[11px] font-black text-sky-800 bg-sky-50 border border-sky-200/80 px-3 py-1 rounded-lg">
-              📱 Zain Cash
-            </span>
-          </div>
-        </div>
-
-        {/* Bottom Bar: Copyright & Terms */}
-        <div className="mt-6 pt-6 border-t border-slate-200/60 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs font-semibold text-slate-500 text-center">
-          <p className="text-center sm:text-left">
-            © {new Date().getFullYear()} <span className="text-slate-900 font-extrabold">{storeSettings?.store_name || (language === 'ku' ? 'گەلۆ کیدس' : language === 'ar' ? 'غالو كيدز' : 'Galo Kids')}</span>. {language === 'ku' ? 'هەموو مافەکانی پارێزراوە.' : language === 'ar' ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}
-          </p>
-
-          <div className="flex items-center justify-center gap-4">
-            <Link to="/faq" className="hover:text-rose-600 transition-colors">
-              {language === 'ku' ? 'مەرج و یاساکان' : language === 'ar' ? 'الشروط والأحكام' : 'Terms & Conditions'}
-            </Link>
-            <span className="text-slate-300">•</span>
-            <Link to="/shipping-returns" className="hover:text-rose-600 transition-colors">
-              {language === 'ku' ? 'سیاسەتی تایبەتمەندی' : language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
-            </Link>
-          </div>
-        </div>
-
       </div>
+      <div className="vk2-footer2-body max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-10">
+          
+          {/* Column 1: Brand Info & Socials */}
+          <div className="space-y-4 lg:col-span-1">
+            <Link to="/" className="vk2-footer2-logo text-2xl font-black text-white block">
+              Galo<span className="text-[#FF6584]">Kids</span>
+            </Link>
+            <p className="vk2-footer2-about text-xs text-slate-400 font-bold leading-relaxed">
+              {language === 'ku' 
+                ? 'پۆشاک و پێداویستیی نایابی منداڵان بۆ ڕازاوەیی، ئاسودەیی و ساتەکانی خۆشی. سەرجەم دوورینەکان بە خۆشەویستی دروستکراون.' 
+                : language === 'ar'
+                ? 'أزياء أطفال فاخرة مصممة للأناقة والراحة واللحظات السعيدة. كل غرزة صُنعت بحب لأطفالكم.'
+                : 'Premium kids fashion crafted for style, comfort, and happy moments. Every stitch made with love for your little ones.'}
+            </p>
+            <ul className="vk2-footer2-contact space-y-2 text-xs font-bold text-slate-400 pt-2 list-none p-0">
+              <li className="flex items-center gap-2">📍 {addressValue}</li>
+              <li className="flex items-center gap-2">📞 {phoneValue}</li>
+              <li className="flex items-center gap-2">✉️ {emailValue}</li>
+            </ul>
+            
+            {/* Social Links */}
+            <div className="vk2-footer2-socials flex items-center gap-2 pt-2">
+              {['f', 'ig', 'tw', 'p', 'yt'].map((s, idx) => (
+                <span key={idx} className="w-8 h-8 rounded-full bg-slate-800/90 hover:bg-[#FF6584] text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shadow-xs">
+                  {s}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: Quick Links */}
+          <div className="space-y-3">
+            <h4 className="vk2-footer2-title text-sm font-black text-white uppercase tracking-wider">
+              {language === 'ku' ? 'بەستەرە خێراکان' : language === 'ar' ? 'روابط سريعة' : 'Quick Links'}
+            </h4>
+            <ul className="vk2-footer2-links space-y-2 text-xs font-bold text-slate-400 list-none p-0">
+              <li><Link to="/products" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'هەموو بەرهەمەکان' : 'Shop All'}</Link></li>
+              <li><Link to="/products?sort=newest" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'نوێترین بەرهەمەکان' : 'New Arrivals'}</Link></li>
+              <li><Link to="/products?featured=true" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پڕفرۆشترینەکان' : 'Best Sellers'}</Link></li>
+              <li><Link to="/products?sale=true" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'داشکاندنەکان' : 'Sale Items'}</Link></li>
+              <li><Link to="/about" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'دەربارەی ئێمە' : 'About Us'}</Link></li>
+            </ul>
+          </div>
+
+          {/* Column 3: Categories */}
+          <div className="space-y-3">
+            <h4 className="vk2-footer2-title text-sm font-black text-white uppercase tracking-wider">
+              {language === 'ku' ? 'پۆڵەکان' : language === 'ar' ? 'الأقسام' : 'Categories'}
+            </h4>
+            <ul className="vk2-footer2-links space-y-2 text-xs font-bold text-slate-400 list-none p-0">
+              <li><Link to="/products?gender=1" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پۆشاکی کوڕان' : 'Boys Fashion'}</Link></li>
+              <li><Link to="/products?gender=2" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پۆشاکی کچان' : 'Girls Outfits'}</Link></li>
+              <li><Link to="/products?category=infants" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پۆشاکی ساوا' : 'Baby Clothing'}</Link></li>
+              <li><Link to="/products?category=toys" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'یاری و کات بەسەربردن' : 'Toys & Fun'}</Link></li>
+              <li><Link to="/products" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پێداویستی و جوانکاری' : 'Accessories'}</Link></li>
+            </ul>
+          </div>
+
+          {/* Column 4: Support */}
+          <div className="space-y-3">
+            <h4 className="vk2-footer2-title text-sm font-black text-white uppercase tracking-wider">
+              {language === 'ku' ? 'پشتیوانی' : language === 'ar' ? 'الدعم' : 'Support'}
+            </h4>
+            <ul className="vk2-footer2-links space-y-2 text-xs font-bold text-slate-400 list-none p-0">
+              <li><Link to="/faq" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'ناوەندی یارمەتی' : 'Help Center'}</Link></li>
+              <li><Link to="/track-order" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'بەدواداچوونی داواکاری' : 'Track Order'}</Link></li>
+              <li><Link to="/shipping-returns" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'سیاسەتی گەڕاندنەوە' : 'Returns'}</Link></li>
+              <li><Link to="/shipping-returns" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'زانیاری گەیاندن' : 'Shipping Info'}</Link></li>
+              <li><Link to="/contact" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پەیوەندی' : 'Contact Us'}</Link></li>
+            </ul>
+          </div>
+
+          {/* Column 5: Download App + Trust Badges */}
+          <div className="space-y-4">
+            <h4 className="vk2-footer2-title text-sm font-black text-white uppercase tracking-wider">
+              {language === 'ku' ? 'دابەزاندنی ئەپ' : language === 'ar' ? 'تحميل التطبيق' : 'Download App'}
+            </h4>
+            
+            <div className="space-y-2">
+              <a href="#" className="vk2-footer2-app-btn bg-slate-800 hover:bg-slate-700 text-white rounded-xl p-2.5 flex items-center gap-3 transition-colors border border-slate-700">
+                <span className="text-xl"></span>
+                <div className="leading-tight">
+                  <span className="text-[10px] text-slate-400 block font-normal">Download on the</span>
+                  <span className="text-xs font-black block">App Store</span>
+                </div>
+              </a>
+
+              <a href="#" className="vk2-footer2-app-btn bg-slate-800 hover:bg-slate-700 text-white rounded-xl p-2.5 flex items-center gap-3 transition-colors border border-slate-700">
+                <span className="text-xl">▶</span>
+                <div className="leading-tight">
+                  <span className="text-[10px] text-slate-400 block font-normal">Get it on</span>
+                  <span className="text-xs font-black block">Google Play</span>
+                </div>
+              </a>
+            </div>
+
+            {/* Trust Badges */}
+            <div className="vk2-footer2-trust space-y-2 pt-2">
+              <span className="vk2-footer2-trust-badge flex items-center gap-2 text-xs font-bold text-slate-400">
+                <Shield className="w-4 h-4 text-[#FF6584]" /> {language === 'ku' ? 'پارەدانی پارێزراو' : 'Secure Payment'}
+              </span>
+              <span className="vk2-footer2-trust-badge flex items-center gap-2 text-xs font-bold text-slate-400">
+                <Leaf className="w-4 h-4 text-emerald-400" /> {language === 'ku' ? 'بڕوانامەدار' : 'Eco Certified'}
+              </span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className="vk2-footer2-bottom bg-[#0D0E17] border-t border-slate-800/60 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-slate-400">
+          <p className="vk2-footer2-copy">
+            {language === 'ku'
+              ? <>© ٢٠٢٦ Galo Kids. هەموو مافەکانی پارێزراوە. دروستکراوە بە <Heart className="w-3.5 h-3.5 text-rose-500 inline fill-rose-500 mx-1" /> بۆ منداڵانی ئازیز.</>
+              : <>© 2026 Galo Kids. All Rights Reserved. Made with <Heart className="w-3.5 h-3.5 text-rose-500 inline fill-rose-500 mx-1" /> for little ones.</>
+            }
+          </p>
+          
+          {/* Iraqi Payment Badges & Logos */}
+          <div className="vk2-footer2-payments flex flex-wrap items-center gap-2 text-slate-200 text-xs font-black">
+            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-md text-[11px]">
+              💳 Qi Card
+            </span>
+            <span className="bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2.5 py-1 rounded-md text-[11px]">
+              📱 ZainCash
+            </span>
+            <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-md text-[11px]">
+              ⚡ FastPay
+            </span>
+            <span className="bg-sky-500/20 text-sky-300 border border-sky-500/40 px-2.5 py-1 rounded-md text-[11px]">
+              🏦 FIB
+            </span>
+            <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2.5 py-1 rounded-md text-[11px]">
+              🚚 {language === 'ku' ? 'پارەدان لەکاتی وەرگرتن' : language === 'ar' ? 'الدفع عند الاستلام' : 'Cash on Delivery'}
+            </span>
+          </div>
+        </div>
+      </div>
+
     </footer>
   );
 };

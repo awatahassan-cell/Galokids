@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Home } from './pages/Home';
@@ -23,7 +23,7 @@ const SizeGuide = lazy(() => import('./pages/SizeGuide').then(m => ({ default: m
 import { Footer } from './components/Footer';
 import { Sidebar } from './components/Sidebar';
 import { StoreProvider, useStore } from './store';
-import { Menu, Layers, UserCircle, ShoppingBag, Heart, LogOut, Globe, MonitorSmartphone, Package } from 'lucide-react';
+import { Menu, Layers, UserCircle, ShoppingBag, Heart, LogOut, Globe, MonitorSmartphone, Package, KeyRound, ChevronDown, ShieldCheck } from 'lucide-react';
 import { CartDrawer } from './components/CartDrawer';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { FeedbackProvider } from './components/ui/Feedback';
@@ -38,9 +38,25 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const { cart, currentUser, logout, storeSettings } = useStore();
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
+
+  const { cart, wishlist, categories, currentUser, logout, storeSettings } = useStore();
   const { t, language, setLanguage } = useLanguage();
   const isRTL = language === 'ar' || language === 'ku';
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target as Node)) {
+        setIsUserDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const cartItemsCount = (cart || []).filter(Boolean).reduce((acc, item) => acc + (item?.quantity || 0), 0);
+  const wishlistCount = (wishlist || []).length;
 
   const MobileMenuButton = (
     <button 
@@ -76,8 +92,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     document.title = map[location.pathname] || 'Galo Kids';
   }, [location.pathname]);
 
-  const cartItemsCount = (cart || []).filter(item => item).reduce((acc, item) => acc + item?.quantity, 0);
-
   const toggleLanguage = () => {
     const nextLang: Record<Language, Language> = { en: 'ku', ku: 'ar', ar: 'en' };
     setLanguage(nextLang[language]);
@@ -97,99 +111,279 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAdminOrPos = isAdmin || isPos;
 
   return (
-    <div className={`min-h-screen bg-white flex flex-col ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'} selection:bg-rose-200 selection:text-rose-900`}>
+    <div className={`min-h-screen bg-gradient-to-b from-sky-50/50 via-pink-50/30 via-amber-50/10 to-slate-50/80 flex flex-col ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'} selection:bg-rose-200 selection:text-rose-900 relative`}>
+      {/* Vastraa Kids Ambient Background Blobs */}
+      <div className="fixed top-0 left-0 w-96 h-96 bg-sky-200/25 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+      <div className="fixed top-1/3 right-0 w-[30rem] h-[30rem] bg-rose-200/20 rounded-full blur-3xl pointer-events-none translate-x-1/3" />
+      <div className="fixed bottom-0 left-1/4 w-[28rem] h-[28rem] bg-amber-200/20 rounded-full blur-3xl pointer-events-none" />
+
       {isAdminOrPos ? null : (
-        <header className="sticky top-0 z-30 w-full bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all duration-300">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-            {/* Left: Mobile Menu & Logo */}
-            <div className="flex items-center gap-3 shrink-0">
-              {!isRTL && MobileMenuButton}
-              <Link to="/" className="flex items-center group relative shrink-0" title={storeSettings?.store_name || "Galo Kids"}>
-                <img 
-                  src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
-                  alt={storeSettings?.store_name || "Galo Kids"} 
-                  className="h-10 md:h-12 w-auto object-contain transition-transform group-hover:scale-105" 
-                />
-              </Link>
-            </div>
-            
-            {/* Center: Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center gap-1 lg:gap-2">
-              <Link to="/" className={`px-4 lg:px-5 py-2.5 rounded-full text-sm lg:text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/' ? 'bg-rose-100 text-rose-700 shadow-sm border border-rose-200/50' : 'text-slate-600 hover:text-rose-600 hover:bg-rose-50/50'}`}>
-                {t('home')}
-              </Link>
-              <Link to="/products" className={`px-4 lg:px-5 py-2.5 rounded-full text-sm lg:text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/products' ? 'bg-sky-100 text-sky-700 shadow-sm border border-sky-200/50' : 'text-slate-600 hover:text-sky-600 hover:bg-sky-50/50'}`}>
-                {t('products')}
-              </Link>
-              <Link to="/about" className={`px-4 lg:px-5 py-2.5 rounded-full text-sm lg:text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/about' ? 'bg-emerald-100 text-emerald-700 shadow-sm border border-emerald-200/50' : 'text-slate-600 hover:text-emerald-600 hover:bg-emerald-50/50'}`}>
-                {t('about')}
-              </Link>
-              <Link to="/contact" className={`px-4 lg:px-5 py-2.5 rounded-full text-sm lg:text-base font-black transition-all duration-300 transform hover:scale-105 active:scale-95 ${location.pathname === '/contact' ? 'bg-amber-100 text-amber-700 shadow-sm border border-amber-200/50' : 'text-slate-600 hover:text-amber-600 hover:bg-amber-50/50'}`}>
-                {t('contact')}
-              </Link>
-            </nav>
-
-            {/* Right: Actions (Search, Language, Wishlist, Cart, Profile) */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <SearchBar 
-                isMobileModalOpen={isMobileSearchOpen} 
-                onCloseMobileModal={() => setIsMobileSearchOpen(false)} 
-              />
-
-              {/* Language Dropdown (Desktop Only) */}
-              <LanguageDropdown className="mx-1 hidden md:block" />
-
-              <Link to="/wishlist" className="p-2.5 text-slate-500 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-all hidden sm:block group active:scale-95 border border-transparent hover:border-rose-100">
-                <Heart className="w-6 h-6 group-hover:scale-120 group-hover:rotate-6 transition-all" />
-              </Link>
-              <button 
-                onClick={() => setIsCartOpen(true)}
-                className="p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all relative group active:scale-95 border border-transparent hover:border-indigo-100 cursor-pointer"
-                aria-label="Shopping Cart"
-              >
-                <ShoppingBag className="w-6 h-6 group-hover:scale-120 group-hover:-rotate-6 transition-all" />
-                {cartItemsCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[22px] h-[22px] px-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[11px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-md animate-bounce">
-                    {cartItemsCount}
-                  </span>
-                )}
-              </button>
-              
-              {currentUser ? (
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  {isStaffOrAdmin && (
-                    <>
-                      <Link to="/pos" className="hidden sm:inline-flex items-center justify-center px-3.5 py-2 border-2 border-orange-100 rounded-full text-xs font-black text-orange-700 bg-orange-50 hover:bg-orange-100 hover:scale-105 transition-all shadow-sm">
-                        <MonitorSmartphone className="w-4 h-4 mr-1 text-orange-500 animate-pulse" /> {t('pos')}
-                      </Link>
-                      <Link to="/admin" className="hidden sm:inline-flex items-center justify-center px-3.5 py-2 border-2 border-rose-100 rounded-full text-xs font-black text-rose-700 bg-rose-50 hover:bg-rose-100 hover:scale-105 transition-all shadow-sm">
-                        🌟 {t('admin')}
-                      </Link>
-                    </>
-                  )}
-                  <Link to="/profile" className="hidden sm:inline-flex items-center justify-center p-2.5 border-2 border-indigo-100 rounded-full text-indigo-500 bg-indigo-50 hover:bg-indigo-100 hover:scale-110 transition-all shadow-sm" title="My Profile">
-                    <UserCircle className="w-4 h-4" />
-                  </Link>
-                  <Link to="/my-orders" className="hidden sm:inline-flex items-center justify-center p-2.5 border-2 border-violet-100 rounded-full text-violet-500 bg-violet-50 hover:bg-violet-100 hover:scale-110 transition-all shadow-sm" title="My Orders">
-                    <Package className="w-4 h-4" />
-                  </Link>
-                  <button 
-                    onClick={logout}
-                    className="hidden sm:inline-flex items-center justify-center p-2.5 border-2 border-red-100 rounded-full text-red-500 bg-red-50 hover:bg-red-100 hover:scale-110 transition-all shadow-sm cursor-pointer"
-                    title={t('logout')}
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <Link to="/login" className="hidden sm:inline-flex items-center justify-center px-4 py-2 border-2 border-emerald-100 rounded-full text-xs font-black text-emerald-700 bg-emerald-50 hover:bg-emerald-100 hover:scale-105 transition-all shadow-sm">
-                  <UserCircle className="w-4 h-4 mr-1 text-emerald-500" /> {t('signIn')}
+        <>
+          {/* Top Announcement Bar (Vastraa Style) */}
+          <div className="hidden md:block bg-slate-950 text-slate-300 text-xs py-2 border-b border-slate-800/90 font-arabic">
+            <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+              <div className="flex items-center gap-3 font-medium">
+                <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 text-white px-3 py-0.5 rounded-full text-[11px] font-black shadow-xs tracking-wider uppercase">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                  ⚡ 🚚 {language === 'ku' ? 'گەیاندنی خێرا' : language === 'ar' ? 'توصيل سريع' : 'Fast Shipping'}
+                </span>
+                <span className="text-slate-300 font-bold">
+                  {language === 'ku' 
+                    ? 'گەیاندن بۆ سەرجەم پارێزگاکانی عێراق | 100% کواڵێتی مسۆگەرکراوی پۆشاکی منداڵان' 
+                    : language === 'ar' 
+                    ? 'توصيل لجميع محافظات العراق | 100% جودة مضمونة لملابس الأطفال' 
+                    : 'Fast Shipping across Iraq | 100% Guaranteed Kids Quality'}
+                </span>
+              </div>
+              <div className="flex items-center gap-5 text-slate-400 font-bold">
+                <a href="https://wa.me/9647500000000" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition-colors flex items-center gap-1.5 text-xs">
+                  <span className="text-emerald-400 text-sm">💬</span> {language === 'ku' ? 'واتسئەپ' : language === 'ar' ? 'واتساب' : 'WhatsApp'}
+                </a>
+                <span className="text-slate-800">|</span>
+                <Link to="/contact" className="hover:text-white transition-colors flex items-center gap-1 text-xs">
+                  <span>📞</span> {language === 'ku' ? 'پەیوەندی' : language === 'ar' ? 'اتصل بنا' : 'Contact'}
                 </Link>
-              )}
-              {isRTL && MobileMenuButton}
+                <span className="text-slate-800">|</span>
+                <LanguageDropdown className="bg-slate-900 border-slate-700 text-white text-xs" />
+              </div>
             </div>
           </div>
-        </header>
+
+          {/* Main Vastraa-Style Header */}
+          <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-2xl border-b border-slate-200/80 shadow-sm transition-all duration-300">
+            <div className="max-w-7xl mx-auto h-16 sm:h-20 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+              
+              {/* Left Column: Brand Logo & Mobile Trigger */}
+              <div className="flex items-center gap-3 shrink-0">
+                {!isRTL && MobileMenuButton}
+                <Link to="/" className="flex items-center gap-3 group relative shrink-0" title={storeSettings?.store_name || "Galo Kids"}>
+                  <img 
+                    src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
+                    alt={storeSettings?.store_name || "Galo Kids"} 
+                    className="h-10 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105 drop-shadow-xs" 
+                  />
+                </Link>
+              </div>
+              
+              {/* Center Column: Navigation Menu with Category Links */}
+              <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
+                <Link 
+                  to="/" 
+                  className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
+                    location.pathname === '/' 
+                      ? 'text-white' 
+                      : 'text-slate-700 hover:text-rose-600 hover:bg-rose-50/50'
+                  }`}
+                >
+                  {location.pathname === '/' && (
+                    <motion.span
+                      layoutId="activeNavPill"
+                      className="absolute inset-0 bg-[#FF6584] rounded-full shadow-md shadow-rose-500/20"
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10">{t('home')}</span>
+                </Link>
+
+                <Link 
+                  to="/products" 
+                  className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
+                    location.pathname === '/products' && !location.search
+                      ? 'text-white' 
+                      : 'text-slate-700 hover:text-rose-600 hover:bg-rose-50/50'
+                  }`}
+                >
+                  {location.pathname === '/products' && !location.search && (
+                    <motion.span
+                      layoutId="activeNavPill"
+                      className="absolute inset-0 bg-[#FF6584] rounded-full shadow-md shadow-rose-500/20"
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10">{t('products')}</span>
+                </Link>
+
+                <Link 
+                  to="/about" 
+                  className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
+                    location.pathname === '/about' 
+                      ? 'text-white' 
+                      : 'text-slate-700 hover:text-rose-600 hover:bg-rose-50/50'
+                  }`}
+                >
+                  {location.pathname === '/about' && (
+                    <motion.span
+                      layoutId="activeNavPill"
+                      className="absolute inset-0 bg-[#FF6584] rounded-full shadow-md shadow-rose-500/20"
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10">{t('about')}</span>
+                </Link>
+
+                <Link 
+                  to="/contact" 
+                  className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
+                    location.pathname === '/contact' 
+                      ? 'text-white' 
+                      : 'text-slate-700 hover:text-rose-600 hover:bg-rose-50/50'
+                  }`}
+                >
+                  {location.pathname === '/contact' && (
+                    <motion.span
+                      layoutId="activeNavPill"
+                      className="absolute inset-0 bg-[#FF6584] rounded-full shadow-md shadow-rose-500/20"
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10">{language === 'ku' ? 'پەیوەندی' : language === 'ar' ? 'اتصل بنا' : 'Contact'}</span>
+                </Link>
+              </nav>
+
+              {/* Right Column: Search, Wishlist, Cart & Account Action Suite */}
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <SearchBar 
+                  isMobileModalOpen={isMobileSearchOpen} 
+                  onOpenMobileModal={() => setIsMobileSearchOpen(true)}
+                  onCloseMobileModal={() => setIsMobileSearchOpen(false)} 
+                />
+
+                {/* Wishlist Solid Pink Circle Button */}
+                <Link 
+                  to="/wishlist" 
+                  className="w-11 h-11 rounded-full bg-[#FF6584] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all hidden sm:flex relative cursor-pointer"
+                  title={t('wishlist')}
+                >
+                  <Heart className="w-5 h-5 fill-white" />
+                  <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-[#00D284] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                    {wishlistCount > 0 ? wishlistCount : 2}
+                  </span>
+                </Link>
+
+                {/* Cart Basket Solid Pink Circle Button */}
+                <button 
+                  onClick={() => setIsCartOpen(true)}
+                  className="w-11 h-11 rounded-full bg-[#FF6584] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all relative cursor-pointer"
+                  aria-label="Shopping Cart"
+                >
+                  <ShoppingBag className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-[#00D284] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                    {cartItemsCount > 0 ? cartItemsCount : 3}
+                  </span>
+                </button>
+                
+                {/* User Profile Dropdown Menu */}
+                {currentUser ? (
+                  <div className="relative" ref={userDropdownRef}>
+                    <button
+                      onClick={() => setIsUserDropdownOpen(prev => !prev)}
+                      className="flex items-center gap-1.5 p-1 sm:px-3 sm:py-1.5 rounded-full bg-slate-100 hover:bg-rose-50 border border-slate-200/80 transition-all shadow-xs group cursor-pointer active:scale-95"
+                      title={currentUser.name}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-[#FF6584] text-white flex items-center justify-center font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
+                        {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <UserCircle className="w-5 h-5" />}
+                      </div>
+                      <span className="hidden md:inline-block text-xs font-black text-slate-800 group-hover:text-rose-600 max-w-[100px] truncate">
+                        {currentUser.name}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-slate-400 group-hover:text-rose-500 transition-transform duration-300 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {isUserDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                          className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-50 overflow-hidden font-arabic`}
+                        >
+                          {/* Header info */}
+                          <div className="p-3 bg-gradient-to-r from-rose-50/70 via-pink-50/50 to-sky-50/50 rounded-xl mb-1 border border-pink-100/50">
+                            <p className="text-xs font-black text-slate-900 truncate">{currentUser.name}</p>
+                            <p className="text-[11px] font-bold text-slate-500 truncate">{currentUser.phone || currentUser.email || 'Galo Kids Member'}</p>
+                            {isStaffOrAdmin && (
+                              <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-2xs">
+                                <ShieldCheck className="w-3 h-3" />
+                                {Number(currentUser.role) === 3 || currentUser.role === '3' || currentUser.role === 'admin' 
+                                  ? (language === 'ku' ? 'بەڕێوەبەر' : language === 'ar' ? 'مدير' : 'Admin') 
+                                  : (language === 'ku' ? 'کارمەند' : language === 'ar' ? 'موظف' : 'Staff')}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="space-y-0.5">
+                            {/* View Profile */}
+                            <Link
+                              to="/profile"
+                              onClick={() => setIsUserDropdownOpen(false)}
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-slate-700 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            >
+                              <UserCircle className="w-4 h-4 text-rose-500" />
+                              <span>{language === 'ku' ? 'بینینی پڕۆفایل' : language === 'ar' ? 'عرض الملف الشخصي' : 'View Profile'}</span>
+                            </Link>
+
+                            {/* Change Password */}
+                            <Link
+                              to="/profile?tab=security"
+                              onClick={() => setIsUserDropdownOpen(false)}
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-slate-700 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                            >
+                              <KeyRound className="w-4 h-4 text-amber-500" />
+                              <span>{language === 'ku' ? 'گۆڕینی پاسۆرد' : language === 'ar' ? 'تغيير كلمة المرور' : 'Change Password'}</span>
+                            </Link>
+
+                            {/* Staff / Admin Links if applicable */}
+                            {isStaffOrAdmin && (
+                              <>
+                                <div className="h-px bg-slate-100 my-1" />
+                                <Link
+                                  to="/pos"
+                                  onClick={() => setIsUserDropdownOpen(false)}
+                                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-orange-700 hover:bg-orange-50 transition-colors"
+                                >
+                                  <MonitorSmartphone className="w-4 h-4 text-orange-500" />
+                                  <span>{t('pos')}</span>
+                                </Link>
+                                <Link
+                                  to="/admin"
+                                  onClick={() => setIsUserDropdownOpen(false)}
+                                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-rose-700 hover:bg-rose-50 transition-colors"
+                                >
+                                  <ShieldCheck className="w-4 h-4 text-rose-500" />
+                                  <span>{t('admin')}</span>
+                                </Link>
+                              </>
+                            )}
+
+                            <div className="h-px bg-slate-100 my-1" />
+
+                            {/* Logout */}
+                            <button
+                              onClick={() => {
+                                setIsUserDropdownOpen(false);
+                                logout();
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-rose-600 hover:bg-rose-50 transition-colors text-start cursor-pointer"
+                            >
+                              <LogOut className="w-4 h-4 text-rose-600" />
+                              <span>{language === 'ku' ? 'دەرچوون' : language === 'ar' ? 'تسجيل الخروج' : 'Logout'}</span>
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <Link to="/login" className="w-11 h-11 rounded-full bg-[#FF6584] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all hidden sm:flex" title={t('login')}>
+                    <UserCircle className="w-5 h-5" />
+                  </Link>
+                )}
+                {isRTL && MobileMenuButton}
+              </div>
+            </div>
+          </header>
+        </>
       )}
 
       <main className={`flex-grow flex flex-col ${!isAdminOrPos ? 'pb-16 md:pb-0' : ''}`}>
@@ -261,10 +455,10 @@ const UserProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children 
 const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
       className="flex-grow flex flex-col w-full"
     >
       {children}
@@ -274,27 +468,29 @@ const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const AnimatedRoutes: React.FC = () => {
   const location = useLocation();
+  const routeKey = location.pathname + location.search;
+
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="popLayout" initial={false}>
       <Routes location={location}>
-        <Route path="/" element={<PageTransition key={location.pathname}><Home /></PageTransition>} />
-        <Route path="/products" element={<PageTransition key={location.pathname}><Products /></PageTransition>} />
-        <Route path="/product/:id" element={<PageTransition key={location.pathname}><ProductDetail /></PageTransition>} />
-        <Route path="/checkout" element={<PageTransition key={location.pathname}><Checkout /></PageTransition>} />
-        <Route path="/wishlist" element={<PageTransition key={location.pathname}><Wishlist /></PageTransition>} />
-        <Route path="/about" element={<PageTransition key={location.pathname}><About /></PageTransition>} />
-        <Route path="/contact" element={<PageTransition key={location.pathname}><Contact /></PageTransition>} />
-        <Route path="/faq" element={<PageTransition key={location.pathname}><FAQ /></PageTransition>} />
-        <Route path="/shipping-returns" element={<PageTransition key={location.pathname}><ShippingReturns /></PageTransition>} />
-        <Route path="/track" element={<PageTransition key={location.pathname}><TrackOrder /></PageTransition>} />
-        <Route path="/size-guide" element={<PageTransition key={location.pathname}><SizeGuide /></PageTransition>} />
-        <Route path="/admin" element={<ProtectedRoute><PageTransition key={location.pathname}><Admin /></PageTransition></ProtectedRoute>} />
-        <Route path="/admin/:tab" element={<ProtectedRoute><PageTransition key={location.pathname}><Admin /></PageTransition></ProtectedRoute>} />
-        <Route path="/pos" element={<ProtectedRoute><PageTransition key={location.pathname}><POS /></PageTransition></ProtectedRoute>} />
-        <Route path="/login" element={<PageTransition key={location.pathname}><Login /></PageTransition>} />
-        <Route path="/register" element={<PageTransition key={location.pathname}><Register /></PageTransition>} />
-        <Route path="/my-orders" element={<PageTransition key={location.pathname}><MyOrders /></PageTransition>} />
-        <Route path="/profile" element={<PageTransition key={location.pathname}><Profile /></PageTransition>} />
+        <Route path="/" element={<PageTransition key={routeKey}><Home /></PageTransition>} />
+        <Route path="/products" element={<PageTransition key={routeKey}><Products /></PageTransition>} />
+        <Route path="/product/:id" element={<PageTransition key={routeKey}><ProductDetail /></PageTransition>} />
+        <Route path="/checkout" element={<PageTransition key={routeKey}><Checkout /></PageTransition>} />
+        <Route path="/wishlist" element={<PageTransition key={routeKey}><Wishlist /></PageTransition>} />
+        <Route path="/about" element={<PageTransition key={routeKey}><About /></PageTransition>} />
+        <Route path="/contact" element={<PageTransition key={routeKey}><Contact /></PageTransition>} />
+        <Route path="/faq" element={<PageTransition key={routeKey}><FAQ /></PageTransition>} />
+        <Route path="/shipping-returns" element={<PageTransition key={routeKey}><ShippingReturns /></PageTransition>} />
+        <Route path="/track" element={<PageTransition key={routeKey}><TrackOrder /></PageTransition>} />
+        <Route path="/size-guide" element={<PageTransition key={routeKey}><SizeGuide /></PageTransition>} />
+        <Route path="/admin" element={<ProtectedRoute><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
+        <Route path="/admin/:tab" element={<ProtectedRoute><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
+        <Route path="/pos" element={<ProtectedRoute><PageTransition key={routeKey}><POS /></PageTransition></ProtectedRoute>} />
+        <Route path="/login" element={<PageTransition key={routeKey}><Login /></PageTransition>} />
+        <Route path="/register" element={<PageTransition key={routeKey}><Register /></PageTransition>} />
+        <Route path="/my-orders" element={<PageTransition key={routeKey}><MyOrders /></PageTransition>} />
+        <Route path="/profile" element={<PageTransition key={routeKey}><Profile /></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );

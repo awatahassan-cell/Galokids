@@ -494,6 +494,40 @@ export const AdminHeroSettings: React.FC = () => {
                 </div>
               </div>
 
+              {/* FLOATING BADGES & DISCOUNT TAG */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">تێکستی سەری باج (m.g. 100% Cotton)</label>
+                  <input
+                    type="text"
+                    value={editingSlide.floatingBadgeTitle || ''}
+                    onChange={e => setEditingSlide({ ...editingSlide, floatingBadgeTitle: e.target.value })}
+                    placeholder="100% Cotton"
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">تێکستی خوارەوەی باج (m.g. لۆکەی ١٠٠٪ بەرز)</label>
+                  <input
+                    type="text"
+                    value={editingSlide.floatingBadgeDesc || ''}
+                    onChange={e => setEditingSlide({ ...editingSlide, floatingBadgeDesc: e.target.value })}
+                    placeholder="لۆکەی ١٠٠٪ بەرز"
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-right"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">باجی داشکاندن (m.g. 25% OFF)</label>
+                  <input
+                    type="text"
+                    value={editingSlide.discountTag || ''}
+                    onChange={e => setEditingSlide({ ...editingSlide, discountTag: e.target.value })}
+                    placeholder="25% OFF"
+                    className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
               {/* SAVE BUTTON */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t">
                 <button

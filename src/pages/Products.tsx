@@ -52,42 +52,50 @@ export const Products: React.FC = () => {
   };
 
   useEffect(() => {
-    let newFilters = { ...filters };
     let hasChanges = false;
+    let targetGender = filters.gender;
+    let targetCategory = filters.categoryId;
     
     if (genderParam !== prevGenderParam.current) {
-      newFilters.gender = initialGender;
+      targetGender = initialGender;
       hasChanges = true;
       prevGenderParam.current = genderParam;
     }
     
-    if (categoryParam !== prevCategoryParam.current || (categoryParam && categories.length > 0 && filters.categoryId === null)) {
+    if (categoryParam !== prevCategoryParam.current || (categoryParam && categories.length > 0 && targetCategory === null)) {
       if (categoryParam && categories.length > 0) {
         const matchedCategory = categories.find(c => 
           (c.slug && c.slug.toLowerCase() === categoryParam.toLowerCase()) || 
           c.name.toLowerCase() === categoryParam.toLowerCase()
         );
-        if (matchedCategory && filters.categoryId !== matchedCategory.id) {
-          newFilters.categoryId = matchedCategory.id;
+        if (matchedCategory && targetCategory !== matchedCategory.id) {
+          targetCategory = matchedCategory.id;
           hasChanges = true;
         }
-      } else if (!categoryParam && filters.categoryId !== null && prevCategoryParam.current !== categoryParam) {
-          newFilters.categoryId = null;
-          hasChanges = true;
+      } else if (!categoryParam && targetCategory !== null && prevCategoryParam.current !== categoryParam) {
+        targetCategory = null;
+        hasChanges = true;
       }
       prevCategoryParam.current = categoryParam;
     }
 
     if (hasChanges) {
-      setFilters(newFilters);
+      setFilters(prev => ({
+        ...prev,
+        gender: targetGender,
+        categoryId: targetCategory,
+      }));
     }
-  }, [initialGender, categoryParam, genderParam, categories, filters]);
+  }, [initialGender, categoryParam, genderParam, categories]);
 
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  const filterKey = useMemo(() => JSON.stringify({ searchQuery, filters, sort }), [searchQuery, filters, sort]);
+
   useEffect(() => {
     refreshProducts(1, 20, { ...filters, search: searchQuery, sort }, false);
-  }, [searchQuery, filters, sort, refreshProducts]);
+    // eslint-disable-next-deps
+  }, [filterKey]);
 
   const handleLoadMore = () => {
     if (isProductsLoading || isLoadingMore) return;

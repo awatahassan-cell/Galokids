@@ -1,59 +1,71 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingBag, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useStore } from '../store';
 import { Link } from 'react-router-dom';
+import { ArrowRight, Star, Sparkles, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HeroSlide } from '../types';
 
 const DEFAULT_SLIDES: HeroSlide[] = [
   {
     id: '1',
-    badgeKu: 'پڕفرۆشترین',
-    badgeAr: 'الأكثر مبيعاً',
-    badgeEn: 'Best Seller',
-    titleKu: 'شایستەی تۆیە',
-    titleAr: 'تستحق الأفضل',
-    titleEn: 'Deserves The Best',
-    subtitleKu: 'باشترین کوالیتی و نوێترین مۆدێل',
-    subtitleAr: 'أفضل جودة وأحدث الموديلات',
-    subtitleEn: 'Highest quality & newest models',
-    ctaKu: 'ئێستا بکڕە',
-    ctaAr: 'تسوق الآن',
-    ctaEn: 'Shop Now',
-    image: 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&q=80&w=1600',
-    link: '/products',
+    badgeKu: 'نوێترین مۆدێلەکانی وەرز',
+    badgeAr: 'تشكيلة الموسم الجديدة',
+    badgeEn: 'New Season Arrivals',
+    titleKu: 'پۆشاکی جوان بۆ منداڵە نازدارەکانتان! 🎈',
+    titleAr: 'ملابس مريحة لأجل أطفالكم الأحباء! 🎈',
+    titleEn: 'Playful Clothes for Happy Little Hearts! 🎈',
+    subtitleKu: 'باشترین کۆکراوەی پۆشاکی لۆکەیی نەرن بۆ یاری و خۆشی ڕۆژانەی منداڵان بە بەرزترین کواڵێتی و گونجاوترین نرخ.',
+    subtitleAr: 'اكتشف أفضل ملابس الأطفال القطنية الناعمة المصممة للراحة والأناقة بأعلى جودة وأفضل الأسعار.',
+    subtitleEn: 'Discover soft, vibrant, and durable premium organic apparel crafted carefully for active playground explorers.',
+    ctaKu: '👧 پۆشاکی کچان',
+    ctaAr: '👧 تسوق للبنات',
+    ctaEn: '👧 Shop Girls',
+    link: '/products?gender=2',
+    cta2Ku: '👦 پۆشاکی کوڕان',
+    cta2Ar: '👦 تسوق للأولاد',
+    cta2En: '👦 Shop Boys',
+    link2: '/products?gender=1',
+    image: 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&q=80&w=1200',
+    floatingBadgeTitle: '100% Cotton',
+    floatingBadgeDesc: 'لۆکەی ١٠٠٪ بەرز',
+    discountTag: '25% OFF',
   },
   {
     id: '2',
-    badgeKu: 'داشکاندنی هاوینە',
-    badgeAr: 'تخفيضات الصيف',
-    badgeEn: 'Summer Sale',
-    titleKu: 'کۆکراوەی داشکاندنی هاوینە',
-    titleAr: 'مجموعة تخفيضات الصيف',
-    titleEn: 'Summer Sale Collection',
-    subtitleKu: 'تا ٪٥٠ داشکاندن بۆ هەندێک کاڵا',
-    subtitleAr: 'خصم يصل إلى 50٪ على منتجات مختارة',
-    subtitleEn: 'Up to 50% discount on selected items',
-    ctaKu: 'سەیری بەرهەمەکان بکە',
-    ctaAr: 'استكشف المنتجات',
-    ctaEn: 'Explore Products',
-    image: 'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?auto=format&fit=crop&q=80&w=1600',
+    badgeKu: 'تایبەت بە جەژن و ئاهەنگ',
+    badgeAr: 'تشكيلة الأعياد والحفلات',
+    badgeEn: 'Festive & Party Collection',
+    titleKu: 'درەوشانەوەی منداڵەکانتان لە شادیدا! ✨',
+    titleAr: 'تألق أطفالكم في أجمل المناسبات! ✨',
+    titleEn: 'Sparkle & Elegance For Celebrations! ✨',
+    subtitleKu: 'شیکترین فستان و پۆشاکی فەرمی بۆ کوڕان و کچانی تەمەنە جیاوازەکان بە ستایلی ناوازە.',
+    subtitleAr: 'أجمل الفساتين والبدلات الأنيقة للأولاد والبنات بأحدث الموديلات العصرية.',
+    subtitleEn: 'Stunning festive dresses & tailored suits designed to make every moment magical.',
+    ctaKu: '✨ هەموو مۆدێلەکان',
+    ctaAr: '✨ جميع الموديلات',
+    ctaEn: '✨ View Collection',
     link: '/products',
-  },
+    cta2Ku: '👧 پۆشاکی کچان',
+    cta2Ar: '👧 تسوق للبنات',
+    cta2En: '👧 Shop Girls',
+    link2: '/products?gender=2',
+    image: 'https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?auto=format&fit=crop&q=80&w=1200',
+    floatingBadgeTitle: 'Party Soft',
+    floatingBadgeDesc: 'نەرم بۆ پێستی منداڵ',
+    discountTag: '30% OFF',
+  }
 ];
 
 export const Hero: React.FC = () => {
   const { language } = useLanguage();
   const { storeSettings } = useStore();
-  const [currentSlide, setCurrentSlide] = useState(0);
   const isRTL = language === 'ar' || language === 'ku';
 
-  // Read radius from settings (default to 'rounded-xl')
-  const heroRadius = storeSettings?.hero_radius || 'rounded-xl';
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Parse slides from settings if available
-  const slides: HeroSlide[] = useMemo(() => {
+  // Parse slides dynamically from store settings
+  const slides: HeroSlide[] = React.useMemo(() => {
     if (storeSettings?.hero_slides) {
       try {
         const parsed = typeof storeSettings.hero_slides === 'string'
@@ -63,154 +75,209 @@ export const Hero: React.FC = () => {
           return parsed;
         }
       } catch (e) {
-        console.warn('Could not parse hero_slides from storeSettings:', e);
+        console.warn('Could not parse hero_slides:', e);
       }
     }
     return DEFAULT_SLIDES;
-  }, [storeSettings?.hero_slides]);
+  }, [storeSettings]);
 
-  // Keep currentSlide within bounds
-  useEffect(() => {
-    if (currentSlide >= slides.length) {
-      setCurrentSlide(0);
-    }
-  }, [slides.length, currentSlide]);
+  const radiusClass = storeSettings?.hero_radius || 'rounded-3xl';
 
+  // Auto-slide every 6 seconds
   useEffect(() => {
     if (slides.length <= 1) return;
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % slides.length);
     }, 6000);
-    return () => clearInterval(timer);
+    return () => clearInterval(interval);
   }, [slides.length]);
 
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-  };
+  const slide = slides[currentIndex] || slides[0] || DEFAULT_SLIDES[0];
 
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-  };
-
-  const activeSlide = slides[currentSlide] || slides[0];
-
-  const getLangField = (slide: HeroSlide, field: 'badge' | 'title' | 'subtitle' | 'cta') => {
+  const getSlideText = (field: 'badge' | 'title' | 'subtitle' | 'cta' | 'cta2') => {
     if (language === 'ku') {
-      return slide[`${field}Ku`] || slide[`${field}En`] || '';
-    } else if (language === 'ar') {
-      return slide[`${field}Ar`] || slide[`${field}En`] || '';
+      const val = slide[`${field}Ku` as keyof HeroSlide] || slide[`${field}En` as keyof HeroSlide];
+      if (val) return val as string;
     }
-    return slide[`${field}En`] || slide[`${field}Ku`] || '';
+    if (language === 'ar') {
+      const val = slide[`${field}Ar` as keyof HeroSlide] || slide[`${field}En` as keyof HeroSlide];
+      if (val) return val as string;
+    }
+    return (slide[`${field}En` as keyof HeroSlide] || slide[`${field}Ku` as keyof HeroSlide] || '') as string;
   };
+
+  const badgeText = getSlideText('badge') || (language === 'ku' ? 'نوێترین مۆدێلەکانی وەرز' : 'New Season Arrivals');
+  const titleText = getSlideText('title') || (language === 'ku' ? 'پۆشاکی جوان بۆ منداڵە نازدارەکانتان! 🎈' : 'Playful Clothes for Happy Little Hearts! 🎈');
+  const subtitleText = getSlideText('subtitle') || (language === 'ku' ? 'باشترین کۆکراوەی پۆشاکی لۆکەیی نەرن بۆ یاری و خۆشی ڕۆژانەی منداڵان.' : 'Soft, vibrant, and durable premium organic apparel.');
+  const cta1Text = getSlideText('cta') || (language === 'ku' ? '👧 پۆشاکی کچان' : '👧 Shop Girls');
+  const cta1Link = slide.link || slide.btn1Link || '/products?gender=2';
+  const cta2Text = (slide.cta2Ku || slide.btn2TextKu || (language === 'ku' ? '👦 پۆشاکی کوڕان' : '👦 Shop Boys')) as string;
+  const cta2Link = slide.link2 || slide.btn2Link || '/products?gender=1';
+
+  const imageUrl = slide.image || slide.imageUrl || 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&q=80&w=1200';
+  const floatTitle = (language === 'ku' && slide.floatingBadgeTitleKu) || slide.floatingBadgeTitle || '100% Cotton';
+  const floatDesc = (language === 'ku' && slide.floatingBadgeDescKu) || slide.floatingBadgeDesc || (language === 'ku' ? 'لۆکەی ١٠٠٪ بەرز' : language === 'ar' ? 'قطن عضوي ممتاز' : 'Organic Fabric');
+  const discountText = slide.discountTag || '25% OFF';
 
   return (
-    <div className="relative mx-4 mt-4 lg:mx-8 group">
-      <div className={`relative w-full h-[250px] sm:h-[300px] md:h-[350px] ${heroRadius} overflow-hidden shadow-xl bg-slate-900 transition-all duration-300`}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeSlide.id || currentSlide}
-            initial={{ opacity: 0, scale: 1.03 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute inset-0 w-full h-full"
-          >
-            {/* Background Image */}
-            <img
-              src={activeSlide.image}
-              alt={getLangField(activeSlide, 'title')}
-              className="w-full h-full object-cover object-center"
-            />
-            {/* Soft Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-900/30 to-transparent" />
+    <section className={`relative overflow-hidden bg-gradient-to-b from-sky-50/60 via-pink-50/40 to-white py-8 sm:py-16 px-4 sm:px-6 lg:px-8 font-arabic ${radiusClass} border border-pink-100/60 shadow-sm mx-2 sm:mx-6 lg:mx-8 my-4 group/hero`}>
+      
+      {/* Decorative Vastraa Floating Blobs */}
+      <div className="absolute -top-24 -left-24 w-96 h-96 bg-sky-200/40 rounded-full blur-3xl pointer-events-none animate-pulse" />
+      <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-rose-200/40 rounded-full blur-3xl pointer-events-none animate-pulse" />
 
-            {/* Slide Content Overlay Box */}
-            <div className="absolute inset-0 p-4 sm:p-6 md:p-8 flex flex-col justify-center items-end rtl:items-start text-right rtl:text-right ltr:items-end ltr:text-left">
-              <motion.div
-                initial={{ opacity: 0, y: 12, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-                className="bg-[#1e2330]/90 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 sm:p-6 max-w-xs sm:max-w-md w-full shadow-xl space-y-2 sm:space-y-3"
-              >
-                {/* Badge */}
-                {getLangField(activeSlide, 'badge') && (
+      {/* Decorative Vastraa Floating Kids SVGs */}
+      <div className="absolute top-6 left-10 opacity-30 pointer-events-none hidden sm:block animate-bounce duration-1000">
+        <Sparkles className="w-8 h-8 text-amber-400" />
+      </div>
+      <div className="absolute top-12 right-12 opacity-30 pointer-events-none hidden sm:block animate-pulse">
+        <Heart className="w-9 h-9 text-rose-400 fill-rose-400" />
+      </div>
+
+      <div className="max-w-7xl mx-auto relative z-10 min-h-[620px] sm:min-h-[660px] lg:min-h-[480px] flex flex-col justify-between">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={slide.id || currentIndex}
+            initial={{ opacity: 0, x: isRTL ? -30 : 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: isRTL ? 30 : -30 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-12 items-center flex-grow"
+          >
+            
+            {/* Left Column: Hero Content & CTAs */}
+            <div className="lg:col-span-7 text-center lg:text-right rtl:lg:text-right ltr:lg:text-left min-h-[290px] sm:min-h-[320px] lg:min-h-0 flex flex-col justify-center">
+              
+              {/* Vastraa Hero Badge */}
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500/10 via-pink-500/10 to-indigo-500/10 border border-rose-200/80 px-4 py-1.5 rounded-full mb-4 sm:mb-6 shadow-xs mx-auto lg:mx-0 w-max">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                <span className="text-xs font-black text-rose-600 tracking-wide">
+                  {badgeText}
+                </span>
+              </div>
+
+              {/* Vastraa Hero Main Title */}
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 leading-[1.15] mb-4 sm:mb-6 tracking-tight min-h-[80px] sm:min-h-[110px] lg:min-h-[135px] flex items-center justify-center lg:justify-start">
+                {titleText.includes('!') ? (
                   <div>
-                    <span className="inline-block bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[10px] sm:text-xs font-black px-3 py-1 rounded-lg shadow-sm tracking-wide">
-                      {getLangField(activeSlide, 'badge')}
+                    {titleText.split('!')[0]}! <br className="hidden sm:inline" />
+                    <span className="bg-gradient-to-r from-rose-500 via-pink-500 to-indigo-600 bg-clip-text text-transparent">
+                      {titleText.split('!')[1] || ''}
                     </span>
                   </div>
+                ) : (
+                  <span className="bg-gradient-to-r from-rose-500 via-pink-500 to-indigo-600 bg-clip-text text-transparent">
+                    {titleText}
+                  </span>
                 )}
+              </h1>
 
-                {/* Title */}
-                <h1 className={`text-lg sm:text-2xl md:text-3xl font-black text-white leading-snug ${isRTL ? 'font-arabic' : 'font-display'}`}>
-                  {getLangField(activeSlide, 'title')}
-                </h1>
+              {/* Vastraa Subtitle Description */}
+              <p className="text-slate-600 text-sm sm:text-base lg:text-lg font-bold max-w-xl mx-auto lg:mx-0 mb-6 sm:mb-8 leading-relaxed min-h-[52px] sm:min-h-[60px] flex items-center justify-center lg:justify-start">
+                {subtitleText}
+              </p>
 
-                {/* Subtitle */}
-                {getLangField(activeSlide, 'subtitle') && (
-                  <p className={`text-xs sm:text-sm text-slate-300 font-bold leading-relaxed line-clamp-2 ${isRTL ? 'font-arabic' : ''}`}>
-                    {getLangField(activeSlide, 'subtitle')}
-                  </p>
+              {/* Vastraa Dual Action Buttons */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 sm:gap-4">
+                <Link 
+                  to={cta1Link} 
+                  className="px-6 py-3.5 rounded-full text-sm font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 shadow-lg shadow-rose-500/25 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                >
+                  <span>{cta1Text}</span>
+                  <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+                </Link>
+
+                {cta2Text && (
+                  <Link 
+                    to={cta2Link} 
+                    className="px-6 py-3.5 rounded-full text-sm font-black text-slate-800 bg-white hover:bg-slate-50 border border-slate-200/90 shadow-md transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                  >
+                    <span>{cta2Text}</span>
+                    <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+                  </Link>
                 )}
+              </div>
 
-                {/* CTA Button */}
-                {getLangField(activeSlide, 'cta') && (
-                  <div className="pt-1">
-                    <Link
-                      to={activeSlide.link || '/products'}
-                      className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-900 font-black text-xs px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
-                    >
-                      <ShoppingBag className="w-3.5 h-3.5 text-orange-500" />
-                      <span className={isRTL ? 'font-arabic' : ''}>
-                        {getLangField(activeSlide, 'cta')}
-                      </span>
-                    </Link>
-                  </div>
-                )}
-              </motion.div>
             </div>
+
+            {/* Right Column: Vastraa Media Frame & Floating Badges */}
+            <div className="lg:col-span-5 relative">
+              
+              {/* Top Floating Badge: 100% Organic Cotton */}
+              <div className="absolute -top-4 -left-2 sm:-top-6 sm:-left-6 z-20 bg-white/95 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-xl border border-rose-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center font-black text-lg shrink-0">
+                  <Star className="w-5 h-5 fill-rose-500 text-rose-500 animate-spin-slow" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-black text-slate-900">{floatTitle}</h4>
+                  <p className="text-[10px] sm:text-xs font-bold text-slate-500">
+                    {floatDesc}
+                  </p>
+                </div>
+              </div>
+
+              {/* Bottom Floating Badge: Circular Discount Tag */}
+              <div className="absolute -bottom-4 -right-2 sm:-bottom-6 sm:-right-6 z-20 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 text-white shadow-2xl border-4 border-white flex flex-col items-center justify-center text-center p-2 transform rotate-6 animate-pulse">
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">GET</span>
+                <span className="text-base sm:text-xl font-black leading-none">{discountText.replace(/GET|OFF|\s/gi, '')}</span>
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">OFF</span>
+              </div>
+
+              {/* Main Hero Media Frame */}
+              <div className="relative w-full h-[320px] sm:h-[420px] lg:h-[460px] rounded-[2.5rem] sm:rounded-[3rem] overflow-hidden border-4 border-white shadow-2xl bg-white">
+                <img 
+                  src={imageUrl} 
+                  alt={storeSettings?.store_name || "Galo Kids Store"}
+                  className="w-full h-full object-cover object-center filter brightness-[1.02] hover:scale-105 transition-transform duration-700 ease-out" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" />
+              </div>
+
+            </div>
+
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation Arrows */}
+        {/* Carousel Navigation Arrows & Slide Dots Indicator */}
         {slides.length > 1 && (
-          <>
-            <button
-              onClick={prevSlide}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white border border-white/20 backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 active:scale-90 cursor-pointer z-10"
-              aria-label="Previous slide"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
+          <div className="flex items-center justify-between mt-6 sm:mt-8 pt-4 border-t border-rose-100/50">
+            {/* Slide Pagination Dots */}
+            <div className="flex items-center gap-2">
+              {slides.map((s, idx) => (
+                <button
+                  key={s.id || idx}
+                  onClick={() => setCurrentIndex(idx)}
+                  className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
+                    idx === currentIndex 
+                      ? 'w-8 bg-rose-500 shadow-md' 
+                      : 'w-2.5 bg-slate-200 hover:bg-rose-300'
+                  }`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
 
-            <button
-              onClick={nextSlide}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900/60 hover:bg-slate-900/90 text-white border border-white/20 backdrop-blur-md flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 active:scale-90 cursor-pointer z-10"
-              aria-label="Next slide"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </>
-        )}
-
-        {/* Carousel Dots Indicators */}
-        {slides.length > 1 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-10 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
-            {slides.map((s, index) => (
+            {/* Slide Next/Prev Navigation Buttons */}
+            <div className="flex items-center gap-2">
               <button
-                key={s.id || index}
-                onClick={() => setCurrentSlide(index)}
-                className={`transition-all duration-300 cursor-pointer ${
-                  currentSlide === index
-                    ? 'w-6 h-2 bg-orange-500 rounded-full'
-                    : 'w-2 h-2 bg-white/50 hover:bg-white rounded-full'
-                }`}
-                aria-label={`Go to slide ${index + 1}`}
-              />
-            ))}
+                onClick={() => setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length)}
+                className="w-9 h-9 rounded-full bg-white text-slate-700 hover:bg-rose-500 hover:text-white border border-slate-200 flex items-center justify-center shadow-md cursor-pointer transition-all active:scale-95"
+                aria-label="Previous Slide"
+              >
+                <ChevronLeft className="w-5 h-5 rtl:rotate-180" />
+              </button>
+              <button
+                onClick={() => setCurrentIndex((prev) => (prev + 1) % slides.length)}
+                className="w-9 h-9 rounded-full bg-white text-slate-700 hover:bg-rose-500 hover:text-white border border-slate-200 flex items-center justify-center shadow-md cursor-pointer transition-all active:scale-95"
+                aria-label="Next Slide"
+              >
+                <ChevronRight className="w-5 h-5 rtl:rotate-180" />
+              </button>
+            </div>
           </div>
         )}
+
       </div>
-    </div>
+    </section>
   );
 };

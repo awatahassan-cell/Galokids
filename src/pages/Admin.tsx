@@ -1,6 +1,6 @@
 import { STANDARD_COLORS, STANDARD_SIZES } from '../data';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, apiFetch } from '../config/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../store';
@@ -726,10 +726,9 @@ export const Admin: React.FC = () => {
         }
       }
 
-      const VITE_API_BASE = API_BASE_URL;
       let token = localStorage.getItem('kidskart_auth_token');
       
-      let res = await fetch(`${VITE_API_BASE}/products/upload-images`, {
+      let res = await apiFetch('/products/upload-images', {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
@@ -740,7 +739,7 @@ export const Admin: React.FC = () => {
           const savedUserStr = localStorage.getItem('kidskart_user');
           const savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
           if (savedUser?.email && savedUser?.password) {
-            const loginRes = await fetch(`${VITE_API_BASE}/login`, {
+            const loginRes = await apiFetch('/login', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
               body: JSON.stringify({ email: savedUser.email, password: savedUser.password })
@@ -751,7 +750,7 @@ export const Admin: React.FC = () => {
               if (newToken) {
                 localStorage.setItem('kidskart_auth_token', newToken);
                 token = newToken;
-                res = await fetch(`${VITE_API_BASE}/products/upload-images`, {
+                res = await apiFetch('/products/upload-images', {
                   method: 'POST',
                   headers: { Authorization: `Bearer ${token}` },
                   body: formData,
@@ -1058,7 +1057,7 @@ export const Admin: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15, ease: "easeInOut" }}
-              className="space-y-8 overflow-hidden"
+              className="space-y-8"
             >
           {activeTab === 'reports' && isAdmin && (
             <div className="space-y-4">
@@ -1544,292 +1543,65 @@ export const Admin: React.FC = () => {
             </div>
           </div>
 
-          {isAddingProduct && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 shadow-xl relative">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-slate-900">{L("Create New Product")}</h2>
-                  <button onClick={() => setIsAddingProduct(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <form onSubmit={(e) => { handleAddProduct(e); setIsAddingProduct(false); }} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Product Name (EN)")} *</label>
-                <input
-                  required
-                  type="text"
-                  value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Category")} *</label>
-                <select
-                  required
-                  value={productCategory}
-                  onChange={(e) => setProductCategory(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">{L("Select a category")}</option>
-                  {categories.map((c, index) => (
-                    <option key={c.id || index} value={c.id}>{getCategoryName(c)}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Gender")}</label>
-                <select
-                  value={productGender}
-                  onChange={(e) => setProductGender(Number(e.target.value) as 0 | 1 | 2)}
-                  className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value={0}>{L("Both")}</option>
-                  <option value={1}>{L("Boy")}</option>
-                  <option value={2}>{L("Girl")}</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Product Name (KU)")}</label>
-                <input
-                  type="text"
-                  value={productNameKu}
-                  onChange={(e) => setProductNameKu(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  dir="rtl"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Product Name (AR)")}</label>
-                <input
-                  type="text"
-                  value={productNameAr}
-                  onChange={(e) => setProductNameAr(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  dir="rtl"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Description (EN)")}</label>
-                <textarea
-                  value={productDesc}
-                  onChange={(e) => setProductDesc(e.target.value)}
-                  rows={3}
-                  className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Description (KU)")}</label>
-                <textarea
-                  value={productDescKu}
-                  onChange={(e) => setProductDescKu(e.target.value)}
-                  rows={3}
-                  className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  dir="rtl"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Description (AR)")}</label>
-                <textarea
-                  value={productDescAr}
-                  onChange={(e) => setProductDescAr(e.target.value)}
-                  rows={3}
-                  className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  dir="rtl"
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{L("Price")} *</label>
-                  <input
-                    required
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={productPrice}
-                    onChange={(e) => setProductPrice(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{L("Discount Price (Optional)")}</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={productDiscountPrice}
-                    onChange={(e) => setProductDiscountPrice(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{L("Cost")} *</label>
-                  <input
-                    required
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={productCost}
-                    onChange={(e) => setProductCost(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{L("Barcode")}</label>
-                <input
-                  type="text"
-                  value={productSku}
-                  onChange={(e) => setProductSku(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900"
-                />
-              </div>
-              <div className="md:col-span-2 pt-2">
-                <ProductImageEditor
-                  images={productImages}
-                  primaryImageUrl={productImages[0] || ''}
-                  onChange={(newImages) => {
-                    setProductImages(newImages);
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="pt-6 border-t border-slate-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-md font-semibold text-slate-900">{L("Variations (Color/Size/Stock)")}</h3>
-                <button
-                  type="button"
-                  onClick={handleAddVariation}
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700 flex items-center bg-indigo-50 px-3 py-1.5 rounded-lg"
-                >
-                  <Plus className="w-4 h-4 mr-1" /> {L("Add Variation")}
-                </button>
-              </div>
-
-              {variations.length === 0 ? (
-                <p className="text-sm text-slate-500 italic">{L("No variations added. Add variations to manage stock per color and size.")}</p>
-              ) : (
-                <div className="space-y-3">
-                  {variations.map((v, index) => (
-                    <div key={index} className="flex gap-4 items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                      <div className="flex-1">
-                        <select
-                          value={v.color || ""}
-                          onChange={(e) => updateVariation(index, 'color', e.target.value)}
-                          className="w-full border border-slate-300 rounded-md py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 bg-white"
-                        >
-                          <option value="">{L("Select Color")}</option>
-                          {STANDARD_COLORS.map(color => (
-                            <option key={color} value={color}>{color}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex-1">
-                        <select
-                          value={v.size || ""}
-                          onChange={(e) => updateVariation(index, 'size', e.target.value)}
-                          className="w-full border border-slate-300 rounded-md py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 bg-white"
-                        >
-                          <option value="">{L("Select Size")}</option>
-                          {STANDARD_SIZES.map(size => (
-                            <option key={size} value={size}>{size}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="w-32">
-                        <input
-                          type="number"
-                          placeholder={L("Stock")}
-                          value={v.stockQuantity ?? ""}
-                          onChange={(e) => updateVariation(index, 'stockQuantity', parseInt(e.target.value) || 0)}
-                          className="w-full border border-slate-300 rounded-md py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setVariations(variations.filter((_, i) => i !== index))}
-                        className="text-red-500 hover:text-red-700 font-medium text-sm p-2"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="pt-6 border-t border-slate-200 flex justify-end">
-                            <button type="button" onClick={() => setIsAddingProduct(false)} className="px-6 py-2.5 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors mr-3">{L("Cancel")}</button>
-              <button
-                type="submit"
-                className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center shadow-sm"
-              >
-                <Save className="w-5 h-5 mr-2" /> {L("Save Product")}
-              </button>
-            </div>
-          </form>
-          </div>
-          </div>
-          )}
 
           <div className="mt-4">
 
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 font-arabic">
                 <thead>
-                  <tr className="bg-slate-50">
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{L("Product")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{L("Barcode")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{L("Stock")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{L("Cost")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{L("Price")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{L("Gross Margin")}</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{L("Actions")}</th>
+                  <tr className="bg-slate-50/90 text-slate-600">
+                    <th className="px-4 py-3.5 text-right text-xs font-black uppercase tracking-wider">{L("Product")}</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Barcode")}</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Stock")}</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Cost")}</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Price")}</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Gross Margin")}</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Actions")}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 bg-white">
+                <tbody className="divide-y divide-slate-100 bg-white">
                   {products.map((product, index) => {
                     const totalStock = (product.variations || []).reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
                     const cost = Number(product.cost || 0);
-                    const margin = Number(product.price) > 0 ? ((Number(product.price) - cost) / Number(product.price)) * 100 : 0;
+                    const margin = Number(product.price) > 0 ? Math.round(((Number(product.price) - cost) / Number(product.price)) * 100) : 0;
+                    const nameDisplay = (language === 'ku' && product.nameKu) || (language === 'ar' && product.nameAr) || product.name;
                     return (
-                      <tr key={product.id || index} className="hover:bg-slate-50/80 cursor-pointer" onClick={() => setSelectedPreviewProduct(product)}>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-slate-900 flex items-center gap-3">
-                          <img src={product.imageUrl} alt={product.name} className="w-10 h-10 object-cover rounded-lg border border-slate-100" />
-                          <span>{product.name}</span>
+                      <tr key={product.id || index} className="hover:bg-indigo-50/40 transition-colors cursor-pointer" onClick={() => setSelectedPreviewProduct(product)}>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-slate-900 text-right">
+                          <div className="flex items-center gap-3 justify-start">
+                            <img src={product.imageUrl} alt={nameDisplay} className="w-11 h-11 object-cover rounded-xl border border-slate-200 shrink-0 shadow-xs" />
+                            <span className="truncate max-w-[200px]">{nameDisplay}</span>
+                          </div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">{product.barcode || product.sku}</td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${totalStock < 10 ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-green-50 text-green-700 border border-green-100'}`}>
-                            {totalStock} in stock
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500 font-mono text-center">{product.barcode || product.sku || '—'}</td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black ${totalStock < 10 ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                            {totalStock} {language === 'ku' ? 'دانە' : language === 'ar' ? 'قطعة' : 'in stock'}
                           </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-slate-600">{cost}</td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-indigo-600">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-slate-600 text-center">{formatIQDLabel(cost)}</td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-black text-indigo-600 text-center">
                           {product.discountPrice ? (
-                            <div>
-                              <span className="line-through text-slate-400 font-normal mr-2">{Number(product.price || 0)}</span>
-                              <span className="text-rose-500">{Number(product.discountPrice)}</span>
+                            <div className="flex flex-col items-center">
+                              <span className="line-through text-slate-400 font-normal text-xs">{formatIQDLabel(Number(product.price || 0))}</span>
+                              <span className="text-rose-600 font-black">{formatIQDLabel(Number(product.discountPrice))}</span>
                             </div>
                           ) : (
-                            Number(product.price || 0)
+                            formatIQDLabel(Number(product.price || 0))
                           )}
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${margin >= 40 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black ${margin >= 40 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                             {margin}%
                           </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500 text-center" onClick={(e) => e.stopPropagation()}>
                           {product.id && (
-                            <>
+                            <div className="flex items-center justify-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => setEditingProduct(product)}
-                                className="text-slate-400 hover:text-indigo-500 transition-colors p-1 rounded hover:bg-indigo-50 mr-2"
+                                className="text-slate-500 hover:text-indigo-600 p-2 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer"
                                 title={L("Edit Product")}
                               >
                                 <Edit className="w-4 h-4" />
@@ -1850,12 +1622,12 @@ export const Admin: React.FC = () => {
                                     toast(L('Product deleted'));
                                   }
                                 }}
-                                className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
+                                className="text-slate-500 hover:text-rose-600 p-2 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
                                 title={L("Delete Product")}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
-                            </>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -2755,6 +2527,240 @@ export const Admin: React.FC = () => {
         editingUser={editingUser}
         setEditingUser={setEditingUser}
       />
+
+      {isAddingProduct && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6 border-b pb-4">
+              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-indigo-600" />
+                {L("Create New Product")}
+              </h2>
+              <button onClick={() => setIsAddingProduct(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={(e) => { handleAddProduct(e); setIsAddingProduct(false); }} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Product Name (EN)")} *</label>
+                  <input
+                    required
+                    type="text"
+                    value={productName}
+                    onChange={(e) => setProductName(e.target.value)}
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Category")} *</label>
+                  <select
+                    required
+                    value={productCategory}
+                    onChange={(e) => setProductCategory(e.target.value)}
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">{L("Select a category")}</option>
+                    {categories.map((c, index) => (
+                      <option key={c.id || index} value={c.id}>{getCategoryName(c)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Gender")}</label>
+                  <select
+                    value={productGender}
+                    onChange={(e) => setProductGender(Number(e.target.value) as 0 | 1 | 2)}
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value={0}>{L("Both")}</option>
+                    <option value={1}>{L("Boy")}</option>
+                    <option value={2}>{L("Girl")}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Product Name (KU)")}</label>
+                  <input
+                    type="text"
+                    value={productNameKu}
+                    onChange={(e) => setProductNameKu(e.target.value)}
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    dir="rtl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Product Name (AR)")}</label>
+                  <input
+                    type="text"
+                    value={productNameAr}
+                    onChange={(e) => setProductNameAr(e.target.value)}
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    dir="rtl"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Description (EN)")}</label>
+                  <textarea
+                    value={productDesc}
+                    onChange={(e) => setProductDesc(e.target.value)}
+                    rows={3}
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Description (KU)")}</label>
+                  <textarea
+                    value={productDescKu}
+                    onChange={(e) => setProductDescKu(e.target.value)}
+                    rows={3}
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    dir="rtl"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Description (AR)")}</label>
+                  <textarea
+                    value={productDescAr}
+                    onChange={(e) => setProductDescAr(e.target.value)}
+                    rows={3}
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    dir="rtl"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:col-span-2">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">{L("Price")} *</label>
+                    <input
+                      required
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productPrice}
+                      onChange={(e) => setProductPrice(e.target.value)}
+                      className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">{L("Discount Price (Optional)")}</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productDiscountPrice}
+                      onChange={(e) => setProductDiscountPrice(e.target.value)}
+                      className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">{L("Cost")} *</label>
+                    <input
+                      required
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={productCost}
+                      onChange={(e) => setProductCost(e.target.value)}
+                      className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+                    />
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Barcode")}</label>
+                  <input
+                    type="text"
+                    value={productSku}
+                    onChange={(e) => setProductSku(e.target.value)}
+                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+                  />
+                </div>
+                <div className="md:col-span-2 pt-2">
+                  <ProductImageEditor
+                    images={productImages}
+                    primaryImageUrl={productImages[0] || ''}
+                    onChange={(newImages) => {
+                      setProductImages(newImages);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-slate-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-md font-bold text-slate-900">{L("Variations (Color/Size/Stock)")}</h3>
+                  <button
+                    type="button"
+                    onClick={handleAddVariation}
+                    className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center bg-indigo-50 px-3.5 py-2 rounded-xl transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 mr-1" /> {L("Add Variation")}
+                  </button>
+                </div>
+
+                {variations.length === 0 ? (
+                  <p className="text-sm text-slate-500 italic">{L("No variations added. Add variations to manage stock per color and size.")}</p>
+                ) : (
+                  <div className="space-y-3">
+                    {variations.map((v, index) => (
+                      <div key={index} className="flex gap-4 items-center bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <div className="flex-1">
+                          <select
+                            value={v.color || ""}
+                            onChange={(e) => updateVariation(index, 'color', e.target.value)}
+                            className="w-full border border-slate-300 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
+                          >
+                            <option value="">{L("Select Color")}</option>
+                            {STANDARD_COLORS.map(color => (
+                              <option key={color} value={color}>{color}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex-1">
+                          <select
+                            value={v.size || ""}
+                            onChange={(e) => updateVariation(index, 'size', e.target.value)}
+                            className="w-full border border-slate-300 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
+                          >
+                            <option value="">{L("Select Size")}</option>
+                            {STANDARD_SIZES.map(size => (
+                              <option key={size} value={size}>{size}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="w-32">
+                          <input
+                            type="number"
+                            placeholder={L("Stock")}
+                            value={v.stockQuantity ?? ""}
+                            onChange={(e) => updateVariation(index, 'stockQuantity', parseInt(e.target.value) || 0)}
+                            className="w-full border border-slate-300 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setVariations(variations.filter((_, i) => i !== index))}
+                          className="text-red-500 hover:text-red-700 font-bold text-sm p-2 cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-6 border-t border-slate-200 flex justify-end gap-3">
+                <button type="button" onClick={() => setIsAddingProduct(false)} className="px-6 py-2.5 text-slate-700 font-bold border border-slate-300 rounded-xl hover:bg-slate-50 transition-all cursor-pointer">{L("Cancel")}</button>
+                <button
+                  type="submit"
+                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center shadow-md cursor-pointer"
+                >
+                  <Save className="w-5 h-5 mr-2" /> {L("Save Product")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {previewImage && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setPreviewImage(null)}>

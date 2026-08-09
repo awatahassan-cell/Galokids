@@ -7,111 +7,82 @@ export const CATEGORIES: Category[] = [
   { id: 'c4', name: 'Accessories', nameKu: 'ئێکسسوارات', nameAr: 'إكسسوارات' },
 ];
 
-export const MOCK_PRODUCTS: Product[] = [
-  {
-    id: 'p1',
-    categoryId: 'c1',
-    name: 'Dinosaur Graphic Tee',
-    nameKu: 'تیشێرتی نەخشی دایناسۆر',
-    nameAr: 'تي شيرت بطبعة ديناصور',
-    description: 'A fun and comfortable cotton t-shirt with a dinosaur print.',
-    descriptionKu: 'تیشێرتێکی لۆکەی ئاسوودە بە نەخشی دایناسۆر.',
-    descriptionAr: 'تي شيرت قطني مريح وممتع بطبعة ديناصور.',
-    sku: 'TEE-DINO-01',
-    imageUrl: 'https://images.unsplash.com/photo-1519241047957-be31d7379a5d?auto=format&fit=crop&q=80&w=800',
-    price: 15.99,
-    gender: 1,
-    cost: 6.50,
-    variations: [
-      { id: 'v1', productId: 'p1', color: 'Blue', size: 'S', stockQuantity: 10 },
-      { id: 'v2', productId: 'p1', color: 'Blue', size: 'M', stockQuantity: 5 },
-      { id: 'v3', productId: 'p1', color: 'Blue', size: 'L', stockQuantity: 0 },
-      { id: 'v4', productId: 'p1', color: 'Green', size: 'S', stockQuantity: 12 },
-    ],
-    reviews: [
-      { id: 'r1', productId: 'p1', author: 'Jane Doe', rating: 5, comment: 'My son loves this shirt! Great quality.', date: '2023-10-01' },
-      { id: 'r2', productId: 'p1', author: 'Mark Smith', rating: 4, comment: 'Nice print, but runs a bit small.', date: '2023-10-15' }
-    ]
-  },
-  {
-    id: 'p2',
-    categoryId: 'c2',
-    name: 'Denim Overalls',
-    nameKu: 'شەواڵی کابۆ',
-    nameAr: 'سالوبيت جينز',
-    description: 'Durable and cute denim overalls for active kids.',
-    descriptionKu: 'شەواڵی کابۆی بەهێز و جوان بۆ منداڵانی چالاک.',
-    descriptionAr: 'سالوبيت جينز متين ولطيف للأطفال النشطين.',
-    sku: 'BTM-OVR-01',
-    imageUrl: 'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&q=80&w=800',
-    price: 29.99,
-    gender: 0,
-    cost: 12.00,
-    variations: [
-      { id: 'v5', productId: 'p2', color: 'Blue', size: 'M', stockQuantity: 8 },
-      { id: 'v6', productId: 'p2', color: 'Blue', size: 'L', stockQuantity: 3 },
-      { id: 'v7', productId: 'p2', color: 'Blue', size: 'XL', stockQuantity: 0 },
-    ],
-  },
-  {
-    id: 'p3',
-    categoryId: 'c3',
-    name: 'Rainy Day Jacket',
-    nameKu: 'چاکەتی ڕۆژی باراناوی',
-    nameAr: 'سترة الأيام الممطرة',
-    description: 'Water-resistant jacket to keep them dry on rainy days.',
-    descriptionKu: 'چاکەتی دژە ئاو بۆ هێشتنەوەیان بە وشکی لە ڕۆژە باراناوییەکاندا.',
-    descriptionAr: 'سترة مقاومة للماء لإبقائهم جافين في الأيام الممطرة.',
-    sku: 'OUT-RAIN-01',
-    imageUrl: 'https://images.unsplash.com/photo-1543132220-4bf5292c58a6?auto=format&fit=crop&q=80&w=800',
-    price: 45.00,
-    gender: 2,
-    cost: 18.50,
-    variations: [
-      { id: 'v8', productId: 'p3', color: 'Yellow', size: 'S', stockQuantity: 15 },
-      { id: 'v9', productId: 'p3', color: 'Yellow', size: 'M', stockQuantity: 10 },
-      { id: 'v10', productId: 'p3', color: 'Red', size: 'S', stockQuantity: 2 },
-    ],
-  },
-  {
-    id: 'p4',
-    categoryId: 'c1',
-    name: 'Striped Cotton Sweater',
-    nameKu: 'قەمیسی لۆکەی خەتخەت',
-    nameAr: 'سترة قطنية مخططة',
-    description: 'Warm and cozy sweater for colder days.',
-    descriptionKu: 'قەمیسێکی گەرم و ئاسوودە بۆ ڕۆژە ساردەکان.',
-    descriptionAr: 'سترة دافئة ومريحة للأيام الباردة.',
-    sku: 'TEE-SWT-02',
-    imageUrl: 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&q=80&w=800',
-    price: 35.50,
-    gender: 0,
-    cost: 14.00,
-    variations: [
-      { id: 'v11', productId: 'p4', color: 'Red', size: 'M', stockQuantity: 5 },
-      { id: 'v12', productId: 'p4', color: 'Red', size: 'L', stockQuantity: 5 },
-      { id: 'v13', productId: 'p4', color: 'Blue', size: 'M', stockQuantity: 0 },
-    ],
-  },
-  {
-    id: 'p5',
-    categoryId: 'c4',
-    name: 'Cozy Winter Beanie',
-    nameKu: 'کڵاوی زستانەی ئاسوودە',
-    nameAr: 'قبعة شتوية مريحة',
-    description: 'Knitted beanie with a fun pom-pom.',
-    descriptionKu: 'کڵاوی چنراو بە پۆم-پۆمێکی خۆش.',
-    descriptionAr: 'قبعة محبوكة مع كرة بوم بوم ممتعة.',
-    sku: 'ACC-BEAN-01',
-    imageUrl: 'https://images.unsplash.com/photo-1576871337622-98d48d1cf531?auto=format&fit=crop&q=80&w=800',
-    price: 12.99,
-    cost: 4.00,
-    variations: [
-      { id: 'v14', productId: 'p5', color: 'Pink', size: 'One Size', stockQuantity: 20 },
-      { id: 'v15', productId: 'p5', color: 'Blue', size: 'One Size', stockQuantity: 18 },
-    ],
+function generate1000Products(): Product[] {
+  const images = [
+    'https://images.unsplash.com/photo-1519241047957-be31d7379a5d?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1543132220-4bf5292c58a6?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1576871337622-98d48d1cf531?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1514090458221-65bb69cf63e6?auto=format&fit=crop&q=80&w=800',
+    'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&q=80&w=800',
+  ];
+
+  const categories = ['c1', 'c2', 'c3', 'c4'];
+  const colors = ['Blue', 'Pink', 'Green', 'Red', 'Yellow', 'Black', 'White', 'Navy'];
+  const sizes = ['S', 'M', 'L', 'XL', '2T', '3T', '4T'];
+
+  const productTemplates = [
+    { en: 'Casual Kids Tee', ku: 'تیشێرتی کواڵێتی منداڵان', ar: 'تيشيرت أطفال كاجوال' },
+    { en: 'Comfortable Jeans', ku: 'پانتۆڵی کابۆی ئاسوودە', ar: 'جينز مريح للأطفال' },
+    { en: 'Warm Winter Jacket', ku: 'چاکەتی گەرمی زستانە', ar: 'سترة شتوية دافئة' },
+    { en: 'Cute Summer Dress', ku: 'فوستانی ڕەنگینی هاوینە', ar: 'فستان صيفي لطيف' },
+    { en: 'Cotton Pyjama Set', ku: 'سێتی پیجامەی لۆکە', ar: 'طقم بيجامة قطني' },
+    { en: 'Sporty Hoodie & Joggers', ku: 'سێتی هودی و وەرزشی', ar: 'هودي وبنطال رياضي' },
+    { en: 'Soft Wool Sweater', ku: 'سوێتەری خوری نەرم', ar: 'سترة صوفية ناعمة' },
+    { en: 'Floral Party Dress', ku: 'فوستانی گوڵداری ئاهەنگ', ar: 'فستان زهور للحفلات' },
+    { en: 'Denim Shorts', ku: 'شۆڕتی کابۆی هاوینە', ar: 'شورت جينز صيفي' },
+    { en: 'Kids Winter Beanie & Scarf', ku: 'کڵاو و ملپێچی زستانە', ar: 'قبعة ووشاح شتوي' },
+  ];
+
+  const list: Product[] = [];
+  for (let i = 1; i <= 1000; i++) {
+    const tpl = productTemplates[(i - 1) % productTemplates.length];
+    const cat = categories[(i - 1) % categories.length];
+    const img = images[(i - 1) % images.length];
+    const price = Math.round((12 + (i % 35)) * 1000); // 12,000 to 46,000 IQD
+    const cost = Math.round(price * 0.55);
+    const barcode = `869000${String(i).padStart(6, '0')}`;
+    const gender = (i % 3) as 0 | 1 | 2;
+
+    const numVars = 2 + (i % 4);
+    const vars = [];
+    for (let v = 0; v < numVars; v++) {
+      vars.push({
+        id: `v_${i}_${v + 1}`,
+        productId: `p_${i}`,
+        color: colors[(i + v) % colors.length],
+        size: sizes[(i + v) % sizes.length],
+        stockQuantity: (i * 3 + v * 7) % 45 + 5,
+      });
+    }
+
+    list.push({
+      id: `p_${i}`,
+      categoryId: cat,
+      name: `${tpl.en} #${i}`,
+      nameKu: `${tpl.ku} #${i}`,
+      nameAr: `${tpl.ar} #${i}`,
+      description: `Premium quality clothing item for children. Comfort guaranteed. Item #${i}`,
+      descriptionKu: `پۆشاکی منداڵانی کوالیتی بەرز و دڵنیا لە ئاسوودەیی. بەرهەمی ژمارە #${i}`,
+      descriptionAr: `ملابس أطفال عالية الجودة ومريحة للغاية. المنتج رقم #${i}`,
+      sku: `SKU-GALO-${String(i).padStart(4, '0')}`,
+      barcode: barcode,
+      imageUrl: img,
+      price: price,
+      cost: cost,
+      gender: gender,
+      variations: vars,
+    });
   }
-];
+
+  return list;
+}
+
+export const MOCK_PRODUCTS: Product[] = generate1000Products();
 
 export const COLORS = Array.from(new Set(MOCK_PRODUCTS.flatMap(p => p.variations.map(v => v.color))));
 export const SIZES = Array.from(new Set(MOCK_PRODUCTS.flatMap(p => p.variations.map(v => v.size))));
@@ -130,7 +101,7 @@ export const MOCK_ORDERS: Order[] = [
     customerName: 'John Doe',
     customerEmail: 'john@example.com',
     items: [],
-    totalAmount: 45.98,
+    totalAmount: 45980,
     status: 'delivered',
     date: '2023-10-05',
     shippingAddress: '123 Main St, NY',
@@ -141,7 +112,7 @@ export const MOCK_ORDERS: Order[] = [
     customerName: 'Jane Smith',
     customerEmail: 'jane@example.com',
     items: [],
-    totalAmount: 29.99,
+    totalAmount: 29990,
     status: 'processing',
     date: '2023-10-25',
     shippingAddress: '456 Oak Ave, CA',
@@ -149,9 +120,9 @@ export const MOCK_ORDERS: Order[] = [
 ];
 
 export const MOCK_EXPENSES: Expense[] = [
-  { id: 'e1', description: 'Monthly Hosting', amount: 50, category: 'Infrastructure', date: '2023-10-01' },
-  { id: 'e2', description: 'Inventory Restock', amount: 1200, category: 'Inventory', date: '2023-10-15' },
-  { id: 'e3', description: 'Marketing Ads', amount: 300, category: 'Marketing', date: '2023-10-20' },
+  { id: 'e1', description: 'Monthly Hosting', amount: 50000, category: 'Infrastructure', date: '2023-10-01' },
+  { id: 'e2', description: 'Inventory Restock', amount: 1200000, category: 'Inventory', date: '2023-10-15' },
+  { id: 'e3', description: 'Marketing Ads', amount: 300000, category: 'Marketing', date: '2023-10-20' },
 ];
 
 export const STANDARD_COLORS = ['Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Pink', 'Purple', 'Orange', 'Gray', 'Brown', 'Navy', 'Beige'];

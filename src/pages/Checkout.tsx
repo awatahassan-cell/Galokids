@@ -94,16 +94,21 @@ export const Checkout: React.FC = () => {
 
   // Load & parse currentUser information
   useEffect(() => {
-    if (currentUser) {
-      if (currentUser.name) setFullName(currentUser.name);
-      if (currentUser.phone) {
-        setMobileNumber(currentUser.phone);
-        setVerifiedPhone(currentUser.phone);
-      }
-      setIsPhoneVerified(true);
+    const savedUserStr = localStorage.getItem('kidskart_user');
+    const userToUse = currentUser || (savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch { return null; } })() : null);
 
-      if (currentUser.address) {
-        const fullAddr = currentUser.address;
+    if (userToUse) {
+      if (userToUse.name && !fullName) setFullName(userToUse.name);
+      if (userToUse.phone) {
+        setMobileNumber(userToUse.phone);
+        setVerifiedPhone(userToUse.phone);
+        setIsPhoneVerified(true);
+      } else {
+        setIsPhoneVerified(true);
+      }
+
+      if (userToUse.address) {
+        const fullAddr = userToUse.address;
         const addrLower = fullAddr.toLowerCase();
 
         // 1. Match Governorate
@@ -140,10 +145,10 @@ export const Checkout: React.FC = () => {
               setAvailableSubdistricts(subList);
 
               // 3. Match Subdistrict
-              const matchedSub = subList.find(subObj => 
-                addrLower.includes(subObj.en.toLowerCase()) ||
-                addrLower.includes(subObj.ku.toLowerCase()) ||
-                addrLower.includes(subObj.ar.toLowerCase())
+              const matchedSub = subList.find((s: any) => 
+                addrLower.includes(s.en.toLowerCase()) || 
+                addrLower.includes(s.ku.toLowerCase()) || 
+                addrLower.includes(s.ar.toLowerCase())
               );
 
               if (matchedSub) {
@@ -151,28 +156,13 @@ export const Checkout: React.FC = () => {
               }
             }
           }
-        } else if (iraqLocations.length > 0) {
-          setSelectedGovernorate(iraqLocations[0].governorate);
         }
 
-        // 4. Extract Street / Neighborhood Address
         const parenMatch = fullAddr.match(/\(([^)]+)\)/);
         if (parenMatch && parenMatch[1]) {
           setAddress(parenMatch[1].trim());
         } else {
-          let cleanAddr = fullAddr;
-          if (matchedGov) {
-            cleanAddr = cleanAddr
-              .replace(new RegExp(matchedGov.governorate, 'gi'), '')
-              .replace(new RegExp(matchedGov.governorateKu, 'gi'), '')
-              .replace(new RegExp(matchedGov.governorateAr, 'gi'), '');
-          }
-          cleanAddr = cleanAddr
-            .replace(/قەزا:|قضاء:|District:/gi, '')
-            .replace(/ناحیە:|ناحية:|Sub-district:/gi, '')
-            .replace(/[-–—]/g, ' ')
-            .trim();
-          setAddress(cleanAddr);
+          setAddress(fullAddr);
         }
       }
     }
@@ -331,7 +321,10 @@ export const Checkout: React.FC = () => {
     e.preventDefault();
     if (isPlacing) return;
 
-    if (!currentUser && !isPhoneVerified) {
+    const savedUserStr = localStorage.getItem('kidskart_user');
+    const userToUse = currentUser || (savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch { return null; } })() : null);
+
+    if (!userToUse && !isPhoneVerified) {
       if (!mobileNumber.trim() || mobileNumber.trim().length < 8) {
         alert(t('mobileNumber') + ' ' + (language === 'ku' ? 'دروست نییە' : 'is invalid'));
         return;
@@ -340,8 +333,8 @@ export const Checkout: React.FC = () => {
       return;
     }
 
-    const name = fullName || currentUser?.name || 'Online Customer';
-    const mobile = mobileNumber || currentUser?.phone || '';
+    const name = fullName || userToUse?.name || 'Online Customer';
+    const mobile = mobileNumber || userToUse?.phone || '';
 
     // Get governorate, district, and subdistrict names
     const govObj = iraqLocations.find(l => l.governorate === selectedGovernorate || l.id === selectedGovernorate);
@@ -354,7 +347,7 @@ export const Checkout: React.FC = () => {
 
     setIsPlacing(true);
 
-    let activeUser = currentUser;
+    let activeUser = userToUse;
     if (!activeUser && mobile) {
       activeUser = await registerWithPhone(mobile, name);
     }

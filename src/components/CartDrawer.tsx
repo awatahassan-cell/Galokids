@@ -4,7 +4,7 @@ import { X, Minus, Plus, ShoppingBag, Trash2, Tag, ChevronDown, ChevronUp } from
 import { useStore } from '../store';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getColorHex } from '../utils/colors';
+import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../utils/colors';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -102,7 +102,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                       <div>
                         <h3 className="text-sm font-semibold text-slate-900 line-clamp-1">{getProductName(item.product)}</h3>
                         <p className="text-xs text-slate-500 mt-1">
-                          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border border-slate-200" style={{ backgroundColor: getColorHex(item.variation.color) }} title={item.variation.color} /> {item.variation.size}</span>
+                          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border border-slate-200" style={{ backgroundColor: getColorHex(item.variation.color) }} title={getLocalizedColorName(item.variation.color, language)} /> {getLocalizedColorName(item.variation.color, language)} {item.variation.color && item.variation.size ? '•' : ''} {getLocalizedSizeName(item.variation.size, language)}</span>
                         </p>
                       </div>
                       <p className="text-sm font-medium text-slate-900">{formatIQDLabel(Number(item.product.discountPrice || item.product.price || 0) * item.quantity)}</p>

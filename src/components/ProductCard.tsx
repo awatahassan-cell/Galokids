@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import { useStore } from '../store';
-import { getColorHex } from '../utils/colors';
+import { getColorHex, getLocalizedSizeName } from '../utils/colors';
 import { formatIQDLabel } from '../utils/currency';
-import { ShoppingCart, Heart, Star, Loader2, Check, Eye } from 'lucide-react';
+import { ShoppingCart, Heart, Star, Loader2, Check, Eye, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import { QuickViewModal } from './QuickViewModal';
@@ -63,133 +63,205 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     return product.name;
   };
 
+  // Generate consistent pastel background for vk2-pc-media matching reference image
+  const mediaBgColors = [
+    'bg-[#F5F5F7]', // Soft off-white / light slate
+    'bg-[#FCE4EC]', // Soft pastel pink
+    'bg-[#ECEFF1]', // Soft light gray
+    'bg-[#FAFAFA]', // Light cream
+  ];
+  const charSum = (product?.id || product?.name || '1').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const mediaBg = mediaBgColors[charSum % mediaBgColors.length];
+
   return (
-    <Link to={`/product/${product?.id}`} className="group relative flex flex-col bg-white rounded-[1.5rem] sm:rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden hover:shadow-[0_10px_40px_-10px_rgba(14,165,233,0.15)] transition-all duration-300 transform hover:-translate-y-1">
-      <div className="aspect-square sm:aspect-[4/5] bg-slate-50 overflow-hidden relative rounded-t-[1.5rem] sm:rounded-t-[2rem]">
-        <img
-          src={product.imageUrl}
-          alt={getProductName()}
-          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
-        />
-        {/* Badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
-          {totalStock === 0 && (
-            <span className="bg-rose-500 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow-sm">
+    <div className="vk2-pc group relative flex flex-col bg-white rounded-3xl border border-slate-100/90 shadow-xs hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden font-arabic h-full p-0">
+      
+      {/* Vastraa Media Card Wrapper (vk2-pc-media - Flush Top Edge-to-Edge) */}
+      <div className={`vk2-pc-media aspect-square sm:aspect-[4/5] ${mediaBg} overflow-hidden relative rounded-t-3xl border-b border-slate-100/50 flex items-center justify-center`}>
+        
+        {/* Product Image (vk2-pc-img) */}
+        <Link to={`/product/${product?.id}`} className="w-full h-full block overflow-hidden">
+          <img
+            src={product.imageUrl}
+            alt={getProductName()}
+            loading="lazy"
+            className="vk2-pc-img w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+          />
+        </Link>
+
+        {/* Badges (vk2-pc-badge) */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1 items-start z-10 pointer-events-none">
+          {totalStock === 0 ? (
+            <span className="vk2-pc-badge bg-slate-900 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full shadow-xs uppercase">
               {t('outOfStock')}
             </span>
-          )}
-          {hasDiscount && totalStock > 0 && (
-            <span className="bg-gradient-to-r from-rose-500 to-pink-500 text-white text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow-sm">
+          ) : hasDiscount ? (
+            <span className="vk2-pc-badge vk2-pc-badge-hot bg-[#FF6584] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs uppercase tracking-wider">
               -{discountPct}%
             </span>
-          )}
-          {isNew && totalStock > 0 && (
-            <span className="bg-emerald-500 text-white text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow-sm">
-              {t('badgeNew') || 'NEW'}
+          ) : (product as any).featured ? (
+            <span className="vk2-pc-badge vk2-pc-badge-hot bg-[#FF5277] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs uppercase tracking-wider">
+              Hot
             </span>
-          )}
-          {isLowStock && (
-            <span className="bg-amber-500 text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full shadow-sm">
-              {(t('onlyXLeft') || 'Only {n} left').replace('{n}', String(totalStock))}
-            </span>
-          )}
+          ) : null}
         </div>
-        <div className="absolute top-2 right-2 flex flex-col gap-1.5">
-          <button
-            onClick={handleWishlistClick}
-            className="w-8 h-8 sm:w-9 sm:h-9 bg-white/95 backdrop-blur-sm rounded-full text-slate-500 hover:text-rose-500 flex items-center justify-center transition-all shadow-md active:scale-90"
-            title={isWishlisted ? t('removeFromWishlist') || 'Remove' : t('addToWishlist') || 'Add'}
-          >
-            <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
-          </button>
+
+        {/* Wishlist Heart Button (vk2-pc-wish) */}
+        <button
+          onClick={handleWishlistClick}
+          className="vk2-pc-wish absolute top-3 right-3 w-8 h-8 rounded-full bg-white text-slate-700 hover:text-rose-500 flex items-center justify-center transition-all shadow-md active:scale-90 z-10 cursor-pointer"
+          title={isWishlisted ? t('removeFromWishlist') || 'Remove' : t('addToWishlist') || 'Add'}
+        >
+          <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
+        </button>
+
+        {/* Quick Actions Hover Overlay (vk2-pc-actions) */}
+        <div className="vk2-pc-actions absolute bottom-12 inset-x-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-auto z-10">
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setQuickViewOpen(true); }}
             title={t('quickView') || 'Quick view'}
-            className="w-8 h-8 sm:w-9 sm:h-9 bg-white/95 backdrop-blur-sm rounded-full text-slate-500 hover:text-indigo-600 flex items-center justify-center transition-all shadow-md active:scale-90 opacity-0 group-hover:opacity-100 hidden sm:flex"
+            className="vk2-pc-act-btn w-8 h-8 rounded-full bg-white text-slate-700 hover:text-rose-500 flex items-center justify-center shadow-md transition-transform hover:scale-110 active:scale-90 cursor-pointer"
           >
             <Eye className="w-4 h-4" />
           </button>
-        </div>
-      </div>
-      {quickViewOpen && <QuickViewModal product={product} onClose={() => setQuickViewOpen(false)} />}
-      <div className="p-2.5 sm:p-4 flex flex-col flex-grow">
-        <div className="flex justify-between items-start mb-0.5 sm:mb-1">
-          <p className="text-[8px] sm:text-[10px] text-sky-500 font-extrabold uppercase tracking-widest">{getCategoryName()}</p>
-                    <div className="text-right">
-            {product.discountPrice ? (
-              <>
-                <p className="text-[10px] sm:text-xs text-slate-400 line-through">{formatIQDLabel(Number(product.price))}</p>
-                <p className="text-xs sm:text-base font-extrabold text-rose-500">{formatIQDLabel(Number(product.discountPrice))}</p>
-              </>
-            ) : (
-              <p className="text-xs sm:text-base font-extrabold text-slate-900">{formatIQDLabel(Number(product.price))}</p>
-            )}
-          </div>
-        </div>
-        <h3 className="text-xs sm:text-sm font-bold font-display text-slate-800 leading-tight mb-1 sm:mb-2 line-clamp-1 sm:line-clamp-2">
-          {getProductName()}
-        </h3>
-        
-        {avgRating > 0 && (
-          <div className="flex items-center gap-1 mb-1.5 sm:mb-2">
-            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-            <span className="text-[9px] sm:text-[10px] text-slate-700 font-bold">{avgRating}</span>
-            <span className="text-[9px] sm:text-[10px] text-slate-400">({product.reviews?.length})</span>
-          </div>
-        )}
-        
-        <div className="mt-auto flex items-center justify-between pt-1.5 sm:pt-2 border-t border-slate-50">
-          <div className="flex -space-x-1 sm:-space-x-1.5">
-            {availableColors.slice(0, 3).map((color, i) => (
-              <div 
-                key={i} 
-                className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-white shadow-sm"
-                style={{ backgroundColor: getColorHex(color) }}
-                title={color}
-              />
-            ))}
-            {availableColors.length > 3 && (
-              <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[7px] sm:text-[8px] text-slate-600 font-bold shadow-sm">
-                +{availableColors.length - 3}
-              </div>
-            )}
-          </div>
-          
-          <button 
-            disabled={totalStock === 0 || isAdding}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (totalStock === 0 || isAdding) return;
-
-              // Find first variation with stock quantity > 0
-              const firstAvailable = (product.variations || []).find(v => v.stockQuantity > 0);
-              if (!firstAvailable) return;
-
-              setIsAdding(true);
-              setTimeout(() => {
-                addToCart(product, firstAvailable, 1);
-                setIsAdding(false);
-                setAdded(true);
-                setTimeout(() => setAdded(false), 1500);
-              }, 600);
-            }}
-            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full cursor-pointer flex items-center justify-center transition-all shrink-0 active:scale-90 ${
-              totalStock === 0 
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-sky-400 to-indigo-500 text-white shadow-md hover:shadow-sky-200'
-            }`}
+          <Link
+            to={`/product/${product?.id}`}
+            title="View Detail"
+            className="vk2-pc-act-btn w-8 h-8 rounded-full bg-white text-slate-700 hover:text-rose-500 flex items-center justify-center shadow-md transition-transform hover:scale-110 active:scale-90 cursor-pointer"
           >
-            {isAdding ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : added ? (
-              <Check className="w-4 h-4 text-white" />
-            ) : (
-              <ShoppingCart className="w-4 h-4" />
-            )}
-          </button>
+            <ExternalLink className="w-4 h-4" />
+          </Link>
         </div>
+
+        {/* Vastraa Cart Button (vk2-pc-cart) */}
+        <button 
+          disabled={totalStock === 0 || isAdding}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (totalStock === 0 || isAdding) return;
+
+            const variations = product.variations || [];
+            const inStockVariations = variations.filter(v => v.stockQuantity > 0);
+            
+            // Check if product has colors or sizes to choose from
+            const hasOptions = variations.length > 0 && variations.some(v => Boolean(v.color || v.size));
+
+            // If product has size/color options, open QuickViewModal so user chooses color & size FIRST!
+            if (hasOptions) {
+              setQuickViewOpen(true);
+              return;
+            }
+
+            const firstAvailable = inStockVariations[0] || variations[0];
+            if (!firstAvailable) {
+              setQuickViewOpen(true);
+              return;
+            }
+
+            setIsAdding(true);
+            setTimeout(() => {
+              addToCart(product, firstAvailable, 1);
+              setIsAdding(false);
+              setAdded(true);
+              setTimeout(() => setAdded(false), 1500);
+            }, 600);
+          }}
+          className={`absolute bottom-2.5 inset-x-3 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md z-10 cursor-pointer active:scale-95 ${
+            totalStock === 0 
+              ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+              : 'bg-slate-900 hover:bg-[#FF6584] text-white'
+          }`}
+        >
+          {isAdding ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : added ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-white" />
+              <span>{t('added') || 'زیادکرا'}</span>
+            </>
+          ) : (
+            <>
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>{t('addToCart') || 'سەبەتە'}</span>
+            </>
+          )}
+        </button>
       </div>
-    </Link>
+
+      {quickViewOpen && <QuickViewModal product={product} onClose={() => setQuickViewOpen(false)} />}
+
+      {/* Vastraa Body Info (vk2-pc-body - Padding Inside Body) */}
+      <div className="vk2-pc-body p-3.5 sm:p-4 flex flex-col flex-grow bg-white">
+        
+        {/* Category & Rating (vk2-pc-meta) */}
+        <div className="vk2-pc-meta flex items-center justify-between text-[11px] mb-1">
+          <span className="vk2-pc-cat font-black uppercase text-slate-400 tracking-wider truncate max-w-[70%]">
+            {getCategoryName()}
+          </span>
+          <div className="vk2-pc-rating flex items-center gap-1 text-slate-700 font-bold shrink-0">
+            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+            <span className="text-xs font-bold">{avgRating > 0 ? avgRating.toFixed(1) : '0.0'}</span>
+          </div>
+        </div>
+
+        {/* Product Name (vk2-pc-name) */}
+        <Link to={`/product/${product?.id}`} className="block">
+          <h3 className="vk2-pc-name text-xs sm:text-sm font-black text-slate-800 leading-snug line-clamp-1 group-hover:text-rose-500 transition-colors mb-2">
+            {getProductName()}
+          </h3>
+        </Link>
+
+        {/* Available Sizes Row (strictly from DB product.variations - zero hardcoded fallbacks) */}
+        {(() => {
+          // Extract real sizes directly from product.variations attached to the product data in DB
+          const rawSizes = (product.variations || [])
+            .map(v => v.size)
+            .filter((s): s is string => Boolean(s && s.trim().length > 0));
+          
+          const uniqueSizes = Array.from(new Set(rawSizes));
+          
+          // Display sizes directly from product variations!
+          const displaySizes = uniqueSizes.slice(0, 4);
+
+          // If product data has zero sizes in DB, render NOTHING (zero fake sizes like 4Y 6Y 8Y)
+          if (displaySizes.length === 0) return null;
+
+          // Determine active size badge
+          const activeIndex = displaySizes.length > 1 ? Math.min(1, displaySizes.length - 1) : 0;
+
+          return (
+            <div className="vk2-pc-sizes flex items-center gap-1.5 mb-3 overflow-x-auto scrollbar-hide py-0.5">
+              {displaySizes.map((size, idx) => (
+                <span 
+                  key={idx} 
+                  className={`vk2-pc-size text-[10px] sm:text-xs font-black px-2.5 py-0.5 rounded-full transition-all shrink-0 ${
+                    idx === activeIndex ? 'active bg-[#FF6584] text-white shadow-2xs' : 'bg-[#F1F3F5] text-slate-500 border border-slate-200/40'
+                  }`}
+                >
+                  {getLocalizedSizeName(String(size), language)}
+                </span>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* Footer Prices (vk2-pc-footer) */}
+        <div className="vk2-pc-footer mt-auto pt-2.5 border-t border-slate-100 flex items-center justify-between">
+          <div className="vk2-pc-prices">
+            {product.discountPrice ? (
+              <div className="flex items-baseline gap-1.5">
+                <span className="vk2-pc-price text-sm sm:text-base font-black text-[#FF6584]">{formatIQDLabel(Number(product.discountPrice))}</span>
+                <span className="vk2-pc-old text-[11px] text-slate-400 line-through font-bold">{formatIQDLabel(Number(product.price))}</span>
+              </div>
+            ) : (
+              <span className="vk2-pc-price text-sm sm:text-base font-black text-slate-900">{formatIQDLabel(Number(product.price))}</span>
+            )}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
   );
 };

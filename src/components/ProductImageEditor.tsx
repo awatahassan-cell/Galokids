@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Upload, Trash2, Star, ChevronLeft, ChevronRight, Maximize2, Plus, X, Image as ImageIcon, Loader2, Link } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
-import { API_BASE_URL } from '../config/api';
+import { apiFetch } from '../config/api';
 
 interface ProductImageEditorProps {
   images: string[];
@@ -98,11 +98,10 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
         }
       }
 
-      const VITE_API_BASE = API_BASE_URL;
       const token = localStorage.getItem('kidskart_auth_token');
 
       try {
-        const res = await fetch(`${VITE_API_BASE}/products/upload-images`, {
+        const res = await apiFetch('/products/upload-images', {
           method: 'POST',
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           body: formData,
@@ -112,10 +111,12 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
           const data = await res.json();
           if (data && Array.isArray(data.urls)) {
             uploadedUrls.push(...data.urls);
+          } else if (data && data.url) {
+            uploadedUrls.push(data.url);
           }
         }
-      } catch {
-        // Fallback if server endpoint is unavailable or errors out
+      } catch (err) {
+        console.warn('Image upload request failed:', err);
       }
 
       // If server upload didn't return URLs, convert blobs to base64 Data URLs so upload ALWAYS works

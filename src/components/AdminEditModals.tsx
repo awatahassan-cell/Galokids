@@ -51,14 +51,14 @@ export const AdminEditModals: React.FC<Props> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto"
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-3 sm:p-6 overflow-y-auto"
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1.0] }}
-            className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative"
+            className={`bg-white rounded-3xl w-full ${editingProduct ? 'max-w-3xl sm:max-w-4xl' : 'max-w-2xl sm:max-w-3xl'} max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative border border-slate-100`}
           >
             <button 
               onClick={() => {

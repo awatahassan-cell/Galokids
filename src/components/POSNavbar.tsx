@@ -42,7 +42,9 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
   onReprintLastReceipt,
   onOpenReturnModal,
 }) => {
-  const { currentUser, logout, storeSettings } = useStore();
+  const { currentUser: storeUser, logout, storeSettings } = useStore();
+  const savedUserStr = localStorage.getItem('kidskart_user');
+  const currentUser = storeUser || (savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch { return null; } })() : null) || { name: 'Staff User', role: 2 };
   const { t, language } = useLanguage();
   const toast = useToast();
   const L = (key: string) => adminTr(key, language);
@@ -119,8 +121,8 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
             </div>
           </div>
 
-          {/* Action Pills Track: Horizontally Scrollable on Mobile */}
-          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto hide-scrollbar flex-nowrap py-0.5 w-full md:w-auto shrink-0 justify-start md:justify-end">
+          {/* Action Pills Track */}
+          <div className="flex flex-wrap items-center gap-2 py-0.5 w-full md:w-auto shrink-0 justify-start md:justify-end relative z-10">
             
             {/* Shift Status Button */}
             <button
@@ -189,14 +191,12 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
               <Home className="w-4 h-4" />
             </Link>
 
-            {/* Desktop Language Dropdown */}
-            <div className="hidden md:block">
-              <LanguageDropdown />
-            </div>
+            {/* Language Dropdown */}
+            <LanguageDropdown />
 
-            {/* Desktop User Profile Capsule Dropdown */}
+            {/* User Profile Capsule Dropdown */}
             {currentUser && (
-              <div className="relative hidden md:block">
+              <div className="relative">
                 <button
                   onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
                   className="flex items-center gap-2.5 px-3 py-1.5 bg-white/80 hover:bg-white border border-slate-200/80 rounded-full text-xs font-bold text-slate-800 shadow-2xs transition-all cursor-pointer active:scale-95"
@@ -204,17 +204,22 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
                   <div className="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-[10px]">
                     {(currentUser.name || currentUser.username || 'C').charAt(0).toUpperCase()}
                   </div>
-                  <span className="truncate max-w-[110px]">{currentUser.name || currentUser.username}</span>
+                  <span className="truncate max-w-[110px] hidden sm:inline">{currentUser.name || currentUser.username}</span>
                   <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {isUserDropdownOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsUserDropdownOpen(false)} />
-                    <div className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-3xl shadow-2xl p-2.5 z-[99999] animate-in fade-in zoom-in-95 duration-100`}>
+                    <div className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-3xl shadow-2xl p-2.5 z-[99999] animate-in fade-in zoom-in-95 duration-100 space-y-1 font-arabic`}>
                       <div className="px-3 py-2.5 border-b border-slate-100 mb-1">
                         <p className="text-xs font-black text-slate-900 truncate">{currentUser.name || currentUser.username}</p>
                         <p className="text-[10px] font-bold text-slate-400 truncate">{currentUser.email || 'cashier@galokids.com'}</p>
+                        <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-2xs">
+                          {Number(currentUser.role) === 3 || currentUser.role === '3' || currentUser.role === 'admin' 
+                            ? (language === 'ku' ? 'بەڕێوەبەر' : language === 'ar' ? 'مدير' : 'Admin') 
+                            : (language === 'ku' ? 'کارمەند' : language === 'ar' ? 'موظف' : 'Staff')}
+                        </span>
                       </div>
 
                       <button
@@ -227,7 +232,7 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
 
                       <button
                         onClick={() => { setIsUserDropdownOpen(false); logout(); }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-2xl transition-colors cursor-pointer mt-1"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-2xl transition-colors cursor-pointer"
                       >
                         <LogOut className="w-4 h-4 text-rose-600" />
                         <span>{t('logout') || 'Logout'}</span>

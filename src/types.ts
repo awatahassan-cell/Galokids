@@ -138,18 +138,34 @@ export interface Coupon {
 
 export interface HeroSlide {
   id: string;
-  badgeKu: string;
-  badgeAr: string;
-  badgeEn: string;
-  titleKu: string;
-  titleAr: string;
-  titleEn: string;
-  subtitleKu: string;
-  subtitleAr: string;
-  subtitleEn: string;
-  ctaKu: string;
-  ctaAr: string;
-  ctaEn: string;
-  image: string;
-  link: string;
+  badgeKu?: string;
+  badgeAr?: string;
+  badgeEn?: string;
+  titleKu?: string;
+  titleAr?: string;
+  titleEn?: string;
+  subtitleKu?: string;
+  subtitleAr?: string;
+  subtitleEn?: string;
+  ctaKu?: string;
+  ctaAr?: string;
+  ctaEn?: string;
+  cta2Ku?: string;
+  cta2Ar?: string;
+  cta2En?: string;
+  btn1TextKu?: string;
+  btn1Link?: string;
+  btn2TextKu?: string;
+  btn2Link?: string;
+  image?: string;
+  imageUrl?: string;
+  link?: string;
+  link2?: string;
+  floatingBadgeTitle?: string;
+  floatingBadgeTitleKu?: string;
+  floatingBadgeTitleAr?: string;
+  floatingBadgeDesc?: string;
+  floatingBadgeDescKu?: string;
+  floatingBadgeDescAr?: string;
+  discountTag?: string;
 }

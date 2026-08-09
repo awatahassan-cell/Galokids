@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { Product, ProductVariation } from '../types';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getColorHex } from '../utils/colors';
+import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../utils/colors';
 import { formatIQDLabel } from '../utils/currency';
-import { X, ShoppingCart, Check } from 'lucide-react';
+import { X, ShoppingCart, Check, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface Props {
@@ -40,63 +41,96 @@ export const QuickViewModal: React.FC<Props> = ({ product, onClose }) => {
     setTimeout(() => setAdded(false), 1500);
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}>
-      <div className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden ${isRTL ? 'font-arabic' : ''}`} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
-        <div className="flex justify-end p-2">
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100"><X className="w-5 h-5" /></button>
-        </div>
-        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-6 p-6 pt-0 ${isRTL ? 'sm:[direction:rtl]' : ''}`}>
-          <img src={product.imageUrl} alt={getName()} className="w-full h-64 object-cover rounded-xl" />
-          <div className={isRTL ? 'text-right' : ''}>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">{getName()}</h2>
-            <div className="flex items-center gap-2 mb-4">
-              {product.discountPrice ? (
-                <>
-                  <span className="text-slate-400 line-through">{formatIQDLabel(Number(product.price))}</span>
-                  <span className="text-2xl font-black text-rose-500">{formatIQDLabel(Number(product.discountPrice))}</span>
-                </>
-              ) : (
-                <span className="text-2xl font-black text-slate-900">{formatIQDLabel(price)}</span>
+  const modalContent = (
+    <div 
+      className="fixed inset-0 z-[99999] bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto font-arabic" 
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+    >
+      <div 
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 relative animate-in fade-in zoom-in duration-200" 
+        onClick={e => { e.preventDefault(); e.stopPropagation(); }}
+      >
+        <button 
+          onClick={onClose} 
+          className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-slate-100 hover:bg-rose-500 hover:text-white text-slate-600 flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-6 sm:p-8">
+          <div className="aspect-square bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
+            <img src={product.imageUrl} alt={getName()} className="w-full h-full object-cover" />
+          </div>
+
+          <div className="flex flex-col justify-between">
+            <div>
+              <span className="inline-block text-[10px] font-black uppercase text-sky-600 bg-sky-50 px-2.5 py-0.5 rounded-full mb-2">
+                Quick View
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight mb-2">{getName()}</h2>
+              
+              <div className="flex items-baseline gap-2 mb-4">
+                {product.discountPrice ? (
+                  <>
+                    <span className="text-2xl font-black text-rose-500">{formatIQDLabel(Number(product.discountPrice))}</span>
+                    <span className="text-sm text-slate-400 line-through">{formatIQDLabel(Number(product.price))}</span>
+                  </>
+                ) : (
+                  <span className="text-2xl font-black text-slate-900">{formatIQDLabel(price)}</span>
+                )}
+              </div>
+
+              {colors.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-black text-slate-500 uppercase mb-2">{t('color')}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {colors.map(c => (
+                      <button 
+                        key={c} 
+                        onClick={() => setColor(c)} 
+                        title={getLocalizedColorName(c, language)}
+                        className={`w-7 h-7 rounded-full border-2 transition-all cursor-pointer ${color === c ? 'border-rose-500 ring-2 ring-rose-200 scale-110' : 'border-slate-200'}`}
+                        style={{ backgroundColor: getColorHex(c) }} 
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {sizes.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs font-black text-slate-500 uppercase mb-2">{t('size')}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {sizes.map(s => (
+                      <button 
+                        key={s} 
+                        onClick={() => setSize(s)}
+                        className={`px-3 py-1.5 text-xs rounded-xl font-black border transition-all cursor-pointer ${size === s ? 'bg-rose-500 text-white border-rose-500 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+                      >
+                        {getLocalizedSizeName(s, language)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 
-            {colors.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-bold text-slate-500 uppercase mb-2">{t('color')}</p>
-                <div className={`flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  {colors.map(c => (
-                    <button key={c} onClick={() => setColor(c)} title={c}
-                      className={`w-7 h-7 rounded-full border-2 transition ${color === c ? 'border-indigo-600 ring-2 ring-indigo-300' : 'border-slate-200'}`}
-                      style={{ backgroundColor: getColorHex(c) }} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {sizes.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-bold text-slate-500 uppercase mb-2">{t('size')}</p>
-                <div className={`flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  {sizes.map(s => (
-                    <button key={s} onClick={() => setSize(s)}
-                      className={`px-3 py-1.5 text-xs rounded border font-medium transition ${size === s ? 'bg-indigo-50 text-indigo-700 border-indigo-300' : 'bg-white text-slate-600 border-slate-300'}`}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className={`flex gap-3 mt-6 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <button onClick={handleAdd} disabled={!selectedVar}
-                className="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50">
-                {added ? <Check className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
+            <div className="flex gap-3 mt-6 pt-4 border-t border-slate-100">
+              <button 
+                onClick={handleAdd} 
+                disabled={!selectedVar}
+                className="flex-1 inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-rose-500 text-white font-black py-3 rounded-2xl transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer text-xs"
+              >
+                {added ? <Check className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
                 {added ? (t('added') || 'Added!') : (t('addToCart') || 'Add to Cart')}
               </button>
-              <Link to={`/product/${product.id}`} onClick={onClose}
-                className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-colors">
-                {t('productDetails') || 'Details'}
+              <Link 
+                to={`/product/${product.id}`} 
+                onClick={onClose}
+                className="px-4 py-3 rounded-2xl border border-slate-200 text-slate-700 font-black text-xs hover:bg-slate-50 transition-colors flex items-center gap-1"
+              >
+                <span>{t('productDetails') || 'Details'}</span>
+                <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
               </Link>
             </div>
           </div>
@@ -104,4 +138,6 @@ export const QuickViewModal: React.FC<Props> = ({ product, onClose }) => {
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(modalContent, document.body);
 };

@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, RotateCcw, Package, Tag, Filter, Check, ScanBarcode } from 'lucide-react';
+import { Search, Plus, RotateCcw, Package, Tag, Filter, Check, ScanBarcode, X, Layers, ShoppingBag } from 'lucide-react';
 import { Product, ProductVariation } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
 import { formatIQDLabel } from '../../utils/currency';
 import { getColorHex } from '../../utils/colors';
 import { Pagination } from '../Pagination';
+import { useToast } from '../ui/Feedback';
 
 export interface POSProductGridProps {
   products: Product[];
@@ -31,8 +32,10 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
   const { t, language } = useLanguage();
   const L = (key: string) => adminTr(key, language);
   const isRTL = language === 'ar' || language === 'ku';
+  const toast = useToast();
 
   const [selectedGender, setSelectedGender] = useState<number | 'all'>('all');
+  const [variationModalProduct, setVariationModalProduct] = useState<Product | null>(null);
 
   const filteredProducts = useMemo(() => {
     let list = products;
@@ -45,7 +48,8 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
       (p.name || '').toLowerCase().includes(q) ||
       (p.nameKu || '').toLowerCase().includes(q) ||
       (p.nameAr || '').toLowerCase().includes(q) ||
-      (p.barcode || '').toLowerCase().includes(q)
+      (p.barcode || '').toLowerCase().includes(q) ||
+      (p.sku || '').toLowerCase().includes(q)
     );
   }, [products, search, selectedGender]);
 
@@ -53,6 +57,55 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
     if (language === 'ku' && product.nameKu) return product.nameKu;
     if (language === 'ar' && product.nameAr) return product.nameAr;
     return product.name;
+  };
+
+  const handleBarcodeSubmit = () => {
+    const code = search.trim().toLowerCase();
+    if (!code) return;
+
+    // Search by exact barcode or SKU match, or single filtered match
+    const match = products.find(p => 
+      (p.barcode || '').toLowerCase() === code || 
+      (p.sku || '').toLowerCase() === code
+    ) || (filteredProducts.length === 1 ? filteredProducts[0] : undefined);
+
+    if (match) {
+      const vars = match.variations || [];
+      if (vars.length === 1) {
+        // SINGLE VARIATION: Add directly to cart!
+        const singleVar = vars[0];
+        if ((singleVar.stockQuantity || 0) > 0) {
+          addToPosCart(match, singleVar);
+          toast(language === 'ku' ? `بەرهەمی "${getProductName(match)}" بە سەرکەوتوویی زیاکرا بۆ سەبەتە 🛒` : `Product added to cart 🛒`);
+          setSearch('');
+        } else {
+          toast(language === 'ku' ? 'ئەم بەرهەمە ستۆکی نەماوە!' : 'Product is out of stock!', 'error');
+        }
+      } else if (vars.length > 1) {
+        // MULTIPLE VARIATIONS: Open modal prompting cashier to pick variation!
+        setVariationModalProduct(match);
+        setSearch('');
+      } else {
+        toast(language === 'ku' ? 'هیچ جۆرێک بۆ ئەم بەرهەمە تێدانییە!' : 'No variations found for this product!', 'error');
+      }
+    } else {
+      toast(language === 'ku' ? 'هیچ بەرهەمێک نەدۆزرایەوە بەم بارکۆدە!' : 'No product found with this barcode!', 'error');
+    }
+  };
+
+  const handleProductCardClick = (product: Product) => {
+    const vars = product.variations || [];
+    if (vars.length === 1) {
+      const singleVar = vars[0];
+      if ((singleVar.stockQuantity || 0) > 0) {
+        addToPosCart(product, singleVar);
+        toast(language === 'ku' ? `زیادکرا بۆ سەبەتە 🛒` : `Added to cart 🛒`);
+      } else {
+        toast(language === 'ku' ? 'ئەم بەرهەمە ستۆکی نەماوە!' : 'Product is out of stock!', 'error');
+      }
+    } else if (vars.length > 1) {
+      setVariationModalProduct(product);
+    }
   };
 
   return (
@@ -68,17 +121,9 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key !== 'Enter') return;
-                const code = search.trim().toLowerCase();
-                if (!code) return;
-                const match = products.find(p => (p.barcode || '').toLowerCase() === code)
-                  || (filteredProducts.length === 1 ? filteredProducts[0] : undefined);
-                if (match) {
-                  const firstVar = (match.variations || []).find(v => v.stockQuantity > 0) || (match.variations || [])[0];
-                  if (firstVar) {
-                    addToPosCart(match, firstVar);
-                    setSearch('');
-                  }
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleBarcodeSubmit();
                 }
               }}
               className={`w-full ${isRTL ? 'pr-11 pl-4 text-right font-arabic' : 'pl-11 pr-4'} py-3 bg-white/90 border border-slate-200/80 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white text-xs font-bold text-slate-900 outline-none transition-all placeholder:text-slate-400 shadow-2xs`}
@@ -123,7 +168,8 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
               return (
                 <div
                   key={product.id}
-                  className="bg-white/80 backdrop-blur-md border border-white/90 rounded-xl p-2 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between group relative overflow-hidden"
+                  onClick={() => handleProductCardClick(product)}
+                  className="bg-white/80 backdrop-blur-md border border-white/90 rounded-xl p-2 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col justify-between group relative overflow-hidden cursor-pointer"
                 >
                   <div>
                     {/* Image & Stock Badge */}
@@ -171,7 +217,10 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
                           <button
                             key={variation.id}
                             disabled={isOutOfStock}
-                            onClick={() => addToPosCart(product, variation)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToPosCart(product, variation);
+                            }}
                             className={`px-1.5 py-0.5 rounded-md text-[8px] font-bold transition-all cursor-pointer flex items-center gap-1 border ${
                               isOutOfStock
                                 ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed opacity-50'
@@ -203,6 +252,82 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
             totalPages={productsPagination.totalPages}
             onPageChange={(page) => refreshProducts(page, 20, { search })}
           />
+        </div>
+      )}
+
+      {/* Multiple Variation Picker Modal */}
+      {variationModalProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-md p-4 font-arabic animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl w-full max-w-md p-5 shadow-2xl border border-slate-100 relative animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 truncate max-w-[220px]">
+                    {getProductName(variationModalProduct)}
+                  </h3>
+                  <p className="text-[11px] font-bold text-indigo-600">
+                    {language === 'ku' ? 'تکایە جۆرێک هەڵبژێرە بۆ زیادکردن' : language === 'ar' ? 'اختر النوع للإضافة' : 'Select a variation to add to order'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setVariationModalProduct(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Variations Grid Options */}
+            <div className="space-y-2 max-h-[340px] overflow-y-auto hide-scrollbar py-1">
+              {(variationModalProduct.variations || []).map(v => {
+                const isOutOfStock = (v.stockQuantity || 0) <= 0;
+                const hexColor = getColorHex(v.color || '');
+
+                return (
+                  <button
+                    key={v.id}
+                    disabled={isOutOfStock}
+                    onClick={() => {
+                      addToPosCart(variationModalProduct, v);
+                      toast(language === 'ku' ? `جۆری (${v.size} - ${v.color}) زیادکرا بۆ سەبەتە 🛒` : `Variation added to cart 🛒`);
+                      setVariationModalProduct(null);
+                    }}
+                    className={`w-full p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 text-right cursor-pointer ${
+                      isOutOfStock
+                        ? 'bg-slate-50 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                        : 'bg-white hover:bg-indigo-50/70 border-slate-200 hover:border-indigo-300 text-slate-900 shadow-2xs active:scale-98'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {hexColor && (
+                        <span className="w-4 h-4 rounded-full border border-slate-300 shadow-2xs shrink-0" style={{ backgroundColor: hexColor }} />
+                      )}
+                      <div>
+                        <span className="text-xs font-black block">{v.size} {v.color ? `- ${v.color}` : ''}</span>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {language === 'ku' ? `مەوجود لە کۆگا: ${v.stockQuantity} دانە` : language === 'ar' ? `المتوفر: ${v.stockQuantity}` : `Stock: ${v.stockQuantity}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-emerald-600">
+                        {formatIQDLabel(Number(variationModalProduct.discountPrice || variationModalProduct.price || 0))}
+                      </span>
+                      <div className="w-7 h-7 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                        <Plus className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>

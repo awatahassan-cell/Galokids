@@ -28,7 +28,7 @@ export const adminDict: Record<string, Pair> = {
   'Save Changes': { ku: 'پاشەکەوتکردنی گۆڕانکارییەکان', ar: 'حفظ التغييرات' },
   'Subtotal': { ku: 'کۆی لاوەکی', ar: 'المجموع الفرعي' },
   'Total Payable': { ku: 'کۆی گشتی بۆ پارەدان', ar: 'إجمالي المستحق' },
-  'Complete Sale & Print': { ku: 'تەواوکردنی فرۆشتن و چاپکردن', ar: 'إتمام البيع والطباعة' },
+  'Complete Sale & Print': { ku: 'فرۆشتن و چاپکردن', ar: 'البيع والطباعة' },
   'products low in stock!': { ku: 'بەرهەم ستۆکیان کەمە!', ar: 'منتجات مخزونها منخفض!' },
   'Some products have variations with stock less than 15 units. Please restock soon.': { ku: 'هەندێک بەرهەم جۆرەکانیان کەمتر لە ١٥ دانەیان تێدا ماوە. تکایە بە زوویی ستۆک پڕبکەرەوە.', ar: 'بعض المنتجات تحتوي على تنويعات مخزونها أقل من 15 قطعة. يرجى إعادة التعبئة قريباً.' },
   'View Products': { ku: 'بینینی بەرهەمەکان', ar: 'عرض المنتجات' },
@@ -401,6 +401,20 @@ export const adminDict: Record<string, Pair> = {
   'Held Orders': { ku: 'داواکارییە هەڵپەسێردراوەکان', ar: 'الطلبات المعلقة' },
   'Suspend Sale': { ku: 'هەڵپەساردنی فرۆشتن', ar: 'تعليق البيع' },
   'Hold': { ku: 'هەڵپەساردن', ar: 'تعليق' },
+
+  // Product Image Editor Translations
+  'Upload multiple high-resolution photos. First image or starred image acts as main cover photo.': {
+    ku: 'وێنەی فۆتۆی بەرز بباتە سەرەوە. وێنەی یەکەم یان وێنەی ئەستێرەکراو دەبێتە وێنەی بەرگی سەرەکی.',
+    ar: 'قم بتحميل صور عالية الدقة. الصورة الأولى أو المميزة بنجمة تكون هي الغلاف الرئيسي.'
+  },
+  'Add Image URL': { ku: 'زیادکردنی لینکی وێنە', ar: 'إضافة رابط صورة' },
+  'Drag & drop product images here, or': { ku: 'وێنەکانی بەرهەم بهێنە و دابنێ لێرە، یان', ar: 'سحب وإسقاط صور المنتج هنا، أو' },
+  'browse files': { ku: 'گەڕان بەناو فایلەکاندا بکە', ar: 'تصفح الملفات' },
+  'Supports JPG, PNG, WEBP up to 10MB per file. High-res images are automatically compressed.': {
+    ku: 'پشتیوانی لە JPG, PNG, WEBP تا ١٠ مێگابایت دەکات. وێنە کوالیتی بەرزەکان خۆکارانە دەپەستێورێن.',
+    ar: 'يدعم JPG, PNG, WEBP حتى 10 ميغابايت لكل ملف. يتم ضغط الصور عالية الدقة تلقائيًا.'
+  },
+  'Cart is empty': { ku: 'سەبەتە بەتاڵە', ar: 'السلة فارغة' },
 };
 
 export function adminTr(text: string, lang: 'en' | 'ku' | 'ar'): string {

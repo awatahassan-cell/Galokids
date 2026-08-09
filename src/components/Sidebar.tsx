@@ -167,11 +167,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
       {/* Sidebar Panel */}
       <div 
+        dir={language === 'ar' || language === 'ku' ? 'rtl' : 'ltr'}
         className={`fixed inset-y-0 ${language === 'ar' || language === 'ku' ? 'right-0' : 'left-0'} w-[290px] bg-white shadow-2xl z-50 transform transition-transform duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275) ${
           isOpen 
             ? 'translate-x-0' 
             : (language === 'ar' || language === 'ku' ? 'translate-x-full' : '-translate-x-full')
-        } flex flex-col ${language === 'ar' || language === 'ku' ? 'rounded-l-[2.5rem]' : 'rounded-r-[2.5rem]'} overflow-hidden`}
+        } flex flex-col ${language === 'ar' || language === 'ku' ? 'rounded-l-2xl text-right font-arabic' : 'rounded-r-2xl text-left'} overflow-hidden`}
       >
         {/* Playful Colorful Header */}
         <div className="flex items-center justify-between p-6 border-b border-pink-100 shrink-0 bg-gradient-to-r from-pink-50 via-amber-50 to-sky-50 relative overflow-hidden">
@@ -179,13 +180,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           <div className="absolute -top-6 -left-6 w-16 h-16 rounded-full bg-pink-100/40 blur-sm"></div>
           <div className="absolute -bottom-6 right-12 w-12 h-12 rounded-full bg-sky-100/40 blur-sm"></div>
           
-          <Link to="/" onClick={onClose} className="flex items-center text-xl font-black font-display text-slate-900 tracking-tight gap-2.5 group relative z-10">
-            <div className="bg-gradient-to-tr from-pink-400 via-amber-400 to-sky-400 text-white p-2 rounded-2xl group-hover:scale-110 group-hover:rotate-12 transition-transform shadow-md border-2 border-white animate-bounce-slow">
-              <Layers className="w-5 h-5" />
-            </div>
-            <span className={`bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600 bg-clip-text text-transparent font-extrabold tracking-wide drop-shadow-sm ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'}`}>
-              {storeSettings?.store_name || (language === 'ku' ? 'گەلۆ کیدس' : 'Galo Kids')}
-            </span>
+          <Link to="/" onClick={onClose} className="flex items-center group relative z-10">
+            <img 
+              src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
+              alt={storeSettings?.store_name || "Galo Kids"} 
+              className="h-10 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105 drop-shadow-sm" 
+            />
           </Link>
           <div className="flex items-center gap-2.5 relative z-10">
             {currentUser && (
@@ -208,9 +208,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 scrollbar-thin">
           {/* Menu Section */}
           <div className="space-y-1.5">
-            <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
-              <span>🌟</span> {t('explore')}
-            </h3>
             {navItems.map((item) => {
               const active = isActive(item.path) && item.path !== '/products';
               const isProducts = item.path === '/products';
@@ -263,24 +260,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   
                   {isProducts && (
                     <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isProductsExpanded ? 'max-h-[500px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-                      <div className="flex flex-col gap-1.5 px-4 ml-4 border-l-2 border-slate-100">
-                        <Link to="/products" onClick={onClose} className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-all">
+                      <div className={`flex flex-col gap-1.5 px-2 ${language === 'ar' || language === 'ku' ? 'mr-4 border-r-2 border-slate-100' : 'ml-4 border-l-2 border-slate-100'}`}>
+                        <Link 
+                          to="/products" 
+                          onClick={onClose} 
+                          className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-all"
+                        >
                           <div className="p-1.5 rounded-lg bg-slate-50 text-slate-400 group-hover:bg-sky-100 group-hover:text-sky-600 transition-colors">
                             <LayoutGrid className="w-4 h-4" />
                           </div>
-                          {(t as any)('allCategories') || 'All Categories'}
+                          <span>{language === 'ku' ? 'هەموو پۆلەکان' : language === 'ar' ? 'جميع الأقسام' : 'All Categories'}</span>
                         </Link>
                         {categories.filter(c => c).map((category) => (
                           <Link 
                             key={category.id}
                             to={`/products?category=${category.slug || category?.name?.toLowerCase()}`} 
                             onClick={onClose} 
-                            className={`group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-all ${language === 'ar' || language === 'ku' ? 'flex-row-reverse text-right' : ''}`}
+                            className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-all"
                           >
                             <div className="p-1.5 rounded-lg bg-slate-50 text-slate-400 group-hover:bg-sky-100 group-hover:text-sky-600 transition-colors">
                               <CategoryIcon name={category.icon} className="w-4 h-4" />
                             </div>
-                            <span className={language === 'ar' || language === 'ku' ? 'font-arabic' : ''}>
+                            <span>
                               {language === 'ku' ? (category.nameKu || category.name) : language === 'ar' ? (category.nameAr || category.name) : category.name}
                             </span>
                           </Link>

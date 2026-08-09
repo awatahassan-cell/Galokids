@@ -88,6 +88,8 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 const LARAVEL_API_BASE = API_BASE_URL;
+const inflightProductsRequests = new Map<string, Promise<any>>();
+const productsResponseCache = new Map<string, { data: any; timestamp: number }>();
 
 // Helper to convert snake_case JSON keys to camelCase for the frontend
 function convertKeysToCamelCase(obj: any): any {
@@ -831,7 +833,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return response;
   };
 
-  const refreshProducts = useCallback((page = 1, limit = 10, filters: any = {}, append = false) => {
+  const refreshProducts = useCallback((page = 1, limit = 10, filters: any = {}, append = false, bypassCache = false) => {
     setIsProductsLoading(true);
     let url = `${LARAVEL_API_BASE}/products?page=${page}&limit=${limit}`;
     
@@ -850,71 +852,96 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (filters.minPrice !== undefined && filters.minPrice !== '' && filters.minPrice !== null) url += `&min_price=${encodeURIComponent(filters.minPrice)}`;
     if (filters.maxPrice !== undefined && filters.maxPrice !== '' && filters.maxPrice !== null) url += `&max_price=${encodeURIComponent(filters.maxPrice)}`;
 
-    fetch(url, { headers: getAuthHeaders() })
-      .then(async res => {
-        if (!res.ok) {
-          console.warn(`Products API warning: status ${res.status}`);
-          return null;
-        }
-        return res.json();
-      })
-      .then(data => {
-        if (!data) {
-          setIsProductsLoading(false);
-          return;
-        }
-        const camelData = convertKeysToCamelCase(data);
-        let items = [];
-        let pagMeta = { currentPage: page, lastPage: 1, total: 0 };
-        if (Array.isArray(camelData)) {
-          items = camelData;
-          pagMeta.total = items.length;
-        } else if (camelData && Array.isArray(camelData.data)) {
-          items = camelData.data;
-          pagMeta = { currentPage: camelData.currentPage || page, lastPage: camelData.lastPage || 1, total: camelData.total || items.length };
+    const processData = (data: any) => {
+      if (!data) {
+        setIsProductsLoading(false);
+        return;
+      }
+      const camelData = convertKeysToCamelCase(data);
+      let items = [];
+      let pagMeta = { currentPage: page, lastPage: 1, total: 0 };
+      if (Array.isArray(camelData)) {
+        items = camelData;
+        pagMeta.total = items.length;
+      } else if (camelData && Array.isArray(camelData.data)) {
+        items = camelData.data;
+        pagMeta = { currentPage: camelData.currentPage || page, lastPage: camelData.lastPage || 1, total: camelData.total || items.length };
+      }
+      
+      if (Array.isArray(items)) {
+        const localReviewsSaved = localStorage.getItem('kidskart_reviews_local');
+        let localReviews: Review[] = [];
+        if (localReviewsSaved) {
+          try {
+            localReviews = JSON.parse(localReviewsSaved);
+          } catch (e) {}
         }
         
-        if (Array.isArray(items)) {
-          const localReviewsSaved = localStorage.getItem('kidskart_reviews_local');
-          let localReviews: Review[] = [];
-          if (localReviewsSaved) {
-            try {
-              localReviews = JSON.parse(localReviewsSaved);
-            } catch (e) {}
-          }
-          
-          const mergedProducts = items.map((p: Product) => {
-            const prodReviews = p.reviews || [];
-            const matchingLocal = localReviews.filter((r: any) => String(r.productId) === String(p.id));
-            const allReviews = [...prodReviews];
-            for (const lr of matchingLocal) {
-              if (!allReviews.some(r => r?.id === lr.id)) {
-                allReviews.push(lr);
-              }
+        const mergedProducts = items.map((p: Product) => {
+          const prodReviews = p.reviews || [];
+          const matchingLocal = localReviews.filter((r: any) => String(r.productId) === String(p.id));
+          const allReviews = [...prodReviews];
+          for (const lr of matchingLocal) {
+            if (!allReviews.some(r => r?.id === lr.id)) {
+              allReviews.push(lr);
             }
-            return {
-              ...p,
-              reviews: allReviews
-            };
-          });
-          if (append) {
-            setProducts(prev => {
-              const existingIds = new Set(prev.map(p => String(p.id)));
-              const newItems = mergedProducts.filter((p: Product) => !existingIds.has(String(p.id)));
-              return [...prev, ...newItems];
-            });
-          } else {
-            setProducts(mergedProducts);
           }
-          setProductsPagination(pagMeta);
+          return {
+            ...p,
+            reviews: allReviews
+          };
+        });
+        if (append) {
+          setProducts(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newItems = mergedProducts.filter((p: Product) => !existingIds.has(p.id));
+            return [...prev, ...newItems];
+          });
+        } else {
+          setProducts(mergedProducts);
         }
-        setIsProductsLoading(false);
-      })
-      .catch(err => {
-        console.warn('Products load note:', err);
-        setIsProductsLoading(false);
-      });
-  }, []);
+        setProductsPagination(pagMeta);
+      }
+      setIsProductsLoading(false);
+    };
+
+    // 1. Check in-memory response cache (60 seconds TTL) unless bypassCache is true
+    if (!bypassCache) {
+      const cached = productsResponseCache.get(url);
+      if (cached && (Date.now() - cached.timestamp) < 60000) {
+        processData(cached.data);
+        return;
+      }
+    }
+
+    // 2. Inflight request deduplication: if exact same URL is currently fetching, reuse Promise!
+    let reqPromise = inflightProductsRequests.get(url);
+    if (!reqPromise) {
+      reqPromise = fetch(url, { headers: getAuthHeaders() })
+        .then(async res => {
+          if (!res.ok) {
+            console.warn(`Products API warning: status ${res.status}`);
+            return null;
+          }
+          const json = await res.json();
+          productsResponseCache.set(url, { data: json, timestamp: Date.now() });
+          return json;
+        })
+        .catch(err => {
+          console.error(`Products API fetch error:`, err);
+          return null;
+        })
+        .finally(() => {
+          inflightProductsRequests.delete(url);
+        });
+
+      inflightProductsRequests.set(url, reqPromise);
+    }
+
+    reqPromise.then(data => {
+      processData(data);
+    });
+  }, [getAuthHeaders]);
 
   
   const refreshReviews = useCallback((page = 1, limit = 10) => {
@@ -1061,6 +1088,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const addProduct = (product: Product) => {
+    productsResponseCache.clear();
+    inflightProductsRequests.clear();
+
     const preparedProd: Product = {
       ...product,
       barcode: product.barcode || product.sku || '',
@@ -1071,7 +1101,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         : (product.imageUrl ? [product.imageUrl] : [])
     };
 
-    setProducts(prev => [...prev, preparedProd]);
+    setProducts(prev => [preparedProd, ...prev]);
     
     authedApiFetch(`${LARAVEL_API_BASE}/products`, {
       method: 'POST',
@@ -1112,9 +1142,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             ? camelProduct.images
             : preparedProd.images,
         };
-        setProducts(prev => prev.map(p => p?.id === product.id ? merged : p));
+        setProducts(prev => {
+          const exists = prev.some(p => String(p.id) === String(product.id) || String(p.id) === String(merged.id));
+          if (exists) {
+            return prev.map(p => (String(p.id) === String(product.id) || String(p.id) === String(merged.id)) ? merged : p);
+          }
+          return [merged, ...prev];
+        });
+        refreshProducts(1, 10, {}, false, true);
       })
-      .catch(err => console.warn('Failed to save product to API:', err));
+      .catch(err => {
+        console.warn('Failed to save product to API:', err);
+        refreshProducts(1, 10, {}, false, true);
+      });
   };
 
   const addToCart = (product: Product, variation: ProductVariation, quantity: number) => {
@@ -1326,20 +1366,20 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const deleteProduct = (productId: string) => {
+    productsResponseCache.clear();
+    inflightProductsRequests.clear();
+
     setProducts(prev => prev.filter(p => String(p.id) !== String(productId)));
 
     authedApiFetch(`${LARAVEL_API_BASE}/products/${productId}`, {
       method: 'DELETE',
     })
       .then(res => {
-        if (!res.ok) {
-          console.warn('Backend product deletion failed');
-          refreshProducts();
-        }
+        refreshProducts(1, 10, {}, false, true);
       })
       .catch(err => {
         console.warn('Product delete note:', err);
-        refreshProducts();
+        refreshProducts(1, 10, {}, false, true);
       });
   };
 
@@ -1424,6 +1464,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const updateProduct = (product: Product) => {
+    productsResponseCache.clear();
+    inflightProductsRequests.clear();
+
     const updatedProd: Product = {
       ...product,
       barcode: product.barcode || product.sku || '',
@@ -1434,7 +1477,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         : (product.imageUrl ? [product.imageUrl] : [])
     };
 
-    setProducts(prev => prev.map(p => p?.id === product.id ? updatedProd : p));
+    setProducts(prev => prev.map(p => String(p?.id) === String(product.id) ? updatedProd : p));
 
     authedApiFetch(`${LARAVEL_API_BASE}/products/${product.id}`, {
       method: 'PUT',
@@ -1476,9 +1519,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             ? camelProduct.images
             : updatedProd.images,
         };
-        setProducts(prev => prev.map(p => p?.id === product.id ? merged : p));
+        setProducts(prev => prev.map(p => String(p?.id) === String(product.id) ? merged : p));
+        refreshProducts(1, 10, {}, false, true);
       })
-      .catch(err => console.warn('Product update note:', err));
+      .catch(err => {
+        console.warn('Product update note:', err);
+        refreshProducts(1, 10, {}, false, true);
+      });
   };
 
   const updateCategory = (category: Category) => {

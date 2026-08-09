@@ -24,7 +24,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   const isRTL = language === 'ar' || language === 'ku';
   const navigate = useNavigate();
   const { storeSettings, logout, currentUser: storeUser } = useStore();
-  const currentUser = propUser || storeUser;
+  const savedUserStr = localStorage.getItem('kidskart_user');
+  const currentUser = propUser || storeUser || (savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch { return null; } })() : null) || { name: 'Admin User', role: 3 };
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
   return (
@@ -63,7 +64,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         </div>
 
         {/* Right: Integrated Control Widgets */}
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto hide-scrollbar flex-nowrap py-1 w-full md:w-auto shrink-0 justify-start md:justify-end">
+        <div className="flex flex-wrap items-center gap-2 py-1 w-full md:w-auto shrink-0 justify-start md:justify-end relative z-10">
 
           {/* Quick POS Terminal Switcher Button */}
           <button

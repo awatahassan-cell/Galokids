@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, Clock, Pause, CheckCircle2, User } from 'lucide-react';
+import { ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, Clock, Pause, CheckCircle2, User, X } from 'lucide-react';
 import { Product, ProductVariation } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
@@ -71,6 +71,11 @@ export const POSCartPanel: React.FC<POSCartPanelProps> = ({
     if (language === 'ku' && product.nameKu) return product.nameKu;
     if (language === 'ar' && product.nameAr) return product.nameAr;
     return product.name;
+  };
+
+  const handleCancelSale = () => {
+    clearCart();
+    setDiscountAmt('');
   };
 
   return (
@@ -251,11 +256,20 @@ export const POSCartPanel: React.FC<POSCartPanelProps> = ({
 
         {/* Action Controls */}
         <div className="flex gap-2">
+          {/* Cancel Sale Button */}
+          <button
+            disabled={posCart.length === 0}
+            onClick={handleCancelSale}
+            className="w-auto px-3 py-3.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-full font-bold text-xs shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
           {/* Hold Sale Button */}
           <button
             disabled={posCart.length === 0}
             onClick={holdCurrentSale}
-            className="w-1/3 py-3.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-full font-bold text-xs shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            className="flex-1 py-3.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white rounded-full font-bold text-xs shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
           >
             <Pause className="w-4 h-4" />
             <span>{L("Hold")}</span>
