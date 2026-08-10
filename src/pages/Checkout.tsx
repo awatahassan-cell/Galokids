@@ -12,6 +12,7 @@ import iraqLocations from '../data/iraq-locations.json';
 import { OtpModal } from '../components/OtpModal';
 import { sendCheckoutOtp } from '../services/otpService';
 import { isSamePhone } from '../utils/phone';
+import { getLineTotal, roundIQD } from '../utils/pricing';
 import {
   buildAddress, parseAddress, getDistricts, getSubdistricts, findGovernorate, findDistrict,
   getGovernorateLabel, getDistrictLabel, getSubdistrictLabel,
@@ -265,7 +266,7 @@ export const Checkout: React.FC = () => {
   }, [appliedCoupon, coupons, setAppliedCoupon]);
 
 
-  const subtotal = cart.reduce((acc, item) => acc + Number(item.product.discountPrice || item.product.price || 0) * item.quantity, 0);
+  const subtotal = roundIQD(cart.reduce((acc, item) => acc + getLineTotal(item.product, item.variation, item.quantity), 0));
   const discountAmount = appliedCoupon ? (subtotal * (appliedCoupon.discountPercentage / 100)) : 0;
   const totalAmount = subtotal - discountAmount;
 
@@ -772,7 +773,7 @@ export const Checkout: React.FC = () => {
                       <div>
                         <div className="flex justify-between text-sm font-bold text-slate-900">
                           <h3>{getProductName(item.product)}</h3>
-                          <p className="ml-2 rtl:mr-2 rtl:ml-0 font-extrabold text-rose-600">{formatIQDLabel(Number(item.product.discountPrice || item.product.price || 0) * item.quantity)}</p>
+                          <p className="ml-2 rtl:mr-2 rtl:ml-0 font-extrabold text-rose-600">{formatIQDLabel(getLineTotal(item.product, item.variation, item.quantity))}</p>
                         </div>
                         <p className="mt-1 text-xs text-slate-500"><span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full border border-slate-200" style={{ backgroundColor: getColorHex(item.variation.color) }} title={item.variation.color} /> {item.variation.size}</span></p>
                       </div>

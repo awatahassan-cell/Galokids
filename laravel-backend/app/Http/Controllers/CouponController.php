@@ -44,16 +44,7 @@ class CouponController extends Controller
     {
         $request->validate(['code' => 'required|string|max:255']);
 
-        $today = now()->toDateString();
-        $coupon = Coupon::whereRaw('UPPER(code) = ?', [strtoupper(trim($request->code))])
-            ->where('is_active', true)
-            ->where(function ($q) use ($today) {
-                $q->whereNull('start_date')->orWhere('start_date', '<=', $today);
-            })
-            ->where(function ($q) use ($today) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', $today);
-            })
-            ->first();
+        $coupon = Coupon::findRedeemable($request->code);
 
         if (!$coupon) {
             return response()->json(['valid' => false, 'message' => 'Invalid or expired coupon code'], 404);

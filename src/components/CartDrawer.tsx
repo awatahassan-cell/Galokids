@@ -3,6 +3,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Minus, Plus, ShoppingBag, Trash2, Tag, ChevronDown, ChevronUp } from 'lucide-react';
+import { getLineTotal, roundIQD } from '../utils/pricing';
 import { useStore } from '../store';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -21,7 +22,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const [showCouponInput, setShowCouponInput] = React.useState(false);
   const { t, language } = useLanguage();
 
-  const subtotal = cart.reduce((acc, item) => acc + Number(item.product.discountPrice || item.product.price || 0) * item.quantity, 0);
+  const subtotal = roundIQD(cart.reduce((acc, item) => acc + getLineTotal(item.product, item.variation, item.quantity), 0));
   const discountAmount = appliedCoupon ? (subtotal * (appliedCoupon.discountPercentage / 100)) : 0;
   const totalAmount = subtotal - discountAmount;
 
@@ -121,7 +122,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                                 <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border border-slate-200" style={{ backgroundColor: getColorHex(item.variation.color) }} title={getLocalizedColorName(item.variation.color, language)} /> {getLocalizedColorName(item.variation.color, language)} {item.variation.color && item.variation.size ? '•' : ''} {getLocalizedSizeName(item.variation.size, language)}</span>
                               </p>
                             </div>
-                            <p className="text-sm font-medium text-slate-900">{formatIQDLabel(Number(item.product.discountPrice || item.product.price || 0) * item.quantity)}</p>
+                            <p className="text-sm font-medium text-slate-900">{formatIQDLabel(getLineTotal(item.product, item.variation, item.quantity))}</p>
                           </div>
                           
                           <div className="mt-auto flex items-center justify-between">

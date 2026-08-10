@@ -13,6 +13,7 @@ import { POSCartPanel } from '../components/pos/POSCartPanel';
 import { adminTr } from '../i18n/adminDict';
 import { printReceiptIframe } from '../utils/printHelper';
 import { isCashierRole } from '../utils/roles';
+import { getUnitPrice, getLineTotal, roundIQD } from '../utils/pricing';
 
 export const POS: React.FC = () => {
   const { products, orders, addOrder, productsPagination, refreshProducts, lookupCustomer,
@@ -237,11 +238,19 @@ export const POS: React.FC = () => {
     localStorage.setItem('pos_active_draft', JSON.stringify(draft));
   }, [posCart, customerName, customerPhone, discountAmt, discountMode, paymentMethod, cashReceived]);
 
-  const subtotalVal = posCart.reduce((sum, item) => sum + (Number(item.product.price || 0) * item.quantity), 0);
+  // Price each line exactly like the server does (variation override, then the
+  // product's discounted price, then its normal price). Summing product.price
+  // here made the cart rows, the total the cashier collected and the amount
+  // stored on the order three different numbers.
+  const subtotalVal = roundIQD(
+    posCart.reduce((sum, item) => sum + getLineTotal(item.product, item.variation, item.quantity), 0)
+  );
   const discountInput = parseFloat(discountAmt) || 0;
-  const discountVal = discountMode === 'percent'
-    ? Math.min(subtotalVal, subtotalVal * (discountInput / 100))
-    : Math.min(subtotalVal, discountInput);
+  const discountVal = roundIQD(
+    discountMode === 'percent'
+      ? Math.min(subtotalVal, subtotalVal * (discountInput / 100))
+      : Math.min(subtotalVal, discountInput)
+  );
   const total = Math.max(0, subtotalVal - discountVal);
 
   // Automatically keep cashReceived equal to total unless user manually edits it
@@ -858,7 +867,7 @@ export const POS: React.FC = () => {
                 <p className="text-center text-slate-400 py-8">{t('noHeldOrders') || 'No held orders'}</p>
               ) : heldOrders.map(h => {
                 const count = (h.cart || []).reduce((s: number, i: any) => s + i.quantity, 0);
-                const sum = (h.cart || []).reduce((s: number, i: any) => s + Number(i.product.price || 0) * i.quantity, 0);
+                const sum = (h.cart || []).reduce((s: number, i: any) => s + getLineTotal(i.product, i.variation, i.quantity), 0);
                 return (
                   <div key={h.id} className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded-xl p-3">
                     <div>

@@ -1,0 +1,31 @@
+# Uploads are data, never code.
+#
+# Defence in depth: the upload endpoint already rejects anything that is not a
+# real image and names the file from its verified MIME type, but if any path
+# ever writes a script here, Apache must refuse to run it.
+
+# Never hand a request in this directory to an interpreter.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phps .cgi .pl .py .sh
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phps
+
+<FilesMatch "\.(php|phtml|php[0-9]|phps|cgi|pl|py|sh|htaccess)$">
+    Require all denied
+</FilesMatch>
+
+# Serve what is here as a plain download target, never as HTML/JS.
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'none'; script-src 'none'"
+</IfModule>
+
+Options -ExecCGI -Indexes

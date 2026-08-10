@@ -962,7 +962,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     for (let page = 1; page <= MAX_PAGES; page++) {
       const res = await fetch(
-        `${LARAVEL_API_BASE}/products?page=${page}&limit=${PAGE_SIZE}`,
+        `${LARAVEL_API_BASE}/products?page=${page}&limit=${PAGE_SIZE}&light=1`,
         { headers: getAuthHeaders() }
       );
 

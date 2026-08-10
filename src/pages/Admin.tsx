@@ -34,6 +34,7 @@ import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
 import { BulkStockModal } from "../components/admin/BulkStockModal";
 import { getRoleInfo, isAdminRole, isCashierRole } from "../utils/roles";
 import { LOW_STOCK_THRESHOLD, getTotalStock } from "../utils/inventory";
+import { escapeHtml } from "../utils/printHelper";
 
 /** Rows per page in Products Management — used by the query and the pager. */
 const PRODUCTS_PER_PAGE = 12;
@@ -953,7 +954,7 @@ export const Admin: React.FC = () => {
       <html>
         <head>
           <meta charset="utf-8" />
-          <title>${title}</title>
+          <title>${escapeHtml(title)}</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 16px; }
             .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
@@ -991,9 +992,9 @@ export const Admin: React.FC = () => {
     const copies = Math.max(1, Number(labelCopies || 1));
     const labels = Array.from({ length: copies }).map(() => `
       <div class="label">
-        <div class="name">${product.name || ''}</div>
+        <div class="name">${escapeHtml(product.name || '')}</div>
         <div class="price">Price: ${formatIQDLabel(Number(product.price || 0))}</div>
-        <img class="barcode-img" src="${barcodeDataUrl}" alt="${barcodeValue}" />
+        <img class="barcode-img" src="${barcodeDataUrl}" alt="${escapeHtml(barcodeValue)}" />
       </div>
     `).join('');
     openPrintWindow('Product Labels', `<div class="grid">${labels}</div>`);
@@ -1014,8 +1015,8 @@ export const Admin: React.FC = () => {
     const copies = Math.max(1, Number(barcodeCopies || 1));
     const stickers = Array.from({ length: copies }).map(() => `
       <div class="label" style="text-align:center">
-        <div class="name">${product.name || ''}</div>
-        <img class="barcode-img" src="${barcodeDataUrl}" alt="${barcodeValue}" />
+        <div class="name">${escapeHtml(product.name || '')}</div>
+        <img class="barcode-img" src="${barcodeDataUrl}" alt="${escapeHtml(barcodeValue)}" />
       </div>
     `).join('');
     openPrintWindow('Barcode Stickers', `<div class="grid">${stickers}</div>`);

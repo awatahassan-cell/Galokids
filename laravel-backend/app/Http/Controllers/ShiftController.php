@@ -49,34 +49,50 @@ class ShiftController extends Controller
             ]);
 
             return response()->json($shift, 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
+            // Never hand back a made-up shift id: sales would then be recorded
+            // with no shift, and the Z-report would silently miss them.
+            \Illuminate\Support\Facades\Log::error('Could not open shift: ' . $e->getMessage());
+
             return response()->json([
-                'id' => 'shift_fallback_' . time(),
-                'user_id' => $user->id,
-                'opening_float' => (float) $request->input('opening_float', 0),
-                'status' => 'open',
-                'opened_at' => now()->toIso8601String(),
-            ], 201);
+                'message' => 'Could not open the shift. Please try again.',
+            ], 500);
         }
     }
 
-    /** Build the Z-report totals for a shift. */
+    /**
+     * Build the Z-report totals for a shift.
+     *
+     * Every order carrying this shift_id is a completed till sale, so all of
+     * them count towards the money that entered the drawer — including the ones
+     * later marked "cancelled".
+     *
+     * That matters: a full refund sets the order's status to cancelled. The old
+     * version filtered those orders out of the sales figure AND subtracted the
+     * refund, so one fully refunded cash sale made the drawer look short by
+     * exactly that amount and the cashier was blamed for a shortage that never
+     * happened.
+     */
     private function summary(Shift $shift): array
     {
-        $orders = Order::where('shift_id', $shift->id)->where('status', '!=', 'cancelled')->get();
+        $orders = Order::where('shift_id', $shift->id)->get();
+
         $cashSales = (float) $orders->where('payment_method', 'cash')->sum('total_amount');
         $cardSales = (float) $orders->where('payment_method', 'card')->sum('total_amount');
         $refundsTotal = (float) Refund::where('shift_id', $shift->id)->sum('amount');
+
         $expected = (float) $shift->opening_float + $cashSales - $refundsTotal;
 
         return [
             'orders_count' => $orders->count(),
-            'cash_sales' => round($cashSales, 2),
-            'card_sales' => round($cardSales, 2),
-            'total_sales' => round((float) $orders->sum('total_amount'), 2),
-            'refunds' => round($refundsTotal, 2),
-            'opening_float' => round((float) $shift->opening_float, 2),
-            'expected_cash' => round($expected, 2),
+            'cash_sales' => round($cashSales),
+            'card_sales' => round($cardSales),
+            'total_sales' => round((float) $orders->sum('total_amount')),
+            'refunds' => round($refundsTotal),
+            'opening_float' => round((float) $shift->opening_float),
+            'expected_cash' => round($expected),
         ];
     }
 

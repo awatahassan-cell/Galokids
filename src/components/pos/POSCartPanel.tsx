@@ -5,6 +5,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
 import { formatIQDLabel } from '../../utils/currency';
 import { getColorHex } from '../../utils/colors';
+import { getUnitPrice, getLineTotal } from '../../utils/pricing';
 
 export interface POSCartPanelProps {
   posCart: { product: Product; variation: ProductVariation; quantity: number }[];
@@ -116,8 +117,8 @@ export const POSCartPanel: React.FC<POSCartPanelProps> = ({
           </div>
         ) : (
           posCart.map(({ product, variation, quantity }) => {
-            const displayPrice = product.discountPrice || product.price;
-            const lineTotal = Number(displayPrice || 0) * quantity;
+            const displayPrice = getUnitPrice(product, variation);
+            const lineTotal = getLineTotal(product, variation, quantity);
             const hexColor = getColorHex(variation.color || '');
 
             return (

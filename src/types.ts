@@ -13,6 +13,8 @@ export interface ProductVariation {
   color: string;
   size: string;
   stockQuantity: number;
+  /** Per-variation price. When set it wins over the product price (and its discount). */
+  priceOverride?: number | null;
 }
 
 export interface Review {

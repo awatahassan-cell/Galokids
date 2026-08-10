@@ -1,6 +1,18 @@
 import { formatIQDLabel } from './currency';
 
-const esc = (v: any) => String(v ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string));
+/**
+ * Escape a value before it goes into a document.write() print template.
+ *
+ * Product names, SKUs and store settings are typed by staff, and those windows
+ * are same-origin: an unescaped `<script>` in a product name would run in the
+ * admin's browser when they printed a sheet of labels.
+ */
+export const escapeHtml = (v: any): string =>
+  String(v ?? '').replace(/[<>&"']/g, c => ({
+    '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;',
+  }[c] as string));
+
+const esc = escapeHtml;
 
 export interface PrintReceiptTotals {
   subtotal: number;

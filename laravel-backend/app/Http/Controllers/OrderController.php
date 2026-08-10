@@ -21,6 +21,28 @@ class OrderController extends Controller
         $this->requirePrivileged($request);
     }
 
+    /**
+     * What one piece costs the customer.
+     *
+     * Mirrors `getUnitPrice()` in the frontend (src/utils/pricing.ts) — the two
+     * must agree, or the cart shows one number and the order stores another.
+     * Zero and negative values mean "not set", never "free".
+     */
+    private function effectiveUnitPrice(Product $product, ?ProductVariation $variation = null): float
+    {
+        $override = $variation ? (float) $variation->price_override : 0.0;
+        if ($override > 0) {
+            return $override;
+        }
+
+        $discount = (float) $product->discount_price;
+        if ($discount > 0) {
+            return $discount;
+        }
+
+        return (float) $product->price;
+    }
+
     public function index(Request $request)
     {
         $user = $this->requireAuth($request);
@@ -184,8 +206,7 @@ class OrderController extends Controller
                         if ($variation) {
                             $productId = $variation->product_id;
                             $product = $variation->product;
-                            $unitPrice = $variation->price_override
-                                ?? ($product->discount_price ?? $product->price);
+                            $unitPrice = $this->effectiveUnitPrice($product, $variation);
 
                             // Stock control: never let a customer oversell.
                             if ($variation->stock_quantity < $qty && !$isStaff) {
@@ -199,7 +220,7 @@ class OrderController extends Controller
                     } elseif (!empty($productId)) {
                         $product = Product::find($productId);
                         if ($product) {
-                            $unitPrice = $product->discount_price ?? $product->price;
+                            $unitPrice = $this->effectiveUnitPrice($product);
                         }
                     }
 
@@ -229,16 +250,7 @@ class OrderController extends Controller
                 $discount = 0;
                 $couponCode = null;
                 if (!empty($validated['coupon_code'])) {
-                    $today = now()->toDateString();
-                    $coupon = Coupon::where('code', $validated['coupon_code'])
-                        ->where('is_active', true)
-                        ->where(function ($q) use ($today) {
-                            $q->whereNull('start_date')->orWhere('start_date', '<=', $today);
-                        })
-                        ->where(function ($q) use ($today) {
-                            $q->whereNull('end_date')->orWhere('end_date', '>=', $today);
-                        })
-                        ->first();
+                    $coupon = Coupon::findRedeemable($validated['coupon_code']);
                     if ($coupon) {
                         $discount = $subtotal * ((float) $coupon->discount_percentage / 100);
                         $couponCode = $coupon->code;
@@ -247,7 +259,12 @@ class OrderController extends Controller
                 if ($isStaff && isset($validated['discount_amount'])) {
                     $discount += (float) $validated['discount_amount'];
                 }
-                $discount = min($discount, $subtotal);
+
+                // Iraqi dinar is used in whole units — round here so receipts,
+                // the cash drawer and the shift report cannot disagree by the
+                // fractions a percentage discount produces.
+                $subtotal = round($subtotal);
+                $discount = min(round($discount), $subtotal);
                 $total = max(0, $subtotal - $discount);
 
                 // Ownership: a customer can only order for themselves.
@@ -266,13 +283,9 @@ class OrderController extends Controller
                     $shift = Shift::where('user_id', $user->id)->where('status', 'open')->first();
                     $shiftId = $shift?->id;
                 }
-                $todayCount = Order::whereDate('created_at', now()->toDateString())->count();
-                $invoiceNo = 'INV-' . now()->format('Ymd') . '-' . str_pad((string)($todayCount + 1), 3, '0', STR_PAD_LEFT);
-
                 $order = Order::create([
                     'user_id' => $userId,
                     'shift_id' => $shiftId,
-                    'invoice_no' => $invoiceNo,
                     'customer_name' => $validated['customer_name'] ?? ($user->name ?? null),
                     // Store the canonical 964… form so "my orders" and the POS
                     // customer lookup find this order whatever format was typed.
@@ -295,6 +308,14 @@ class OrderController extends Controller
                 foreach ($lineItems as $li) {
                     $order->items()->create($li);
                 }
+
+                // Invoice number is derived from the order id, which the
+                // database has already made unique. The old version counted
+                // today's orders and added one, so two cashiers checking out at
+                // the same moment produced the SAME invoice number — and the
+                // count was an unindexed full scan on every single sale.
+                $order->invoice_no = 'INV-' . $order->created_at->format('Ymd') . '-' . str_pad((string) $order->id, 4, '0', STR_PAD_LEFT);
+                $order->save();
 
                 return $order;
             });
@@ -371,6 +392,26 @@ class OrderController extends Controller
 
         $result = DB::transaction(function () use ($data, $id, $user) {
             $order = Order::with('items')->lockForUpdate()->findOrFail($id);
+
+            // How much of each line has already been given back. Without this
+            // the same item could be refunded over and over: every call paid
+            // out again and put the stock back again.
+            $alreadyRefunded = [];
+            foreach (Refund::where('order_id', $order->id)->get() as $previous) {
+                foreach ((array) $previous->items as $line) {
+                    $itemId = $line['order_item_id'] ?? null;
+                    if ($itemId !== null) {
+                        $alreadyRefunded[$itemId] = ($alreadyRefunded[$itemId] ?? 0) + (int) ($line['quantity'] ?? 0);
+                    }
+                }
+            }
+
+            // A discounted order was never paid at list price, so refund the
+            // share of the line the customer actually paid. Refunding
+            // item->price on a 20%-off order handed back more than was taken.
+            $subtotal = (float) $order->subtotal;
+            $paidRatio = $subtotal > 0 ? ((float) $order->total_amount / $subtotal) : 1.0;
+
             $amount = 0;
             $snapshot = [];
 
@@ -379,10 +420,12 @@ class OrderController extends Controller
                 if (!$item) {
                     abort(response()->json(['message' => 'Item does not belong to this order.'], 422));
                 }
-                $qty = min((int) $line['quantity'], (int) $item->quantity);
+
+                $refundable = (int) $item->quantity - (int) ($alreadyRefunded[$item->id] ?? 0);
+                $qty = min((int) $line['quantity'], $refundable);
                 if ($qty <= 0) continue;
 
-                $amount += (float) $item->price * $qty;
+                $amount += (float) $item->price * $qty * $paidRatio;
                 $snapshot[] = ['order_item_id' => $item->id, 'quantity' => $qty, 'price' => (float) $item->price];
 
                 // Return stock.
@@ -396,7 +439,9 @@ class OrderController extends Controller
             }
 
             if ($amount <= 0) {
-                abort(response()->json(['message' => 'Nothing to refund.'], 422));
+                abort(response()->json([
+                    'message' => 'Nothing left to refund on this order.',
+                ], 422));
             }
 
             $shift = Shift::where('user_id', $user->id)->where('status', 'open')->first();
@@ -405,12 +450,15 @@ class OrderController extends Controller
                 'order_id' => $order->id,
                 'user_id' => $user->id,
                 'shift_id' => $shift?->id,
-                'amount' => round($amount, 2),
+                'amount' => round($amount),
                 'reason' => $data['reason'] ?? null,
                 'items' => $snapshot,
             ]);
 
-            $order->refunded_amount = (float) $order->refunded_amount + round($amount, 2);
+            $order->refunded_amount = min(
+                (float) $order->refunded_amount + round($amount),
+                (float) $order->total_amount
+            );
             // Mark fully refunded orders.
             if ($order->refunded_amount >= (float) $order->total_amount) {
                 $order->status = 'cancelled';

@@ -4,6 +4,7 @@ import { Product } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
 import { formatIQDLabel } from '../../utils/currency';
+import { escapeHtml } from '../../utils/printHelper';
 import { generateBarcodeDataUrl } from '../../utils/barcode';
 import { useToast } from '../ui/Feedback';
 
@@ -62,11 +63,11 @@ export const AdminBarcodeTab: React.FC<AdminBarcodeTabProps> = ({ products }) =>
     const stickerCards = Array.from({ length: copies }).map(() => `
       <div class="sticker-card">
         ${showStoreLogo ? `<div class="store-name">Galo Kids</div>` : ''}
-        ${showName ? `<div class="prod-name" style="font-size: ${fontSizeName}px;">${selectedProduct.name}</div>` : ''}
-        ${showSku && (selectedProduct.sku || selectedProduct.barcode) ? `<div class="sku-code">SKU: ${selectedProduct.sku || selectedProduct.barcode}</div>` : ''}
+        ${showName ? `<div class="prod-name" style="font-size: ${fontSizeName}px;">${escapeHtml(selectedProduct.name)}</div>` : ''}
+        ${showSku && (selectedProduct.sku || selectedProduct.barcode) ? `<div class="sku-code">SKU: ${escapeHtml(selectedProduct.sku || selectedProduct.barcode)}</div>` : ''}
         ${showPrice ? `<div class="prod-price" style="font-size: ${fontSizePrice}px;">${formatIQDLabel(Number(selectedProduct.price || 0))}</div>` : ''}
-        ${showBarcodeImage && barcodeDataUrl ? `<img class="barcode-img" src="${barcodeDataUrl}" alt="${barcodeValue}" />` : ''}
-        ${showBarcodeText && barcodeValue ? `<div class="barcode-val">${barcodeValue}</div>` : ''}
+        ${showBarcodeImage && barcodeDataUrl ? `<img class="barcode-img" src="${barcodeDataUrl}" alt="${escapeHtml(barcodeValue)}" />` : ''}
+        ${showBarcodeText && barcodeValue ? `<div class="barcode-val">${escapeHtml(barcodeValue)}</div>` : ''}
       </div>
     `).join('');
 
@@ -80,7 +81,7 @@ export const AdminBarcodeTab: React.FC<AdminBarcodeTabProps> = ({ products }) =>
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Barcode Stickers - ${selectedProduct.name}</title>
+          <title>Barcode Stickers - ${escapeHtml(selectedProduct.name)}</title>
           <style>
             @page { margin: 6mm; }
             body { font-family: Arial, sans-serif; margin: 0; padding: 10px; background: #fff; }

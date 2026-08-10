@@ -9,7 +9,12 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['variations', 'reviews']);
+        // `light=1` skips the reviews. The inventory audit pulls the whole
+        // catalogue and only needs stock and prices — shipping every review of
+        // every product made that response many times larger than necessary.
+        $query = $request->boolean('light')
+            ? Product::with('variations')
+            : Product::with(['variations', 'reviews']);
 
         // Filter by category_id
         if ($request->has('category_id') && $request->category_id != '') {
@@ -160,16 +165,26 @@ class ProductController extends Controller
             'description_ku' => 'nullable|string',
             'description_ar' => 'nullable|string',
             'price' => $req . '|numeric|min:0',
-            'discount_price' => 'nullable|numeric|min:0',
+            // A discount above the normal price would charge the customer MORE
+            // than the price shown struck through next to it.
+            'discount_price' => 'nullable|numeric|min:0|lte:price',
             'cost' => 'nullable|numeric|min:0',
             'image_url' => 'nullable|string',
             'images' => 'nullable|array',
             'images.*' => 'nullable|string',
             'category_id' => 'nullable|integer|exists:categories,id',
-            'gender' => 'nullable|integer',
+            'gender' => 'nullable|integer|in:0,1,2',
             'sku' => 'nullable|string|max:255',
             'barcode' => 'nullable|string|max:255',
         ]);
+
+        // "No discount" must be stored as NULL. A 0 here used to mean the item
+        // was priced at zero, because the order code read
+        // `discount_price ?? price` and 0 is not null — i.e. free products.
+        if (array_key_exists('discount_price', $data)
+            && ($data['discount_price'] === '' || $data['discount_price'] === null || (float) $data['discount_price'] <= 0)) {
+            $data['discount_price'] = null;
+        }
 
         if (empty($data['sku']) && !empty($data['barcode'])) {
             $data['sku'] = $data['barcode'];
@@ -203,9 +218,26 @@ class ProductController extends Controller
             @mkdir($dir, 0755, true);
         }
 
+        // SECURITY: the stored extension is derived from the file's real type,
+        // never from the uploaded filename. Taking the client's extension meant
+        // an image/PHP polyglot uploaded as "evil.php" passed the image checks
+        // and was then written into a web-served directory as .php.
+        $allowed = [
+            'image/jpeg' => 'jpg',
+            'image/pjpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            'image/gif' => 'gif',
+        ];
+
         $urls = [];
         foreach ($request->file('images', []) as $file) {
-            $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+            $mime = strtolower((string) $file->getMimeType());
+            $ext = $allowed[$mime] ?? null;
+            if (!$ext) {
+                abort(response()->json(['message' => 'Unsupported image type.'], 422));
+            }
+
             $name = 'p_' . date('Ymd') . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
             $file->move($dir, $name);
             // Serve through the API route (guaranteed reachable via /API/api/...),
