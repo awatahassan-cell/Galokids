@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { ProductCard } from '../components/ProductCard';
 import { ProductFilter, FilterState } from '../components/ProductFilter';
 import { ProductCardSkeleton } from '../components/ProductCardSkeleton';
 import { useStore } from '../store';
-import { Filter } from 'lucide-react';
+import { Filter, Loader2 } from 'lucide-react';
 import { Pagination } from '../components/Pagination';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -89,6 +90,7 @@ export const Products: React.FC = () => {
   }, [initialGender, categoryParam, genderParam, categories]);
 
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const loadMoreRef = React.useRef<HTMLDivElement>(null);
 
   const filterKey = useMemo(() => JSON.stringify({ searchQuery, filters, sort }), [searchQuery, filters, sort]);
 
@@ -97,13 +99,39 @@ export const Products: React.FC = () => {
     // eslint-disable-next-deps
   }, [filterKey]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = React.useCallback(async () => {
     if (isProductsLoading || isLoadingMore) return;
+    const currentLength = products?.length || 0;
+    if (productsPagination && currentLength >= productsPagination.total) return;
+
     setIsLoadingMore(true);
-    const nextPage = Math.floor((products?.length || 20) / 10) + 1;
-    refreshProducts(nextPage, 10, { ...filters, search: searchQuery, sort }, true);
-    setTimeout(() => setIsLoadingMore(false), 600);
-  };
+    const nextPage = Math.floor(currentLength / 20) + 1;
+    try {
+      await refreshProducts(nextPage, 20, { ...filters, search: searchQuery, sort }, true);
+    } catch (err) {
+      console.error('Error loading more products:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isProductsLoading, isLoadingMore, products?.length, productsPagination, refreshProducts, filters, searchQuery, sort]);
+
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting && !isLoadingMore && !isProductsLoading) {
+          if (productsPagination && products.length < productsPagination.total) {
+            handleLoadMore();
+          }
+        }
+      },
+      { rootMargin: '300px' }
+    );
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [handleLoadMore, isLoadingMore, isProductsLoading, products.length, productsPagination]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
@@ -198,11 +226,25 @@ export const Products: React.FC = () => {
                 ))}
               </div>
             ) : filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                {filteredProducts.map(product => (
-                  <ProductCard key={product?.id} product={product} />
-                ))}
-              </div>
+              <motion.div 
+                layout 
+                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6"
+              >
+                <AnimatePresence mode="popLayout">
+                  {filteredProducts.map((product, idx) => (
+                    <motion.div
+                      key={product?.id || idx}
+                      layout
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.25, delay: Math.min(idx * 0.03, 0.3) }}
+                    >
+                      <ProductCard product={product} />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
             ) : (
               <div className="text-center py-24 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
                 <h3 className={`text-lg font-semibold text-slate-900 mb-2 ${isRTL ? 'font-arabic' : ''}`}>{t('noProductsFound')}</h3>
@@ -217,15 +259,12 @@ export const Products: React.FC = () => {
             )}
             {productsPagination && (
               <div className="mt-10 flex flex-col items-center justify-center gap-3">
-                {products.length < productsPagination.total ? (
-                  <button
-                    onClick={handleLoadMore}
-                    disabled={isLoadingMore || isProductsLoading}
-                    className="inline-flex items-center justify-center px-8 py-3.5 bg-amber-900 text-white font-bold text-sm rounded-full shadow-md hover:bg-amber-800 active:scale-95 transition-all disabled:opacity-60 cursor-pointer"
-                  >
-                    {isLoadingMore ? '...' : (t('loadMore10') || 'Load 10 More Products')}
-                  </button>
-                ) : null}
+                {products.length < productsPagination.total && (
+                  <div ref={loadMoreRef} className="py-6 flex items-center justify-center gap-2 text-slate-600 font-semibold text-sm">
+                    <Loader2 className="w-5 h-5 animate-spin text-amber-900 shrink-0" />
+                    <span>{t('loading') || 'بارکردن...'}</span>
+                  </div>
+                )}
                 <span className="text-xs text-slate-500 font-medium">
                   {t('showing') || 'Showing'} {filteredProducts.length} {productsPagination.total ? `${t('of') || 'of'} ${productsPagination.total}` : ''} {t('products') || 'products'}
                 </span>

@@ -1,5 +1,8 @@
 export const getColorHex = (colorName: string) => {
-  const c = colorName.toLowerCase().trim();
+  if (!colorName) return '#cbd5e1';
+  const trimmed = colorName.trim();
+  if (trimmed.startsWith('#') || trimmed.startsWith('rgb') || trimmed.startsWith('hsl')) return trimmed;
+  const c = trimmed.toLowerCase();
   switch (c) {
     case 'red': case 'سوور': case 'أحمر': return '#ef4444';
     case 'blue': case 'شین': case 'أزرق': return '#3b82f6';

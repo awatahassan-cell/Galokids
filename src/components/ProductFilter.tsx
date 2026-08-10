@@ -44,6 +44,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
         ? prev.colors.filter(c => c !== color)
         : [...prev.colors, color]
     }));
+    onClose();
   };
 
   const toggleSize = (size: string) => {
@@ -53,6 +54,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
         ? prev.sizes.filter(s => s !== size)
         : [...prev.sizes, size]
     }));
+    onClose();
   };
 
   const isRTL = language === 'ar' || language === 'ku';
@@ -89,7 +91,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
             <h3 className={`text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4 ${isRTL ? 'font-arabic text-right' : ''}`}>{t('categories')}</h3>
             <div className="space-y-2">
               <button
-                onClick={() => setFilters(prev => ({ ...prev, categoryId: null }))}
+                onClick={() => { setFilters(prev => ({ ...prev, categoryId: null })); onClose(); }}
                 className={`w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-between ${
                   filters.categoryId === null 
                     ? 'bg-indigo-50 text-indigo-700 font-medium' 
@@ -109,7 +111,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
               {categories.map(category => (
                 <button
                   key={category?.id}
-                  onClick={() => setFilters(prev => ({ ...prev, categoryId: category?.id }))}
+                  onClick={() => { setFilters(prev => ({ ...prev, categoryId: category?.id })); onClose(); }}
                   className={`w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-between group ${
                     filters.categoryId === category?.id 
                       ? 'bg-indigo-50 text-indigo-700 font-medium' 
@@ -145,7 +147,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
               ].map(gender => (
                 <button
                   key={gender.value}
-                  onClick={() => setFilters(prev => ({ ...prev, gender: prev.gender === gender.value ? null : gender.value }))}
+                  onClick={() => { setFilters(prev => ({ ...prev, gender: prev.gender === gender.value ? null : gender.value })); onClose(); }}
                   className={`w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-between ${
                     filters.gender === gender.value 
                       ? 'bg-rose-50 text-rose-700 font-medium' 
@@ -234,7 +236,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
               <input 
                 type="checkbox" 
                 checked={filters.inStockOnly}
-                onChange={(e) => setFilters(prev => ({ ...prev, inStockOnly: e.target.checked }))}
+                onChange={(e) => { setFilters(prev => ({ ...prev, inStockOnly: e.target.checked })); onClose(); }}
                 className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
               />
               <span className={`text-sm text-slate-700 ${isRTL ? 'font-arabic' : ''}`}>{t('inStockOnly')}</span>
@@ -242,7 +244,14 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
           </div>
 
           <button 
-            onClick={onClearAll || (() => setFilters({ categoryId: null, gender: null, colors: [], sizes: [], inStockOnly: false, minPrice: '', maxPrice: '' }))}
+            onClick={() => {
+              if (onClearAll) {
+                onClearAll();
+              } else {
+                setFilters({ categoryId: null, gender: null, colors: [], sizes: [], inStockOnly: false, minPrice: '', maxPrice: '' });
+              }
+              onClose();
+            }}
             className={`w-full py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors ${isRTL ? 'font-arabic' : ''}`}
           >
             {t('clearFilters')}

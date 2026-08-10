@@ -26,6 +26,8 @@ import { AdminHeader } from "../components/admin/AdminHeader";
 import { AdminNavigationSidebar } from "../components/admin/AdminNavigationSidebar";
 import { AdminOverviewTab } from "../components/admin/AdminOverviewTab";
 import { AdminOrdersTab } from "../components/admin/AdminOrdersTab";
+import { AdminPosSalesTab } from "../components/admin/AdminPosSalesTab";
+import { AdminInventoryTab } from "../components/admin/AdminInventoryTab";
 import { AdminLabelsTab } from "../components/admin/AdminLabelsTab";
 import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
 
@@ -70,7 +72,7 @@ export const Admin: React.FC = () => {
   
   const { tab: urlTab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
-  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'categories', 'orders', 'users', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings'], []);
+  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'inventory', 'categories', 'orders', 'pos-sales', 'users', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings'], []);
 
   const [activeTab, setActiveTabState] = useState<string>(() => {
     if (urlTab && validTabs.includes(urlTab)) return urlTab;
@@ -1390,6 +1392,15 @@ export const Admin: React.FC = () => {
         </div>
       )}
 
+      {activeTab === 'inventory' && (
+        <AdminInventoryTab
+          products={products}
+          categories={categories}
+          updateProduct={updateProduct}
+          toast={toast}
+        />
+      )}
+
       {activeTab === 'categories' && (
         <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
           <div className="flex items-center justify-between mb-6">
@@ -1649,6 +1660,15 @@ export const Admin: React.FC = () => {
           deleteOrder={deleteOrder}
           ordersPagination={ordersPagination}
           refreshOrders={refreshOrders}
+          confirmDialog={confirmDialog}
+          toast={toast}
+        />
+      )}
+
+      {activeTab === 'pos-sales' && (
+        <AdminPosSalesTab
+          orders={orders}
+          deleteOrder={deleteOrder}
           confirmDialog={confirmDialog}
           toast={toast}
         />

@@ -150,7 +150,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
 
           {/* Main Vastraa-Style Header */}
-          <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-2xl border-b border-slate-200/80 shadow-sm transition-all duration-300">
+          <header className="sticky top-0 z-[100] w-full bg-white/95 backdrop-blur-2xl border-b border-slate-200/80 shadow-sm transition-all duration-300">
             <div className="max-w-7xl mx-auto h-16 sm:h-20 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
               
               {/* Left Column: Brand Logo & Mobile Trigger */}
@@ -455,10 +455,10 @@ const UserProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children 
 const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, y: 12, filter: 'blur(3px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      exit={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
+      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       className="flex-grow flex flex-col w-full"
     >
       {children}
@@ -468,10 +468,10 @@ const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const AnimatedRoutes: React.FC = () => {
   const location = useLocation();
-  const routeKey = location.pathname + location.search;
+  const routeKey = location.pathname;
 
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="wait" initial={false}>
       <Routes location={location}>
         <Route path="/" element={<PageTransition key={routeKey}><Home /></PageTransition>} />
         <Route path="/products" element={<PageTransition key={routeKey}><Products /></PageTransition>} />

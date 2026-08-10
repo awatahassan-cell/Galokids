@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../store';
 import { ProductCard } from '../components/ProductCard';
 import { Link } from 'react-router-dom';
@@ -26,11 +27,25 @@ export const Wishlist: React.FC = () => {
       </div>
 
       {wishlistedProducts.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-          {wishlistedProducts.map(product => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        <motion.div 
+          layout
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6"
+        >
+          <AnimatePresence mode="popLayout">
+            {wishlistedProducts.map((product, idx) => (
+              <motion.div
+                key={product.id}
+                layout
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.25, delay: idx * 0.04 }}
+              >
+                <ProductCard product={product} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
       ) : (
         <div className="flex flex-col items-center justify-center py-12 px-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
           <p className="text-xl font-medium text-slate-900 mb-2">{t('emptyWishlist')}</p>

@@ -93,19 +93,17 @@ export const Checkout: React.FC = () => {
   }, [selectedDistrict, availableDistricts]);
 
   // Load & parse currentUser information
-  useEffect(() => {
-    const savedUserStr = localStorage.getItem('kidskart_user');
-    const userToUse = currentUser || (savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch { return null; } })() : null);
+  const savedUserStr = localStorage.getItem('kidskart_user');
+  const userToUse = currentUser || (savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch { return null; } })() : null);
 
+  useEffect(() => {
     if (userToUse) {
-      if (userToUse.name && !fullName) setFullName(userToUse.name);
+      if (userToUse.name) setFullName(userToUse.name);
       if (userToUse.phone) {
         setMobileNumber(userToUse.phone);
         setVerifiedPhone(userToUse.phone);
-        setIsPhoneVerified(true);
-      } else {
-        setIsPhoneVerified(true);
       }
+      setIsPhoneVerified(true);
 
       if (userToUse.address) {
         const fullAddr = userToUse.address;
@@ -352,6 +350,20 @@ export const Checkout: React.FC = () => {
       activeUser = await registerWithPhone(mobile, name);
     }
 
+    if (activeUser) {
+      const updatedUser = {
+        ...activeUser,
+        name: name,
+        phone: mobile,
+        address: formattedAddress,
+      };
+      try {
+        localStorage.setItem('kidskart_user', JSON.stringify(updatedUser));
+      } catch (e) {
+        console.warn('Failed to update local user address', e);
+      }
+    }
+
     setTimeout(() => {
       addOrder({
         userId: activeUser?.id || 'u-guest',
@@ -443,7 +455,7 @@ export const Checkout: React.FC = () => {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Auto-filled User Info Banner */}
-                {currentUser && (
+                {userToUse && (
                   <div className="sm:col-span-2 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-4 sm:p-5 rounded-2xl shadow-md flex items-center justify-between gap-4 font-arabic">
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="w-11 h-11 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0 shadow-inner">
@@ -453,18 +465,18 @@ export const Checkout: React.FC = () => {
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-black truncate text-white">
                             {language === 'ku'
-                              ? `تۆمارکراویت وەکو: ${currentUser.name}`
+                              ? `تۆمارکراویت وەکو: ${userToUse.name}`
                               : language === 'ar'
-                              ? `مسجل باسم: ${currentUser.name}`
-                              : `Logged in as: ${currentUser.name}`}
+                              ? `مسجل باسم: ${userToUse.name}`
+                              : `Logged in as: ${userToUse.name}`}
                           </p>
                           <span className="text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full shrink-0">
-                            {language === 'ku' ? 'زانیارییەکانت پڕکرانەوە ✓' : language === 'ar' ? 'تمت التعبئة تلقائياً ✓' : 'Auto-filled ✓'}
+                            {language === 'ku' ? 'زانیارییەکانت بە خۆکارانە پڕکرانەوە ✓' : language === 'ar' ? 'تمت التعبئة تلقائياً ✓' : 'Auto-filled ✓'}
                           </span>
                         </div>
                         <p className="text-xs text-slate-300 truncate mt-1">
-                          {currentUser.phone && <span className="mr-3 dir-ltr font-mono font-bold text-slate-200">{currentUser.phone}</span>}
-                          {currentUser.email && !currentUser.email.includes('@phone.user') && <span className="text-slate-400">{currentUser.email}</span>}
+                          {userToUse.phone && <span className="mr-3 dir-ltr font-mono font-bold text-slate-200">{userToUse.phone}</span>}
+                          {userToUse.email && !userToUse.email.includes('@phone.user') && <span className="text-slate-400">{userToUse.email}</span>}
                         </p>
                       </div>
                     </div>

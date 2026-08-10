@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Language } from '../i18n/translations';
 import { KurdistanFlag, IraqFlag, UsaFlag } from './Flags';
@@ -47,8 +48,22 @@ export const InitialLanguageModal: React.FC = () => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-fadeIn">
-      <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-6 relative overflow-hidden">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md"
+        >
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-6 relative overflow-hidden"
+          >
         {/* Top Decorative Background Glow */}
         <div className="absolute -top-16 -left-16 w-32 h-32 bg-pink-200/50 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute -top-16 -right-16 w-32 h-32 bg-sky-200/50 rounded-full blur-2xl pointer-events-none" />
@@ -108,7 +123,9 @@ export const InitialLanguageModal: React.FC = () => {
         <p className="text-[11px] font-bold text-slate-400 font-arabic">
           دەتوانیت دواتریش لە ڕێکخستنەکان زمان بگۆڕیت
         </p>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
   );
 };

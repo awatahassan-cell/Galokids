@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Trash2, Eye, ChevronDown, ChevronUp, Package, Phone, 
-  MapPin, User, Calendar, Tag, ShoppingBag, X, MessageCircle,
-  Search, Filter, Clock, CheckCircle2, Truck, AlertCircle
+  MapPin, User, Calendar, Tag, ShoppingBag, X, Search, Filter, 
+  Store, RefreshCw, DollarSign, CreditCard, Clock
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
-import { Order, PaginationMeta, CartItem } from '../../types';
+import { Order, CartItem } from '../../types';
 import { useConfirm, useToast } from '../ui/Feedback';
 import { formatIQDLabel } from '../../utils/currency';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../../utils/colors';
@@ -23,28 +23,15 @@ export const isPosOrder = (order: any): boolean => {
   return false;
 };
 
-export interface AdminOrdersTabProps {
+export interface AdminPosSalesTabProps {
   orders: Order[];
-  orderCounts: {
-    total: number;
-    pending: number;
-    processing: number;
-    shipped: number;
-    delivered: number;
-    cancelled: number;
-    newAndPending: number;
-  };
-  updateOrderStatus: (orderId: string, status: Order['status']) => void;
   deleteOrder: (orderId: string) => void;
-  ordersPagination: PaginationMeta;
-  refreshOrders: (page?: number, limit?: number) => void;
   confirmDialog?: (options: any) => Promise<boolean>;
   toast?: (msg: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
-export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
+export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
   orders,
-  updateOrderStatus,
   deleteOrder,
   confirmDialog: propConfirmDialog,
   toast: propToast,
@@ -59,21 +46,20 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedOrderForModal, setSelectedOrderForModal] = useState<Order | null>(null);
 
-  // Filter state
+  // Filters state
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'>('all');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'this_month' | 'custom'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'custom'>('all');
   const [customDate, setCustomDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Filter ONLY website orders
-  const websiteOrders = useMemo(() => {
-    return orders.filter(o => !isPosOrder(o));
+  // Extract POS sales
+  const posSales = useMemo(() => {
+    return orders.filter(isPosOrder);
   }, [orders]);
 
-  // Apply Search, Status, and Date filters
-  const filteredOrders = useMemo(() => {
+  // Filtered POS sales
+  const filteredSales = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -81,13 +67,8 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
     const searchLower = searchTerm.trim().toLowerCase();
 
-    return websiteOrders.filter(order => {
-      // Status Filter
-      if (statusFilter !== 'all' && order.status !== statusFilter) {
-        return false;
-      }
-
-      // Date Filter
+    return posSales.filter(order => {
+      // Date filtering
       if (dateFilter === 'today') {
         if (!order.date || !order.date.startsWith(todayStr)) return false;
       } else if (dateFilter === 'yesterday') {
@@ -99,7 +80,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         if (!order.date || !order.date.startsWith(customDate)) return false;
       }
 
-      // Search term
+      // Search term filtering
       if (searchLower) {
         const idMatch = String(order.id || '').toLowerCase().includes(searchLower);
         const customerMatch = String(order.customerName || '').toLowerCase().includes(searchLower);
@@ -122,30 +103,39 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
       return true;
     }).sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
-  }, [websiteOrders, searchTerm, statusFilter, dateFilter, customDate]);
+  }, [posSales, searchTerm, dateFilter, customDate]);
 
-  // Reset page when filters change
+  // Reset pagination on filter change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, dateFilter, customDate]);
+  }, [searchTerm, dateFilter, customDate]);
 
-  // Website-specific status counts
-  const counts = useMemo(() => {
-    const total = websiteOrders.length;
-    const pending = websiteOrders.filter(o => o.status === 'pending' || !o.status).length;
-    const processing = websiteOrders.filter(o => o.status === 'processing').length;
-    const shipped = websiteOrders.filter(o => o.status === 'shipped').length;
-    const delivered = websiteOrders.filter(o => o.status === 'delivered').length;
-    const cancelled = websiteOrders.filter(o => o.status === 'cancelled').length;
-    return { total, pending, processing, shipped, delivered, cancelled, newAndPending: pending + processing };
-  }, [websiteOrders]);
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const totalAmount = filteredSales.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+    const totalCount = filteredSales.length;
+    const avgTicket = totalCount > 0 ? totalAmount / totalCount : 0;
+    
+    // Today's POS sales
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todaySales = posSales.filter(o => o.date && o.date.startsWith(todayStr));
+    const todayAmount = todaySales.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+
+    return {
+      totalAmount,
+      totalCount,
+      avgTicket,
+      todayAmount,
+      todayCount: todaySales.length
+    };
+  }, [filteredSales, posSales]);
 
   // Pagination calculation
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage) || 1;
-  const paginatedOrders = useMemo(() => {
+  const totalPages = Math.ceil(filteredSales.length / itemsPerPage) || 1;
+  const paginatedSales = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return filteredOrders.slice(start, start + itemsPerPage);
-  }, [filteredOrders, currentPage, itemsPerPage]);
+    return filteredSales.slice(start, start + itemsPerPage);
+  }, [filteredSales, currentPage, itemsPerPage]);
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(prev => prev === orderId ? null : orderId);
@@ -173,55 +163,35 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
   return (
     <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-4 sm:p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)] font-arabic">
-      {/* Header Section */}
+      {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100/80">
         <div>
           <h2 className="text-xl font-black text-slate-900 flex items-center gap-3">
-            <ShoppingBag className="w-6 h-6 text-indigo-600" />
-            <span>{language === 'ku' ? 'داواکارییەکانی وێبسایت' : language === 'ar' ? 'طلبات الموقع الإلكتروني' : 'Website Orders'}</span>
-            <span className="px-3 py-1 text-xs font-black bg-indigo-600 text-white rounded-full shadow-xs">
-              {counts.total} {language === 'ku' ? 'داواکاری' : 'Orders'}
+            <Store className="w-6 h-6 text-emerald-600" />
+            <span>{language === 'ku' ? 'فرۆشتنەکانی کاشێر (POS)' : language === 'ar' ? 'مبيعات الكاشير (POS)' : 'POS Sales History'}</span>
+            <span className="px-3 py-1 text-xs font-black bg-emerald-600 text-white rounded-full shadow-xs">
+              {stats.totalCount} {language === 'ku' ? 'داواکاری' : 'Sales'}
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-1 font-medium">
             {language === 'ku'
-              ? 'بینین، گەڕان و نوێکردنەوەی داواکارییە ئۆنلاینەکانی کڕیارانی وێبسایت بە زانیاری ئایتمەکان'
-              : 'Filter, search and update online website customer orders'}
+              ? 'لیستی بەڕێوەبردن و بەدواداچوونی فرۆشتنەکانی ناو فرۆشگا (پۆس) بە وردکاری ڕەنگ و سایز'
+              : 'View and manage all in-store POS transactions with detailed item specs'}
           </p>
         </div>
 
-        {/* Status Counter Badges */}
+        {/* Stats Badges */}
         <div className="flex items-center gap-2 flex-wrap">
-          <button 
-            onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
-              statusFilter === 'pending' ? 'bg-amber-500 text-white border-amber-600 shadow-md' : 'bg-amber-500/10 border-amber-200 text-amber-900 hover:bg-amber-500/20'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-            <span>{language === 'ku' ? 'چاوەڕوان' : 'Pending'}:</span>
-            <span className="px-2 py-0.5 bg-amber-600 text-white rounded-lg text-xs font-black">{counts.pending}</span>
-          </button>
-
-          <button 
-            onClick={() => setStatusFilter(statusFilter === 'shipped' ? 'all' : 'shipped')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
-              statusFilter === 'shipped' ? 'bg-blue-600 text-white border-blue-700 shadow-md' : 'bg-blue-500/10 border-blue-200 text-blue-900 hover:bg-blue-500/20'
-            }`}
-          >
-            <span>{language === 'ku' ? 'نێردراوە' : 'Shipped'}:</span>
-            <span className="px-2 py-0.5 bg-blue-700 text-white rounded-lg text-xs font-bold">{counts.shipped}</span>
-          </button>
-
-          <button 
-            onClick={() => setStatusFilter(statusFilter === 'delivered' ? 'all' : 'delivered')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
-              statusFilter === 'delivered' ? 'bg-emerald-600 text-white border-emerald-700 shadow-md' : 'bg-emerald-500/10 border-emerald-200 text-emerald-900 hover:bg-emerald-500/20'
-            }`}
-          >
-            <span>{language === 'ku' ? 'گەیەنراوە' : 'Delivered'}:</span>
-            <span className="px-2 py-0.5 bg-emerald-700 text-white rounded-lg text-xs font-bold">{counts.delivered}</span>
-          </button>
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-emerald-500/10 border border-emerald-200 text-emerald-900 text-xs font-bold shadow-2xs">
+            <DollarSign className="w-4 h-4 text-emerald-600" />
+            <span>{language === 'ku' ? 'کۆی فرۆشتن:' : 'Total Sales:'}</span>
+            <span className="font-black text-emerald-700 text-sm">{formatIQDLabel(stats.totalAmount)}</span>
+          </div>
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-indigo-500/10 border border-indigo-200 text-indigo-900 text-xs font-bold shadow-2xs">
+            <Clock className="w-4 h-4 text-indigo-600" />
+            <span>{language === 'ku' ? 'فرۆشتنی ئەمڕۆ:' : 'Today Sales:'}</span>
+            <span className="font-black text-indigo-700">{formatIQDLabel(stats.todayAmount)} ({stats.todayCount})</span>
+          </div>
         </div>
       </div>
 
@@ -234,8 +204,8 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={language === 'ku' ? 'گەڕان بەپێی ئایدی، ناو، ژمارە مۆبایل یان شوێن...' : 'Search by ID, Customer name, Phone, Address...'}
-            className="w-full pl-9 rtl:pl-3 rtl:pr-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder={language === 'ku' ? 'گەڕان بەپێی ئایدی، ناو، ژمارە مۆبایل یان بەرهەم...' : 'Search by ID, Customer name, Phone or Product...'}
+            className="w-full pl-9 rtl:pl-3 rtl:pr-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
           {searchTerm && (
             <button
@@ -247,28 +217,12 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
           )}
         </div>
 
-        {/* Status Filter */}
-        <div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-          >
-            <option value="all">{language === 'ku' ? 'هەموو باری داواکارییەکان' : 'All Statuses'}</option>
-            <option value="pending">{L("Pending")}</option>
-            <option value="processing">{L("Processing")}</option>
-            <option value="shipped">{L("Shipped")}</option>
-            <option value="delivered">{L("Delivered")}</option>
-            <option value="cancelled">{L("Cancelled")}</option>
-          </select>
-        </div>
-
         {/* Date Filter */}
         <div>
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value as any)}
-            className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
           >
             <option value="all">{language === 'ku' ? 'هەموو بەروارەکان' : 'All Dates'}</option>
             <option value="today">{language === 'ku' ? 'ئەمڕۆ' : 'Today'}</option>
@@ -278,20 +232,26 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
           </select>
         </div>
 
-        {/* Custom Date Picker */}
-        {dateFilter === 'custom' && (
-          <div className="sm:col-span-2 md:col-span-1">
+        {/* Custom Date Input if selected */}
+        {dateFilter === 'custom' ? (
+          <div>
             <input
               type="date"
               value={customDate}
               onChange={(e) => setCustomDate(e.target.value)}
-              className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
             />
+          </div>
+        ) : (
+          <div className="flex items-center justify-end">
+            <span className="text-xs text-slate-500 font-bold">
+              {filteredSales.length} {language === 'ku' ? 'ئەنجام دۆزرایەوە' : 'results found'}
+            </span>
           </div>
         )}
       </div>
 
-      {/* Orders Table */}
+      {/* POS Sales Table */}
       <div className="overflow-x-auto rounded-2xl border border-slate-100">
         <table className="min-w-full divide-y divide-slate-100">
           <thead className="bg-slate-50/70">
@@ -303,19 +263,18 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               </th>
               <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{L("Date")}</th>
               <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{L("Amount")}</th>
-              <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{L("Status")}</th>
               <th className="px-4 py-3 text-center text-xs font-black text-slate-500 uppercase tracking-wider">{L("Action")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs font-medium bg-white">
-            {paginatedOrders.length === 0 ? (
+            {paginatedSales.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-slate-400 font-medium">
-                  {language === 'ku' ? 'هیچ داواکارییەکی وێبسایت بەم فلتەرانە نەدۆزرایەوە' : 'No website orders found with current filters'}
+                <td colSpan={6} className="text-center py-10 text-slate-400 font-medium">
+                  {language === 'ku' ? 'هیچ فرۆشتنێکی پۆس بەم فلتەرانە نەدۆزرایەوە' : 'No POS sales found with current filters'}
                 </td>
               </tr>
             ) : (
-              paginatedOrders.map((order, index) => {
+              paginatedSales.map((order, index) => {
                 const items = safeGetItems(order);
                 const isExpanded = expandedOrderId === order.id;
 
@@ -323,7 +282,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                   <React.Fragment key={order.id || index}>
                     <tr 
                       onClick={() => toggleExpand(order.id)}
-                      className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${isExpanded ? 'bg-indigo-50/30' : ''}`}
+                      className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${isExpanded ? 'bg-emerald-50/30' : ''}`}
                     >
                       {/* Order ID */}
                       <td className="px-4 py-4 whitespace-nowrap">
@@ -334,7 +293,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                               e.stopPropagation();
                               toggleExpand(order.id);
                             }}
-                            className="p-1 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-slate-100 transition-colors"
+                            className="p-1 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-slate-100 transition-colors"
                           >
                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                           </button>
@@ -345,7 +304,9 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                       {/* Customer */}
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div>
-                          <p className="font-bold text-slate-900">{order.customerName || (language === 'ku' ? 'میوان' : 'Guest')}</p>
+                          <p className="font-bold text-slate-900">
+                            {order.customerName || (language === 'ku' ? 'کڕیاری ناو فرۆشگا' : 'In-Store Customer')}
+                          </p>
                           {order.customerPhone && (
                             <p className="text-[11px] text-slate-500 font-medium dir-ltr text-right rtl:text-right">{order.customerPhone}</p>
                           )}
@@ -375,7 +336,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                                 />
                               )}
                               {item.variation?.size && (
-                                <span className="text-indigo-600 font-black">{item.variation.size}</span>
+                                <span className="text-emerald-700 font-black">{item.variation.size}</span>
                               )}
                               <span className="text-slate-400">×{item.quantity || 1}</span>
                             </div>
@@ -401,62 +362,39 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                         </span>
                       </td>
 
-                      {/* Status */}
-                      <td className="px-4 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <span className={`px-3 py-1 inline-flex text-[11px] font-black rounded-full 
-                          ${order.status === 'delivered' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 
-                            order.status === 'processing' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 
-                            order.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 
-                            'bg-blue-50 text-blue-700 border border-blue-100'}`}>
-                          {order.status}
-                        </span>
-                      </td>
-
-                      {/* Action */}
+                      {/* Actions */}
                       <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-2">
-                          <select
-                            value={order.status}
-                            onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
-                            className="bg-slate-100/90 border border-slate-200 rounded-xl text-xs py-1.5 px-2.5 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                          >
-                            <option value="pending">{L("Pending")}</option>
-                            <option value="processing">{L("Processing")}</option>
-                            <option value="shipped">{L("Shipped")}</option>
-                            <option value="delivered">{L("Delivered")}</option>
-                            <option value="cancelled">{L("Cancelled")}</option>
-                          </select>
-
+                          {/* View Modal */}
                           <button
                             type="button"
                             onClick={() => setSelectedOrderForModal(order)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
-                            title={language === 'ku' ? 'بینی زانیاری تەواو' : 'View Full Details'}
+                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                            title={language === 'ku' ? 'بینی زانیاری ئایتمەکان' : 'View Item Details'}
                           >
                             <Eye className="w-4 h-4" />
                           </button>
 
+                          {/* Void/Delete POS Sale */}
                           {order.id && (
                             <button
                               type="button"
                               onClick={async () => {
                                 if (await confirmDialog({
-                                  title: L('Delete order?'),
+                                  title: language === 'ku' ? 'سڕینەوەی فرۆشتنی POS؟' : 'Delete POS Sale?',
                                   message: language === 'ku'
-                                    ? `داواکاری #${order.id} دەسڕدرێتەوە و ستۆکەکەی دەگەڕێندرێتەوە بۆ کۆگا.`
-                                    : language === 'ar'
-                                    ? `سيتم حذف الطلب #${order.id} وإعادة مخزونه إلى الكتالوج.`
-                                    : `Order #${order.id} will be deleted and its stock returned to inventory.`,
+                                    ? `فرۆشتنی پۆس #${order.id} دەسڕدرێتەوە و ستۆکی بەرهەمەکان دەگەڕێندرێتەوە بۆ کۆگا.`
+                                    : `POS Sale #${order.id} will be deleted and product stock will be restored to catalog.`,
                                   confirmText: L('Delete'),
                                   cancelText: L('Cancel'),
                                   danger: true,
                                 })) {
                                   deleteOrder(order.id);
-                                  toast(L('Order deleted and stock restored ✅'));
+                                  toast(language === 'ku' ? 'فرۆشتنی پۆس سڕدرایەوە و ستۆک گەڕێنرایەوە ✅' : 'POS sale deleted & stock restored ✅');
                                 }
                               }}
                               className="text-slate-400 hover:text-rose-600 transition-colors p-2 rounded-xl hover:bg-rose-50 cursor-pointer"
-                              title={L("Delete Order")}
+                              title={language === 'ku' ? 'سڕینەوەی فرۆشتنی پۆس' : 'Delete POS Sale'}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -467,113 +405,77 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
                     {/* Accordion Expand Details */}
                     {isExpanded && (
-                      <tr className="bg-slate-50/90 border-b-2 border-indigo-100">
-                        <td colSpan={7} className="p-4 sm:p-6">
+                      <tr className="bg-slate-50/90 border-b-2 border-emerald-100">
+                        <td colSpan={6} className="p-4 sm:p-6">
                           <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-4">
-                            {/* Top Info Bar */}
-                            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 text-xs">
-                              <div className="flex items-center gap-4 flex-wrap text-slate-600">
-                                <span className="flex items-center gap-1.5 font-bold text-slate-800">
-                                  <User className="w-4 h-4 text-indigo-500" />
-                                  {order.customerName}
-                                </span>
-                                {order.customerPhone && (
-                                  <a 
-                                    href={`tel:${order.customerPhone}`}
-                                    className="flex items-center gap-1.5 font-bold text-slate-700 hover:text-indigo-600 dir-ltr"
-                                  >
-                                    <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                                    {order.customerPhone}
-                                  </a>
-                                )}
-                                {order.shippingAddress && (
-                                  <span className="flex items-center gap-1.5 font-medium text-slate-600">
-                                    <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                                    {order.shippingAddress}
-                                  </span>
-                                )}
-                              </div>
-                              <span className="text-slate-400 text-xs flex items-center gap-1">
-                                <Calendar className="w-3.5 h-3.5" /> {order.date}
+                            {/* Items List */}
+                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                              <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                              <span>{language === 'ku' ? 'ئایتمەکانی ئەم فرۆشتنەی پۆس' : 'POS Sale Items'}</span>
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-black">
+                                {items.length} {language === 'ku' ? 'ئایتم' : 'items'}
                               </span>
-                            </div>
+                            </h4>
 
-                            {/* Items Grid */}
-                            <div>
-                              <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                <ShoppingBag className="w-4 h-4 text-indigo-600" />
-                                <span>{language === 'ku' ? 'ئایتمەکانی ناو داواکاری' : 'Order Items'}</span>
-                                <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-black">
-                                  {items.length} {language === 'ku' ? 'ئایتم' : 'items'}
-                                </span>
-                              </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {items.map((item, itemIdx) => {
+                                const itemPrice = Number(item.product?.discountPrice || item.product?.price || 0);
+                                const itemTotal = itemPrice * (item.quantity || 1);
 
-                              {items.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic py-2">
-                                  {language === 'ku' ? 'هیچ زانیارییەکی ئایتم لەم داواکارییەدا بەردەست نییە' : 'No items found'}
-                                </p>
-                              ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  {items.map((item, itemIdx) => {
-                                    const itemPrice = Number(item.product?.discountPrice || item.product?.price || 0);
-                                    const itemTotal = itemPrice * (item.quantity || 1);
+                                return (
+                                  <div 
+                                    key={itemIdx} 
+                                    className="flex items-center gap-3 bg-slate-50/80 p-3 rounded-xl border border-slate-200/60 hover:border-slate-300 transition-all"
+                                  >
+                                    <div className="w-14 h-14 rounded-xl bg-white border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
+                                      {item.product?.imageUrl ? (
+                                        <img 
+                                          src={item.product.imageUrl} 
+                                          alt={getProductName(item.product)} 
+                                          className="w-full h-full object-cover" 
+                                        />
+                                      ) : (
+                                        <Package className="w-6 h-6 text-slate-300" />
+                                      )}
+                                    </div>
 
-                                    return (
-                                      <div 
-                                        key={itemIdx} 
-                                        className="flex items-center gap-3 bg-slate-50/80 p-3 rounded-xl border border-slate-200/60 hover:border-slate-300 transition-all"
-                                      >
-                                        <div className="w-14 h-14 rounded-xl bg-white border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
-                                          {item.product?.imageUrl ? (
-                                            <img 
-                                              src={item.product.imageUrl} 
-                                              alt={getProductName(item.product)} 
-                                              className="w-full h-full object-cover" 
+                                    <div className="grow min-w-0">
+                                      <h5 className="font-bold text-slate-900 text-xs line-clamp-1">
+                                        {getProductName(item.product)}
+                                      </h5>
+
+                                      <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                                        {item.variation?.color && (
+                                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 text-[11px] font-bold shadow-2xs">
+                                            <span 
+                                              className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0" 
+                                              style={{ backgroundColor: getColorHex(item.variation.color) }} 
                                             />
-                                          ) : (
-                                            <Package className="w-6 h-6 text-slate-300" />
-                                          )}
-                                        </div>
+                                            <span>{getLocalizedColorName(item.variation.color, language)}</span>
+                                          </span>
+                                        )}
 
-                                        <div className="grow min-w-0">
-                                          <h5 className="font-bold text-slate-900 text-xs line-clamp-1">
-                                            {getProductName(item.product)}
-                                          </h5>
+                                        {item.variation?.size && (
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-100 text-emerald-800 text-[11px] font-black">
+                                            <Tag className="w-3 h-3" />
+                                            <span>{getLocalizedSizeName(item.variation.size, language)}</span>
+                                          </span>
+                                        )}
 
-                                          <div className="flex items-center gap-2 flex-wrap mt-1.5">
-                                            {item.variation?.color && (
-                                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 text-[11px] font-bold shadow-2xs">
-                                                <span 
-                                                  className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0" 
-                                                  style={{ backgroundColor: getColorHex(item.variation.color) }} 
-                                                />
-                                                <span>{getLocalizedColorName(item.variation.color, language)}</span>
-                                              </span>
-                                            )}
-
-                                            {item.variation?.size && (
-                                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-indigo-700 text-[11px] font-black">
-                                                <Tag className="w-3 h-3" />
-                                                <span>{getLocalizedSizeName(item.variation.size, language)}</span>
-                                              </span>
-                                            )}
-
-                                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-100 text-emerald-800 text-[11px] font-black">
-                                              {language === 'ku' ? `بڕ: ${item.quantity || 1}` : `Qty: ${item.quantity || 1}`}
-                                            </span>
-                                          </div>
-                                        </div>
-
-                                        <div className="text-right rtl:text-left shrink-0">
-                                          <p className="font-extrabold text-slate-900 text-xs">
-                                            {formatIQDLabel(itemTotal)}
-                                          </p>
-                                        </div>
+                                        <span className="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-indigo-800 text-[11px] font-black">
+                                          {language === 'ku' ? `بڕ: ${item.quantity || 1}` : `Qty: ${item.quantity || 1}`}
+                                        </span>
                                       </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
+                                    </div>
+
+                                    <div className="text-right rtl:text-left shrink-0">
+                                      <p className="font-extrabold text-slate-900 text-xs">
+                                        {formatIQDLabel(itemTotal)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         </td>
@@ -587,7 +489,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         </table>
       </div>
 
-      {/* Pagination */}
+      {/* Custom Pagination for POS Sales */}
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 flex-wrap gap-3">
           <span className="text-xs font-bold text-slate-500">
@@ -607,7 +509,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                 onClick={() => setCurrentPage(page)}
                 className={`w-8 h-8 rounded-xl text-xs font-black cursor-pointer transition-all ${
                   currentPage === page
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-emerald-600 text-white shadow-xs'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                 }`}
               >
@@ -625,7 +527,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         </div>
       )}
 
-      {/* Modal */}
+      {/* POS Item Details Modal */}
       {selectedOrderForModal && (
         <div 
           onClick={() => setSelectedOrderForModal(null)}
@@ -637,12 +539,12 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
           >
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                  <ShoppingBag className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <Store className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-black text-slate-900 text-lg">
-                    {language === 'ku' ? 'زانیاری داواکاری' : 'Order Details'} #{selectedOrderForModal.id}
+                    {language === 'ku' ? 'وردکاری فرۆشتنی پۆس' : 'POS Sale Details'} #{selectedOrderForModal.id}
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">{selectedOrderForModal.date}</p>
                 </div>
@@ -656,44 +558,10 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               </button>
             </div>
 
-            <div className="my-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-indigo-500" />
-                  {selectedOrderForModal.customerName}
-                </span>
-                {selectedOrderForModal.customerPhone && (
-                  <div className="flex items-center gap-2">
-                    <a 
-                      href={`tel:${selectedOrderForModal.customerPhone}`}
-                      className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 hover:bg-emerald-100 transition-colors flex items-center gap-1"
-                    >
-                      <Phone className="w-3.5 h-3.5" />
-                      {selectedOrderForModal.customerPhone}
-                    </a>
-                    <a 
-                      href={`https://wa.me/${selectedOrderForModal.customerPhone.replace(/[^0-9]/g, '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2.5 py-1 rounded-xl bg-green-500 text-white font-bold hover:bg-green-600 transition-colors flex items-center gap-1"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                      WhatsApp
-                    </a>
-                  </div>
-                )}
-              </div>
-              {selectedOrderForModal.shippingAddress && (
-                <p className="text-slate-600 flex items-center gap-1.5 font-medium pt-1">
-                  <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                  {selectedOrderForModal.shippingAddress}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+            {/* Item List */}
+            <div className="my-4 space-y-3 max-h-[50vh] overflow-y-auto pr-1">
               <h4 className="font-black text-xs text-slate-700 uppercase tracking-wider">
-                {language === 'ku' ? 'ئایتمەکانی ناو داواکاری' : 'Order Items'}
+                {language === 'ku' ? 'ئایتمەکانی ناو فاکتەر' : 'Items in Receipt'}
               </h4>
 
               {safeGetItems(selectedOrderForModal).map((item, idx) => {
@@ -732,13 +600,13 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                         )}
 
                         {item.variation?.size && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-black border border-indigo-100">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-black border border-emerald-100">
                             <Tag className="w-3.5 h-3.5" />
                             <span>{getLocalizedSizeName(item.variation.size, language)}</span>
                           </span>
                         )}
 
-                        <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-black border border-emerald-100">
+                        <span className="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 text-xs font-black border border-indigo-100">
                           {language === 'ku' ? `بڕ: ${item.quantity || 1}` : `Qty: ${item.quantity || 1}`}
                         </span>
                       </div>
@@ -752,9 +620,10 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               })}
             </div>
 
+            {/* Total Footer */}
             <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between font-black text-slate-900">
-              <span className="text-sm">{language === 'ku' ? 'کۆی گشتی داواکاری:' : 'Total Amount:'}</span>
-              <span className="text-xl text-indigo-600">{formatIQDLabel(Number(selectedOrderForModal.totalAmount || 0))}</span>
+              <span className="text-sm">{language === 'ku' ? 'کۆی گشتی فاکتەر:' : 'Receipt Total:'}</span>
+              <span className="text-xl text-emerald-600">{formatIQDLabel(Number(selectedOrderForModal.totalAmount || 0))}</span>
             </div>
           </div>
         </div>

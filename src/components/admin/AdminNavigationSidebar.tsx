@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { 
   BarChart3, Calendar, TrendingUp, Package, Tags, ShoppingBag, 
   Users, DollarSign, Star, Ticket, Image as ImageIcon, Settings, 
-  Languages, FileText, X, ChevronLeft, ChevronRight
+  Languages, FileText, X, ChevronLeft, ChevronRight, Store, Boxes
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
@@ -83,6 +83,7 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
         title: language === 'ku' ? 'کاتالۆگ' : language === 'ar' ? 'کتالوج' : 'CATALOG',
         items: [
           { id: 'products', label: t('products') || 'Products', icon: Package, adminOnly: false },
+          { id: 'inventory', label: language === 'ku' ? 'جەردی کۆگا' : language === 'ar' ? 'جرد المستودع' : 'Inventory Audit', icon: Boxes, adminOnly: false },
           { id: 'categories', label: t('allCategories') || 'Categories', icon: Tags, adminOnly: false },
           { id: 'labels', label: L("Print Labels"), icon: FileText, adminOnly: true },
           { id: 'barcode-stickers', label: L("Barcode Stickers"), icon: Tags, adminOnly: true },
@@ -91,7 +92,8 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
       {
         title: language === 'ku' ? 'فرۆشتن' : language === 'ar' ? 'مبيعات' : 'SALES',
         items: [
-          { id: 'orders', label: t('manageOrders') || 'Manage Orders', icon: ShoppingBag, adminOnly: false, badge: newAndPendingOrdersCount },
+          { id: 'orders', label: language === 'ku' ? 'داواکارییەکانی وێبسایت' : language === 'ar' ? 'طلبات الموقع' : 'Website Orders', icon: ShoppingBag, adminOnly: false, badge: newAndPendingOrdersCount },
+          { id: 'pos-sales', label: language === 'ku' ? 'فرۆشتنەکانی POS' : language === 'ar' ? 'مبيعات POS' : 'POS Sales', icon: Store, adminOnly: false },
           { id: 'expenses', label: t('manageExpenses') || 'Expenses', icon: DollarSign, adminOnly: false },
           { id: 'coupons', label: L("Coupons"), icon: Ticket, adminOnly: false },
           { id: 'banner', label: L("Banner"), icon: ImageIcon, adminOnly: false },

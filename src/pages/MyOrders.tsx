@@ -14,8 +14,18 @@ export const MyOrders: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
+  const userPhoneDigits = currentUser.phone ? currentUser.phone.replace(/[^\d]/g, '') : '';
   const userOrders = orders
-    .filter(order => String(order.userId) === String(currentUser.id))
+    .filter(order => {
+      if (String(order.userId) === String(currentUser.id)) return true;
+      if (userPhoneDigits && order.customerPhone) {
+        const orderPhoneDigits = order.customerPhone.replace(/[^\d]/g, '');
+        if (orderPhoneDigits && (orderPhoneDigits === userPhoneDigits || (userPhoneDigits.length >= 8 && orderPhoneDigits.includes(userPhoneDigits.slice(-8))))) {
+          return true;
+        }
+      }
+      return false;
+    })
     .sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
 
   const getStatusIcon = (status: string) => {

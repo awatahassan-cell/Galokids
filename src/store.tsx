@@ -249,7 +249,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
     return [];
   });
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('kidskart_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
   
   
   const [promoBanner, setPromoBanner] = useState<PromoBanner>(() => {
@@ -833,8 +843,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return response;
   };
 
-  const refreshProducts = useCallback((page = 1, limit = 10, filters: any = {}, append = false, bypassCache = false) => {
-    setIsProductsLoading(true);
+  const refreshProducts = useCallback((page = 1, limit = 10, filters: any = {}, append = false, bypassCache = false): Promise<void> => {
+    if (!append) {
+      setIsProductsLoading(true);
+    }
     let url = `${LARAVEL_API_BASE}/products?page=${page}&limit=${limit}`;
     
     if (filters.search) url += `&search=${encodeURIComponent(filters.search)}`;
@@ -910,7 +922,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const cached = productsResponseCache.get(url);
       if (cached && (Date.now() - cached.timestamp) < 60000) {
         processData(cached.data);
-        return;
+        return Promise.resolve();
       }
     }
 
@@ -938,7 +950,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       inflightProductsRequests.set(url, reqPromise);
     }
 
-    reqPromise.then(data => {
+    return reqPromise.then(data => {
       processData(data);
     });
   }, [getAuthHeaders]);
@@ -1617,13 +1629,18 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     } catch (err) {
       console.warn('Login note:', err);
       // Fallback local logic
-      const user = users.find(u => u.email === loginInput || u.phone === loginInput);
+      const normInput = loginInput.replace(/[^\d]/g, '');
+      const user = users.find(u => 
+        (u.email && u.email.toLowerCase() === loginInput.toLowerCase()) || 
+        u.phone === loginInput || 
+        (normInput && normInput.length >= 7 && u.phone && u.phone.replace(/[^\d]/g, '').includes(normInput.slice(-8)))
+      );
       if (user) {
         setCurrentUser(user);
         localStorage.setItem('kidskart_user', JSON.stringify(user));
         return true;
       } else {
-        toast('User not found', 'error');
+        toast('بەکارهێنەر نەدۆزرایەوە', 'error');
         return false;
       }
     }
@@ -1699,6 +1716,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const cleanPhone = phone.trim();
     if (!cleanPhone) return null;
 
+    const phoneDigits = cleanPhone.replace(/[^\d]/g, '');
+
     try {
       const res = await fetch(`${LARAVEL_API_BASE}/login-with-phone`, {
         method: 'POST',
@@ -1719,8 +1738,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           localStorage.setItem('kidskart_user', JSON.stringify(camelData.user));
           setCurrentUser(camelData.user);
           setUsers(prev => {
-            const exists = prev.some(u => u.id === camelData.user.id);
-            return exists ? prev.map(u => u.id === camelData.user.id ? camelData.user : u) : [...prev, camelData.user];
+            const exists = prev.some(u => u.id === camelData.user.id || (u.phone && u.phone.replace(/[^\d]/g, '') === phoneDigits));
+            const updated = exists 
+              ? prev.map(u => (u.id === camelData.user.id || (u.phone && u.phone.replace(/[^\d]/g, '') === phoneDigits)) ? camelData.user : u)
+              : [...prev, camelData.user];
+            localStorage.setItem('kidskart_users_local', JSON.stringify(updated));
+            return updated;
           });
           return camelData.user;
         }
@@ -1730,24 +1753,42 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
 
     // Check local existing user
-    const existing = users.find(u => u.phone === cleanPhone || (u.phone && u.phone.replace(/[^\d]/g, '') === cleanPhone.replace(/[^\d]/g, '')));
+    const existing = users.find(u => {
+      if (!u.phone) return false;
+      const uDigits = u.phone.replace(/[^\d]/g, '');
+      return u.phone === cleanPhone || uDigits === phoneDigits || (phoneDigits.length >= 8 && uDigits.includes(phoneDigits.slice(-8)));
+    });
+
     if (existing) {
-      const updatedUser = { ...existing, name: name?.trim() || existing.name || `کڕیار (${cleanPhone.slice(-4)})` };
+      const updatedUser: User = { 
+        ...existing, 
+        name: name?.trim() || existing.name || `کڕیار (${phoneDigits.slice(-4) || '1234'})` 
+      };
       setCurrentUser(updatedUser);
       localStorage.setItem('kidskart_user', JSON.stringify(updatedUser));
+      setUsers(prev => {
+        const updated = prev.map(u => u.id === existing.id ? updatedUser : u);
+        localStorage.setItem('kidskart_users_local', JSON.stringify(updated));
+        return updated;
+      });
       return updatedUser;
     }
 
     const newUser: User = {
       id: `u-${Date.now()}`,
-      name: name?.trim() || `کڕیار (${cleanPhone.slice(-4)})`,
+      name: name?.trim() || `کڕیار (${phoneDigits.slice(-4) || '1234'})`,
       phone: cleanPhone,
+      email: `${phoneDigits}@phone.user`,
       role: 1,
       joinDate: new Date().toISOString().split('T')[0]
     };
     setCurrentUser(newUser);
     localStorage.setItem('kidskart_user', JSON.stringify(newUser));
-    setUsers(prev => [...prev, newUser]);
+    setUsers(prev => {
+      const updated = [...prev, newUser];
+      localStorage.setItem('kidskart_users_local', JSON.stringify(updated));
+      return updated;
+    });
     return newUser;
   };
 

@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../store';
-import { ArrowLeft, ShoppingBag, Truck, RefreshCcw, Heart, Star, Loader2, Check, X, Trash2, CheckCircle, Share2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ShoppingBag, Truck, RefreshCcw, Heart, Star, Loader2, Check, X, Trash2, CheckCircle, Share2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { whatsappLink, shareOnWhatsApp } from '../utils/whatsapp';
 import { ProductVariation } from '../types';
 import { ProductDetailSkeleton } from '../components/ProductDetailSkeleton';
@@ -13,7 +15,7 @@ import { formatIQDLabel } from '../utils/currency';
 export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { products, categories, addToCart, wishlist, toggleWishlist, addReview, recordRecentlyViewed } = useStore();
+  const { products, categories, cart, addToCart, removeFromCart, updateCartItemQuantity, wishlist, toggleWishlist, addReview, recordRecentlyViewed } = useStore();
   const { t, language, dir } = useLanguage();
   const isRTL = dir === 'rtl' || language === 'ku' || language === 'ar';
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +45,83 @@ export const ProductDetail: React.FC = () => {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const [isPreviewGalleryOpen, setIsPreviewGalleryOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Body scroll lock when preview gallery modal is open
+  useEffect(() => {
+    if (isPreviewGalleryOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isPreviewGalleryOpen]);
+
+  // Mobile swipe gestures for image slider
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const isSwiping = useRef<boolean>(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    isSwiping.current = false;
+    touchEndX.current = null;
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current || allImages.length <= 1) return;
+    const distance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 35;
+
+    if (Math.abs(distance) >= minSwipeDistance) {
+      isSwiping.current = true;
+      const currIdx = allImages.indexOf(activeImage);
+      if (distance > 0) {
+        // Swiped Left -> Next Image
+        const nextIdx = (currIdx + 1) % allImages.length;
+        setActiveImage(allImages[nextIdx]);
+      } else {
+        // Swiped Right -> Previous Image
+        const prevIdx = (currIdx - 1 + allImages.length) % allImages.length;
+        setActiveImage(allImages[prevIdx]);
+      }
+    }
+  };
+
+  const handleShare = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const shareData = {
+      title: getProductName(),
+      text: getProductName(),
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        // Fallback to clipboard if share was cancelled or unsupported
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch (err) {
+      console.error('Failed to copy link', err);
+    }
+  };
 
   // Cart quantities map per variation ID
   const [variationCartQuantities, setVariationCartQuantities] = useState<Record<string, number>>({});
@@ -68,6 +147,13 @@ export const ProductDetail: React.FC = () => {
     if (language === 'ku' && product.nameKu) return product.nameKu;
     if (language === 'ar' && product.nameAr) return product.nameAr;
     return product.name;
+  };
+
+  const getItemProductName = (p?: any) => {
+    if (!p) return '';
+    if (language === 'ku' && p.nameKu) return p.nameKu;
+    if (language === 'ar' && p.nameAr) return p.nameAr;
+    return p.name;
   };
 
   const getProductDescription = () => {
@@ -228,33 +314,169 @@ export const ProductDetail: React.FC = () => {
   };
 
   return (
-    <div className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-10 font-arabic">
+    <motion.div 
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 md:py-10 font-arabic"
+    >
       
-      {/* Breadcrumb Navigation */}
-      <Link to="/products" className="inline-flex items-center text-xs font-black text-slate-500 hover:text-[#FF6584] mb-6 transition-colors">
-        <ArrowLeft className={`w-4 h-4 ${isRTL ? 'ml-1.5 rotate-180' : 'mr-1.5'}`} /> {t('backToProducts')}
-      </Link>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
         
-        {/* Left Column: Pastel Image Frame & Thumbnails (5 Cols) */}
+        {/* Left Column: Image Frame & Thumbnails (5 Cols) */}
         <div className="lg:col-span-5 space-y-4">
           <div 
-            onClick={() => setIsPreviewGalleryOpen(true)}
-            className="aspect-square bg-[#E0F2FE] rounded-3xl overflow-hidden border border-sky-100/60 shadow-xs relative cursor-zoom-in group/mainimg p-4 sm:p-6 flex items-center justify-center"
+            onClick={() => {
+              if (!isSwiping.current) setIsPreviewGalleryOpen(true);
+            }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className="aspect-[4/5] bg-slate-50/80 rounded-3xl overflow-hidden border border-slate-200/80 shadow-md relative cursor-zoom-in group/mainimg flex items-center justify-center max-h-[75vh] sm:max-h-none select-none touch-pan-y"
           >
-            <img 
-              src={activeImage} 
-              alt={getProductName()} 
-              className="w-full h-full object-contain object-center group-hover/mainimg:scale-105 transition-transform duration-500"
-            />
+            {/* Top Left Overlay Actions: Share & Wishlist Buttons */}
+            <div 
+              onClick={(e) => e.stopPropagation()} 
+              className="absolute top-4 left-4 z-20 flex items-center gap-2"
+            >
+              <button
+                type="button"
+                onClick={handleShare}
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-900/60 hover:bg-slate-900 text-white shadow-lg backdrop-blur-md flex items-center justify-center transition-all active:scale-90 cursor-pointer border border-white/20"
+                title={copiedLink ? (language === 'ku' ? 'کۆپیکرا!' : language === 'ar' ? 'تم النسخ!' : 'Copied!') : (language === 'ku' ? 'بڵاوکردنەوە' : language === 'ar' ? 'مشاركة' : 'Share')}
+              >
+                {copiedLink ? (
+                  <Check className="w-5 h-5 text-emerald-400" />
+                ) : (
+                  <Share2 className="w-5 h-5 text-white" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleWishlist(product.id);
+                }}
+                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full shadow-lg backdrop-blur-md flex items-center justify-center transition-all active:scale-90 cursor-pointer border border-white/20 ${
+                  isWishlisted 
+                    ? 'bg-[#FF6584] text-white' 
+                    : 'bg-slate-900/60 hover:bg-slate-900 text-white'
+                }`}
+                title={isWishlisted ? t('removeFromWishlist') || 'Remove' : t('addToWishlist') || 'Add'}
+              >
+                <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-white text-white' : 'text-white'}`} />
+              </button>
+            </div>
+
+            {/* Top Right Overlay Action: Back Button */}
+            <div 
+              onClick={(e) => e.stopPropagation()} 
+              className="absolute top-4 right-4 z-20 flex items-center gap-2"
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigate(-1);
+                }}
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-900/60 hover:bg-slate-900 text-white shadow-lg backdrop-blur-md flex items-center justify-center transition-all active:scale-90 cursor-pointer border border-white/20 group/backbtn"
+                title={t('backToProducts') || (language === 'ku' ? 'گەڕانەوە' : language === 'ar' ? 'الرجوع' : 'Back')}
+              >
+                <ArrowRight className={`w-5 h-5 text-white transition-transform ${isRTL ? '' : 'rotate-180'}`} />
+              </button>
+            </div>
 
             {/* Sale Badge */}
-            <div className="absolute top-4 left-4 z-10">
-              <span className="bg-[#FF6584] text-white text-xs font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-sm">
-                {product.discountPrice ? `SALE -${Math.round(((Number(product.price) - Number(product.discountPrice)) / Number(product.price)) * 100)}%` : 'HOT'}
-              </span>
-            </div>
+            {product.discountPrice && (
+              <div className="absolute top-16 left-4 sm:top-auto sm:bottom-4 z-10 pointer-events-none">
+                <span className="bg-[#FF6584] text-white text-[10px] sm:text-xs font-black px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full uppercase tracking-wider shadow-md font-arabic">
+                  {language === 'ku' 
+                    ? `داشکانی %${Math.round(((Number(product.price) - Number(product.discountPrice)) / Number(product.price)) * 100)}` 
+                    : language === 'ar' 
+                    ? `خصم %${Math.round(((Number(product.price) - Number(product.discountPrice)) / Number(product.price)) * 100)}` 
+                    : `SALE -${Math.round(((Number(product.price) - Number(product.discountPrice)) / Number(product.price)) * 100)}%`}
+                </span>
+              </div>
+            )}
+
+            {/* Left & Right Prev/Next Image Arrows */}
+            {allImages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currIdx = allImages.indexOf(activeImage);
+                    const prevIdx = (currIdx - 1 + allImages.length) % allImages.length;
+                    setActiveImage(allImages[prevIdx]);
+                  }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-900/50 hover:bg-slate-900 text-white shadow-lg backdrop-blur-md flex items-center justify-center transition-all active:scale-90 cursor-pointer border border-white/20"
+                  aria-label="Previous Image"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currIdx = allImages.indexOf(activeImage);
+                    const nextIdx = (currIdx + 1) % allImages.length;
+                    setActiveImage(allImages[nextIdx]);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-900/50 hover:bg-slate-900 text-white shadow-lg backdrop-blur-md flex items-center justify-center transition-all active:scale-90 cursor-pointer border border-white/20"
+                  aria-label="Next Image"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+
+                {/* Bottom Carousel Dots Indicator */}
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/50 backdrop-blur-md border border-white/20"
+                >
+                  {allImages.map((img, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setActiveImage(img)}
+                      className={`h-2 rounded-full transition-all cursor-pointer ${
+                        activeImage === img ? 'w-5 bg-[#FF6584]' : 'w-2 bg-white/70 hover:bg-white'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Link Copied Notification Banner */}
+            <AnimatePresence>
+              {copiedLink && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.9 }}
+                  className="absolute top-16 left-1/2 -translate-x-1/2 z-30 bg-slate-900/90 text-white text-xs font-black px-4 py-2 rounded-full shadow-xl backdrop-blur-md flex items-center gap-2 pointer-events-none whitespace-nowrap border border-white/20"
+                >
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span>{language === 'ku' ? 'لینکی بەرهەمەکە کۆپیکرا!' : language === 'ar' ? 'تم نسخ رابط المنتج!' : 'Product link copied!'}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence mode="wait">
+              <motion.img 
+                key={activeImage}
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.2 }}
+                src={activeImage} 
+                alt={getProductName()} 
+                className="w-full h-full object-cover object-center group-hover/mainimg:scale-105 transition-transform duration-500"
+              />
+            </AnimatePresence>
 
             <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover/mainimg:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
               <span className="bg-white/90 backdrop-blur-md text-slate-800 text-xs font-black px-4 py-2 rounded-full shadow-lg">Click to Enlarge Gallery</span>
@@ -263,12 +485,12 @@ export const ProductDetail: React.FC = () => {
 
           {/* Thumbnails Gallery Strip */}
           {allImages.length > 1 && (
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex gap-2.5 overflow-x-auto pb-1.5 scrollbar-hide">
               {allImages.map((img, idx) => (
                 <button 
                   key={idx}
                   onClick={() => setActiveImage(img)}
-                  className={`w-20 h-20 flex-shrink-0 rounded-2xl overflow-hidden border-2 transition-all p-1 bg-white ${
+                  className={`w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-2xl overflow-hidden border-2 transition-all p-0.5 bg-white ${
                     activeImage === img 
                       ? 'border-[#FF6584] ring-2 ring-[#FF6584]/20 scale-105 shadow-md' 
                       : 'border-slate-200 hover:border-slate-300 opacity-80 hover:opacity-100'
@@ -312,8 +534,12 @@ export const ProductDetail: React.FC = () => {
                 <span className="text-lg sm:text-xl font-bold text-slate-400 line-through">
                   {formatIQDLabel(Number(product.price || 0))}
                 </span>
-                <span className="bg-[#E0F7FA] text-[#00BFA5] border border-[#B2EBF2] font-black text-xs px-2.5 py-1 rounded-md">
-                  Save {Math.round(((Number(product.price) - Number(product.discountPrice)) / Number(product.price)) * 100)}%
+                <span className="bg-[#E0F7FA] text-[#00BFA5] border border-[#B2EBF2] font-black text-xs px-2.5 py-1 rounded-md font-arabic">
+                  {language === 'ku'
+                    ? `داشکانی %${Math.round(((Number(product.price) - Number(product.discountPrice)) / Number(product.price)) * 100)}`
+                    : language === 'ar'
+                    ? `خصم %${Math.round(((Number(product.price) - Number(product.discountPrice)) / Number(product.price)) * 100)}`
+                    : `Save ${Math.round(((Number(product.price) - Number(product.discountPrice)) / Number(product.price)) * 100)}%`}
                 </span>
               </>
             ) : (
@@ -392,63 +618,163 @@ export const ProductDetail: React.FC = () => {
             );
           })()}
 
-          {/* Action Bar: Quantity Counter + Add to Playground Bag + Wishlist Heart */}
-          <div className="flex items-center gap-3 sm:gap-4 mb-4 flex-wrap sm:flex-nowrap">
+          {/* Action Section split into 2 distinct rows */}
+          <div className="w-full my-6 space-y-3.5">
             
-            {/* Quantity Counter */}
-            <div className="bg-slate-100 border border-slate-200 rounded-full px-3.5 py-2 flex items-center gap-4 font-black text-sm text-slate-800">
-              <button 
+            {/* Row 1: Quantity Selector */}
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-2xl px-4 py-2.5">
+              <span className={`text-sm font-bold text-slate-700 ${isRTL ? 'font-arabic' : ''}`}>
+                {language === 'ku' ? 'بڕی داواکراو' : language === 'ar' ? 'الكمية' : 'Quantity'}:
+              </span>
+              <div className="bg-white border border-slate-200/90 rounded-full px-3 py-1 flex items-center gap-3 font-black text-slate-800 shadow-2xs">
+                <button 
+                  type="button"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer active:scale-90 text-lg font-bold"
+                >
+                  -
+                </button>
+                <span className="w-6 text-center font-black text-base">{quantity}</span>
+                <button 
+                  type="button"
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer active:scale-90 text-lg font-bold"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Row 2: Add to Bag + Wishlist Buttons */}
+            <div className="flex items-center gap-3 w-full">
+              {/* Add to Playground Bag Button */}
+              <button
                 type="button"
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-6 h-6 rounded-full hover:bg-white text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+                onClick={handleAddToCart}
+                disabled={isAddingToCart}
+                className="bg-[#FF6584] hover:bg-[#FF4D73] text-white font-black h-13 px-6 rounded-full flex items-center justify-center gap-2.5 shadow-lg shadow-rose-500/20 active:scale-95 text-sm sm:text-base flex-1 cursor-pointer transition-all"
               >
-                -
+                {isAddingToCart ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-white shrink-0" />
+                ) : addedToCart ? (
+                  <>
+                    <Check className="w-5 h-5 text-white shrink-0" />
+                    <span>{t('added') || (language === 'ku' ? 'زیادکرا!' : language === 'ar' ? 'تمت الإضافة!' : 'Added!')}</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-5 h-5 text-white shrink-0" />
+                    <span>{t('addToPlaygroundBag') || (language === 'ku' ? 'زیادکردن بۆ سەبەتە' : language === 'ar' ? 'إضافة إلى السلة' : 'Add to Bag')}</span>
+                  </>
+                )}
               </button>
-              <span className="w-4 text-center font-extrabold">{quantity}</span>
-              <button 
+
+              {/* Wishlist Heart Circle Button */}
+              <button
                 type="button"
-                onClick={() => setQuantity(quantity + 1)}
-                className="w-6 h-6 rounded-full hover:bg-white text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+                onClick={() => toggleWishlist(product.id)}
+                className={`w-13 h-13 rounded-full flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer shrink-0 ${
+                  isWishlisted 
+                    ? 'bg-[#FF6584] text-white shadow-rose-500/30' 
+                    : 'bg-rose-50 hover:bg-[#FF6584] text-[#FF6584] hover:text-white border border-rose-100'
+                }`}
+                title={isWishlisted ? t('removeFromWishlist') || 'Remove' : t('addToWishlist') || 'Add'}
               >
-                +
+                <Heart className={`w-5.5 h-5.5 ${isWishlisted ? 'fill-white' : ''}`} />
               </button>
             </div>
 
-            {/* Add to Playground Bag Button */}
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={isAddingToCart}
-              className="bg-[#FF6584] hover:bg-[#FF4D73] text-white font-black px-8 py-3.5 rounded-full flex items-center justify-center gap-2.5 shadow-lg shadow-rose-500/20 active:scale-95 text-xs sm:text-sm flex-grow cursor-pointer transition-all"
-            >
-              {isAddingToCart ? (
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
-              ) : addedToCart ? (
-                <>
-                  <Check className="w-4 h-4 text-white" />
-                  <span>{t('added') || 'Added to Bag!'}</span>
-                </>
-              ) : (
-                <>
-                  <ShoppingBag className="w-4.5 h-4.5 text-white" />
-                  <span>{t('addToPlaygroundBag') || 'Add to Playground Bag'}</span>
-                </>
-              )}
-            </button>
+            {/* Row 3: Items Added in Cart List (ئایتەمەکانی ناو سەبەتەکە) */}
+            <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 text-rose-500 shrink-0" />
+                  <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 font-arabic">
+                    {language === 'ku' ? 'ئایتەمەکانی ناو سەبەتەکە:' : language === 'ar' ? 'العناصر في السلة:' : 'Items in Cart:'}
+                  </h3>
+                  {cart && cart.length > 0 && (
+                    <span className="bg-rose-100 text-rose-700 text-[11px] font-black px-2 py-0.5 rounded-full">
+                      {cart.reduce((acc, item) => acc + (item?.quantity || 1), 0)}x
+                    </span>
+                  )}
+                </div>
+                {cart && cart.length > 0 && (
+                  <span className="text-xs sm:text-sm font-black text-emerald-600">
+                    {formatIQDLabel(cart.reduce((acc, item) => acc + (Number(item?.product?.discountPrice || item?.product?.price || 0) * (item?.quantity || 1)), 0))}
+                  </span>
+                )}
+              </div>
 
-            {/* Wishlist Heart Circle Button */}
-            <button
-              type="button"
-              onClick={() => toggleWishlist(product.id)}
-              className={`w-12 h-12 rounded-full flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer shrink-0 ${
-                isWishlisted 
-                  ? 'bg-[#FF6584] text-white shadow-rose-500/30' 
-                  : 'bg-rose-50 hover:bg-[#FF6584] text-[#FF6584] hover:text-white'
-              }`}
-              title={isWishlisted ? t('removeFromWishlist') || 'Remove' : t('addToWishlist') || 'Add'}
-            >
-              <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-white' : ''}`} />
-            </button>
+              {!cart || cart.length === 0 ? (
+                <div className="text-center py-3 text-xs font-semibold text-slate-400 font-arabic">
+                  {language === 'ku' ? 'هیچ ئایتەمێک لە ناو سەبەتەکەدا نییە' : language === 'ar' ? 'لا توجد عناصر في السلة' : 'No items in cart yet'}
+                </div>
+              ) : (
+                <div className="space-y-3 divide-y divide-slate-200/70">
+                  {cart.filter(item => item && item.product).map((item, idx) => {
+                    const itemTitle = getItemProductName(item.product);
+                    const itemPrice = Number(item.product?.discountPrice || item.product?.price || 0) * item.quantity;
+
+                    return (
+                      <div key={item.id || idx} className={`flex items-center gap-3 ${idx > 0 ? 'pt-2.5' : ''}`}>
+                        {/* Thumbnail Image (Smaller) */}
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 bg-white rounded-xl overflow-hidden border border-slate-200/90 shadow-2xs">
+                          <img 
+                            src={item.product?.imageUrl} 
+                            alt={itemTitle} 
+                            className="w-full h-full object-cover object-center"
+                          />
+                        </div>
+
+                        {/* Middle Details (Title, Color • Size • Quantity Badge) */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                            {itemTitle}
+                          </h4>
+
+                          <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-600 font-bold mt-0.5">
+                            {item.variation?.color && (
+                              <span 
+                                className="w-3 h-3 rounded-full border border-slate-300 shrink-0 inline-block shadow-2xs" 
+                                style={{ backgroundColor: getColorHex(item.variation.color) }} 
+                                title={getLocalizedColorName(item.variation.color, language)}
+                              />
+                            )}
+                            <span className="font-bold text-slate-800">
+                              {getLocalizedColorName(item.variation?.color || '', language)}
+                            </span>
+                            {item.variation?.color && item.variation?.size && <span className="text-slate-400 font-bold">•</span>}
+                            <span className="font-extrabold text-slate-900">
+                              {getLocalizedSizeName(String(item.variation?.size || ''), language)}
+                            </span>
+                            <span className="text-slate-300 font-bold">•</span>
+                            <span className="font-black text-rose-600 bg-rose-50 border border-rose-100/80 px-1.5 py-0.5 rounded-md text-[10px] sm:text-[11px]">
+                              {item.quantity}x
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Price & Delete Button (Trash Icon Only) */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs sm:text-sm font-black text-slate-900">
+                            {formatIQDLabel(itemPrice)}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => removeFromCart(item.id)}
+                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all cursor-pointer active:scale-90"
+                            title={language === 'ku' ? 'سڕینەوە' : language === 'ar' ? 'حذف' : 'Remove'}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
           </div>
 
@@ -613,41 +939,110 @@ export const ProductDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Gallery Modal */}
-      {isPreviewGalleryOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-          <button 
-            onClick={() => setIsPreviewGalleryOpen(false)}
-            className="absolute top-6 right-6 p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all focus:outline-none"
-            aria-label="Close Gallery"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          
-          <div className="w-full max-w-5xl flex flex-col items-center gap-6">
-            <div className="w-full max-h-[70vh] flex items-center justify-center">
-              <img 
-                src={activeImage} 
-                alt={product.name} 
-                className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-2xl"
-              />
-            </div>
-            {allImages.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto max-w-full pb-2 shrink-0 hide-scrollbar">
-                {allImages.map((img, idx) => (
-                  <button 
-                    key={idx}
-                    onClick={() => setActiveImage(img)}
-                    className={`w-16 h-16 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${activeImage === img ? 'border-indigo-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100'}`}
-                  >
-                    <img src={img} alt="Thumbnail preview" className="w-full h-full object-cover" />
-                  </button>
-                ))}
+      {/* Gallery Modal Lightbox */}
+      {createPortal(
+        <AnimatePresence>
+          {isPreviewGalleryOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setIsPreviewGalleryOpen(false)}
+              className="fixed inset-0 top-0 left-0 w-screen h-[100dvh] z-[99999] flex flex-col justify-between bg-black/95 p-3 sm:p-6 overflow-hidden select-none"
+            >
+              {/* Top Bar: Counter & Close Button */}
+              <div 
+                onClick={(e) => e.stopPropagation()} 
+                className="w-full flex items-center justify-between text-white z-20 shrink-0 pt-2 px-2"
+              >
+                <div className="text-xs font-extrabold bg-white/10 px-3 py-1 rounded-full backdrop-blur-md">
+                  {allImages.indexOf(activeImage) + 1} / {allImages.length}
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setIsPreviewGalleryOpen(false)}
+                  className="w-10 h-10 bg-white/15 hover:bg-white/25 text-white rounded-full transition-all flex items-center justify-center cursor-pointer active:scale-90 border border-white/20"
+                  aria-label="Close Gallery"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-            )}
-          </div>
-        </div>
+              
+              {/* Main Image Container */}
+              <motion.div 
+                initial={{ scale: 0.92, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.92, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                className="relative flex-1 w-full max-w-4xl mx-auto flex items-center justify-center my-auto px-2 py-1 overflow-hidden select-none touch-pan-y"
+              >
+                <img 
+                  src={activeImage} 
+                  alt={getProductName()} 
+                  className="max-w-full max-h-[60dvh] sm:max-h-[72dvh] object-contain rounded-2xl shadow-2xl"
+                />
+
+                {/* Prev / Next Modal Arrows */}
+                {allImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currIdx = allImages.indexOf(activeImage);
+                        const prevIdx = (currIdx - 1 + allImages.length) % allImages.length;
+                        setActiveImage(allImages[prevIdx]);
+                      }}
+                      className="absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/20 flex items-center justify-center shadow-lg backdrop-blur-md cursor-pointer active:scale-90"
+                      aria-label="Previous Image"
+                    >
+                      <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currIdx = allImages.indexOf(activeImage);
+                        const nextIdx = (currIdx + 1) % allImages.length;
+                        setActiveImage(allImages[nextIdx]);
+                      }}
+                      className="absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/20 flex items-center justify-center shadow-lg backdrop-blur-md cursor-pointer active:scale-90"
+                      aria-label="Next Image"
+                    >
+                      <ChevronRight className="w-6 h-6" />
+                    </button>
+                  </>
+                )}
+              </motion.div>
+
+              {/* Bottom Thumbnails Strip */}
+              {allImages.length > 1 && (
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center justify-center gap-2 overflow-x-auto max-w-full py-2 shrink-0 scrollbar-hide z-20"
+                >
+                  {allImages.map((img, idx) => (
+                    <button 
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImage(img)}
+                      className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                        activeImage === img ? 'border-[#FF6584] scale-105 shadow-md' : 'border-white/30 opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={img} alt="Thumbnail preview" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
       )}
-    </div>
+    </motion.div>
   );
 };
