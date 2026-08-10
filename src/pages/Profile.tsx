@@ -4,6 +4,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Navigate } from 'react-router-dom';
 import { User, Mail, Phone, MapPin, Lock, Shield, Calendar, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import iraqLocations from '../data/iraq-locations.json';
+import { getRoleInfo } from '../utils/roles';
 
 const pTranslations = {
   en: {
@@ -242,19 +243,8 @@ export const Profile: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Map Roles dynamically
-  const getRoleBadge = (role: typeof currentUser.role) => {
-    const roleNum = Number(role);
-    if (roleNum === 3 || role === 'admin') {
-      return { label: localT.admin, color: 'bg-red-50 text-red-700 border-red-200' };
-    }
-    if (roleNum === 2 || role === 'staff') {
-      return { label: localT.staff, color: 'bg-amber-50 text-amber-700 border-amber-200' };
-    }
-    return { label: localT.customer, color: 'bg-green-50 text-green-700 border-green-200' };
-  };
-
-  const roleInfo = getRoleBadge(currentUser.role);
+  const roleDetails = getRoleInfo(currentUser.role, language);
+  const roleInfo = { label: roleDetails.label, color: roleDetails.badgeClass };
 
   const validateForm = () => {
     const errors: Record<string, string> = {};

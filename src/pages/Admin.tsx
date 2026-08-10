@@ -31,6 +31,7 @@ import { AdminInventoryTab } from "../components/admin/AdminInventoryTab";
 import { AdminLabelsTab } from "../components/admin/AdminLabelsTab";
 import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
 import { BulkStockModal } from "../components/admin/BulkStockModal";
+import { getRoleInfo, isAdminRole, isCashierRole } from "../utils/roles";
 
 const getDaysInMonth = (year: number, month: number) => {
   return new Date(year, month, 0).getDate();
@@ -53,16 +54,7 @@ export const Admin: React.FC = () => {
   
   const isAdmin = useMemo(() => {
     if (!currentUser) return true;
-    const roleStr = String(currentUser.role).toLowerCase();
-    return (
-      roleStr === '1' ||
-      roleStr === '3' || 
-      roleStr === 'admin' || 
-      roleStr === '2' || 
-      roleStr === 'staff' || 
-      roleStr === 'owner' || 
-      !currentUser.role
-    );
+    return isAdminRole(currentUser.role) || isCashierRole(currentUser.role);
   }, [currentUser]);
 
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -1799,9 +1791,9 @@ export const Admin: React.FC = () => {
                   onChange={(e) => setAddUserRole(Number(e.target.value))}
                   className="w-full text-sm border border-slate-300 rounded-lg py-1.5 px-3 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
                 >
-                  <option value={1}>{L("Registered User (1)")}</option>
-                  <option value={2}>{L("Staff (2)")}</option>
-                  <option value={3}>{L("Admin (3)")}</option>
+                  <option value={1}>{language === 'ku' ? '1 - بەڕێوەبەر (Admin)' : '1 - Admin'}</option>
+                  <option value={2}>{language === 'ku' ? '2 - کاشێر (Cashier)' : '2 - Cashier'}</option>
+                  <option value={0}>{language === 'ku' ? '0 - کڕیار (Customer)' : '0 - Customer'}</option>
                 </select>
               </div>
             </div>
@@ -1836,26 +1828,12 @@ export const Admin: React.FC = () => {
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">{user.email && !user.email.includes('@phone.user') ? user.email : '-'}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
                     {(() => {
-                      const r = Number(user.role);
-                      if (r === 3 || user.role === 'admin') {
-                        return (
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
-                            {L("Admin")}
-                          </span>
-                        );
-                      } else if (r === 2 || user.role === 'staff') {
-                        return (
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800">
-                            {L("Staff")}
-                          </span>
-                        );
-                      } else {
-                        return (
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-800">
-                            {L("Registered User")}
-                          </span>
-                        );
-                      }
+                      const roleInfo = getRoleInfo(user.role, language);
+                      return (
+                        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${roleInfo.badgeClass}`}>
+                          {roleInfo.label} ({roleInfo.id})
+                        </span>
+                      );
                     })()}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">{user.joinDate}</td>

@@ -29,6 +29,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { FeedbackProvider } from './components/ui/Feedback';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { Language } from './i18n/translations';
+import { isAdminRole, isCashierRole } from './utils/roles';
 import { SearchBar } from './components/SearchBar';
 import { LanguageDropdown } from './components/LanguageDropdown';
 import { InitialLanguageModal } from './components/InitialLanguageModal';
@@ -97,14 +98,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     setLanguage(nextLang[language]);
   };
 
-  const isStaffOrAdmin = currentUser && (
-    currentUser.role === 2 || 
-    currentUser.role === 3 || 
-    currentUser.role === '2' || 
-    currentUser.role === '3' || 
-    currentUser.role === 'admin' || 
-    currentUser.role === 'staff'
-  );
+  const isStaffOrAdmin = Boolean(currentUser && (isAdminRole(currentUser.role) || isCashierRole(currentUser.role)));
 
   const isPos = location.pathname.startsWith('/pos');
   const isAdmin = location.pathname.startsWith('/admin');
@@ -421,15 +415,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   const hasToken = typeof window !== 'undefined' && Boolean(localStorage.getItem('kidskart_auth_token'));
 
   const isStaffOrAdmin = Boolean(
-    activeUser && (
-      activeUser.role === 2 || 
-      activeUser.role === 3 || 
-      activeUser.role === '2' || 
-      activeUser.role === '3' || 
-      activeUser.role === 'admin' || 
-      activeUser.role === 'staff' ||
-      !activeUser.role
-    )
+    activeUser && (isAdminRole(activeUser.role) || isCashierRole(activeUser.role) || !activeUser.role)
   ) || hasToken;
   
   if (!isStaffOrAdmin) {

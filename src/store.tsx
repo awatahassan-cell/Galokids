@@ -342,7 +342,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // for guests/customers to avoid a needless 403.
     const savedUser = localStorage.getItem('kidskart_user');
     const role = savedUser ? Number(JSON.parse(savedUser)?.role) : 0;
-    if (!localStorage.getItem('kidskart_auth_token') || ![2, 3].includes(role)) return;
+    if (!localStorage.getItem('kidskart_auth_token') || ![1, 2].includes(role)) return;
 
     fetch(`${LARAVEL_API_BASE}/coupons`, { headers: getAuthHeaders() })
       .then(res => {
@@ -1557,8 +1557,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const updateUser = (user: User) => {
-    const roleNum = (user.role === 3 || user.role === '3' || (user.role as any) === 'admin') ? 3 : ((user.role === 2 || user.role === '2' || (user.role as any) === 'staff') ? 2 : 1);
-    const updatedUserObj: User = { ...user, role: roleNum as 1 | 2 | 3 };
+    const roleNum = (user.role === 1 || user.role === '1' || (user.role as any) === 'admin') ? 1 : ((user.role === 2 || user.role === '2' || (user.role as any) === 'cashier' || (user.role as any) === 'staff') ? 2 : 0);
+    const updatedUserObj: User = { ...user, role: roleNum as 0 | 1 | 2 };
     setUsers(prev => prev.map(u => u?.id === user.id ? updatedUserObj : u));
     authedApiFetch(`${LARAVEL_API_BASE}/users/${user.id}`, {
       method: 'PUT',
@@ -1567,7 +1567,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const addUser = (userData: any) => {
-    const roleNum = (userData.role === 3 || userData.role === '3' || userData.role === 'admin') ? 3 : ((userData.role === 2 || userData.role === '2' || userData.role === 'staff') ? 2 : 1);
+    const roleNum = (userData.role === 1 || userData.role === '1' || userData.role === 'admin') ? 1 : ((userData.role === 2 || userData.role === '2' || userData.role === 'cashier' || userData.role === 'staff') ? 2 : 0);
     const formattedData = { ...userData, role: roleNum };
     const tempId = `u_temp_${Date.now()}`;
     const newUser: User = {
@@ -1694,7 +1694,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         id: `u-${Date.now()}`,
         name,
         email,
-        role: 1,
+        role: 0,
         joinDate: new Date().toISOString().split('T')[0]
       };
       setUsers(prev => {
@@ -1779,7 +1779,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       name: name?.trim() || `کڕیار (${phoneDigits.slice(-4) || '1234'})`,
       phone: cleanPhone,
       email: `${phoneDigits}@phone.user`,
-      role: 1,
+      role: 0,
       joinDate: new Date().toISOString().split('T')[0]
     };
     setCurrentUser(newUser);

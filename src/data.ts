@@ -88,10 +88,10 @@ export const COLORS = Array.from(new Set(MOCK_PRODUCTS.flatMap(p => p.variations
 export const SIZES = Array.from(new Set(MOCK_PRODUCTS.flatMap(p => p.variations.map(v => v.size))));
 
 export const MOCK_USERS: User[] = [
-  { id: 'u1', name: 'Admin User', email: 'admin@galokids.com', role: 3, joinDate: '2023-01-15' },
-  { id: 'u4', name: 'Staff User', email: 'staff@galokids.com', role: 2, joinDate: '2023-06-10' },
-  { id: 'u2', name: 'John Doe', email: 'john@example.com', role: 1, joinDate: '2023-05-20' },
-  { id: 'u3', name: 'Jane Smith', email: 'jane@example.com', role: 1, joinDate: '2023-08-11' },
+  { id: 'u1', name: 'Awat Hassan', email: 'admin@galokids.com', role: 1, joinDate: '2023-01-15' },
+  { id: 'u4', name: 'Saman Mahmood', email: 'cashier@galokids.com', role: 2, joinDate: '2023-06-10' },
+  { id: 'u2', name: 'John Doe', email: 'john@example.com', role: 0, joinDate: '2023-05-20' },
+  { id: 'u3', name: 'Jane Smith', email: 'jane@example.com', role: 0, joinDate: '2023-08-11' },
 ];
 
 export const MOCK_ORDERS: Order[] = [

@@ -30,7 +30,7 @@ export interface User {
   id: string;
   name: string;
   email?: string;
-  role: 1 | 2 | 3 | '1' | '2' | '3' | 'admin' | 'customer' | 'staff';
+  role: 0 | 1 | 2 | '0' | '1' | '2' | 'admin' | 'cashier' | 'customer' | 'staff';
   joinDate: string;
   phone?: string;
   address?: string;

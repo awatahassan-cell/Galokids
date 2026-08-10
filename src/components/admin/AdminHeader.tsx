@@ -5,6 +5,7 @@ import { adminTr } from '../../i18n/adminDict';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store';
 import { LanguageDropdown } from '../LanguageDropdown';
+import { getRoleInfo } from '../../utils/roles';
 
 export interface AdminHeaderProps {
   onOpenMobileMenu: () => void;
@@ -110,8 +111,13 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
                   />
                   <div className={`absolute top-full mt-2 ${isRTL ? 'left-0' : 'right-0'} w-56 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-3xl shadow-2xl p-2.5 z-[99999] animate-in fade-in zoom-in-95 duration-100 space-y-1 font-arabic`}>
                     <div className="px-3 py-2.5 border-b border-slate-100 mb-1">
-                      <p className="text-xs font-black text-slate-900 truncate">{currentUser.name || currentUser.username || 'Admin User'}</p>
-                      <p className="text-[10px] text-slate-400 font-bold truncate">{currentUser.email || 'admin@galokids.com'}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-black text-slate-900 truncate">{currentUser.name || currentUser.username || 'Admin User'}</p>
+                        <span className={`px-2 py-0.5 text-[9px] font-black rounded-full border ${getRoleInfo(currentUser.role, language).badgeClass}`}>
+                          {getRoleInfo(currentUser.role, language).label}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-bold truncate mt-0.5">{currentUser.email || 'admin@galokids.com'}</p>
                     </div>
 
                     <button

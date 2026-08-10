@@ -369,10 +369,10 @@ export const AdminEditModals: React.FC<Props> = ({
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1 text-slate-700">{L("Role")}</label>
-                <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: Number(e.target.value) as 1 | 2 | 3})} className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500">
-                  <option value={1}>{L("Registered User")}</option>
-                  <option value={2}>{L("Staff")}</option>
-                  <option value={3}>{L("Admin")}</option>
+                <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: Number(e.target.value) as 0 | 1 | 2})} className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500">
+                  <option value={1}>{language === 'ku' ? '1 - بەڕێوەبەر (Admin)' : '1 - Admin'}</option>
+                  <option value={2}>{language === 'ku' ? '2 - کاشێر (Cashier)' : '2 - Cashier'}</option>
+                  <option value={0}>{language === 'ku' ? '0 - کڕیار (Customer)' : '0 - Customer'}</option>
                 </select>
               </div>
               <div className="flex justify-end gap-3 mt-6">
