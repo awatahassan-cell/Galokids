@@ -310,7 +310,7 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
                       <div>
                         <span className="text-xs font-black block">{v.size} {v.color ? `- ${v.color}` : ''}</span>
                         <span className="text-[10px] font-bold text-slate-400">
-                          {language === 'ku' ? `مەوجود لە کۆگا: ${v.stockQuantity} دانە` : language === 'ar' ? `المتوفر: ${v.stockQuantity}` : `Stock: ${v.stockQuantity}`}
+                          {language === 'ku' ? `بڕی ماوە لە کۆگا: ${v.stockQuantity} دانە` : language === 'ar' ? `الكمية المتبقية: ${v.stockQuantity}` : `Remaining Stock: ${v.stockQuantity}`}
                         </span>
                       </div>
                     </div>

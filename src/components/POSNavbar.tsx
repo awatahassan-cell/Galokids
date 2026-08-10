@@ -13,7 +13,8 @@ import {
   Key,
   X,
   Lock,
-  CheckCircle2
+  CheckCircle2,
+  History
 } from 'lucide-react';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -30,6 +31,7 @@ interface POSNavbarProps {
   lastReceipt: any;
   onReprintLastReceipt: () => void;
   onOpenReturnModal: () => void;
+  onOpenRecentSales?: () => void;
 }
 
 export const POSNavbar: React.FC<POSNavbarProps> = ({
@@ -41,6 +43,7 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
   lastReceipt,
   onReprintLastReceipt,
   onOpenReturnModal,
+  onOpenRecentSales,
 }) => {
   const { currentUser: storeUser, logout, storeSettings } = useStore();
   const savedUserStr = localStorage.getItem('kidskart_user');
@@ -150,6 +153,18 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
                 </span>
               )}
             </button>
+
+            {/* Recent 10 Sales Button */}
+            {onOpenRecentSales && (
+              <button
+                onClick={onOpenRecentSales}
+                className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-indigo-50 hover:bg-indigo-600 hover:text-white border border-indigo-200 text-indigo-700 rounded-2xl text-[11px] sm:text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5 shrink-0"
+                title={language === 'ku' ? 'پیشاندانەوەی کۆتا ١٠ فرۆشتن بۆ چاپکردنەوە' : 'View last 10 sales to reprint receipt'}
+              >
+                <History className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="whitespace-nowrap">{language === 'ku' ? 'کۆتا ١٠ فرۆشتن' : language === 'ar' ? 'آخر 10 مبيعات' : 'Recent 10 Sales'}</span>
+              </button>
+            )}
 
             {/* Return Order Button */}
             <button
