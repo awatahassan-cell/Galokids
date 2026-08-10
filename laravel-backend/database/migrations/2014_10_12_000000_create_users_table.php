@@ -17,7 +17,8 @@ return new class extends Migration
             $blueprint->string('email')->unique();
             $blueprint->timestamp('email_verified_at')->nullable();
             $blueprint->string('password');
-            $blueprint->integer('role')->default(1); // 1 = registered, 2 = staff, 3 = admin
+            // 0 = customer, 1 = admin, 2 = cashier, 3 = staff (App\Support\Roles)
+            $blueprint->integer('role')->default(0);
             $blueprint->string('phone')->nullable();
             $blueprint->text('address')->nullable();
             $blueprint->rememberToken();

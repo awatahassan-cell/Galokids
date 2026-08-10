@@ -9,6 +9,7 @@ use App\Models\ProductVariation;
 use App\Models\Coupon;
 use App\Models\Shift;
 use App\Models\Refund;
+use App\Support\PhoneNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -16,23 +17,33 @@ class OrderController extends Controller
 {
     private function checkStaffOrAdmin(Request $request)
     {
-        $user = $request->user();
-        if (!$user || !in_array((int)$user->role, [1, 2, 3])) {
-            abort(response()->json(['message' => 'Unauthorized. Staff or Admin role required.'], 403));
-        }
+        // 1 = admin, 2 = cashier, 3 = staff (see App\Support\Roles).
+        $this->requirePrivileged($request);
     }
 
     public function index(Request $request)
     {
-        $user = $request->user();
-        if ($user && in_array((int)$user->role, [1, 2, 3])) {
+        $user = $this->requireAuth($request);
+
+        if ($user->isPrivileged()) {
             return response()->json(
                 Order::with('items.product', 'items.variation')->orderBy('created_at', 'desc')->get()
             );
         }
+
+        // A customer sees their own orders: the ones linked to their account and
+        // the guest/POS orders placed with the same phone number. The phone is
+        // matched across every format it may have been stored in, otherwise an
+        // order saved as "0750…" stays invisible to an account saved as "964750…".
+        $phoneVariants = PhoneNumber::variants($user->phone);
+
         return response()->json(
-            Order::where('user_id', $user->id)
-                ->orWhere('customer_phone', $user->phone)
+            Order::where(function ($query) use ($user, $phoneVariants) {
+                $query->where('user_id', $user->id);
+                if (!empty($phoneVariants)) {
+                    $query->orWhereIn('customer_phone', $phoneVariants);
+                }
+            })
                 ->with('items.product', 'items.variation')
                 ->orderBy('created_at', 'desc')->get()
         );
@@ -46,12 +57,14 @@ class OrderController extends Controller
         $this->checkStaffOrAdmin($request);
         $request->validate(['phone' => 'required|string']);
 
-        $phone = preg_replace('/\D/', '', (string) $request->phone);
+        // Match on the local part (no country code / leading zero) so a cashier
+        // typing 0750…, 750… or +964750… always finds the same customer.
+        $phone = PhoneNumber::local($request->phone);
         if ($phone === '') {
             return response()->json(['found' => false]);
         }
 
-        $orders = Order::whereRaw("REPLACE(REPLACE(REPLACE(customer_phone,' ',''),'-',''),'+','') LIKE ?", ['%' . $phone . '%'])
+        $orders = Order::whereRaw("REPLACE(REPLACE(REPLACE(customer_phone,' ',''),'-',''),'+','') LIKE ?", ['%' . $phone])
             ->where('status', '!=', 'cancelled')
             ->get();
 
@@ -105,10 +118,18 @@ class OrderController extends Controller
     public function show(Request $request, $id)
     {
         $order = Order::with('items.product', 'items.variation')->findOrFail($id);
-        $user = $request->user();
-        if ($user && !in_array((int)$user->role, [2, 3]) && $order->user_id != $user->id) {
-            return response()->json(['message' => 'Unauthorized.'], 403);
+        $user = $this->requireAuth($request);
+
+        if (!$user->isPrivileged()) {
+            $ownsById    = $order->user_id && $order->user_id == $user->id;
+            $ownsByPhone = $user->phone
+                && in_array((string) $order->customer_phone, PhoneNumber::variants($user->phone), true);
+
+            if (!$ownsById && !$ownsByPhone) {
+                return response()->json(['message' => 'Unauthorized.'], 403);
+            }
         }
+
         return response()->json($order);
     }
 
@@ -121,7 +142,9 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
-        $isStaff = $user && in_array((int)$user->role, [2, 3]);
+        // Admin + cashier + staff all sell through the POS, so all three count
+        // as staff here (this used to exclude the admin role by mistake).
+        $isStaff = $user && $user->isPrivileged();
 
         $validated = $request->validate([
             'items' => 'required|array|min:1',
@@ -251,7 +274,11 @@ class OrderController extends Controller
                     'shift_id' => $shiftId,
                     'invoice_no' => $invoiceNo,
                     'customer_name' => $validated['customer_name'] ?? ($user->name ?? null),
-                    'customer_phone' => $validated['customer_phone'] ?? null,
+                    // Store the canonical 964… form so "my orders" and the POS
+                    // customer lookup find this order whatever format was typed.
+                    'customer_phone' => PhoneNumber::normalize(
+                        $validated['customer_phone'] ?? ($user->phone ?? null)
+                    ),
                     'customer_email' => $validated['customer_email'] ?? ($user->email ?? null),
                     'status' => $isStaff ? ($validated['status'] ?? 'pending') : 'pending',
                     'subtotal' => $subtotal,

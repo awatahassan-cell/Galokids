@@ -81,7 +81,7 @@ const loginTranslations = {
 };
 
 export const Login: React.FC = () => {
-  const { login, loginWithPhone, isPhoneRegistered, currentUser } = useStore();
+  const { login, loginWithPhone, checkPhoneRegistered, currentUser } = useStore();
   const navigate = useNavigate();
   const { language, dir } = useLanguage();
 
@@ -119,28 +119,30 @@ export const Login: React.FC = () => {
         return;
       }
 
-      // Enforce checking if phone is registered for login
-      const registered = isPhoneRegistered(phone);
-      if (!registered) {
-        setErrorMessage(
-          language === 'ku'
-            ? 'ژمارەی مۆبایلەکەت تۆمار نەکراوە. تکایە داواکاری خۆتۆمارکردن بکە لە ڕێگەی لاپەڕەی تۆماربوون.'
-            : language === 'ar'
-            ? 'رقم الهاتف هذا غير مسجل. يرجى إنشاء حساب جديد من صفحة التسجيل.'
-            : 'This mobile number is not registered. Please sign up first.'
-        );
-        return;
-      }
-
       setIsLoading(true);
       try {
+        // Ask the server whether this number has an account. Checking only the
+        // browser's own storage told every customer on a new device that their
+        // number was "not registered".
+        const registered = await checkPhoneRegistered(phone);
+        if (!registered) {
+          setErrorMessage(
+            language === 'ku'
+              ? 'ژمارەی مۆبایلەکەت تۆمار نەکراوە. تکایە داواکاری خۆتۆمارکردن بکە لە ڕێگەی لاپەڕەی تۆماربوون.'
+              : language === 'ar'
+              ? 'رقم الهاتف هذا غير مسجل. يرجى إنشاء حساب جديد من صفحة التسجيل.'
+              : 'This mobile number is not registered. Please sign up first.'
+          );
+          return;
+        }
+
         const res = await sendCheckoutOtp(phone, otpChannel, language);
         if (res.success) {
           if (res.code) setGeneratedOtp(res.code);
           if (res.directUrl) setDirectOtpUrl(res.directUrl);
           setShowOtpModal(true);
         } else {
-          setErrorMessage(localT.errorTitle);
+          setErrorMessage(res.message || localT.errorTitle);
         }
       } catch (err) {
         setErrorMessage(localT.errorTitle);
@@ -173,11 +175,11 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleOtpSuccess = async () => {
+  const handleOtpSuccess = async (verificationToken?: string) => {
     setShowOtpModal(false);
     setIsLoading(true);
     try {
-      const user = await loginWithPhone(phone);
+      const user = await loginWithPhone(phone, undefined, { verificationToken });
       if (user) {
         navigate('/');
       } else {

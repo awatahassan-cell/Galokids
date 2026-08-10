@@ -83,7 +83,7 @@ const registerTranslations = {
 };
 
 export const Register: React.FC = () => {
-  const { register, registerWithPhone, isPhoneRegistered, currentUser } = useStore();
+  const { register, registerWithPhone, checkPhoneRegistered, currentUser } = useStore();
   const navigate = useNavigate();
   const { language, dir } = useLanguage();
 
@@ -162,26 +162,29 @@ export const Register: React.FC = () => {
     if (authMethod === 'phone') {
       if (!validatePhoneForm()) return;
 
-      if (isPhoneRegistered(phone)) {
-        setErrorMessage(
-          language === 'ku'
-            ? 'ئەم ژمارەی مۆبایلە پێشتر تۆمارکراوە. تکایە لە ڕێگەی لاپەڕەی چوونە ژوورەوە بچۆ ژوورەوە.'
-            : language === 'ar'
-            ? 'رقم الهاتف هذا مسجل بالفعل. يرجى تسجيل الدخول.'
-            : 'This mobile number is already registered. Please log in instead.'
-        );
-        return;
-      }
-
       setIsLoading(true);
       try {
+        // The server is the only place that actually knows which numbers are
+        // taken — browser storage is empty on a device the customer has never
+        // used before.
+        if (await checkPhoneRegistered(phone)) {
+          setErrorMessage(
+            language === 'ku'
+              ? 'ئەم ژمارەی مۆبایلە پێشتر تۆمارکراوە. تکایە لە ڕێگەی لاپەڕەی چوونە ژوورەوە بچۆ ژوورەوە.'
+              : language === 'ar'
+              ? 'رقم الهاتف هذا مسجل بالفعل. يرجى تسجيل الدخول.'
+              : 'This mobile number is already registered. Please log in instead.'
+          );
+          return;
+        }
+
         const res = await sendCheckoutOtp(phone, otpChannel, language);
         if (res.success) {
           if (res.code) setGeneratedOtp(res.code);
           if (res.directUrl) setDirectOtpUrl(res.directUrl);
           setShowOtpModal(true);
         } else {
-          setErrorMessage(localT.errorTitle);
+          setErrorMessage(res.message || localT.errorTitle);
         }
       } catch (err) {
         console.warn('Registration OTP error:', err);
@@ -208,11 +211,11 @@ export const Register: React.FC = () => {
     }
   };
 
-  const handleOtpSuccess = async () => {
+  const handleOtpSuccess = async (verificationToken?: string) => {
     setShowOtpModal(false);
     setIsLoading(true);
     try {
-      const user = await registerWithPhone(phone, name);
+      const user = await registerWithPhone(phone, name, { verificationToken });
       if (user) {
         navigate('/');
       } else {

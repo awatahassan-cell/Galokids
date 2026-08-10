@@ -368,6 +368,12 @@ export const AdminEditModals: React.FC<Props> = ({
                 <input type="email" value={editingUser.email && !editingUser.email.includes('@phone.user') ? editingUser.email : ""} onChange={e => setEditingUser({...editingUser, email: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
+                <label className="block text-sm font-medium mb-1 text-slate-700">
+                  {language === 'ku' ? 'ژمارەی مۆبایل' : language === 'ar' ? 'رقم الهاتف' : 'Mobile number'}
+                </label>
+                <input type="tel" placeholder="07501234567" value={editingUser.phone || ""} onChange={e => setEditingUser({...editingUser, phone: e.target.value})} className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-1 text-slate-700">{L("Role")}</label>
                 <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: Number(e.target.value) as 0 | 1 | 2 | 3})} className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500">
                   <option value={1}>{language === 'ku' ? '1 - بەڕێوەبەر (Admin)' : '1 - Admin'}</option>

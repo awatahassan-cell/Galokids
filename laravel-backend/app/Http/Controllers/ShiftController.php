@@ -12,15 +12,8 @@ class ShiftController extends Controller
 {
     private function checkStaffOrAdmin(Request $request)
     {
-        $user = $request->user();
-        if (!$user) {
-            abort(response()->json(['message' => 'Unauthenticated.'], 401));
-        }
-        $r = $user->role;
-        $isStaffOrAdmin = in_array((int)$r, [1, 2, 3], true) || in_array($r, ['1', '2', '3', 'staff', 'cashier', 'admin'], true);
-        if (!$isStaffOrAdmin) {
-            abort(response()->json(['message' => 'Unauthorized. Staff or Admin role required.'], 403));
-        }
+        // 1 = admin, 2 = cashier, 3 = staff (see App\Support\Roles).
+        $this->requirePrivileged($request);
     }
 
     /** The current open shift for the logged-in cashier (or null). */
@@ -129,10 +122,7 @@ class ShiftController extends Controller
     /** Admin: list recent shifts (Z-report history). */
     public function index(Request $request)
     {
-        $user = $request->user();
-        if (!$user || (int)$user->role !== 3) {
-            abort(response()->json(['message' => 'Unauthorized. Admin role required.'], 403));
-        }
+        $this->requireAdmin($request);
         return response()->json(
             Shift::with('user:id,name')->orderByDesc('opened_at')->limit(100)->get()
         );

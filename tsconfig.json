@@ -23,5 +23,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["mobile", "node_modules", "dist"]
+  "exclude": ["mobile", "node_modules", "dist", "laravel-backend"]
 }

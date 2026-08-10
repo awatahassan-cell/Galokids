@@ -3,6 +3,8 @@ import { Category, Product, CartItem, ProductVariation, Review, User, Order, Exp
 import { useToast } from './components/ui/Feedback';
 import { API_BASE_URL } from './config/api';
 import { normalizePhone, isSamePhone, formatIraqiPhone } from './utils/phone';
+import { takePhoneVerification } from './services/otpService';
+import { normalizeRole } from './utils/roles';
 import { 
   CATEGORIES as initialCategories, 
   MOCK_PRODUCTS as initialProducts,
@@ -78,9 +80,16 @@ interface StoreContextType {
   updateExpense: (expense: Expense) => void;
   updateUser: (user: User) => void;
   addUser: (userData: any) => void;
+  /** Local-only guess. Prefer the async `checkPhoneRegistered` — see below. */
   isPhoneRegistered: (phone: string) => boolean;
+  /**
+   * Asks the backend whether this mobile number already has an account.
+   * The local check alone is wrong for anyone signing in on a new device,
+   * where browser storage is empty.
+   */
+  checkPhoneRegistered: (phone: string) => Promise<boolean>;
   login: (email: string, password?: string) => Promise<boolean>;
-  loginWithPhone: (phone: string, name?: string) => Promise<User | null>;
+  loginWithPhone: (phone: string, name?: string, addressInfo?: any) => Promise<User | null>;
   registerWithPhone: (phone: string, name: string, addressInfo?: any) => Promise<User | null>;
   logout: () => void;
   register: (name: string, email: string, password?: string) => Promise<boolean>;
@@ -167,18 +176,9 @@ function convertKeysToCamelCase(obj: any): any {
       newObj.imageUrl = newObj.images[0];
     }
 
-    // Normalize user role (1 = Admin/Owner, 2 = Cashier, 3 = Staff, 0 = Customer)
+    // Normalize user role (1 = Admin, 2 = Cashier, 3 = Staff, 0 = Customer)
     if (Object.prototype.hasOwnProperty.call(newObj, 'role')) {
-      const r = newObj.role;
-      if (r === 1 || r === '1' || r === 'admin' || r === 'owner') {
-        newObj.role = 1;
-      } else if (r === 2 || r === '2' || r === 'cashier') {
-        newObj.role = 2;
-      } else if (r === 3 || r === '3' || r === 'staff' || r === 'employee') {
-        newObj.role = 3;
-      } else {
-        newObj.role = 0;
-      }
+      newObj.role = normalizeRole(newObj.role);
     }
 
     return newObj;
@@ -353,8 +353,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // The full coupon list is staff/admin only on the backend; skip the call
     // for guests/customers to avoid a needless 403.
     const savedUser = localStorage.getItem('kidskart_user');
-    const role = savedUser ? Number(JSON.parse(savedUser)?.role) : 0;
-    if (!localStorage.getItem('kidskart_auth_token') || ![1, 2].includes(role)) return;
+    const role = savedUser ? normalizeRole(JSON.parse(savedUser)?.role) : 0;
+    if (!localStorage.getItem('kidskart_auth_token') || ![1, 2, 3].includes(role)) return;
 
     fetch(`${LARAVEL_API_BASE}/coupons`, { headers: getAuthHeaders() })
       .then(res => {
@@ -798,37 +798,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
 
   const authedApiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
-    const fetchFreshToken = async (): Promise<string | null> => {
-      try {
-        const savedUserStr = localStorage.getItem('kidskart_user');
-        const savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
-        if (savedUser && savedUser.email && savedUser.password) {
-          const loginRes = await fetch(`${LARAVEL_API_BASE}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ email: savedUser.email, password: savedUser.password })
-          });
-          if (loginRes.ok) {
-            const loginData = await loginRes.json();
-            const camelData = convertKeysToCamelCase(loginData);
-            if (camelData.accessToken) {
-              localStorage.setItem('kidskart_auth_token', camelData.accessToken);
-              return camelData.accessToken;
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Session refresh attempt failed:', e);
-      }
-      return null;
-    };
-
-    let token = localStorage.getItem('kidskart_auth_token');
-
-    if (!token) {
-      token = await fetchFreshToken();
-    }
-
     const buildHeaders = () => {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -842,14 +811,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return headers;
     };
 
-    let response = await fetch(url, { ...options, headers: buildHeaders() });
+    const response = await fetch(url, { ...options, headers: buildHeaders() });
 
     if (response.status === 401) {
+      // The session is gone. Clear it and let the UI send the user to /login —
+      // the old code silently re-authenticated with a password kept in
+      // localStorage, which is exactly what we no longer store.
       localStorage.removeItem('kidskart_auth_token');
-      const newToken = await fetchFreshToken();
-      if (newToken) {
-        response = await fetch(url, { ...options, headers: buildHeaders() });
-      }
+      localStorage.removeItem('kidskart_user');
+      setCurrentUser(null);
     }
 
     return response;
@@ -1633,18 +1603,37 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const updateUser = (user: User) => {
-    const roleNum = (user.role === 1 || user.role === '1' || (user.role as any) === 'admin') ? 1 : ((user.role === 2 || user.role === '2' || (user.role as any) === 'cashier' || (user.role as any) === 'staff') ? 2 : 0);
-    const updatedUserObj: User = { ...user, role: roleNum as 0 | 1 | 2 };
+    // Staff (3) used to be collapsed into Cashier (2) here, so the role picked
+    // in the dashboard was not the role that got saved.
+    const previousUser = users.find(u => u?.id === user.id);
+    const updatedUserObj: User = { ...user, role: normalizeRole(user.role) };
     setUsers(prev => prev.map(u => u?.id === user.id ? updatedUserObj : u));
     authedApiFetch(`${LARAVEL_API_BASE}/users/${user.id}`, {
       method: 'PUT',
       body: JSON.stringify(convertKeysToSnakeCase(updatedUserObj)),
-    }).catch(err => console.warn('User update note:', err));
+    })
+      .then(async res => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({} as any));
+          throw new Error(body?.message || 'Failed to update user');
+        }
+        return res.json();
+      })
+      .then(saved => {
+        const camelUser = convertKeysToCamelCase(saved);
+        setUsers(prev => prev.map(u => u?.id === user.id ? { ...u, ...camelUser } : u));
+      })
+      .catch(err => {
+        // Roll back so the table never shows a change the server rejected.
+        if (previousUser) {
+          setUsers(prev => prev.map(u => u?.id === user.id ? previousUser : u));
+        }
+        toast(err?.message || 'نوێکردنەوەی بەکارهێنەر سەرکەوتوو نەبوو', 'error');
+      });
   };
 
   const addUser = (userData: any) => {
-    const roleNum = (userData.role === 1 || userData.role === '1' || userData.role === 'admin') ? 1 : ((userData.role === 2 || userData.role === '2' || userData.role === 'cashier' || userData.role === 'staff') ? 2 : 0);
-    const formattedData = { ...userData, role: roleNum };
+    const formattedData = { ...userData, role: normalizeRole(userData.role) };
     const tempId = `u_temp_${Date.now()}`;
     const newUser: User = {
       ...formattedData,
@@ -1661,9 +1650,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       method: 'POST',
       body: JSON.stringify(convertKeysToSnakeCase(formattedData))
     })
-      .then(res => {
+      .then(async res => {
         if (!res.ok) {
-          throw new Error('Failed to create user on backend');
+          const body = await res.json().catch(() => ({} as any));
+          throw new Error(body?.message || 'Failed to create user on backend');
         }
         return res.json();
       })
@@ -1676,7 +1666,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         });
       })
       .catch(err => {
-        console.warn('User save note:', err);
+        // Drop the optimistic row: the account does not exist on the server,
+        // and leaving it on screen made a rejected create look successful.
+        setUsers(prev => {
+          const updated = prev.filter(u => u?.id !== tempId);
+          localStorage.setItem('kidskart_users_local', JSON.stringify(updated));
+          return updated;
+        });
+        toast(err?.message || 'دروستکردنی بەکارهێنەر سەرکەوتوو نەبوو', 'error');
       });
   };
 
@@ -1699,7 +1696,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const camelData = convertKeysToCamelCase(data);
       if (res.ok && camelData.accessToken) {
         localStorage.setItem('kidskart_auth_token', camelData.accessToken);
-        const userToSave = { ...camelData.user, password };
+        // SECURITY: never persist the password — the bearer token is the
+        // session. Anything in localStorage is readable by any script on the
+        // page (and by anyone with the device).
+        const userToSave = { ...camelData.user };
+        delete (userToSave as any).password;
         localStorage.setItem('kidskart_user', JSON.stringify(userToSave));
         setCurrentUser(userToSave);
         refreshOrders();
@@ -1798,6 +1799,13 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return loginWithPhone(phone, name, addressInfo);
   };
 
+  /**
+   * Signs a customer in with their mobile number.
+   *
+   * `addressInfo.verificationToken` is the single-use proof from /verify-otp;
+   * the backend rejects the request without it, which is what stops anyone from
+   * logging in as a number they do not own.
+   */
   const loginWithPhone = async (phone: string, name?: string, addressInfo?: any): Promise<User | null> => {
     const cleanPhone = phone.trim();
     if (!cleanPhone) return null;
@@ -1806,16 +1814,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const formattedPhone = formatIraqiPhone(cleanPhone);
     const validName = name && name.trim() && !['customer', 'کڕیار', 'guest'].includes(name.trim().toLowerCase()) ? name.trim() : undefined;
 
+    const { verificationToken, ...extraInfo } = (addressInfo || {}) as any;
+
     try {
       const res = await fetch(`${LARAVEL_API_BASE}/login-with-phone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: cleanPhone,
+          phone: formattedPhone || cleanPhone,
           formatted_phone: formattedPhone,
           phone_digits: corePhone,
+          verification_token: verificationToken || takePhoneVerification(cleanPhone),
           name: validName,
-          ...addressInfo
+          ...extraInfo
         }),
       });
 
@@ -1830,21 +1841,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           const userRole = Number(apiUser.role);
           const finalRole = [1, 2, 3].includes(userRole) ? (userRole as 1 | 2 | 3) : 0;
           const finalName = validName || (apiUser.name && !['customer', 'کڕیار', 'guest'].includes(apiUser.name.toLowerCase()) ? apiUser.name : undefined) || `کڕیار (${corePhone.slice(-4) || '1234'})`;
-          
+
           const finalUser: User = {
             id: String(apiUser.id || `u-${corePhone}`),
             name: finalName,
-            phone: cleanPhone || apiUser.phone,
-            email: apiUser.email || `${corePhone}@phone.user`,
+            phone: apiUser.phone || formattedPhone || cleanPhone,
+            email: apiUser.email || undefined,
             role: finalRole,
-            address: addressInfo?.address || apiUser.address,
+            address: extraInfo?.address || apiUser.address,
             joinDate: apiUser.joinDate || new Date().toISOString().split('T')[0]
           };
           localStorage.setItem('kidskart_user', JSON.stringify(finalUser));
           setCurrentUser(finalUser);
           setUsers(prev => {
             const exists = prev.some(u => u.id === finalUser.id || isSamePhone(u.phone, cleanPhone));
-            const updated = exists 
+            const updated = exists
               ? prev.map(u => (u.id === finalUser.id || isSamePhone(u.phone, cleanPhone)) ? { ...u, ...finalUser } : u)
               : [...prev, finalUser];
             localStorage.setItem('kidskart_users_local', JSON.stringify(updated));
@@ -1853,7 +1864,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           return finalUser;
         }
       }
+
+      // The server answered and said no (expired/replayed OTP token, invalid
+      // number). Surface it instead of faking a local session that has no
+      // backend token behind it — that used to look like a successful login
+      // while every later API call failed.
+      const errorBody = await res.json().catch(() => ({} as any));
+      toast(errorBody?.message || 'چوونە ژوورەوە سەرکەوتوو نەبوو. تکایە دووبارە کۆد داوا بکەرەوە.', 'error');
+      return null;
     } catch (err) {
+      // Network/offline only — fall through to the local provisioning below.
       console.warn('loginWithPhone API call failed, using local user provisioning fallback:', err);
     }
 
@@ -2000,10 +2020,41 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
+  /**
+   * Authoritative "does this number have an account?" check.
+   *
+   * The old local-only version could not answer this for a customer signing in
+   * on a device they had never used before: browser storage is empty there, so
+   * every genuine customer was told "this number is not registered". The server
+   * knows, so ask it — and only fall back to the local guess when it is
+   * unreachable.
+   */
+  const checkPhoneRegistered = async (phoneInput: string): Promise<boolean> => {
+    const cleanPhone = (phoneInput || '').trim();
+    if (!cleanPhone) return false;
+
+    try {
+      const res = await fetch(`${LARAVEL_API_BASE}/auth/phone-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ phone: formatIraqiPhone(cleanPhone) || cleanPhone }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return Boolean(data?.exists);
+      }
+    } catch (err) {
+      console.warn('phone-status check unavailable, falling back to local data:', err);
+    }
+
+    return isPhoneRegistered(cleanPhone);
+  };
+
   const isPhoneRegistered = (phoneInput: string): boolean => {
     if (!phoneInput || !phoneInput.trim()) return false;
     const cleanPhone = phoneInput.trim();
-    
+
     // Check users array
     const inUsers = users.some(u => u.phone && isSamePhone(u.phone, cleanPhone));
     if (inUsers) return true;
@@ -2044,7 +2095,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       updateCartItemQuantity, clearCart, toggleWishlist, addReview, updateOrderStatus, addExpense, addOrder,
       deleteProduct, deleteCategory, deleteExpense, deleteUser, deleteOrder, addUser,
       updateProduct, updateCategory, updateExpense, updateUser,
-      isPhoneRegistered, login, loginWithPhone, registerWithPhone, logout, register, updateProfile,
+      isPhoneRegistered, checkPhoneRegistered, login, loginWithPhone, registerWithPhone, logout, register, updateProfile,
       reviews, reviewsPagination, refreshReviews,
       coupons, appliedCoupon, setAppliedCoupon, addCoupon, updateCoupon, deleteCoupon, applyCoupon, fetchSalesReport, fetchCashierReport,
       fetchBestSellers, recordRecentlyViewed, getRecentlyViewedIds, trackOrder, lookupCustomer,

@@ -38,16 +38,7 @@ class SettingController extends Controller
     /** Admin: upsert one or more settings. Body: { key: value, ... } */
     public function update(Request $request)
     {
-        $user = $request->user();
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        $role = $user->role;
-        $isAdmin = in_array((int)$role, [1], true) || in_array($role, ['1', 'admin'], true);
-        if (!$isAdmin) {
-            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
-        }
+        $this->requireAdmin($request);
 
         try {
             foreach ($request->all() as $key => $value) {

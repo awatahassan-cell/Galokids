@@ -53,10 +53,7 @@ class ReviewController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $user = $request->user();
-        if (!$user || !in_array((int)$user->role, [2, 3])) {
-            abort(response()->json(['message' => 'Unauthorized. Staff or Admin role required.'], 403));
-        }
+        $this->requirePrivileged($request);
 
         $review = Review::findOrFail($id);
         $review->delete();

@@ -21,6 +21,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { LanguageDropdown } from './LanguageDropdown';
 import { adminTr } from '../i18n/adminDict';
 import { useToast } from './ui/Feedback';
+import { getRoleInfo } from '../utils/roles';
 
 interface POSNavbarProps {
   shift: any;
@@ -231,9 +232,7 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
                         <p className="text-xs font-black text-slate-900 truncate">{currentUser.name || currentUser.username}</p>
                         <p className="text-[10px] font-bold text-slate-400 truncate">{currentUser.email || 'cashier@galokids.com'}</p>
                         <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-2xs">
-                          {Number(currentUser.role) === 3 || currentUser.role === '3' || currentUser.role === 'admin' 
-                            ? (language === 'ku' ? 'بەڕێوەبەر' : language === 'ar' ? 'مدير' : 'Admin') 
-                            : (language === 'ku' ? 'کارمەند' : language === 'ar' ? 'موظف' : 'Staff')}
+                          {getRoleInfo(currentUser.role, language).label}
                         </span>
                       </div>
 

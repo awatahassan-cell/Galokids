@@ -666,6 +666,7 @@ export const Admin: React.FC = () => {
   // New User State
   const [addUserName, setAddUserName] = useState('');
   const [addUserEmail, setAddUserEmail] = useState('');
+  const [addUserPhone, setAddUserPhone] = useState('');
   const [addUserRole, setAddUserRole] = useState(1);
   const [addUserPassword, setAddUserPassword] = useState('');
 
@@ -873,18 +874,39 @@ export const Admin: React.FC = () => {
 
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addUserName || !addUserEmail || !addUserPassword) {
-      toast('Please fill in all required fields', 'error');
+    const role = Number(addUserRole);
+    const isPrivileged = [1, 2, 3].includes(role);
+
+    if (!addUserName.trim()) {
+      toast(language === 'ku' ? 'ناوی تەواو داخڵ بکە' : 'Please enter a full name', 'error');
       return;
     }
+    // A customer only needs a phone number; admin/cashier/staff sign in with a
+    // password, so those still require an email + password.
+    if (!addUserEmail.trim() && !addUserPhone.trim()) {
+      toast(language === 'ku' ? 'ئیمەیڵ یان ژمارەی مۆبایل پێویستە' : 'An email or a phone number is required', 'error');
+      return;
+    }
+    if (isPrivileged && (!addUserEmail.trim() || !addUserPassword)) {
+      toast(
+        language === 'ku'
+          ? 'بۆ ئەدمین/کاشێر/کارمەند ئیمەیڵ و وشەی تێپەڕ پێویستە'
+          : 'Admin, cashier and staff accounts need an email and a password',
+        'error'
+      );
+      return;
+    }
+
     addUser({
-      name: addUserName,
-      email: addUserEmail,
-      role: Number(addUserRole),
-      password: addUserPassword,
+      name: addUserName.trim(),
+      email: addUserEmail.trim() || undefined,
+      phone: addUserPhone.trim() || undefined,
+      role,
+      password: addUserPassword || undefined,
     });
     setAddUserName('');
     setAddUserEmail('');
+    setAddUserPhone('');
     setAddUserRole(1);
     setAddUserPassword('');
     toast('User added successfully ✅');
@@ -1774,11 +1796,16 @@ export const Admin: React.FC = () => {
                       />
                     </div>
 
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Email")}</label>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        {L("Email")}
+                        {![1, 2, 3].includes(Number(addUserRole)) && (
+                          <span className="text-slate-400 font-medium"> ({language === 'ku' ? 'ئارەزوومەندانە' : 'optional'})</span>
+                        )}
+                      </label>
                       <input
                         type="email"
-                        required
+                        required={[1, 2, 3].includes(Number(addUserRole))}
                         placeholder="john@example.com"
                         value={addUserEmail}
                         onChange={(e) => setAddUserEmail(e.target.value)}
@@ -1787,10 +1814,29 @@ export const Admin: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Password")}</label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        {language === 'ku' ? 'ژمارەی مۆبایل' : language === 'ar' ? 'رقم الهاتف' : 'Mobile number'}
+                      </label>
+                      <input
+                        type="tel"
+                        placeholder="07501234567"
+                        value={addUserPhone}
+                        onChange={(e) => setAddUserPhone(e.target.value)}
+                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        {L("Password")}
+                        {![1, 2, 3].includes(Number(addUserRole)) && (
+                          <span className="text-slate-400 font-medium"> ({language === 'ku' ? 'ئارەزوومەندانە' : 'optional'})</span>
+                        )}
+                      </label>
                       <input
                         type="password"
-                        required
+                        required={[1, 2, 3].includes(Number(addUserRole))}
+                        minLength={8}
                         placeholder="••••••••"
                         value={addUserPassword}
                         onChange={(e) => setAddUserPassword(e.target.value)}

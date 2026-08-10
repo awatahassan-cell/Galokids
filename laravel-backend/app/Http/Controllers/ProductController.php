@@ -143,10 +143,8 @@ class ProductController extends Controller
 
     private function checkStaffOrAdmin(Request $request)
     {
-        $user = $request->user();
-        if (!$user || !in_array((int)$user->role, [2, 3])) {
-            abort(response()->json(['message' => 'Unauthorized. Staff or Admin role required.'], 403));
-        }
+        // 1 = admin, 2 = cashier, 3 = staff (see App\Support\Roles).
+        $this->requirePrivileged($request);
     }
 
     private function validateProduct(Request $request, bool $partial = false)

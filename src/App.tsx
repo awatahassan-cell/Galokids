@@ -29,7 +29,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { FeedbackProvider } from './components/ui/Feedback';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { Language } from './i18n/translations';
-import { isAdminRole, isCashierRole, getRoleInfo } from './utils/roles';
+import { isAdminRole, isStaffOrAdminRole, getRoleInfo } from './utils/roles';
 import { SearchBar } from './components/SearchBar';
 import { LanguageDropdown } from './components/LanguageDropdown';
 import { InitialLanguageModal } from './components/InitialLanguageModal';
@@ -97,8 +97,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const nextLang: Record<Language, Language> = { en: 'ku', ku: 'ar', ar: 'en' };
     setLanguage(nextLang[language]);
   };
-
-  const isStaffOrAdmin = Boolean(currentUser && (isAdminRole(currentUser.role) || isCashierRole(currentUser.role)));
 
   const isPos = location.pathname.startsWith('/pos');
   const isAdmin = location.pathname.startsWith('/admin');
@@ -343,7 +341,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                             </Link>
 
                             {/* POS Link (Admin & Cashier) */}
-                            {(isAdminRole(currentUser.role) || isCashierRole(currentUser.role)) && (
+                            {isStaffOrAdminRole(currentUser.role) && (
                               <>
                                 <div className="h-px bg-slate-100 my-1" />
                                 <Link
@@ -417,7 +415,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+/**
+ * Back-office route guard.
+ *
+ * `adminOnly` marks the dashboard: only role 1 gets in there. The POS is open
+ * to admin, cashier and staff — the same set the API treats as privileged.
+ * This is a UX guard; the API enforces the same rules on every request.
+ */
+const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }> = ({ children, adminOnly = false }) => {
   const { currentUser } = useStore();
 
   const activeUser = React.useMemo(() => {
@@ -431,11 +436,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return null;
   }, [currentUser]);
 
-  const isStaffOrAdmin = Boolean(
-    activeUser && (isAdminRole(activeUser.role) || isCashierRole(activeUser.role))
+  const allowed = Boolean(
+    activeUser && (adminOnly ? isAdminRole(activeUser.role) : isStaffOrAdminRole(activeUser.role))
   );
-  
-  if (!isStaffOrAdmin) {
+
+  if (!allowed) {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
@@ -487,8 +492,8 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/shipping-returns" element={<PageTransition key={routeKey}><ShippingReturns /></PageTransition>} />
         <Route path="/track" element={<PageTransition key={routeKey}><TrackOrder /></PageTransition>} />
         <Route path="/size-guide" element={<PageTransition key={routeKey}><SizeGuide /></PageTransition>} />
-        <Route path="/admin" element={<ProtectedRoute><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
-        <Route path="/admin/:tab" element={<ProtectedRoute><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute adminOnly><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
+        <Route path="/admin/:tab" element={<ProtectedRoute adminOnly><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
         <Route path="/pos" element={<ProtectedRoute><PageTransition key={routeKey}><POS /></PageTransition></ProtectedRoute>} />
         <Route path="/login" element={<PageTransition key={routeKey}><Login /></PageTransition>} />
         <Route path="/register" element={<PageTransition key={routeKey}><Register /></PageTransition>} />

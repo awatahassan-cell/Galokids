@@ -47,6 +47,19 @@ export const getRoleInfo = (roleInput: any, language: string = 'ku'): RoleInfo =
   };
 };
 
+/**
+ * Canonical role id for anything the UI or the API may hand us
+ * ("cashier", "2", 2, undefined). Unknown values fall back to Customer —
+ * never to a privileged role.
+ */
+export const normalizeRole = (roleInput: any): 0 | 1 | 2 | 3 => {
+  const s = String(roleInput ?? '').toLowerCase().trim();
+  if (s === '1' || s === 'admin' || s === 'owner' || s === 'manager') return 1;
+  if (s === '2' || s === 'cashier') return 2;
+  if (s === '3' || s === 'staff' || s === 'employee') return 3;
+  return 0;
+};
+
 export const isAdminRole = (roleInput: any): boolean => {
   if (roleInput === undefined || roleInput === null) return false;
   const s = String(roleInput).toLowerCase().trim();

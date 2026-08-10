@@ -17,7 +17,7 @@ export const Checkout: React.FC = () => {
   const { 
     cart, clearCart, addOrder, currentUser, users, appliedCoupon, 
     setAppliedCoupon, applyCoupon, coupons, registerWithPhone, 
-    loginWithPhone, login, updateProfile 
+    login, updateProfile
   } = useStore();
   const navigate = useNavigate();
   const [isSuccess, setIsSuccess] = useState(false);
@@ -53,7 +53,6 @@ export const Checkout: React.FC = () => {
   const [otpChannel, setOtpChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState('');
-  const [inputOtp, setInputOtp] = useState('');
   const [otpError, setOtpError] = useState('');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
@@ -221,9 +220,12 @@ export const Checkout: React.FC = () => {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
-  // Send OTP
-  const handleSendOtp = async (channelOverride?: any) => {
-    if (!mobileNumber.trim() || mobileNumber.trim().length < 8) {
+  // Send OTP. `phoneOverride` lets the quick-login modal verify a number that
+  // has not been written into the checkout form state yet.
+  const handleSendOtp = async (channelOverride?: any, phoneOverride?: string) => {
+    const targetPhone = (phoneOverride ?? mobileNumber).trim();
+
+    if (!targetPhone || targetPhone.length < 8) {
       alert(t('mobileNumber') + ' ' + (language === 'ku' ? 'دروست نییە' : 'is invalid'));
       return;
     }
@@ -237,9 +239,9 @@ export const Checkout: React.FC = () => {
 
     setIsSendingOtp(true);
     setOtpError('');
-    
+
     try {
-      const res = await sendCheckoutOtp(mobileNumber, activeChannel, language);
+      const res = await sendCheckoutOtp(targetPhone, activeChannel, language);
       if (res.success) {
         if (res.code) {
           setGeneratedOtp(res.code);
@@ -250,32 +252,14 @@ export const Checkout: React.FC = () => {
 
         setShowOtpModal(true);
         setResendTimer(60);
+      } else {
+        alert(res.message || (language === 'ku' ? 'تکایە دووبارە تاقیبکەرەوە' : 'Failed to send OTP. Please try again.'));
       }
     } catch (err: any) {
       console.error('Error sending OTP:', err);
       alert(language === 'ku' ? 'تکایە دووبارە تاقیبکەرەوە' : 'Failed to send OTP. Please try again.');
     } finally {
       setIsSendingOtp(false);
-    }
-  };
-
-  // Verify OTP
-  const handleVerifyOtp = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (inputOtp.trim() === generatedOtp || inputOtp.trim() === '123456') {
-      setIsPhoneVerified(true);
-      setVerifiedPhone(mobileNumber);
-      setShowOtpModal(false);
-      setOtpError('');
-      setNotificationBanner(null);
-    } else {
-      setOtpError(
-        language === 'ku' 
-          ? 'کۆدی داخڵکراو هەڵەیە. تکایە دووبارە هەوڵبدەرەوە.' 
-          : language === 'ar' 
-          ? 'رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى.'
-          : 'Invalid verification code. Please try again.'
-      );
     }
   };
 
@@ -287,13 +271,19 @@ export const Checkout: React.FC = () => {
     setQuickLoginError('');
 
     try {
-      let success = false;
-      if (loginPassword.trim()) {
-        success = await login(loginInput.trim(), loginPassword);
-      } else {
-        const u = await loginWithPhone(loginInput.trim());
-        success = !!u;
+      // Without a password the only way in is an OTP: typing somebody else's
+      // mobile number must never be enough to open their account.
+      if (!loginPassword.trim()) {
+        const phone = loginInput.trim();
+        setShowQuickLogin(false);
+        setLoginInput('');
+        setMobileNumber(phone);
+        setIsPhoneVerified(false);
+        await handleSendOtp(undefined, phone);
+        return;
       }
+
+      const success = await login(loginInput.trim(), loginPassword);
 
       if (success) {
         setShowQuickLogin(false);
@@ -959,7 +949,7 @@ export const Checkout: React.FC = () => {
         channel={otpChannel}
         generatedCode={generatedOtp}
         directUrl={directOtpUrl}
-        onVerifySuccess={async () => {
+        onVerifySuccess={async (verificationToken) => {
           setIsPhoneVerified(true);
           setVerifiedPhone(mobileNumber);
           setShowOtpModal(false);
@@ -974,7 +964,11 @@ export const Checkout: React.FC = () => {
 
           const formattedAddr = `${govText} - ${t('district')}: ${distText}${selectedSubdistrict ? ` - ${t('subdistrict')}: ${selectedSubdistrict}` : ''} (${address})`;
 
-          await registerWithPhone(mobileNumber, fullName && fullName.trim() !== 'Customer' ? fullName.trim() : undefined, { address: formattedAddr, governorate: govText, district: distText });
+          await registerWithPhone(
+            mobileNumber,
+            fullName && fullName.trim() !== 'Customer' ? fullName.trim() : undefined,
+            { address: formattedAddr, governorate: govText, district: distText, verificationToken }
+          );
         }}
         onResendOtp={(newChan) => handleSendOtp(newChan)}
       />

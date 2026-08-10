@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, MessageSquare, Send, RefreshCw, ShieldCheck, AlertCircle, Sparkles } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { verifyCheckoutOtp, formatIraqiPhone } from '../services/otpService';
-import { useStore } from '../store';
+import { verifyCheckoutOtp, formatIraqiPhone, rememberPhoneVerification } from '../services/otpService';
 
 interface OtpModalProps {
   isOpen: boolean;
@@ -12,7 +11,8 @@ interface OtpModalProps {
   customerName?: string;
   channel: 'whatsapp' | 'sms';
   generatedCode?: string;
-  onVerifySuccess: () => void;
+  /** Receives the single-use verification token returned by the backend. */
+  onVerifySuccess: (verificationToken?: string) => void;
   onResendOtp: (newChannel?: 'whatsapp' | 'sms') => void;
   directUrl?: string;
   isLoading?: boolean;
@@ -31,7 +31,6 @@ export const OtpModal: React.FC<OtpModalProps> = ({
   isLoading = false,
 }) => {
   const { t, language } = useLanguage();
-  const { loginWithPhone } = useStore();
 
   // 6 digit PIN input states
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
@@ -77,7 +76,8 @@ export const OtpModal: React.FC<OtpModalProps> = ({
 
   // Compute active direct action URL (WhatsApp / SMS link)
   const formattedPhone = formatIraqiPhone(mobileNumber);
-  const displayCode = generatedCode || '123456';
+  // Only used for the offline "send yourself the code" fallback link.
+  const displayCode = generatedCode || '';
   const messageText = language === 'ku'
     ? `کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت: [ ${displayCode} ]`
     : language === 'ar'
@@ -180,17 +180,13 @@ export const OtpModal: React.FC<OtpModalProps> = ({
     setOtpError('');
 
     try {
-      // Direct generated code check or service check
-      if (enteredCode === generatedCode || enteredCode === '123456') {
-        try { await loginWithPhone(mobileNumber, customerName); } catch (e) {}
-        onVerifySuccess();
-        return;
-      }
-
       const res = await verifyCheckoutOtp(mobileNumber, enteredCode);
       if (res.success) {
-        try { await loginWithPhone(mobileNumber, customerName); } catch (e) {}
-        onVerifySuccess();
+        // Keep the single-use proof available to the store, then let the caller
+        // decide how to sign in (plain login, signup with a name, or checkout
+        // with an address). The backend refuses to open a session without it.
+        rememberPhoneVerification(mobileNumber, res.verificationToken);
+        onVerifySuccess(res.verificationToken);
       } else {
         setOtpError(
           res.message ||
