@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   Boxes, Package, DollarSign, TrendingUp, AlertTriangle, Search, 
   Filter, ArrowUpDown, Edit3, Printer, Check, X, ShieldAlert, 
@@ -9,10 +9,14 @@ import { formatIQD, formatIQDLabel } from '../../utils/currency';
 import { getColorHex } from '../../utils/colors';
 import { Product, Category } from '../../types';
 import { LOW_STOCK_THRESHOLD } from '../../utils/inventory';
+import { Pagination } from '../Pagination';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, Legend, Cell, PieChart, Pie
 } from 'recharts';
+
+/** Page sizes offered for the detail table. */
+const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 250];
 
 interface AdminInventoryTabProps {
   /** Products already in the store — used only until the full list arrives. */
@@ -75,6 +79,17 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out' | 'missingCost'>('all');
   const [sortBy, setSortBy] = useState<'highestCost' | 'highestRetail' | 'highestProfit' | 'highestStock' | 'lowestStock'>('highestCost');
+
+  // Table paging. The KPI cards and charts above still cover the ENTIRE
+  // warehouse — only the detail table is paged, because a shop with a thousand
+  // products cannot render (or scroll) a thousand rows at once.
+  const [tablePage, setTablePage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(ROWS_PER_PAGE_OPTIONS[0]);
+  // Turning the page from the bottom should bring the table header back into
+  // view instead of leaving the admin stranded at the end of the new page.
+  const tableTopRef = useRef<HTMLDivElement | null>(null);
+  // Set only while the print dialog is open, so the printout is not paged.
+  const [printingAll, setPrintingAll] = useState(false);
 
   // Edit Cost Modal State
   const [editingCostProduct, setEditingCostProduct] = useState<Product | null>(null);
@@ -257,6 +272,36 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
     return result;
   }, [processedProducts, searchQuery, selectedCategory, stockFilter, sortBy]);
 
+  /** Totals for the current filter — computed over every matching row, not just the visible page. */
+  const filteredTotals = useMemo(() => filteredProducts.reduce(
+    (acc, item) => ({
+      variations: acc.variations + item.variationsCount,
+      pieces: acc.pieces + item.stockPieces,
+      cost: acc.cost + item.totalCostValue,
+      retail: acc.retail + item.totalRetailValue,
+    }),
+    { variations: 0, pieces: 0, cost: 0, retail: 0 }
+  ), [filteredProducts]);
+
+  const totalTablePages = Math.max(1, Math.ceil(filteredProducts.length / rowsPerPage));
+
+  // Filters changed (or the list shrank): go back to a page that exists.
+  useEffect(() => {
+    setTablePage(1);
+  }, [searchQuery, selectedCategory, stockFilter, sortBy, rowsPerPage]);
+
+  const safePage = Math.min(tablePage, totalTablePages);
+
+  const visibleProducts = useMemo(
+    () => (printingAll
+      ? filteredProducts
+      : filteredProducts.slice((safePage - 1) * rowsPerPage, safePage * rowsPerPage)),
+    [filteredProducts, safePage, rowsPerPage, printingAll]
+  );
+
+  const rangeStart = filteredProducts.length === 0 ? 0 : (safePage - 1) * rowsPerPage + 1;
+  const rangeEnd = Math.min(safePage * rowsPerPage, filteredProducts.length);
+
   // Handle Save Cost Edit
   const handleSaveCost = () => {
     if (!editingCostProduct) return;
@@ -276,9 +321,18 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
     setEditingCostProduct(null);
   };
 
-  // Printable Audit Summary
+  /**
+   * Print the audit. Paging is a screen concern — a printed stock-take has to
+   * list every filtered row, so expand the table first and restore it after.
+   */
   const handlePrintAudit = () => {
-    window.print();
+    setPrintingAll(true);
+    // Give React a frame to render the full table before the print dialog
+    // snapshots the page.
+    setTimeout(() => {
+      window.print();
+      setPrintingAll(false);
+    }, 150);
   };
 
   // Color Palette for Pie/Bar charts
@@ -590,7 +644,7 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
       </div>
 
       {/* Main Table Controls & Filters */}
-      <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-6 rounded-[2.5rem] shadow-sm space-y-6">
+      <div ref={tableTopRef} className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-6 rounded-[2.5rem] shadow-sm space-y-6 scroll-mt-24">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
           {/* Search Box */}
           <div className="relative flex-1 min-w-[260px]">
@@ -655,23 +709,47 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
           </div>
         </div>
 
-        {/* Results Bar Summary */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-slate-600 bg-slate-100/70 p-3 rounded-2xl px-4">
-          <span>
-            {L(
-              `پیشاندانی ${filteredProducts.length} پرۆدەکت (${filteredProducts.reduce((sum, p) => sum + p.variationsCount, 0)} ئایتم/ڤاریەیشن) - کۆی پارچەکان: ${filteredProducts.reduce((sum, p) => sum + p.stockPieces, 0)}`,
-              `عرض ${filteredProducts.length} منتج (${filteredProducts.reduce((sum, p) => sum + p.variationsCount, 0)} صنف/نوع) - إجمالي القطع: ${filteredProducts.reduce((sum, p) => sum + p.stockPieces, 0)}`,
-              `Showing ${filteredProducts.length} products (${filteredProducts.reduce((sum, p) => sum + p.variationsCount, 0)} variations) - Total pieces: ${filteredProducts.reduce((sum, p) => sum + p.stockPieces, 0)}`
-            )}
-          </span>
+        {/* Results Bar Summary — counts cover the whole filter, not just this page */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs font-bold text-slate-600 bg-slate-100/70 p-3 rounded-2xl px-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <span>
+              {filteredProducts.length > 0
+                ? L(
+                    `پیشاندانی ${rangeStart}–${rangeEnd} لە ${filteredProducts.length} پرۆدەکت`,
+                    `عرض ${rangeStart}–${rangeEnd} من ${filteredProducts.length} منتج`,
+                    `Showing ${rangeStart}–${rangeEnd} of ${filteredProducts.length} products`
+                  )
+                : L('هیچ ئەنجامێک نییە', 'لا توجد نتائج', 'No results')}
+            </span>
+            <span className="text-slate-400">
+              {L(
+                `${filteredTotals.variations} ئایتم · ${filteredTotals.pieces.toLocaleString()} پارچە`,
+                `${filteredTotals.variations} صنف · ${filteredTotals.pieces.toLocaleString()} قطعة`,
+                `${filteredTotals.variations} variations · ${filteredTotals.pieces.toLocaleString()} pieces`
+              )}
+            </span>
+          </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>
               {L('کۆی تێچووی دیاریکراو:', 'إجمالي التكلفة المحددة:', 'Filtered Total Cost:')}{' '}
               <strong className="text-indigo-700 font-black">
-                {formatIQDLabel(filteredProducts.reduce((sum, p) => sum + p.totalCostValue, 0))}
+                {formatIQDLabel(filteredTotals.cost)}
               </strong>
             </span>
+
+            <label className="flex items-center gap-2 print:hidden">
+              <span className="text-slate-500">{L('ڕیز لە پەڕەیەکدا:', 'صفوف بالصفحة:', 'Rows per page:')}</span>
+              <select
+                value={rowsPerPage}
+                onChange={e => setRowsPerPage(Number(e.target.value))}
+                className="py-1.5 px-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none cursor-pointer hover:border-indigo-300 transition-colors"
+              >
+                {ROWS_PER_PAGE_OPTIONS.map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
 
@@ -704,7 +782,7 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map(item => {
+                visibleProducts.map(item => {
                   const p = item.product;
                   return (
                     <tr 
@@ -832,6 +910,18 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Only the table is paged; the audit totals above cover everything. */}
+        <div className="print:hidden">
+          <Pagination
+            currentPage={safePage}
+            totalPages={totalTablePages}
+            onPageChange={page => {
+              setTablePage(Math.min(Math.max(1, page), totalTablePages));
+              tableTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+          />
         </div>
       </div>
 
