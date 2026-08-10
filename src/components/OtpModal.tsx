@@ -9,6 +9,7 @@ interface OtpModalProps {
   isOpen: boolean;
   onClose: () => void;
   mobileNumber: string;
+  customerName?: string;
   channel: 'whatsapp' | 'sms';
   generatedCode?: string;
   onVerifySuccess: () => void;
@@ -21,6 +22,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
   isOpen,
   onClose,
   mobileNumber,
+  customerName,
   channel,
   generatedCode,
   onVerifySuccess,
@@ -180,14 +182,14 @@ export const OtpModal: React.FC<OtpModalProps> = ({
     try {
       // Direct generated code check or service check
       if (enteredCode === generatedCode || enteredCode === '123456') {
-        try { await loginWithPhone(mobileNumber); } catch (e) {}
+        try { await loginWithPhone(mobileNumber, customerName); } catch (e) {}
         onVerifySuccess();
         return;
       }
 
       const res = await verifyCheckoutOtp(mobileNumber, enteredCode);
       if (res.success) {
-        try { await loginWithPhone(mobileNumber); } catch (e) {}
+        try { await loginWithPhone(mobileNumber, customerName); } catch (e) {}
         onVerifySuccess();
       } else {
         setOtpError(

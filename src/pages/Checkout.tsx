@@ -347,13 +347,13 @@ export const Checkout: React.FC = () => {
 
     let activeUser = userToUse;
     if (!activeUser && mobile) {
-      activeUser = await registerWithPhone(mobile, name);
+      activeUser = await registerWithPhone(mobile, name, { address: formattedAddress, governorate: govText, district: distText });
     }
 
     if (activeUser) {
       const updatedUser = {
         ...activeUser,
-        name: name,
+        name: name && name !== 'Customer' ? name : activeUser.name,
         phone: mobile,
         address: formattedAddress,
       };
@@ -376,6 +376,8 @@ export const Checkout: React.FC = () => {
         shippingAddress: formattedAddress,
         paymentMethod: 'cod',
         couponCode: appliedCoupon?.code,
+        channel: 'online',
+        source: 'online',
       } as any);
 
       setIsPlacing(false);
@@ -804,6 +806,7 @@ export const Checkout: React.FC = () => {
         isOpen={showOtpModal}
         onClose={() => setShowOtpModal(false)}
         mobileNumber={mobileNumber}
+        customerName={fullName}
         channel={otpChannel}
         generatedCode={generatedOtp}
         directUrl={directOtpUrl}
@@ -813,9 +816,16 @@ export const Checkout: React.FC = () => {
           setShowOtpModal(false);
           setOtpError('');
           setNotificationBanner(null);
-          if (!currentUser && mobileNumber) {
-            await registerWithPhone(mobileNumber, fullName || 'Customer');
-          }
+
+          const govObj = iraqLocations.find(l => l.governorate === selectedGovernorate || l.id === selectedGovernorate);
+          const govText = govObj ? getGovernorateName(govObj) : selectedGovernorate;
+          
+          const distObj = availableDistricts.find(d => d.id === selectedDistrict || d.name === selectedDistrict);
+          const distText = distObj ? getDistrictName(distObj) : selectedDistrict;
+
+          const formattedAddr = `${govText} - ${t('district')}: ${distText}${selectedSubdistrict ? ` - ${t('subdistrict')}: ${selectedSubdistrict}` : ''} (${address})`;
+
+          await registerWithPhone(mobileNumber, fullName && fullName.trim() !== 'Customer' ? fullName.trim() : undefined, { address: formattedAddr, governorate: govText, district: distText });
         }}
         onResendOtp={(newChan) => handleSendOtp(newChan)}
       />

@@ -29,7 +29,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { FeedbackProvider } from './components/ui/Feedback';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { Language } from './i18n/translations';
-import { isAdminRole, isCashierRole } from './utils/roles';
+import { isAdminRole, isCashierRole, getRoleInfo } from './utils/roles';
 import { SearchBar } from './components/SearchBar';
 import { LanguageDropdown } from './components/LanguageDropdown';
 import { InitialLanguageModal } from './components/InitialLanguageModal';
@@ -296,14 +296,15 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                           <div className="p-3 bg-gradient-to-r from-rose-50/70 via-pink-50/50 to-sky-50/50 rounded-xl mb-1 border border-pink-100/50">
                             <p className="text-xs font-black text-slate-900 truncate">{currentUser.name}</p>
                             <p className="text-[11px] font-bold text-slate-500 truncate">{currentUser.phone || currentUser.email || 'Galo Kids Member'}</p>
-                            {isStaffOrAdmin && (
-                              <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-2xs">
-                                <ShieldCheck className="w-3 h-3" />
-                                {Number(currentUser.role) === 3 || currentUser.role === '3' || currentUser.role === 'admin' 
-                                  ? (language === 'ku' ? 'بەڕێوەبەر' : language === 'ar' ? 'مدير' : 'Admin') 
-                                  : (language === 'ku' ? 'کارمەند' : language === 'ar' ? 'موظف' : 'Staff')}
-                              </span>
-                            )}
+                            {(() => {
+                              const roleInfo = getRoleInfo(currentUser.role, language);
+                              return (
+                                <span className={`inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-black border ${roleInfo.badgeClass}`}>
+                                  <ShieldCheck className="w-3 h-3" />
+                                  {roleInfo.label} ({roleInfo.id})
+                                </span>
+                              );
+                            })()}
                           </div>
 
                           <div className="space-y-0.5">
@@ -317,6 +318,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                               <span>{language === 'ku' ? 'بینینی پڕۆفایل' : language === 'ar' ? 'عرض الملف الشخصي' : 'View Profile'}</span>
                             </Link>
 
+                            {/* My Orders / ئۆردەرەکانم */}
+                            <Link
+                              to="/my-orders"
+                              onClick={() => setIsUserDropdownOpen(false)}
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            >
+                              <Package className="w-4 h-4 text-indigo-500" />
+                              <span>{language === 'ku' ? 'ئۆردەرەکانم' : language === 'ar' ? 'طلباتي' : 'My Orders'}</span>
+                            </Link>
+
                             {/* Change Password */}
                             <Link
                               to="/profile?tab=security"
@@ -327,8 +338,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                               <span>{language === 'ku' ? 'گۆڕینی پاسۆرد' : language === 'ar' ? 'تغيير كلمة المرور' : 'Change Password'}</span>
                             </Link>
 
-                            {/* Staff / Admin Links if applicable */}
-                            {isStaffOrAdmin && (
+                            {/* POS Link (Admin & Cashier) */}
+                            {(isAdminRole(currentUser.role) || isCashierRole(currentUser.role)) && (
                               <>
                                 <div className="h-px bg-slate-100 my-1" />
                                 <Link
@@ -339,15 +350,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                                   <MonitorSmartphone className="w-4 h-4 text-orange-500" />
                                   <span>{t('pos')}</span>
                                 </Link>
-                                <Link
-                                  to="/admin"
-                                  onClick={() => setIsUserDropdownOpen(false)}
-                                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-rose-700 hover:bg-rose-50 transition-colors"
-                                >
-                                  <ShieldCheck className="w-4 h-4 text-rose-500" />
-                                  <span>{t('admin')}</span>
-                                </Link>
                               </>
+                            )}
+
+                            {/* Admin Link (Admin ONLY - role 1) */}
+                            {isAdminRole(currentUser.role) && (
+                              <Link
+                                to="/admin"
+                                onClick={() => setIsUserDropdownOpen(false)}
+                                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-rose-700 hover:bg-rose-50 transition-colors"
+                              >
+                                <ShieldCheck className="w-4 h-4 text-rose-500" />
+                                <span>{t('admin')}</span>
+                              </Link>
                             )}
 
                             <div className="h-px bg-slate-100 my-1" />

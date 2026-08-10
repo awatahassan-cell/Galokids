@@ -6,6 +6,7 @@ import { Home, ShoppingBag, Info, Mail, UserCircle, Shield, MonitorSmartphone, X
 import { Language } from '../i18n/translations';
 import { CategoryIcon } from './CategoryIcon';
 import { LanguageDropdown } from './LanguageDropdown';
+import { isAdminRole, isCashierRole } from '../utils/roles';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -132,8 +133,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     },
   ];
 
-  const adminItems = isStaffOrAdmin ? [
-    { 
+  const canSeePos = currentUser && (isAdminRole(currentUser.role) || isCashierRole(currentUser.role));
+  const canSeeAdmin = currentUser && isAdminRole(currentUser.role);
+
+  const adminItems = [
+    ...(canSeePos ? [{ 
       name: t('pos'), 
       path: '/pos', 
       icon: MonitorSmartphone, 
@@ -141,8 +145,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       hoverBg: 'hover:bg-orange-50/40 hover:text-orange-600', 
       iconBg: 'bg-gradient-to-tr from-amber-400 to-orange-500 text-white shadow-sm shadow-orange-200', 
       iconColor: 'text-orange-500 bg-orange-50' 
-    },
-    { 
+    }] : []),
+    ...(canSeeAdmin ? [{ 
       name: t('admin'), 
       path: '/admin', 
       icon: Shield, 
@@ -150,8 +154,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       hoverBg: 'hover:bg-red-50/40 hover:text-red-600', 
       iconBg: 'bg-gradient-to-tr from-red-400 to-rose-600 text-white shadow-sm shadow-rose-200', 
       iconColor: 'text-red-500 bg-red-50' 
-    },
-  ] : [];
+    }] : [])
+  ];
 
   const isActive = (path: string) => location.pathname === path;
 

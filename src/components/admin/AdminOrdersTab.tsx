@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Trash2, Eye, ChevronDown, ChevronUp, Package, Phone, 
   MapPin, User, Calendar, Tag, ShoppingBag, X, MessageCircle,
-  Search, Filter, Clock, CheckCircle2, Truck, AlertCircle
+  Search, Filter, Clock, CheckCircle2, Truck, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
@@ -10,16 +10,19 @@ import { Order, PaginationMeta, CartItem } from '../../types';
 import { useConfirm, useToast } from '../ui/Feedback';
 import { formatIQDLabel } from '../../utils/currency';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../../utils/colors';
+import { useStore } from '../../store';
+import { Pagination } from '../Pagination';
 
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
   if (order.channel === 'pos' || order.source === 'pos' || order.isPos === true) return true;
+  if (order.channel === 'online' || order.source === 'online' || order.channel === 'web') return false;
   const addr = String(order.shippingAddress || '').toLowerCase();
   const email = String(order.customerEmail || '').toLowerCase();
   const name = String(order.customerName || '').toLowerCase();
   if (addr.includes('pos') || addr.includes('in-store') || addr.includes('لە فرۆشگا') || addr.includes('حضوري')) return true;
   if (email.includes('cashier') || email === 'cashier@galokids.com') return true;
-  if (name.includes('pos cash sale') || order.userId === 'u1') return true;
+  if (name.includes('pos cash sale')) return true;
   return false;
 };
 
@@ -37,7 +40,7 @@ export interface AdminOrdersTabProps {
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
   deleteOrder: (orderId: string) => void;
   ordersPagination: PaginationMeta;
-  refreshOrders: (page?: number, limit?: number) => void;
+  refreshOrders?: (page?: number, limit?: number) => void;
   confirmDialog?: (options: any) => Promise<boolean>;
   toast?: (msg: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 }
@@ -50,6 +53,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   toast: propToast,
 }) => {
   const { language } = useLanguage();
+  const { refreshOrders } = useStore();
   const L = (key: string) => adminTr(key, language);
   const hookConfirm = useConfirm();
   const hookToast = useToast();
@@ -58,6 +62,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedOrderForModal, setSelectedOrderForModal] = useState<Order | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -66,6 +71,26 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const [customDate, setCustomDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Auto-refresh orders on mount & filter/page changes
+  useEffect(() => {
+    if (refreshOrders) {
+      refreshOrders(currentPage, 50);
+    }
+  }, [currentPage, statusFilter, dateFilter, customDate, refreshOrders]);
+
+  const handleManualRefresh = async () => {
+    if (isRefreshing || !refreshOrders) return;
+    setIsRefreshing(true);
+    try {
+      await refreshOrders(1, 50);
+      toast(language === 'ku' ? 'داواکارییەکان نوێکرانەوە 🔄' : 'Orders refreshed 🔄');
+    } catch (err) {
+      console.error('Refresh error:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Filter ONLY website orders
   const websiteOrders = useMemo(() => {
@@ -263,12 +288,12 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
           </select>
         </div>
 
-        {/* Date Filter */}
-        <div>
+        {/* Date Filter & Refresh Button */}
+        <div className="flex items-center gap-2">
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value as any)}
-            className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            className="grow py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
             <option value="all">{language === 'ku' ? 'هەموو بەروارەکان' : 'All Dates'}</option>
             <option value="today">{language === 'ku' ? 'ئەمڕۆ' : 'Today'}</option>
@@ -276,6 +301,15 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             <option value="this_month">{language === 'ku' ? 'ئەم مانگە' : 'This Month'}</option>
             <option value="custom">{language === 'ku' ? 'بەرواری دیاریکراو' : 'Specific Date'}</option>
           </select>
+
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="p-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50 shrink-0"
+            title={language === 'ku' ? 'نوێکردنەوەی داتای داواکارییەکان' : 'Refresh web orders'}
+          >
+            <RefreshCw className={`w-4 h-4 text-indigo-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
         {/* Custom Date Picker */}
@@ -587,43 +621,15 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         </table>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 flex-wrap gap-3">
-          <span className="text-xs font-bold text-slate-500">
-            {language === 'ku' ? `لاپەڕە ${currentPage} لە ${totalPages}` : `Page ${currentPage} of ${totalPages}`}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 cursor-pointer"
-            >
-              {language === 'ku' ? 'پێشوو' : 'Previous'}
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 rounded-xl text-xs font-black cursor-pointer transition-all ${
-                  currentPage === page
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 cursor-pointer"
-            >
-              {language === 'ku' ? 'داهاتوو' : 'Next'}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Standard Unified Pagination Component */}
+      <Pagination
+        meta={{
+          currentPage,
+          lastPage: totalPages,
+          total: filteredOrders.length,
+        }}
+        onPageChange={(page) => setCurrentPage(page)}
+      />
 
       {/* Modal */}
       {selectedOrderForModal && (

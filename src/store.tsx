@@ -1708,15 +1708,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
-  const registerWithPhone = async (phone: string, name?: string): Promise<User | null> => {
-    return loginWithPhone(phone, name);
+  const registerWithPhone = async (phone: string, name?: string, addressInfo?: any): Promise<User | null> => {
+    return loginWithPhone(phone, name, addressInfo);
   };
 
-  const loginWithPhone = async (phone: string, name?: string): Promise<User | null> => {
+  const loginWithPhone = async (phone: string, name?: string, addressInfo?: any): Promise<User | null> => {
     const cleanPhone = phone.trim();
     if (!cleanPhone) return null;
 
     const phoneDigits = cleanPhone.replace(/[^\d]/g, '');
+    const validName = name && name.trim() && name.trim().toLowerCase() !== 'customer' ? name.trim() : undefined;
 
     try {
       const res = await fetch(`${LARAVEL_API_BASE}/login-with-phone`, {
@@ -1724,7 +1725,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: cleanPhone,
-          name: name ? name.trim() : undefined,
+          name: validName,
+          ...addressInfo
         }),
       });
 
@@ -1735,17 +1737,23 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           localStorage.setItem('kidskart_auth_token', camelData.accessToken);
         }
         if (camelData.user) {
-          localStorage.setItem('kidskart_user', JSON.stringify(camelData.user));
-          setCurrentUser(camelData.user);
+          const finalUser: User = {
+            ...camelData.user,
+            role: Number(camelData.user.role) === 1 ? 1 : Number(camelData.user.role) === 2 ? 2 : 0,
+            name: validName || (camelData.user.name && camelData.user.name.toLowerCase() !== 'customer' ? camelData.user.name : undefined) || `کڕیار (${phoneDigits.slice(-4) || '1234'})`,
+            address: addressInfo?.address || camelData.user.address,
+          };
+          localStorage.setItem('kidskart_user', JSON.stringify(finalUser));
+          setCurrentUser(finalUser);
           setUsers(prev => {
-            const exists = prev.some(u => u.id === camelData.user.id || (u.phone && u.phone.replace(/[^\d]/g, '') === phoneDigits));
+            const exists = prev.some(u => u.id === finalUser.id || (u.phone && u.phone.replace(/[^\d]/g, '') === phoneDigits));
             const updated = exists 
-              ? prev.map(u => (u.id === camelData.user.id || (u.phone && u.phone.replace(/[^\d]/g, '') === phoneDigits)) ? camelData.user : u)
-              : [...prev, camelData.user];
+              ? prev.map(u => (u.id === finalUser.id || (u.phone && u.phone.replace(/[^\d]/g, '') === phoneDigits)) ? finalUser : u)
+              : [...prev, finalUser];
             localStorage.setItem('kidskart_users_local', JSON.stringify(updated));
             return updated;
           });
-          return camelData.user;
+          return finalUser;
         }
       }
     } catch (err) {
@@ -1762,7 +1770,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (existing) {
       const updatedUser: User = { 
         ...existing, 
-        name: name?.trim() || existing.name || `کڕیار (${phoneDigits.slice(-4) || '1234'})` 
+        role: Number(existing.role) === 1 ? 1 : Number(existing.role) === 2 ? 2 : 0,
+        name: validName || (existing.name && existing.name.toLowerCase() !== 'customer' ? existing.name : undefined) || `کڕیار (${phoneDigits.slice(-4) || '1234'})`,
+        address: addressInfo?.address || existing.address,
       };
       setCurrentUser(updatedUser);
       localStorage.setItem('kidskart_user', JSON.stringify(updatedUser));
@@ -1776,11 +1786,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const newUser: User = {
       id: `u-${Date.now()}`,
-      name: name?.trim() || `کڕیار (${phoneDigits.slice(-4) || '1234'})`,
+      name: validName || `کڕیار (${phoneDigits.slice(-4) || '1234'})`,
       phone: cleanPhone,
       email: `${phoneDigits}@phone.user`,
       role: 0,
-      joinDate: new Date().toISOString().split('T')[0]
+      joinDate: new Date().toISOString().split('T')[0],
+      address: addressInfo?.address,
     };
     setCurrentUser(newUser);
     localStorage.setItem('kidskart_user', JSON.stringify(newUser));
