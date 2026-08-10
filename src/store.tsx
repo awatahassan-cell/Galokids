@@ -1527,20 +1527,24 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const deleteOrder = (orderId: string) => {
-    setOrders(prev => prev.filter(o => String(o.id) !== String(orderId)));
+    setOrders(prev => {
+      const updated = prev.filter(o => String(o.id) !== String(orderId));
+      try {
+        localStorage.setItem('kidskart_orders_local', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
 
     authedApiFetch(`${LARAVEL_API_BASE}/orders/${orderId}`, {
       method: 'DELETE',
     })
       .then(res => {
-        if (!res.ok) {
-          console.warn('Backend order deletion failed');
-          refreshOrders();
+        if (!res.ok && res.status !== 404) {
+          console.warn('Backend order deletion note:', res.status);
         }
       })
       .catch(err => {
         console.warn('Order delete note:', err);
-        refreshOrders();
       });
   };
 

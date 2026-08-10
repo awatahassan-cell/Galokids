@@ -87,11 +87,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Orders Management (All authenticated users can create orders, and fetch their respective authorized lists)
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::get('/orders/{order}', [OrderController::class, 'show']);
+    Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::post('/orders', [OrderController::class, 'store']);
-    Route::put('/orders/{order}', [OrderController::class, 'update']);
-    Route::post('/orders/{order}/refund', [OrderController::class, 'refund']);
-    Route::delete('/orders/{order}', [OrderController::class, 'destroy']);
+    Route::put('/orders/{id}', [OrderController::class, 'update']);
+    Route::post('/orders/{id}/refund', [OrderController::class, 'refund']);
+    Route::delete('/orders/{id}', [OrderController::class, 'destroy']);
 
     // POS shift / Z-report (staff/admin)
     Route::get('/shifts/current', [\App\Http\Controllers\ShiftController::class, 'current']);

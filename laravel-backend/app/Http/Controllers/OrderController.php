@@ -300,9 +300,12 @@ class OrderController extends Controller
     {
         $this->checkStaffOrAdmin($request);
 
-        DB::transaction(function () use ($id) {
-            $order = Order::with('items')->lockForUpdate()->findOrFail($id);
+        $order = Order::with('items')->find($id);
+        if (!$order) {
+            return response()->json(['message' => 'Order already deleted or not found.'], 200);
+        }
 
+        DB::transaction(function () use ($order) {
             // Restock anything that was decremented, unless it was already cancelled.
             if ($order->status !== 'cancelled') {
                 foreach ($order->items as $item) {
@@ -319,7 +322,7 @@ class OrderController extends Controller
             $order->delete();
         });
 
-        return response()->json(null, 204);
+        return response()->json(['message' => 'Order deleted successfully.'], 200);
     }
 
     /**
