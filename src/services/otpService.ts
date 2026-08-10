@@ -1,4 +1,7 @@
 import { apiFetch } from '../config/api';
+import { formatIraqiPhone } from '../utils/phone';
+
+export { formatIraqiPhone };
 
 export interface OtpResponse {
   success: boolean;
@@ -6,20 +9,6 @@ export interface OtpResponse {
   directUrl?: string;
   message?: string;
 }
-
-// Format Iraqi phone numbers to standard format (e.g. 07501234567 -> 9647501234567)
-export const formatIraqiPhone = (phone: string): string => {
-  const safePhone = typeof phone === 'string' ? phone : String(phone || '');
-  let clean = safePhone.replace(/[^\d]/g, '');
-  if (clean.startsWith('0')) {
-    clean = clean.substring(1);
-  }
-  if (!clean.startsWith('964')) {
-    clean = '964' + clean;
-  }
-  return clean;
-};
-
 // Local session cache as fallback if server is offline during dev
 const activeSessions: Record<string, { code: string; expiresAt: number }> = {};
 

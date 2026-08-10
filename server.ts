@@ -17,6 +17,7 @@ app.use(['/API/api', '/api'], async (req, res) => {
 
     const headers: Record<string, string> = {
       'accept': 'application/json',
+      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     };
     if (req.headers.authorization) {
       headers['authorization'] = req.headers.authorization as string;
@@ -30,7 +31,7 @@ app.use(['/API/api', '/api'], async (req, res) => {
       headers,
     };
 
-    if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
       fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
     }
 

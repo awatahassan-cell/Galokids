@@ -11,9 +11,14 @@ import { getColorHex } from '../utils/colors';
 import iraqLocations from '../data/iraq-locations.json';
 import { OtpModal } from '../components/OtpModal';
 import { sendCheckoutOtp } from '../services/otpService';
+import { isSamePhone } from '../utils/phone';
 
 export const Checkout: React.FC = () => {
-  const { cart, clearCart, addOrder, currentUser, appliedCoupon, setAppliedCoupon, applyCoupon, coupons, registerWithPhone } = useStore();
+  const { 
+    cart, clearCart, addOrder, currentUser, users, appliedCoupon, 
+    setAppliedCoupon, applyCoupon, coupons, registerWithPhone, 
+    loginWithPhone, login, updateProfile 
+  } = useStore();
   const navigate = useNavigate();
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPlacing, setIsPlacing] = useState(false);
@@ -21,6 +26,13 @@ export const Checkout: React.FC = () => {
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const { t, language, dir } = useLanguage();
+
+  // Quick Login Modal State on Checkout
+  const [showQuickLogin, setShowQuickLogin] = useState(false);
+  const [loginInput, setLoginInput] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [quickLoginError, setQuickLoginError] = useState('');
   
   // Location States (Governorate -> District / Qaza -> Sub-district / Nahiya)
   const [selectedGovernorate, setSelectedGovernorate] = useState('');
@@ -96,6 +108,10 @@ export const Checkout: React.FC = () => {
   const savedUserStr = localStorage.getItem('kidskart_user');
   const userToUse = currentUser || (savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch { return null; } })() : null);
 
+  // Check if unauthenticated mobile number matches a registered user
+  const existingUserForPhone = !userToUse && mobileNumber && mobileNumber.replace(/[^\d]/g, '').length >= 7 
+    ? users.find(u => u.phone && isSamePhone(mobileNumber, u.phone)) 
+    : null;
   useEffect(() => {
     if (userToUse) {
       if (userToUse.name) setFullName(userToUse.name);
@@ -178,11 +194,18 @@ export const Checkout: React.FC = () => {
     setSelectedSubdistrict('');
   };
 
-  // Handle phone change -> reset verification if different
+  // Handle phone change -> check if phone matches logged-in user or verified phone
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setMobileNumber(value);
-    if (isPhoneVerified && value !== verifiedPhone) {
+
+    // Check if typed phone matches userToUse phone or previously verifiedPhone
+    const matchesUser = !!(userToUse?.phone && isSamePhone(value, userToUse.phone));
+    const matchesVerified = !!(verifiedPhone && isSamePhone(value, verifiedPhone));
+
+    if (matchesUser || matchesVerified) {
+      setIsPhoneVerified(true);
+    } else {
       setIsPhoneVerified(false);
     }
   };
@@ -256,6 +279,57 @@ export const Checkout: React.FC = () => {
     }
   };
 
+  // Quick Login Handler on Checkout
+  const handleQuickLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginInput.trim()) return;
+    setIsLoggingIn(true);
+    setQuickLoginError('');
+
+    try {
+      let success = false;
+      if (loginPassword.trim()) {
+        success = await login(loginInput.trim(), loginPassword);
+      } else {
+        const u = await loginWithPhone(loginInput.trim());
+        success = !!u;
+      }
+
+      if (success) {
+        setShowQuickLogin(false);
+        setLoginInput('');
+        setLoginPassword('');
+      } else {
+        setQuickLoginError(
+          language === 'ku' 
+            ? 'ژمارەی مۆبایل/ئیمەیڵ یان پاسۆردەکە هەڵەیە' 
+            : language === 'ar' 
+            ? 'رقم الهاتف أو كلمة المرور غير صحيحة' 
+            : 'Invalid login credentials.'
+        );
+      }
+    } catch (err) {
+      setQuickLoginError(
+        language === 'ku' 
+          ? 'هەڵەیەک ڕوویدا لە کاتی چوونە ژوورەوە' 
+          : 'An error occurred during login.'
+      );
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  // Lock body scroll when quick login modal is open
+  useEffect(() => {
+    if (showQuickLogin) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showQuickLogin]);
   useEffect(() => {
     if (appliedCoupon && coupons.length > 0) {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -322,7 +396,10 @@ export const Checkout: React.FC = () => {
     const savedUserStr = localStorage.getItem('kidskart_user');
     const userToUse = currentUser || (savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch { return null; } })() : null);
 
-    if (!userToUse && !isPhoneVerified) {
+    const isUserPhone = !!(userToUse?.phone && isSamePhone(mobileNumber, userToUse.phone));
+    const isVerified = isPhoneVerified || (verifiedPhone && isSamePhone(mobileNumber, verifiedPhone)) || isUserPhone;
+
+    if (!userToUse && !isVerified) {
       if (!mobileNumber.trim() || mobileNumber.trim().length < 8) {
         alert(t('mobileNumber') + ' ' + (language === 'ku' ? 'دروست نییە' : 'is invalid'));
         return;
@@ -351,14 +428,20 @@ export const Checkout: React.FC = () => {
     }
 
     if (activeUser) {
+      const finalName = name && name !== 'Customer' && name !== 'کڕیار' ? name : activeUser.name;
       const updatedUser = {
         ...activeUser,
-        name: name && name !== 'Customer' ? name : activeUser.name,
+        name: finalName,
         phone: mobile,
         address: formattedAddress,
       };
       try {
-        localStorage.setItem('kidskart_user', JSON.stringify(updatedUser));
+        await updateProfile(
+          finalName,
+          activeUser.email || `${mobile.replace(/[^\d]/g, '')}@phone.user`,
+          mobile,
+          formattedAddress
+        );
       } catch (e) {
         console.warn('Failed to update local user address', e);
       }
@@ -457,7 +540,7 @@ export const Checkout: React.FC = () => {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Auto-filled User Info Banner */}
-                {userToUse && (
+                {userToUse ? (
                   <div className="sm:col-span-2 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-4 sm:p-5 rounded-2xl shadow-md flex items-center justify-between gap-4 font-arabic">
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="w-11 h-11 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0 shadow-inner">
@@ -481,6 +564,47 @@ export const Checkout: React.FC = () => {
                           {userToUse.email && !userToUse.email.includes('@phone.user') && <span className="text-slate-400">{userToUse.email}</span>}
                         </p>
                       </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="sm:col-span-2 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-5 rounded-2xl shadow-md border border-slate-700/80 space-y-3 font-arabic">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                          <UserCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-black text-white">
+                            {language === 'ku' ? 'ئایا پێشتر ئەکاونتت هەیە؟' : language === 'ar' ? 'هل لديك حساب بالفعل؟' : 'Do you have an account?'}
+                          </h3>
+                          <p className="text-xs text-slate-300 mt-0.5">
+                            {language === 'ku'
+                              ? 'چوونە ژوورەوە بکە بۆ ئەوەی ناونیشان و زانیارییە خەزنکراوەکانت بە خۆکارانە پڕببنەوە.'
+                              : language === 'ar'
+                              ? 'سجل الدخول لتعبئة عنوانك ومعلوماتك المحفوظة تلقائياً.'
+                              : 'Log in to auto-fill your saved address and details.'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickLogin(true)}
+                        className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-xl transition-all shadow-md shrink-0 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        <UserCheck className="w-4 h-4" />
+                        <span>{language === 'ku' ? 'چوونە ژوورەوە' : language === 'ar' ? 'تسجيل الدخول' : 'Sign In / Login'}</span>
+                      </button>
+                    </div>
+
+                    <div className="pt-2.5 border-t border-slate-800/80 flex items-center gap-2 text-[11px] text-emerald-300 font-bold">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                      <span>
+                        {language === 'ku'
+                          ? 'ئەگەر ئەکاونتت نییە: ناوی تەواو، مۆبایل و ناونیشانەکەت تەنها لە خوارەوە پڕبکەرەوە، زانیارییەکان بە خۆکارانە بۆ پرۆفایلەکەت دەپارێزرێن.'
+                          : language === 'ar'
+                          ? 'إذا لم يكن لديك حساب: أدخل بياناتك أدناه، وسنقوم بحفظ معلومات التوصيل في ملفك الشخصي تلقائياً.'
+                          : 'No account? Enter details below and your delivery info will automatically be saved to your profile.'}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -553,6 +677,31 @@ export const Checkout: React.FC = () => {
                     )}
                   </div>
 
+                  {/* Registered Account Prompt if Guest types a registered phone */}
+                  {!userToUse && existingUserForPhone && (
+                    <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-bold text-amber-900 shadow-xs animate-fadeIn">
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>
+                          {language === 'ku'
+                            ? `ئەم ژمارەیە تۆمارکراوە بە ناوی (${existingUserForPhone.name})`
+                            : language === 'ar'
+                            ? `هذا الرقم مسجل باسم (${existingUserForPhone.name})`
+                            : `This phone is registered under (${existingUserForPhone.name})`}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoginInput(mobileNumber);
+                          setShowQuickLogin(true);
+                        }}
+                        className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-black transition-all shrink-0 cursor-pointer shadow-xs active:scale-95"
+                      >
+                        {language === 'ku' ? 'چوونە ژوورەوە' : language === 'ar' ? 'تسجيل الدخول' : 'Log In'}
+                      </button>
+                    </div>
+                  )}
                   {/* Channel Selection Options */}
                   {!isPhoneVerified && (
                     <div className="pt-3 border-t border-slate-200/80 space-y-2">
@@ -829,6 +978,80 @@ export const Checkout: React.FC = () => {
         }}
         onResendOtp={(newChan) => handleSendOtp(newChan)}
       />
+      {/* Quick Login Modal for Checkout */}
+      {showQuickLogin && (
+        <div className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto h-screen h-[100dvh] font-arabic animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-7 shadow-2xl border border-slate-100 relative max-h-[85vh] overflow-y-auto my-auto animate-scaleUp">
+            <button 
+              type="button"
+              onClick={() => { setShowQuickLogin(false); setQuickLoginError(''); }}
+              className={`absolute top-4 ${dir === 'rtl' ? 'left-4' : 'right-4'} text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors cursor-pointer`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center mb-5 pt-2">
+              <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <UserCheck className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900">
+                {language === 'ku' ? 'چوونە ژوورەوە بۆ ئەکاونتەکەت' : language === 'ar' ? 'تسجيل الدخول إلى حسابك' : 'Log in to your account'}
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                {language === 'ku' ? 'زانیارییەکانت پڕبکەرەوە بۆ پڕکردنەوەی خۆکارانەی زانیاری گەیاندن' : language === 'ar' ? 'أدخل معلوماتك لتعبئة بيانات التوصيل تلقائياً' : 'Enter your details to auto-fill shipping info'}
+              </p>
+            </div>
+
+            {quickLoginError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{quickLoginError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleQuickLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 mb-1">
+                  {language === 'ku' ? 'ژمارەی مۆبایل یان ئیمەیڵ' : language === 'ar' ? 'رقم الهاتف أو البريد' : 'Phone Number or Email'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="0750 xxx xxxx"
+                  value={loginInput}
+                  onChange={(e) => setLoginInput(e.target.value)}
+                  className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-500 bg-slate-50/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 mb-1">
+                  {language === 'ku' ? 'وشەی تێپەڕ (ئەگەر هەتە)' : language === 'ar' ? 'كلمة المرور (إن وجدت)' : 'Password (optional)'}
+                </label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 bg-slate-50/50"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {language === 'ku' ? 'ئەگەر پاسۆردت نییە بە بەتاڵی جێی بهێڵە (چوونە ژوورەوەی خێرا بە مۆبایل)' : language === 'ar' ? 'اتركه فارغاً للدخول السريع برقم الهاتف' : 'Leave empty to log in instantly with phone number.'}
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-98"
+              >
+                {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>{language === 'ku' ? 'چوونە ژوورەوە' : language === 'ar' ? 'تسجيل الدخول' : 'Log In'}</span>}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

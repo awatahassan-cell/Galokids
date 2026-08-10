@@ -7,6 +7,7 @@ import { Navigate } from 'react-router-dom';
 import { Package, Clock, CheckCircle, Truck, XCircle } from 'lucide-react';
 
 import { isPosOrder } from '../components/admin/AdminOrdersTab';
+import { isSamePhone } from '../utils/phone';
 
 export const MyOrders: React.FC = () => {
   const { orders, currentUser } = useStore();
@@ -16,7 +17,6 @@ export const MyOrders: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const userPhoneDigits = currentUser.phone ? currentUser.phone.replace(/[^\d]/g, '') : '';
   const userEmail = currentUser.email ? currentUser.email.toLowerCase().trim() : '';
 
   const userOrders = orders
@@ -26,12 +26,7 @@ export const MyOrders: React.FC = () => {
 
       if (String(order.userId) === String(currentUser.id)) return true;
       if (userEmail && order.customerEmail && order.customerEmail.toLowerCase().trim() === userEmail) return true;
-      if (userPhoneDigits && order.customerPhone) {
-        const orderPhoneDigits = order.customerPhone.replace(/[^\d]/g, '');
-        if (orderPhoneDigits && (orderPhoneDigits === userPhoneDigits || (userPhoneDigits.length >= 8 && orderPhoneDigits.includes(userPhoneDigits.slice(-8))))) {
-          return true;
-        }
-      }
+      if (currentUser.phone && order.customerPhone && isSamePhone(order.customerPhone, currentUser.phone)) return true;
       return false;
     })
     .sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());

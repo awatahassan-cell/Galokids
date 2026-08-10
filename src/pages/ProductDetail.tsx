@@ -774,6 +774,25 @@ export const ProductDetail: React.FC = () => {
                   })}
                 </div>
               )}
+              {/* Checkout / Complete Order Button */}
+              {cart && cart.length > 0 && (
+                <div className="pt-3 border-t border-slate-200/80">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/checkout')}
+                    className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-sm sm:text-base rounded-xl transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer active:scale-98 font-arabic"
+                  >
+                    <span>
+                      {language === 'ku'
+                        ? 'تەواوکردنی داواکاری (چێک ئاوت)'
+                        : language === 'ar'
+                        ? 'إتمام الطلب (الدفع)'
+                        : 'Proceed to Checkout'}
+                    </span>
+                    {isRTL ? <ArrowLeft className="w-4 h-4 shrink-0" /> : <ArrowRight className="w-4 h-4 shrink-0" />}
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>

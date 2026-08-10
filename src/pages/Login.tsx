@@ -12,67 +12,71 @@ const loginTranslations = {
     welcomeBack: 'Welcome Back',
     subtitle: 'Sign in to manage your orders, wishlist, and profile details',
     mobileNumber: 'Mobile Number',
-    mobilePlaceholder: '0750 xxx xxxx',
-    emailAddress: 'Email Address',
-    emailPlaceholder: 'name@example.com',
+    emailAddress: 'Mobile Number or Email',
+    emailPlaceholder: '0750 xxx xxxx or name@example.com',
     password: 'Password',
     passwordPlaceholder: '••••••••',
     signIn: 'Sign In',
     sendOtp: 'Send OTP & Login',
     dontHaveAccount: "Don't have an account?",
     signUp: 'Sign up',
-    invalidEmail: 'Please enter a valid email address.',
+    invalidEmail: 'Please enter a valid mobile number or email address.',
     invalidPhone: 'Please enter a valid mobile number.',
     passwordRequired: 'Password is required.',
     loading: 'Processing...',
     errorTitle: 'Authentication Failed',
     backToHome: 'Back to shop',
     loginWithPhone: 'Phone & OTP',
-    loginWithEmail: 'Email & Password',
+    loginWithEmail: 'Phone/Email & Password',
+    hasPassword: 'Have a password? Login with password',
+    hasOtp: 'Prefer OTP? Login with OTP',
   },
   ku: {
     welcomeBack: 'خێربێیتەوە',
     subtitle: 'بچۆ ژوورەوە بۆ بەڕێوەبردنی داواکارییەکان، دڵخوازەکان و پرۆفایلەکەت',
     mobileNumber: 'ژمارەی مۆبایل',
-    mobilePlaceholder: '٠٧٥٠xxx xxxx',
-    emailAddress: 'ناونیشانی ئیمەیڵ',
-    emailPlaceholder: 'name@example.com',
+    emailAddress: 'ژمارەی مۆبایل یان ئیمەیڵ',
+    emailPlaceholder: '٠٧٥٠xxx xxxx یان name@example.com',
     password: 'وشەی تێپەڕ',
     passwordPlaceholder: '••••••••',
     signIn: 'چوونە ژوورەوە',
     sendOtp: 'ناردنی OTP و چوونە ژوورەوە',
     dontHaveAccount: 'ئەکاونتت نییە؟',
     signUp: 'تۆماربە',
-    invalidEmail: 'تکایە ئیمەیڵێکی دروست بنووسە.',
+    invalidEmail: 'تکایە ژمارەی مۆبایل یان ئیمەیڵێکی دروست بنووسە.',
     invalidPhone: 'تکایە ژمارەی مۆبایل بە دروستی بنووسە.',
     passwordRequired: 'تکایە وشەی تێپەڕ بنووسە.',
     loading: 'چوونە ژوورەوە...',
-    errorTitle: 'چوونە ژوورەوە سەرکەوتوو نەبوو',
+    errorTitle: 'چوونە ژوورەوە سەرکەوتوو نەبوو. مۆبایل/ئیمەیڵ یان پاسۆردەکە هەڵەیە.',
     backToHome: 'گەڕانەوە بۆ فرۆشگا',
     loginWithPhone: 'ژمارەی مۆبایل و OTP',
-    loginWithEmail: 'ئیمەیڵ و وشەی تێپەڕ',
+    loginWithEmail: 'مۆبایل/ئیمەیڵ و پاسۆرد',
+    hasPassword: 'پاسۆردت هەیە؟ چوونە ژوورەوە بە پاسۆرد',
+    hasOtp: 'دەتەوێت بە کۆدی OTP بچیتە ژوورەوە؟',
   },
   ar: {
     welcomeBack: 'مرحباً بعودتك',
     subtitle: 'سجل الدخول لإدارة طلباتك، قائمة الرغبات وتفاصيل حسابك',
     mobileNumber: 'رقم الهاتف',
     mobilePlaceholder: '0750 xxx xxxx',
-    emailAddress: 'البريد الإلكتروني',
-    emailPlaceholder: 'name@example.com',
+    emailAddress: 'رقم الهاتف أو البريد الإلكتروني',
+    emailPlaceholder: '0750 xxx xxxx أو name@example.com',
     password: 'كلمة المرور',
     passwordPlaceholder: '••••••••',
     signIn: 'تسجيل الدخول',
     sendOtp: 'إرسال OTP والدخول',
     dontHaveAccount: 'ليس لديك حساب؟',
     signUp: 'إنشاء حساب',
-    invalidEmail: 'يرجى إدخال بريد إلكتروني صالح.',
+    invalidEmail: 'يرجى إدخال رقم هاتف أو بريد إلكتروني صالح.',
     invalidPhone: 'يرجى إدخال رقم هاتف صالح.',
     passwordRequired: 'كلمة المرور مطلوبة.',
     loading: 'جاري تسجيل الدخول...',
-    errorTitle: 'فشل تسجيل الدخول',
+    errorTitle: 'فشل تسجيل الدخول. يرجى التحقق من المعلومات.',
     backToHome: 'العودة للمتجر',
     loginWithPhone: 'رقم الهاتف و OTP',
-    loginWithEmail: 'البريد وكلمة المرور',
+    loginWithEmail: 'الهاتف/البريد وكلمة المرور',
+    hasPassword: 'لديك كلمة مرور؟ الدخول بكلمة المرور',
+    hasOtp: 'تفضل رمز OTP؟ الدخول برمز OTP',
   }
 };
 
@@ -261,11 +265,24 @@ export const Login: React.FC = () => {
                     placeholder={localT.mobilePlaceholder}
                     disabled={isLoading}
                   />
-                  {phoneError && (
+                  {phoneError ? (
                     <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
                       <AlertCircle className="w-3.5 h-3.5" />
                       {phoneError}
                     </p>
+                  ) : (
+                    <div className="flex justify-end items-center mt-1.5">
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setAuthMethod('email');
+                          if (phone.trim()) setEmail(phone.trim());
+                        }}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer"
+                      >
+                        {localT.hasPassword}
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -305,14 +322,14 @@ export const Login: React.FC = () => {
               </>
             ) : (
               <>
-                {/* Email Field */}
+                {/* Email or Phone Field */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-slate-400" />
+                    <Phone className="w-4 h-4 text-slate-400" />
                     {localT.emailAddress}
                   </label>
                   <input 
-                    type="email" 
+                    type="text" 
                     required 
                     value={email}
                     onChange={(e) => {
@@ -335,10 +352,24 @@ export const Login: React.FC = () => {
 
                 {/* Password Field */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-slate-400" />
-                    {localT.password}
-                  </label>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-slate-400" />
+                      {localT.password}
+                    </label>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setAuthMethod('phone');
+                        if (email.trim() && email.replace(/[^\d]/g, '').length >= 7) {
+                          setPhone(email.trim());
+                        }
+                      }}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer"
+                    >
+                      {localT.hasOtp}
+                    </button>
+                  </div>
                   <input 
                     type="password" 
                     required 
