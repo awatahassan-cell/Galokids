@@ -1,5 +1,6 @@
 import { formatIQDLabel } from "../utils/currency";
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Minus, Plus, ShoppingBag, Trash2, Tag, ChevronDown, ChevronUp } from 'lucide-react';
 import { useStore } from '../store';
@@ -48,7 +49,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
 
   return (
     <AnimatePresence>
-      {isOpen && (
+      {isOpen && createPortal(
         <>
           {/* Backdrop */}
           <motion.div 
@@ -56,7 +57,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[99998]"
             onClick={onClose}
           />
 
@@ -66,7 +67,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col"
+            className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-[99999] flex flex-col font-arabic"
           >
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
               <h2 className="text-xl font-bold text-slate-900 flex items-center">
@@ -227,7 +228,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
               </div>
             )}
           </motion.div>
-        </>
+        </>,
+        document.body
       )}
     </AnimatePresence>
   );

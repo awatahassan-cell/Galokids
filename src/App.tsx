@@ -114,7 +114,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {isAdminOrPos ? null : (
         <>
           {/* Top Announcement Bar (Vastraa Style) */}
-          <div className="hidden md:block bg-slate-950 text-slate-300 text-xs py-2 border-b border-slate-800/90 font-arabic">
+          <div className="hidden md:block bg-slate-950 text-slate-300 text-xs py-2 border-b border-slate-800/90 font-arabic relative z-[110]">
             <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
               <div className="flex items-center gap-3 font-medium">
                 <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 text-white px-3 py-0.5 rounded-full text-[11px] font-black shadow-xs tracking-wider uppercase">
@@ -249,9 +249,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   title={t('wishlist')}
                 >
                   <Heart className="w-5 h-5 fill-white" />
-                  <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-[#00D284] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs">
-                    {wishlistCount > 0 ? wishlistCount : 2}
-                  </span>
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-[#00D284] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                      {wishlistCount}
+                    </span>
+                  )}
                 </Link>
 
                 {/* Cart Basket Solid Pink Circle Button */}
@@ -261,9 +263,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   aria-label="Shopping Cart"
                 >
                   <ShoppingBag className="w-5 h-5" />
-                  <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-[#00D284] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs">
-                    {cartItemsCount > 0 ? cartItemsCount : 3}
-                  </span>
+                  {cartItemsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-[#00D284] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                      {cartItemsCount}
+                    </span>
+                  )}
                 </button>
                 
                 {/* User Profile Dropdown Menu */}
@@ -427,11 +431,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return null;
   }, [currentUser]);
 
-  const hasToken = typeof window !== 'undefined' && Boolean(localStorage.getItem('kidskart_auth_token'));
-
   const isStaffOrAdmin = Boolean(
-    activeUser && (isAdminRole(activeUser.role) || isCashierRole(activeUser.role) || !activeUser.role)
-  ) || hasToken;
+    activeUser && (isAdminRole(activeUser.role) || isCashierRole(activeUser.role))
+  );
   
   if (!isStaffOrAdmin) {
     return <Navigate to="/" replace />;

@@ -81,7 +81,7 @@ const loginTranslations = {
 };
 
 export const Login: React.FC = () => {
-  const { login, loginWithPhone, currentUser } = useStore();
+  const { login, loginWithPhone, isPhoneRegistered, currentUser } = useStore();
   const navigate = useNavigate();
   const { language, dir } = useLanguage();
 
@@ -118,6 +118,20 @@ export const Login: React.FC = () => {
         setPhoneError(localT.invalidPhone);
         return;
       }
+
+      // Enforce checking if phone is registered for login
+      const registered = isPhoneRegistered(phone);
+      if (!registered) {
+        setErrorMessage(
+          language === 'ku'
+            ? 'ژمارەی مۆبایلەکەت تۆمار نەکراوە. تکایە داواکاری خۆتۆمارکردن بکە لە ڕێگەی لاپەڕەی تۆماربوون.'
+            : language === 'ar'
+            ? 'رقم الهاتف هذا غير مسجل. يرجى إنشاء حساب جديد من صفحة التسجيل.'
+            : 'This mobile number is not registered. Please sign up first.'
+        );
+        return;
+      }
+
       setIsLoading(true);
       try {
         const res = await sendCheckoutOtp(phone, otpChannel, language);

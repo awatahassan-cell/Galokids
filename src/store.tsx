@@ -78,9 +78,10 @@ interface StoreContextType {
   updateExpense: (expense: Expense) => void;
   updateUser: (user: User) => void;
   addUser: (userData: any) => void;
+  isPhoneRegistered: (phone: string) => boolean;
   login: (email: string, password?: string) => Promise<boolean>;
   loginWithPhone: (phone: string, name?: string) => Promise<User | null>;
-  registerWithPhone: (phone: string, name: string) => Promise<User | null>;
+  registerWithPhone: (phone: string, name: string, addressInfo?: any) => Promise<User | null>;
   logout: () => void;
   register: (name: string, email: string, password?: string) => Promise<boolean>;
   updateProfile: (name: string, email: string, phone?: string, address?: string, password?: string, passwordConfirmation?: string) => Promise<{ success: boolean; message: string }>;
@@ -166,15 +167,17 @@ function convertKeysToCamelCase(obj: any): any {
       newObj.imageUrl = newObj.images[0];
     }
 
-    // Normalize user role (1 = Admin/Owner, 2 = Staff/Cashier, 3 = Admin)
+    // Normalize user role (1 = Admin/Owner, 2 = Cashier, 3 = Staff, 0 = Customer)
     if (Object.prototype.hasOwnProperty.call(newObj, 'role')) {
       const r = newObj.role;
-      if (r === 1 || r === '1' || r === 3 || r === '3' || r === 'admin' || r === 'owner') {
+      if (r === 1 || r === '1' || r === 'admin' || r === 'owner') {
         newObj.role = 1;
-      } else if (r === 2 || r === '2' || r === 'staff' || r === 'cashier') {
+      } else if (r === 2 || r === '2' || r === 'cashier') {
         newObj.role = 2;
+      } else if (r === 3 || r === '3' || r === 'staff' || r === 'employee') {
+        newObj.role = 3;
       } else {
-        newObj.role = 1;
+        newObj.role = 0;
       }
     }
 
@@ -1824,17 +1827,18 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
         if (camelData.user) {
           const apiUser = camelData.user;
-          const existingLocally = users.find(u => u.id === apiUser.id || isSamePhone(u.phone, cleanPhone));
-          const finalName = validName || (apiUser.name && !['customer', 'کڕیار', 'guest'].includes(apiUser.name.toLowerCase()) ? apiUser.name : undefined) || existingLocally?.name || `کڕیار (${corePhone.slice(-4) || '1234'})`;
+          const userRole = Number(apiUser.role);
+          const finalRole = [1, 2, 3].includes(userRole) ? (userRole as 1 | 2 | 3) : 0;
+          const finalName = validName || (apiUser.name && !['customer', 'کڕیار', 'guest'].includes(apiUser.name.toLowerCase()) ? apiUser.name : undefined) || `کڕیار (${corePhone.slice(-4) || '1234'})`;
           
           const finalUser: User = {
-            ...existingLocally,
-            ...apiUser,
-            id: apiUser.id || existingLocally?.id || `u-${corePhone}`,
-            role: Number(apiUser.role) === 1 ? 1 : Number(apiUser.role) === 2 ? 2 : Number(apiUser.role) === 3 ? 3 : 0,
+            id: String(apiUser.id || `u-${corePhone}`),
             name: finalName,
             phone: cleanPhone || apiUser.phone,
-            address: addressInfo?.address || apiUser.address || existingLocally?.address,
+            email: apiUser.email || `${corePhone}@phone.user`,
+            role: finalRole,
+            address: addressInfo?.address || apiUser.address,
+            joinDate: apiUser.joinDate || new Date().toISOString().split('T')[0]
           };
           localStorage.setItem('kidskart_user', JSON.stringify(finalUser));
           setCurrentUser(finalUser);
@@ -1996,6 +2000,39 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
+  const isPhoneRegistered = (phoneInput: string): boolean => {
+    if (!phoneInput || !phoneInput.trim()) return false;
+    const cleanPhone = phoneInput.trim();
+    
+    // Check users array
+    const inUsers = users.some(u => u.phone && isSamePhone(u.phone, cleanPhone));
+    if (inUsers) return true;
+
+    // Check localStorage users
+    try {
+      const saved = localStorage.getItem('kidskart_users_local');
+      if (saved) {
+        const parsed: User[] = JSON.parse(saved);
+        if (parsed.some(u => u.phone && isSamePhone(u.phone, cleanPhone))) return true;
+      }
+    } catch (e) {}
+
+    // Check logged in user
+    const savedUser = localStorage.getItem('kidskart_user');
+    if (savedUser) {
+      try {
+        const u: User = JSON.parse(savedUser);
+        if (u.phone && isSamePhone(u.phone, cleanPhone)) return true;
+      } catch (e) {}
+    }
+
+    // Check orders
+    const inOrders = orders.some(o => o.customerPhone && isSamePhone(o.customerPhone, cleanPhone));
+    if (inOrders) return true;
+
+    return false;
+  };
+
   const updatePromoBanner = (banner: PromoBanner) => {
     setPromoBanner(banner);
   };
@@ -2007,7 +2044,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       updateCartItemQuantity, clearCart, toggleWishlist, addReview, updateOrderStatus, addExpense, addOrder,
       deleteProduct, deleteCategory, deleteExpense, deleteUser, deleteOrder, addUser,
       updateProduct, updateCategory, updateExpense, updateUser,
-      login, loginWithPhone, registerWithPhone, logout, register, updateProfile,
+      isPhoneRegistered, login, loginWithPhone, registerWithPhone, logout, register, updateProfile,
       reviews, reviewsPagination, refreshReviews,
       coupons, appliedCoupon, setAppliedCoupon, addCoupon, updateCoupon, deleteCoupon, applyCoupon, fetchSalesReport, fetchCashierReport,
       fetchBestSellers, recordRecentlyViewed, getRecentlyViewedIds, trackOrder, lookupCustomer,

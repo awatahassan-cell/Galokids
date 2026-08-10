@@ -83,7 +83,7 @@ const registerTranslations = {
 };
 
 export const Register: React.FC = () => {
-  const { register, registerWithPhone, currentUser } = useStore();
+  const { register, registerWithPhone, isPhoneRegistered, currentUser } = useStore();
   const navigate = useNavigate();
   const { language, dir } = useLanguage();
 
@@ -161,6 +161,17 @@ export const Register: React.FC = () => {
 
     if (authMethod === 'phone') {
       if (!validatePhoneForm()) return;
+
+      if (isPhoneRegistered(phone)) {
+        setErrorMessage(
+          language === 'ku'
+            ? 'ئەم ژمارەی مۆبایلە پێشتر تۆمارکراوە. تکایە لە ڕێگەی لاپەڕەی چوونە ژوورەوە بچۆ ژوورەوە.'
+            : language === 'ar'
+            ? 'رقم الهاتف هذا مسجل بالفعل. يرجى تسجيل الدخول.'
+            : 'This mobile number is already registered. Please log in instead.'
+        );
+        return;
+      }
 
       setIsLoading(true);
       try {

@@ -1,5 +1,6 @@
 import { STANDARD_COLORS, STANDARD_SIZES } from '../data';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { API_BASE_URL, apiFetch } from '../config/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -1409,78 +1410,85 @@ export const Admin: React.FC = () => {
             </button>
           </div>
 
-          {isAddingCategory && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 shadow-xl relative">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-slate-900">{L("Create New Category")}</h2>
-                  <button onClick={() => setIsAddingCategory(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
+          {isAddingCategory && createPortal(
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 sm:p-6 overflow-y-auto font-arabic animate-fadeIn">
+              <div className="bg-white rounded-3xl w-full max-w-lg p-6 sm:p-8 shadow-2xl border border-slate-100 relative my-auto animate-scaleUp">
+                <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                  <h2 className="text-xl font-extrabold text-slate-900">{L("Create New Category")}</h2>
+                  <button type="button" onClick={() => setIsAddingCategory(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
+
                 <form onSubmit={(e) => { handleAddCategory(e); setIsAddingCategory(false); }} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Category Name (EN)")}</label>
-              <input
-                type="text"
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder={L("e.g. Shoes")}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Category Name (KU)")}</label>
-              <input
-                type="text"
-                value={newCategoryNameKu}
-                onChange={(e) => setNewCategoryNameKu(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                dir="rtl"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Category Name (AR)")}</label>
-              <input
-                type="text"
-                value={newCategoryNameAr}
-                onChange={(e) => setNewCategoryNameAr(e.target.value)}
-                className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                dir="rtl"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">{L("Category Icon")}</label>
-              <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl mb-4">
-                {[
-                  'Shirt', 'Baby', 'Sparkles', 'Gamepad', 'Footprints', 'Smile', 'CloudRain', 'Flame',
-                  'ShoppingBag', 'Tag', 'Palette', 'Heart', 'Backpack', 'Crown', 'Car', 'Gift'
-                ].map((iconName) => (
-                  <button
-                    key={iconName}
-                    type="button"
-                    onClick={() => setNewCategoryIcon(iconName)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
-                      newCategoryIcon === iconName
-                        ? 'bg-indigo-50 border-indigo-500 text-indigo-600 scale-105 shadow-sm'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
-                    title={iconName}
-                  >
-                    <CategoryIcon name={iconName} className="w-5 h-5 mb-1" />
-                    <span className="text-[9px] font-medium truncate max-w-full">{iconName}</span>
-                  </button>
-                ))}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Category Name (EN)")}</label>
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
+                      placeholder={L("e.g. Shoes")}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Category Name (KU)")}</label>
+                      <input
+                        type="text"
+                        value={newCategoryNameKu}
+                        onChange={(e) => setNewCategoryNameKu(e.target.value)}
+                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
+                        dir="rtl"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Category Name (AR)")}</label>
+                      <input
+                        type="text"
+                        value={newCategoryNameAr}
+                        onChange={(e) => setNewCategoryNameAr(e.target.value)}
+                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
+                        dir="rtl"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">{L("Category Icon")}</label>
+                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-2xl max-h-48 overflow-y-auto">
+                      {[
+                        'Shirt', 'Baby', 'Sparkles', 'Gamepad', 'Footprints', 'Smile', 'CloudRain', 'Flame',
+                        'ShoppingBag', 'Tag', 'Palette', 'Heart', 'Backpack', 'Crown', 'Car', 'Gift'
+                      ].map((iconName) => (
+                        <button
+                          key={iconName}
+                          type="button"
+                          onClick={() => setNewCategoryIcon(iconName)}
+                          className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all cursor-pointer ${
+                            newCategoryIcon === iconName
+                              ? 'bg-indigo-50 border-indigo-500 text-indigo-600 scale-105 shadow-xs'
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                          title={iconName}
+                        >
+                          <CategoryIcon name={iconName} className="w-5 h-5 mb-1" />
+                          <span className="text-[9px] font-bold truncate max-w-full">{iconName}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+                    <button type="button" onClick={() => setIsAddingCategory(false)} className="px-5 py-2.5 text-xs font-bold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">{L("Cancel")}</button>
+                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md cursor-pointer active:scale-95">{L("Save Category")}</button>
+                  </div>
+                </form>
               </div>
-            </div>
-                          <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setIsAddingCategory(false)} className="px-4 py-2 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">{L("Cancel")}</button>
-                <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">{L("Save Category")}</button>
-              </div>
-            </form>
-            </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           <div className="mt-4">
@@ -1739,76 +1747,82 @@ export const Admin: React.FC = () => {
             </button>
           </div>
 
-          {isAddingUser && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 shadow-xl relative">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-slate-900">{L("Create New User")}</h2>
-                  <button onClick={() => setIsAddingUser(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
+          {isAddingUser && createPortal(
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 sm:p-6 overflow-y-auto font-arabic animate-fadeIn">
+              <div className="bg-white rounded-3xl w-full max-w-lg p-6 sm:p-8 shadow-2xl border border-slate-100 relative my-auto animate-scaleUp">
+                <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-slate-900">{L("Create New User")}</h2>
+                    <p className="text-xs text-slate-500 mt-1">{L("Create New Admin or Staff User")}</p>
+                  </div>
+                  <button type="button" onClick={() => setIsAddingUser(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
+
                 <form onSubmit={(e) => { handleAddUser(e); setIsAddingUser(false); }} className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-800">{L("Create New Admin or Staff User")}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">{L("Full Name")}</label>
-                <input
-                  type="text"
-                  required
-                  placeholder={L("John Doe")}
-                  value={addUserName}
-                  onChange={(e) => setAddUserName(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded-lg py-1.5 px-3 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
-                />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Full Name")}</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder={language === 'ku' ? 'ئاوات حەسەن' : 'John Doe'}
+                        value={addUserName}
+                        onChange={(e) => setAddUserName(e.target.value)}
+                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Email")}</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="john@example.com"
+                        value={addUserEmail}
+                        onChange={(e) => setAddUserEmail(e.target.value)}
+                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Password")}</label>
+                      <input
+                        type="password"
+                        required
+                        placeholder="••••••••"
+                        value={addUserPassword}
+                        onChange={(e) => setAddUserPassword(e.target.value)}
+                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Role")}</label>
+                      <select
+                        value={addUserRole}
+                        onChange={(e) => setAddUserRole(Number(e.target.value))}
+                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
+                      >
+                        <option value={1}>{language === 'ku' ? '1 - بەڕێوەبەر (Admin)' : '1 - Admin'}</option>
+                        <option value={2}>{language === 'ku' ? '2 - کاشێر (Cashier)' : '2 - Cashier'}</option>
+                        <option value={3}>{language === 'ku' ? '3 - کارمەند (Staff)' : '3 - Staff'}</option>
+                        <option value={0}>{language === 'ku' ? '0 - کڕیار (Customer)' : '0 - Customer'}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+                    <button type="button" onClick={() => setIsAddingUser(false)} className="px-5 py-2.5 text-xs font-bold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">{L("Cancel")}</button>
+                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md cursor-pointer active:scale-95">
+                      {L("Create User") || 'دروستکردنی بەکارهێنەر'}
+                    </button>
+                  </div>
+                </form>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">{L("Email")}</label>
-                <input
-                  type="email"
-                  required
-                  placeholder={L("john@example.com")}
-                  value={addUserEmail}
-                  onChange={(e) => setAddUserEmail(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded-lg py-1.5 px-3 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">{L("Password")}</label>
-                <input
-                  type="password"
-                  required
-                  placeholder={L("Min 8 characters")}
-                  value={addUserPassword}
-                  onChange={(e) => setAddUserPassword(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded-lg py-1.5 px-3 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">{L("Role")}</label>
-                <select
-                  value={addUserRole}
-                  onChange={(e) => setAddUserRole(Number(e.target.value))}
-                  className="w-full text-sm border border-slate-300 rounded-lg py-1.5 px-3 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
-                >
-                  <option value={1}>{language === 'ku' ? '1 - بەڕێوەبەر (Admin)' : '1 - Admin'}</option>
-                  <option value={2}>{language === 'ku' ? '2 - کاشێر (Cashier)' : '2 - Cashier'}</option>
-                  <option value={3}>{language === 'ku' ? '3 - کارمەند (Staff)' : '3 - Staff'}</option>
-                  <option value={0}>{language === 'ku' ? '0 - کڕیار (Customer)' : '0 - Customer'}</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end">
-                               <div className="flex justify-end gap-3 mt-6">
-                  <button type="button" onClick={() => setIsAddingUser(false)} className="px-4 py-2 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">{L("Cancel")}</button>
-                  <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors">
-                    Create User
-                  </button>
-                </div>
-              </div>
-            </form>
-            </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           <div className="overflow-x-auto mt-4">
@@ -1889,37 +1903,43 @@ export const Admin: React.FC = () => {
             </button>
           </div>
 
-          {isAddingExpense && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-              <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 shadow-xl relative">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-slate-900">{L("Record New Expense")}</h2>
-                  <button onClick={() => setIsAddingExpense(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
+          {isAddingExpense && createPortal(
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 sm:p-6 overflow-y-auto font-arabic animate-fadeIn">
+              <div className="bg-white rounded-3xl w-full max-w-lg p-6 sm:p-8 shadow-2xl border border-slate-100 relative my-auto animate-scaleUp">
+                <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                  <h2 className="text-xl font-extrabold text-slate-900">{L("Record New Expense")}</h2>
+                  <button type="button" onClick={() => setIsAddingExpense(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
+
                 <form onSubmit={(e) => { handleAddExpense(e); setIsAddingExpense(false); }} className="space-y-4">
-            <div className="flex-1 w-full">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Description")}</label>
-              <input type="text" required value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500" placeholder={L("e.g. Hosting")} />
-            </div>
-            <div className="w-full sm:w-32">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Amount")}</label>
-              <input type="number" step="0.01" required value={expenseAmount} onChange={e => setExpenseAmount(e.target.value)} className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div className="w-full sm:w-48">
-              <label className="block text-sm font-medium text-slate-700 mb-1">{L("Category")}</label>
-              <input type="text" required value={expenseCategory} onChange={e => setExpenseCategory(e.target.value)} className="w-full border border-slate-300 rounded-lg py-2 px-3 focus:ring-2 focus:ring-indigo-500" />
-            </div>
-                         <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setIsAddingExpense(false)} className="px-4 py-2 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">{L("Cancel")}</button>
-                <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center">
-                  <Save className="w-4 h-4 mr-2" /> {L("Save Expense")}
-                </button>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Description")}</label>
+                    <input type="text" required value={expenseDesc} onChange={e => setExpenseDesc(e.target.value)} className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold" placeholder={L("e.g. Hosting")} />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Amount")}</label>
+                      <input type="number" step="0.01" required value={expenseAmount} onChange={e => setExpenseAmount(e.target.value)} className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Category")}</label>
+                      <input type="text" required value={expenseCategory} onChange={e => setExpenseCategory(e.target.value)} className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold" />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
+                    <button type="button" onClick={() => setIsAddingExpense(false)} className="px-5 py-2.5 text-xs font-bold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">{L("Cancel")}</button>
+                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-95">
+                      <Save className="w-4 h-4" /> <span>{L("Save Expense")}</span>
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
-            </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           <div className="overflow-x-auto mt-4">
