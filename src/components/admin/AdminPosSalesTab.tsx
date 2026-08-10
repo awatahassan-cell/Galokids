@@ -260,10 +260,12 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
           <thead className="bg-slate-50/70">
             <tr>
               <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{L("Order ID")}</th>
+              <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{language === 'ku' ? 'کاشێر' : 'Cashier'}</th>
               <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{L("Customer")}</th>
               <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">
                 {language === 'ku' ? 'ئایتمەکان (ڕەنگ، سایز، بڕ)' : 'Items (Color, Size, Qty)'}
               </th>
+              <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{language === 'ku' ? 'داشکاندن / کۆبۆن' : 'Discount / Coupon'}</th>
               <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{L("Date")}</th>
               <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{L("Amount")}</th>
               <th className="px-4 py-3 text-center text-xs font-black text-slate-500 uppercase tracking-wider">{L("Action")}</th>
@@ -272,7 +274,7 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
           <tbody className="divide-y divide-slate-100 text-xs font-medium bg-white">
             {paginatedSales.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-slate-400 font-medium">
+                <td colSpan={8} className="text-center py-10 text-slate-400 font-medium">
                   {language === 'ku' ? 'هیچ فرۆشتنێکی پۆس بەم فلتەرانە نەدۆزرایەوە' : 'No POS sales found with current filters'}
                 </td>
               </tr>
@@ -280,6 +282,10 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
               paginatedSales.map((order, index) => {
                 const items = safeGetItems(order);
                 const isExpanded = expandedOrderId === order.id;
+                const cashier = (order as any).cashierName || (order as any).cashier_name || currentUser?.name || 'Awat Hassan (کاشێر)';
+                const discountAmt = Number((order as any).discountAmount || (order as any).discount || 0);
+                const couponAmt = Number((order as any).couponDiscount || (order as any).coupon_discount || 0);
+                const couponCode = (order as any).couponCode || (order as any).coupon_code || '';
 
                 return (
                   <React.Fragment key={order.id || index}>
@@ -302,6 +308,14 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
                           </button>
                           <span className="font-extrabold text-slate-900">#{order.id}</span>
                         </div>
+                      </td>
+
+                      {/* Cashier Name Badge */}
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-100">
+                          <User className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{cashier}</span>
+                        </span>
                       </td>
 
                       {/* Customer */}
@@ -351,6 +365,29 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
                           )}
                           {items.length === 0 && (
                             <span className="text-slate-400 text-xs italic">{language === 'ku' ? 'هیچ ئایتمێک نییە' : 'No items'}</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Discount & Coupon Badges */}
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="flex flex-col gap-1">
+                          {discountAmt > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100 w-fit">
+                              <Percent className="w-3 h-3" />
+                              <span>-{formatIQDLabel(discountAmt)}</span>
+                            </span>
+                          ) : null}
+
+                          {couponAmt > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100 w-fit">
+                              <Ticket className="w-3 h-3" />
+                              <span>{couponCode || 'کۆبۆن'}: -{formatIQDLabel(couponAmt)}</span>
+                            </span>
+                          ) : null}
+
+                          {discountAmt === 0 && couponAmt === 0 && (
+                            <span className="text-slate-400 text-xs">—</span>
                           )}
                         </div>
                       </td>
@@ -409,7 +446,7 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
                     {/* Accordion Expand Details */}
                     {isExpanded && (
                       <tr className="bg-slate-50/90 border-b-2 border-emerald-100">
-                        <td colSpan={6} className="p-4 sm:p-6">
+                        <td colSpan={8} className="p-4 sm:p-6">
                           <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-4">
                             {/* Items List */}
                             <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
