@@ -4,7 +4,7 @@ import { API_BASE_URL, apiFetch } from '../config/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../store';
-import { Plus, Save, Package, Settings, Tags, Users, ShoppingBag, DollarSign, Star, Image as ImageIcon, AlertTriangle, BarChart3, TrendingUp, TrendingDown, Calendar, Trash2, Edit, Menu, X, UserPlus, ChevronLeft, ChevronRight, ShoppingCart, FileText, Languages, Search, Ticket, Pencil, Percent } from 'lucide-react';
+import { Plus, Save, Package, Settings, Tags, Users, ShoppingBag, DollarSign, Star, Image as ImageIcon, AlertTriangle, BarChart3, TrendingUp, TrendingDown, Calendar, Trash2, Edit, Menu, X, UserPlus, ChevronLeft, ChevronRight, ShoppingCart, FileText, Languages, Search, Ticket, Pencil, Percent, Boxes } from 'lucide-react';
 import { ProductVariation, Expense, Order, Category, Product, User } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie } from 'recharts';
@@ -30,6 +30,7 @@ import { AdminPosSalesTab } from "../components/admin/AdminPosSalesTab";
 import { AdminInventoryTab } from "../components/admin/AdminInventoryTab";
 import { AdminLabelsTab } from "../components/admin/AdminLabelsTab";
 import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
+import { BulkStockModal } from "../components/admin/BulkStockModal";
 
 const getDaysInMonth = (year: number, month: number) => {
   return new Date(year, month, 0).getDate();
@@ -69,6 +70,9 @@ export const Admin: React.FC = () => {
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [selectedAdminCategory, setSelectedAdminCategory] = useState<string>('all');
+  const [adminSortBy, setAdminSortBy] = useState<string>('newest');
+  const [isBulkStockModalOpen, setIsBulkStockModalOpen] = useState(false);
   
   const { tab: urlTab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
@@ -1532,9 +1536,63 @@ export const Admin: React.FC = () => {
 
       {activeTab === 'products' && (
         <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
             <h2 className="text-xl font-black text-slate-900">{L("Products Management")}</h2>
-            <div className="flex items-center gap-2">
+            
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Category Filter Dropdown */}
+              <select
+                value={selectedAdminCategory}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedAdminCategory(val);
+                  refreshProducts(1, 10, {
+                    categoryId: val === 'all' ? undefined : val,
+                    sort: adminSortBy,
+                    search: productSearchQuery
+                  });
+                }}
+                className="py-2.5 px-3 bg-slate-100/90 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none cursor-pointer hover:bg-slate-200 transition-colors shadow-2xs font-arabic"
+              >
+                <option value="all">{language === 'ku' ? 'هەموو بەشەکان' : language === 'ar' ? 'جميع الأقسام' : 'All Categories'}</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {(language === 'ku' && c.nameKu) || (language === 'ar' && c.nameAr) || c.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* Date Added / Sort Dropdown */}
+              <select
+                value={adminSortBy}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setAdminSortBy(val);
+                  refreshProducts(1, 10, {
+                    categoryId: selectedAdminCategory === 'all' ? undefined : selectedAdminCategory,
+                    sort: val,
+                    search: productSearchQuery
+                  });
+                }}
+                className="py-2.5 px-3 bg-slate-100/90 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none cursor-pointer hover:bg-slate-200 transition-colors shadow-2xs font-arabic"
+              >
+                <option value="newest">{language === 'ku' ? 'نوێترین بەروار (بەرواری زیادکردن)' : language === 'ar' ? 'الأحدث تاريخاً' : 'Newest First'}</option>
+                <option value="oldest">{language === 'ku' ? 'کۆنترین بەروار' : language === 'ar' ? 'الأقدم تاريخاً' : 'Oldest First'}</option>
+                <option value="price_asc">{language === 'ku' ? 'نرخ: لە کەمەوە بۆ زۆر' : 'Price: Low to High'}</option>
+                <option value="price_desc">{language === 'ku' ? 'نرخ: لە زۆرەوە بۆ کەم' : 'Price: High to Low'}</option>
+              </select>
+
+              {/* Bulk Stock Restock Button */}
+              <button
+                onClick={() => setIsBulkStockModalOpen(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-full font-extrabold transition-all flex items-center shadow-md text-xs shrink-0 cursor-pointer active:scale-95 gap-1.5"
+                title={language === 'ku' ? 'ڕێکخستنەوەی کۆمەڵەیی ستۆکی چەند ئایتمێک پێکەوە' : 'Bulk Stock Adjustment'}
+              >
+                <Boxes className="w-4 h-4 text-indigo-200" />
+                <span>{language === 'ku' ? 'ڕێکخستنەوەی کۆمەڵەیی ستۆک' : language === 'ar' ? 'تعديل المخزون الجماعي' : 'Bulk Stock Restock'}</span>
+              </button>
+
+              {/* Search Bar */}
               <div className="relative max-w-xs">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -1545,6 +1603,8 @@ export const Admin: React.FC = () => {
                   className="w-full pl-9 pr-4 py-2.5 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
                 />
               </div>
+
+              {/* Add Product Button */}
               <button
                 onClick={() => setIsAddingProduct(true)}
                 className="bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold hover:bg-slate-800 transition-all flex items-center shadow-md text-xs shrink-0 cursor-pointer active:scale-95"
@@ -2859,6 +2919,16 @@ export const Admin: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Bulk Stock Restock & Adjustment Modal */}
+      <BulkStockModal
+        isOpen={isBulkStockModalOpen}
+        onClose={() => setIsBulkStockModalOpen(false)}
+        products={products}
+        categories={categories}
+        updateProduct={updateProduct}
+        toast={toast}
+      />
     </div>
   );
 };
