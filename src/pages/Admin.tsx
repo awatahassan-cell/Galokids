@@ -1615,7 +1615,7 @@ export const Admin: React.FC = () => {
                 title={language === 'ku' ? 'ڕێکخستنەوەی کۆمەڵەیی ستۆکی چەند ئایتمێک پێکەوە' : 'Bulk Stock Adjustment'}
               >
                 <Boxes className="w-4 h-4 text-indigo-500" />
-                <span className="hidden sm:inline">{language === 'ku' ? 'ستۆکی کۆمەڵەیی' : language === 'ar' ? 'المخزون الجماعي' : 'Bulk Stock'}</span>
+                <span className="hidden sm:inline">{language === 'ku' ? 'ڕێکخستنەوەی ستۆک' : language === 'ar' ? 'تعديل المخزون' : 'Stock Adjustment'}</span>
               </button>
 
               <button

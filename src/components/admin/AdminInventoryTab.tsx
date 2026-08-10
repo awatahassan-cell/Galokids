@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   Boxes, Package, DollarSign, TrendingUp, AlertTriangle, Search, 
-  Filter, ArrowUpDown, Edit3, Printer, Check, X, ShieldAlert, 
+  Filter, ArrowUpDown, Edit3, FileSpreadsheet, Check, X, ShieldAlert, 
   Sparkles, Layers, RefreshCw, BarChart2, PieChart as PieChartIcon
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -10,6 +10,7 @@ import { getColorHex } from '../../utils/colors';
 import { Product, Category } from '../../types';
 import { LOW_STOCK_THRESHOLD } from '../../utils/inventory';
 import { Pagination } from '../Pagination';
+import { downloadXlsx } from '../../utils/exportExcel';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, Legend, Cell, PieChart, Pie
@@ -17,6 +18,24 @@ import {
 
 /** Page sizes offered for the detail table. */
 const ROWS_PER_PAGE_OPTIONS = [25, 50, 100, 250];
+
+/** One product with everything the audit derives from it. */
+interface InventoryRow {
+  product: Product;
+  variationsCount: number;
+  stockPieces: number;
+  unitCost: number;
+  unitPrice: number;
+  totalCostValue: number;
+  totalRetailValue: number;
+  expectedProfit: number;
+  profitMargin: number;
+  uniqueColors: string[];
+  categoryName: string;
+  hasMissingCost: boolean;
+  isLowStock: boolean;
+  isOutOfStock: boolean;
+}
 
 interface AdminInventoryTabProps {
   /** Products already in the store — used only until the full list arrives. */
@@ -88,8 +107,6 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
   // Turning the page from the bottom should bring the table header back into
   // view instead of leaving the admin stranded at the end of the new page.
   const tableTopRef = useRef<HTMLDivElement | null>(null);
-  // Set only while the print dialog is open, so the printout is not paged.
-  const [printingAll, setPrintingAll] = useState(false);
 
   // Edit Cost Modal State
   const [editingCostProduct, setEditingCostProduct] = useState<Product | null>(null);
@@ -113,7 +130,7 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
   }, [categories, language]);
 
   // Calculated inventory data per product
-  const processedProducts = useMemo(() => {
+  const processedProducts: InventoryRow[] = useMemo(() => {
     return auditProducts.map(product => {
       const variations = product.variations || [];
       const variationsCount = variations.length;
@@ -293,10 +310,8 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
   const safePage = Math.min(tablePage, totalTablePages);
 
   const visibleProducts = useMemo(
-    () => (printingAll
-      ? filteredProducts
-      : filteredProducts.slice((safePage - 1) * rowsPerPage, safePage * rowsPerPage)),
-    [filteredProducts, safePage, rowsPerPage, printingAll]
+    () => filteredProducts.slice((safePage - 1) * rowsPerPage, safePage * rowsPerPage),
+    [filteredProducts, safePage, rowsPerPage]
   );
 
   const rangeStart = filteredProducts.length === 0 ? 0 : (safePage - 1) * rowsPerPage + 1;
@@ -322,17 +337,57 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
   };
 
   /**
-   * Print the audit. Paging is a screen concern — a printed stock-take has to
-   * list every filtered row, so expand the table first and restore it after.
+   * Export the audit to Excel.
+   *
+   * Paging is a screen concern — the spreadsheet gets every row that matches
+   * the current filters, with the amounts as real numbers so Excel can total
+   * and sort them.
    */
-  const handlePrintAudit = () => {
-    setPrintingAll(true);
-    // Give React a frame to render the full table before the print dialog
-    // snapshots the page.
-    setTimeout(() => {
-      window.print();
-      setPrintingAll(false);
-    }, 150);
+  const handleExportExcel = () => {
+    if (filteredProducts.length === 0) {
+      toast(L('هیچ داتایەک نییە بۆ ناردنە دەرەوە', 'لا توجد بيانات للتصدير', 'Nothing to export'), 'error');
+      return;
+    }
+
+    const stamp = new Date().toISOString().slice(0, 10);
+
+    downloadXlsx<InventoryRow>({
+      filename: `galokids-inventory-${stamp}.xlsx`,
+      sheetName: L('جەردی کۆگا', 'جرد المستودع', 'Inventory Audit'),
+      title: [
+        L('جەردی کۆگا', 'جرد المستودع', 'Warehouse Inventory Audit') + ' — ' + stamp,
+        L(
+          `${filteredProducts.length} پرۆدەکت · ${filteredTotals.pieces} پارچە · کۆی تێچوو ${filteredTotals.cost}`,
+          `${filteredProducts.length} منتج · ${filteredTotals.pieces} قطعة · إجمالي التكلفة ${filteredTotals.cost}`,
+          `${filteredProducts.length} products · ${filteredTotals.pieces} pieces · total cost ${filteredTotals.cost}`
+        ),
+      ],
+      columns: [
+        { header: L('پرۆدەکت', 'المنتج', 'Product'), width: 34,
+          value: r => (language === 'ku' ? r.product.nameKu || r.product.name : language === 'ar' ? r.product.nameAr || r.product.name : r.product.name) || '' },
+        { header: L('بارکۆد / SKU', 'الباركود', 'Barcode / SKU'), width: 18,
+          value: r => r.product.barcode || r.product.sku || '' },
+        { header: L('پۆل', 'الفئة', 'Category'), width: 20, value: r => r.categoryName },
+        { header: L('ژمارەی جۆرەکان', 'عدد الأنواع', 'Variations'), width: 12, value: r => r.variationsCount },
+        { header: L('ڕەنگەکان', 'الألوان', 'Colors'), width: 22, value: r => r.uniqueColors.join(', ') },
+        { header: L('پارچە لە کۆگا', 'القطع', 'Stock Pieces'), width: 14, value: r => r.stockPieces },
+        { header: L('تێچووی یەکە', 'تكلفة الوحدة', 'Unit Cost'), width: 14, value: r => r.unitCost },
+        { header: L('نرخی فرۆشتن', 'سعر البيع', 'Retail Price'), width: 14, value: r => r.unitPrice },
+        { header: L('کۆی تێچوو', 'إجمالي التكلفة', 'Total Cost'), width: 16, value: r => r.totalCostValue },
+        { header: L('کۆی فرۆشتن', 'إجمالي البيع', 'Total Retail'), width: 16, value: r => r.totalRetailValue },
+        { header: L('قازانجی پێشبینیکراو', 'الربح المتوقع', 'Expected Profit'), width: 16, value: r => r.expectedProfit },
+        { header: L('ڕێژەی قازانج %', 'هامش الربح %', 'Margin %'), width: 12, value: r => r.profitMargin },
+        { header: L('دۆخ', 'الحالة', 'Status'), width: 16,
+          value: r => r.isOutOfStock
+            ? L('تەواوبووە', 'نفد', 'Out of stock')
+            : r.isLowStock
+            ? L('کەمە', 'منخفض', 'Low stock')
+            : L('باشە', 'جيد', 'OK') },
+      ],
+      rows: filteredProducts,
+    });
+
+    toast(L('فایلی ئێکسڵ دروستکرا ✅', 'تم إنشاء ملف Excel ✅', 'Excel file created ✅'), 'success');
   };
 
   // Color Palette for Pie/Bar charts
@@ -350,7 +405,7 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
               <span>{L('سیستەمی جەردی کۆگا و بەهای سەرمایە', 'نظام جرد المستودع وتقييم المخزون', 'Inventory Valuation & Warehouse Audit')}</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-              {L('جەردی کۆگا (Inventory Audit)', 'جرد المستودع', 'Warehouse Inventory Audit')}
+              {L('جەردی کۆگا', 'جرد المستودع', 'Warehouse Inventory Audit')}
             </h1>
             <p className="text-slate-300 text-sm mt-1 max-w-2xl">
               {L(
@@ -361,24 +416,6 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0 print:hidden">
-            <button
-              onClick={loadAll}
-              disabled={isLoadingAll}
-              title={L('نوێکردنەوەی داتای جەرد', 'تحديث بيانات الجرد', 'Reload audit data')}
-              className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-all border border-white/20 flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-60"
-            >
-              <RefreshCw className={`w-4 h-4 text-indigo-300 ${isLoadingAll ? 'animate-spin' : ''}`} />
-              <span>{L('نوێکردنەوە', 'تحديث', 'Refresh')}</span>
-            </button>
-            <button
-              onClick={handlePrintAudit}
-              className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-all border border-white/20 flex items-center gap-2 shadow-sm cursor-pointer"
-            >
-              <Printer className="w-4 h-4 text-rose-300" />
-              <span>{L('چاپکردنی ڕاپۆرت', 'طباعة التقرير', 'Print Audit Report')}</span>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -738,7 +775,7 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
               </strong>
             </span>
 
-            <label className="flex items-center gap-2 print:hidden">
+            <label className="flex items-center gap-2">
               <span className="text-slate-500">{L('ڕیز لە پەڕەیەکدا:', 'صفوف بالصفحة:', 'Rows per page:')}</span>
               <select
                 value={rowsPerPage}
@@ -750,6 +787,17 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
                 ))}
               </select>
             </label>
+
+            {/* Exports every filtered row, not just the visible page. */}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={filteredProducts.length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-2xs transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>{L('ناردنە دەرەوە بۆ ئێکسڵ', 'تصدير إلى Excel', 'Export to Excel')}</span>
+            </button>
           </div>
         </div>
 
