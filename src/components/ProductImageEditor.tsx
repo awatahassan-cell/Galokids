@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Upload, Trash2, Star, ChevronLeft, ChevronRight, Maximize2, Plus, X, Image as ImageIcon, Loader2, Link } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
-import { apiFetch } from '../config/api';
+import { uploadImages } from '../services/uploadService';
 
 interface ProductImageEditorProps {
   images: string[];
@@ -36,117 +36,18 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
 
   const activePrimary = primaryImageUrl || (allImages.length > 0 ? allImages[0] : '');
 
-  // Compress image helper using canvas
-  const compressImage = (file: File, maxSize = 1600, quality = 0.85): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      if (!file.type.startsWith('image/')) {
-        reject(new Error('File is not an image'));
-        return;
-      }
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        let { width, height } = img;
-        if (width > maxSize || height > maxSize) {
-          if (width >= height) {
-            height = Math.round(height * (maxSize / width));
-            width = maxSize;
-          } else {
-            width = Math.round(width * (maxSize / height));
-            height = maxSize;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Canvas unsupported'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob(
-          (blob) => (blob ? resolve(blob) : reject(new Error('Compression failed'))),
-          'image/jpeg',
-          quality
-        );
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error('Invalid image'));
-      };
-      img.src = url;
-    });
-  };
-
   const processFiles = async (files: File[]) => {
     if (!files || files.length === 0) return;
     setIsUploading(true);
 
     try {
-      const uploadedUrls: string[] = [];
-      const formData = new FormData();
+      // Shared with the store-logo uploader: compress, POST, and fall back to
+      // an inline data URL when the API cannot be reached.
+      const { urls } = await uploadImages(files);
 
-      for (const file of files) {
-        try {
-          const blob = await compressImage(file);
-          const name = (file.name.replace(/\.[^.]+$/, '') || 'image') + '.jpg';
-          formData.append('images[]', blob, name);
-        } catch {
-          formData.append('images[]', file);
-        }
-      }
-
-      const token = localStorage.getItem('kidskart_auth_token');
-
-      try {
-        const res = await apiFetch('/products/upload-images', {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          body: formData,
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data.urls)) {
-            uploadedUrls.push(...data.urls);
-          } else if (data && data.url) {
-            uploadedUrls.push(data.url);
-          }
-        }
-      } catch (err) {
-        console.warn('Image upload request failed:', err);
-      }
-
-      // If server upload didn't return URLs, convert blobs to base64 Data URLs so upload ALWAYS works
-      if (uploadedUrls.length === 0) {
-        for (const file of files) {
-          try {
-            const blob = await compressImage(file);
-            const dataUrl = await new Promise<string>((res, rej) => {
-              const reader = new FileReader();
-              reader.onloadend = () => res(reader.result as string);
-              reader.onerror = rej;
-              reader.readAsDataURL(blob);
-            });
-            uploadedUrls.push(dataUrl);
-          } catch {
-            const dataUrl = await new Promise<string>((res, rej) => {
-              const reader = new FileReader();
-              reader.onloadend = () => res(reader.result as string);
-              reader.onerror = rej;
-              reader.readAsDataURL(file);
-            });
-            uploadedUrls.push(dataUrl);
-          }
-        }
-      }
-
-      if (uploadedUrls.length > 0) {
-        const updatedList = [...allImages, ...uploadedUrls];
-        const newPrimary = activePrimary || updatedList[0] || '';
-        onChange(updatedList, newPrimary);
+      if (urls.length > 0) {
+        const updatedList = [...allImages, ...urls];
+        onChange(updatedList, activePrimary || updatedList[0] || '');
       }
     } catch (err) {
       console.warn('Product images note:', err);

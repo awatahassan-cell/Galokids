@@ -10,9 +10,17 @@ class ReviewController extends Controller
 {
     public function index(Request $request)
     {
-        // Load with product info so admin panel/reviews dashboard can show product details
-        $reviews = Review::with('product')->orderBy('created_at', 'desc')->get();
-        return response()->json($reviews);
+        $query = Review::with('product')->orderBy('created_at', 'desc');
+
+        if ($request->filled('product_id')) {
+            $query->where('product_id', $request->input('product_id'));
+        }
+
+        // Paginate: this used to return every review ever written, with the
+        // full product attached to each one.
+        $limit = max(1, min((int) $request->input('limit', 20), 100));
+
+        return response()->json($query->paginate($limit));
     }
 
     public function store(Request $request)
@@ -36,19 +44,35 @@ class ReviewController extends Controller
                 })->exists();
         }
 
-        $review = Review::create([
-            'product_id' => $request->product_id,
-            'user_id' => $user ? $user->id : null,
+        $attributes = [
             'customer_name' => $user ? $user->name : ($request->customer_name ?? 'Guest'),
-            'rating' => (int)$request->rating,
+            'rating' => (int) $request->rating,
             'comment' => $request->comment,
             'verified_purchase' => $verified,
-        ]);
+        ];
 
-        // Load the relationship for response
-        $review->load('product');
+        // One review per customer per product. A signed-in shopper who reviews
+        // the same product again is editing their opinion, not adding a second
+        // vote — posting repeatedly used to let one person move a product's
+        // rating as far as they liked.
+        if ($user) {
+            $existing = Review::where('product_id', $request->product_id)
+                ->where('user_id', $user->id)
+                ->first();
 
-        return response()->json($review, 201);
+            if ($existing) {
+                $existing->update($attributes);
+
+                return response()->json($existing->load('product'), 200);
+            }
+        }
+
+        $review = Review::create(array_merge($attributes, [
+            'product_id' => $request->product_id,
+            'user_id' => $user ? $user->id : null,
+        ]));
+
+        return response()->json($review->load('product'), 201);
     }
 
     public function destroy(Request $request, $id)

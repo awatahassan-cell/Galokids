@@ -136,6 +136,14 @@ export interface Coupon {
   isActive: boolean;
   startDate?: string; // YYYY-MM-DD
   endDate?: string;   // YYYY-MM-DD
+  /** Total redemptions allowed. null/undefined = unlimited. */
+  maxUses?: number | null;
+  /** Redemptions allowed per customer. null/undefined = unlimited. */
+  maxUsesPerCustomer?: number | null;
+  /** Minimum basket subtotal before the code applies. 0 = no minimum. */
+  minOrderAmount?: number;
+  /** How many times it has been redeemed (read-only, from the server). */
+  timesUsed?: number;
 }
 
 export interface HeroSlide {

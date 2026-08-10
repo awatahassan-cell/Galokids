@@ -301,7 +301,7 @@ export const Checkout: React.FC = () => {
     }
     setCouponLoading(true);
     setCouponError('');
-    const result = await applyCoupon(couponCode.trim());
+    const result = await applyCoupon(couponCode.trim(), { subtotal, phone: mobileNumber || undefined });
     setCouponLoading(false);
     if (result.success) {
       setCouponCode('');

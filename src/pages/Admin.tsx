@@ -108,6 +108,11 @@ export const Admin: React.FC = () => {
   // New Coupon Active Date Range States
   const [couponFormStartDate, setCouponFormStartDate] = useState('');
   const [couponFormEndDate, setCouponFormEndDate] = useState('');
+  // Redemption limits. Empty means "no limit", which is how every existing
+  // coupon behaved before these were added.
+  const [couponMaxUses, setCouponMaxUses] = useState('');
+  const [couponMaxPerCustomer, setCouponMaxPerCustomer] = useState('');
+  const [couponMinOrder, setCouponMinOrder] = useState('');
   
   // Coupons Date Filter State
   const [couponDatePreset, setCouponDatePreset] = useState<string>('all');
@@ -125,7 +130,10 @@ export const Admin: React.FC = () => {
         discountPercentage: Number(couponDiscount),
         isActive: couponIsActive,
         startDate: couponFormStartDate || undefined,
-        endDate: couponFormEndDate || undefined
+        endDate: couponFormEndDate || undefined,
+        maxUses: couponMaxUses ? Number(couponMaxUses) : null,
+        maxUsesPerCustomer: couponMaxPerCustomer ? Number(couponMaxPerCustomer) : null,
+        minOrderAmount: couponMinOrder ? Number(couponMinOrder) : 0,
       });
       setEditingCouponId(null);
     } else {
@@ -135,7 +143,10 @@ export const Admin: React.FC = () => {
         discountPercentage: Number(couponDiscount),
         isActive: couponIsActive,
         startDate: couponFormStartDate || undefined,
-        endDate: couponFormEndDate || undefined
+        endDate: couponFormEndDate || undefined,
+        maxUses: couponMaxUses ? Number(couponMaxUses) : null,
+        maxUsesPerCustomer: couponMaxPerCustomer ? Number(couponMaxPerCustomer) : null,
+        minOrderAmount: couponMinOrder ? Number(couponMinOrder) : 0,
       });
     }
     setAdminCouponCode('');
@@ -143,6 +154,9 @@ export const Admin: React.FC = () => {
     setCouponIsActive(true);
     setCouponFormStartDate('');
     setCouponFormEndDate('');
+    setCouponMaxUses('');
+    setCouponMaxPerCustomer('');
+    setCouponMinOrder('');
   };
   
   const handleEditCoupon = (coupon: any) => {
@@ -152,6 +166,9 @@ export const Admin: React.FC = () => {
     setCouponIsActive(coupon.isActive);
     setCouponFormStartDate(coupon.startDate || '');
     setCouponFormEndDate(coupon.endDate || '');
+    setCouponMaxUses(coupon.maxUses ? String(coupon.maxUses) : '');
+    setCouponMaxPerCustomer(coupon.maxUsesPerCustomer ? String(coupon.maxUsesPerCustomer) : '');
+    setCouponMinOrder(coupon.minOrderAmount ? String(coupon.minOrderAmount) : '');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -2507,6 +2524,61 @@ export const Admin: React.FC = () => {
                         />
                       </div>
                     </div>
+                    <div className="pt-2 border-t border-slate-100">
+                      <p className="text-xs font-black text-slate-500 uppercase tracking-wider mb-3">
+                        {language === 'ku' ? 'سنووری بەکارهێنان' : language === 'ar' ? 'حدود الاستخدام' : 'Usage limits'}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            {language === 'ku' ? 'کۆی بەکارهێنان' : language === 'ar' ? 'إجمالي الاستخدام' : 'Total uses'}
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={couponMaxUses}
+                            onChange={(e) => setCouponMaxUses(e.target.value)}
+                            placeholder={language === 'ku' ? 'بێ سنوور' : 'Unlimited'}
+                            className="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            {language === 'ku' ? 'بۆ هەر کڕیارێک' : language === 'ar' ? 'لكل عميل' : 'Per customer'}
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={couponMaxPerCustomer}
+                            onChange={(e) => setCouponMaxPerCustomer(e.target.value)}
+                            placeholder={language === 'ku' ? 'بێ سنوور' : 'Unlimited'}
+                            className="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            {language === 'ku' ? 'کەمترین بڕی داواکاری' : language === 'ar' ? 'أقل مبلغ' : 'Min. order'}
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="500"
+                            value={couponMinOrder}
+                            onChange={(e) => setCouponMinOrder(e.target.value)}
+                            placeholder="0"
+                            className="w-full border border-slate-200 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-2">
+                        {language === 'ku'
+                          ? 'خانەی بەتاڵ = بێ سنوور. بەکارهێنانەکان لە داواکارییە هەڵوەشێنراوەکان دادەبەزێن.'
+                          : language === 'ar'
+                          ? 'الحقل الفارغ = بلا حدود. الطلبات الملغاة تُعيد الاستخدام.'
+                          : 'Empty means no limit. Cancelled orders release their use.'}
+                      </p>
+                    </div>
+
                     <div className="flex items-center pt-2">
                       <input
                         type="checkbox"
@@ -2531,6 +2603,9 @@ export const Admin: React.FC = () => {
                           setCouponIsActive(true);
                           setCouponFormStartDate('');
                           setCouponFormEndDate('');
+                          setCouponMaxUses('');
+                          setCouponMaxPerCustomer('');
+                          setCouponMinOrder('');
                         }}
                         className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all"
                       >

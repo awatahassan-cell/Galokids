@@ -30,7 +30,7 @@ interface StoreContextType {
   addCoupon: (coupon: Coupon) => void;
   updateCoupon: (coupon: Coupon) => void;
   deleteCoupon: (id: string) => void;
-  applyCoupon: (code: string) => Promise<{ success: boolean; coupon?: Coupon; message?: string }>;
+  applyCoupon: (code: string, context?: { subtotal?: number; phone?: string }) => Promise<{ success: boolean; coupon?: Coupon; message?: string }>;
   fetchSalesReport: (from?: string, to?: string, channel?: string) => Promise<any>;
   fetchCashierReport: (from?: string, to?: string) => Promise<any>;
   fetchBestSellers: (limit?: number) => Promise<Product[]>;
@@ -383,12 +383,20 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Validate a single coupon code against the public backend endpoint.
   // Returns the coupon on success so callers can apply it.
-  const applyCoupon = async (code: string): Promise<{ success: boolean; coupon?: Coupon; message?: string }> => {
+  /**
+   * `subtotal` and `phone` let the server apply the same limits the order will
+   * (minimum basket, total uses, uses per customer), so the basket never shows
+   * a discount that checkout is about to refuse.
+   */
+  const applyCoupon = async (
+    code: string,
+    context: { subtotal?: number; phone?: string } = {}
+  ): Promise<{ success: boolean; coupon?: Coupon; message?: string }> => {
     try {
       const res = await fetch(`${LARAVEL_API_BASE}/coupons/validate`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, subtotal: context.subtotal, phone: context.phone }),
       });
       const data = await res.json();
       if (res.ok && data?.valid && data?.coupon) {

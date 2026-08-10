@@ -23,6 +23,10 @@ class CouponController extends Controller
             'isActive' => (bool) $coupon->is_active,
             'startDate' => $coupon->start_date,
             'endDate' => $coupon->end_date,
+            'maxUses' => $coupon->max_uses,
+            'maxUsesPerCustomer' => $coupon->max_uses_per_customer,
+            'minOrderAmount' => (float) $coupon->min_order_amount,
+            'timesUsed' => $coupon->timesUsed(),
         ];
     }
 
@@ -42,12 +46,39 @@ class CouponController extends Controller
      */
     public function validateCode(Request $request)
     {
-        $request->validate(['code' => 'required|string|max:255']);
+        $request->validate([
+            'code' => 'required|string|max:255',
+            'subtotal' => 'nullable|numeric|min:0',
+            'phone' => 'nullable|string|max:255',
+        ]);
 
         $coupon = Coupon::findRedeemable($request->code);
 
         if (!$coupon) {
             return response()->json(['valid' => false, 'message' => 'Invalid or expired coupon code'], 404);
+        }
+
+        // Check the same limits the order will enforce, so the basket never
+        // shows a discount that checkout is going to refuse.
+        $user = $request->user('sanctum');
+        $problem = $coupon->redemptionProblem(
+            (float) $request->input('subtotal', 0),
+            $user->id ?? null,
+            $request->input('phone') ?? ($user->phone ?? null)
+        );
+
+        if ($problem) {
+            return response()->json([
+                'valid' => false,
+                'reason' => $problem,
+                'message' => match ($problem) {
+                    'min_order_amount' => 'ئەم کوپۆنە تەنها بۆ داواکاری سەرووی '
+                        . number_format((float) $coupon->min_order_amount) . ' دینارە.',
+                    'fully_used' => 'ئەم کوپۆنە بەتەواوی بەکارهێنراوە.',
+                    'already_used_by_customer' => 'تۆ پێشتر ئەم کوپۆنەت بەکارهێناوە.',
+                    default => 'ئەم کوپۆنە شیاو نییە.',
+                },
+            ], 422);
         }
 
         return response()->json(['valid' => true, 'coupon' => $this->formatCoupon($coupon)]);
@@ -68,6 +99,15 @@ class CouponController extends Controller
         if ($request->has('isActive')) {
             $request->merge(['is_active' => $request->input('isActive')]);
         }
+        if ($request->has('maxUses')) {
+            $request->merge(['max_uses' => $request->input('maxUses')]);
+        }
+        if ($request->has('maxUsesPerCustomer')) {
+            $request->merge(['max_uses_per_customer' => $request->input('maxUsesPerCustomer')]);
+        }
+        if ($request->has('minOrderAmount')) {
+            $request->merge(['min_order_amount' => $request->input('minOrderAmount')]);
+        }
 
         $validated = $request->validate([
             'id' => 'string|nullable',
@@ -76,6 +116,9 @@ class CouponController extends Controller
             'is_active' => 'boolean',
             'start_date' => 'date|nullable',
             'end_date' => 'date|nullable',
+            'max_uses' => 'nullable|integer|min:1',
+            'max_uses_per_customer' => 'nullable|integer|min:1',
+            'min_order_amount' => 'nullable|numeric|min:0',
         ]);
 
         if (empty($validated['id'])) {
@@ -109,6 +152,15 @@ class CouponController extends Controller
         if ($request->has('isActive')) {
             $request->merge(['is_active' => $request->input('isActive')]);
         }
+        if ($request->has('maxUses')) {
+            $request->merge(['max_uses' => $request->input('maxUses')]);
+        }
+        if ($request->has('maxUsesPerCustomer')) {
+            $request->merge(['max_uses_per_customer' => $request->input('maxUsesPerCustomer')]);
+        }
+        if ($request->has('minOrderAmount')) {
+            $request->merge(['min_order_amount' => $request->input('minOrderAmount')]);
+        }
 
         $validated = $request->validate([
             'code' => 'string|unique:coupons,code,' . $id,
@@ -116,6 +168,9 @@ class CouponController extends Controller
             'is_active' => 'boolean',
             'start_date' => 'date|nullable',
             'end_date' => 'date|nullable',
+            'max_uses' => 'nullable|integer|min:1',
+            'max_uses_per_customer' => 'nullable|integer|min:1',
+            'min_order_amount' => 'nullable|numeric|min:0',
         ]);
 
         $coupon->update($validated);

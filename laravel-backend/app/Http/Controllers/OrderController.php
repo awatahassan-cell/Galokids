@@ -21,6 +21,18 @@ class OrderController extends Controller
         $this->requirePrivileged($request);
     }
 
+    /** Human-readable reason a coupon was refused. */
+    private function couponProblemMessage(string $problem, Coupon $coupon): string
+    {
+        return match ($problem) {
+            'min_order_amount' => 'ئەم کوپۆنە تەنها بۆ داواکاری سەرووی '
+                . number_format((float) $coupon->min_order_amount) . ' دینارە.',
+            'fully_used' => 'ئەم کوپۆنە بەتەواوی بەکارهێنراوە.',
+            'already_used_by_customer' => 'تۆ پێشتر ئەم کوپۆنەت بەکارهێناوە.',
+            default => 'ئەم کوپۆنە شیاو نییە.',
+        };
+    }
+
     /**
      * What one piece costs the customer.
      *
@@ -251,7 +263,26 @@ class OrderController extends Controller
                 $couponCode = null;
                 if (!empty($validated['coupon_code'])) {
                     $coupon = Coupon::findRedeemable($validated['coupon_code']);
+
                     if ($coupon) {
+                        // Lock the coupon row for the rest of the transaction so
+                        // two shoppers redeeming the last use at the same moment
+                        // cannot both get through the limit check.
+                        Coupon::where('id', $coupon->id)->lockForUpdate()->first();
+
+                        $problem = $coupon->redemptionProblem(
+                            $subtotal,
+                            $user->id ?? null,
+                            $validated['customer_phone'] ?? ($user->phone ?? null)
+                        );
+
+                        if ($problem) {
+                            abort(response()->json([
+                                'message' => $this->couponProblemMessage($problem, $coupon),
+                                'coupon_problem' => $problem,
+                            ], 422));
+                        }
+
                         $discount = $subtotal * ((float) $coupon->discount_percentage / 100);
                         $couponCode = $coupon->code;
                     }
