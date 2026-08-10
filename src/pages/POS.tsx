@@ -11,6 +11,7 @@ import { POSNavbar } from '../components/POSNavbar';
 import { POSProductGrid } from '../components/pos/POSProductGrid';
 import { POSCartPanel } from '../components/pos/POSCartPanel';
 import { adminTr } from '../i18n/adminDict';
+import { printReceiptIframe } from '../utils/printHelper';
 
 export const POS: React.FC = () => {
   const { products, orders, addOrder, productsPagination, refreshProducts, lookupCustomer,
@@ -293,54 +294,19 @@ export const POS: React.FC = () => {
 
   const printReceipt = (
     orderItems: any[],
-    totals: { subtotal: number; discount: number; total: number; paid: number; change: number; method: string; },
+    totals: { subtotal: number; discount: number; total: number; paid: number; change: number; method: string; couponCode?: string; couponDiscount?: number; cashierName?: string },
     custName?: string,
     invoiceNo?: string,
   ) => {
     const receiptCustomer = custName !== undefined ? custName : customerName;
-    const s = storeSettings || {};
-    const storeName = s.store_name || 'Galo Kids 🎈';
-    const rows = orderItems.map(it => {
-      const name = getProductName(it.product);
-      const line = Number(it.product.price || 0) * it.quantity;
-      return `<tr><td>${esc(name)}<br><small>${esc(it.variation.size || '')} ${esc(it.variation.color || '')}</small></td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">${formatIQDLabel(line)}</td></tr>`;
-    }).join('');
-    const win = window.open('', '_blank', 'width=320,height=600');
-    if (!win) return;
-    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Receipt ${esc(invoiceNo || '')}</title>
-      <style>
-        *{font-family:'Courier New',monospace;color:#000}
-        body{width:280px;margin:0 auto;padding:10px}
-        h2{text-align:center;margin:4px 0;font-size:18px}
-        img.logo{display:block;margin:0 auto 6px;max-width:120px;max-height:70px;object-fit:contain}
-        table{width:100%;border-collapse:collapse;font-size:12px}
-        td,th{padding:3px 0;border-bottom:1px dashed #999}
-        .tot td{border:none;font-size:13px}
-        .big{font-weight:bold;font-size:15px}
-        small{color:#555}
-        .center{text-align:center;font-size:11px;margin-top:4px}
-        .inv{text-align:center;font-weight:bold;font-size:13px;margin:6px 0}
-      </style></head><body>
-      <img class="logo" src="${esc(s.store_logo || '/assets/galo-logo.png')}" />
-      <h2>${esc(storeName)}</h2>
-      ${s.store_address ? `<p class="center">${esc(s.store_address)}</p>` : ''}
-      ${s.store_phone ? `<p class="center">☎ ${esc(s.store_phone)}</p>` : ''}
-      ${invoiceNo ? `<p class="inv">${esc(invoiceNo)}</p>` : ''}
-      <p class="center">${new Date().toLocaleString()}</p>
-      ${receiptCustomer ? `<p class="center">Customer: ${esc(receiptCustomer)}</p>` : ''}
-      <table><thead><tr><th style="text-align:left">Item</th><th>Qty</th><th style="text-align:right">Price</th></tr></thead>
-      <tbody>${rows}</tbody></table>
-      <table style="margin-top:8px"><tbody class="tot">
-        <tr><td>Subtotal</td><td style="text-align:right">${formatIQDLabel(totals.subtotal)}</td></tr>
-        ${totals.discount ? `<tr><td>Discount</td><td style="text-align:right">-${formatIQDLabel(totals.discount)}</td></tr>` : ''}
-        <tr class="big"><td>TOTAL</td><td style="text-align:right">${formatIQDLabel(totals.total)}</td></tr>
-        <tr><td>Paid (${esc(totals.method)})</td><td style="text-align:right">${formatIQDLabel(totals.paid)}</td></tr>
-        ${totals.method === 'cash' ? `<tr><td>Change</td><td style="text-align:right">${formatIQDLabel(totals.change)}</td></tr>` : ''}
-      </tbody></table>
-      <p class="center">${esc(s.receipt_footer || 'Thank you! ❤️')}</p>
-      <script>window.onload=function(){window.print();}</script>
-      </body></html>`);
-    win.document.close();
+    const cashierName = totals.cashierName || currentUser?.name || currentUser?.username || 'Cashier';
+    printReceiptIframe(
+      orderItems,
+      { ...totals, cashierName },
+      receiptCustomer,
+      invoiceNo,
+      storeSettings
+    );
   };
 
   const printShiftSummary = async () => {
