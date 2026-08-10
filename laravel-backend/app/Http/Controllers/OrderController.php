@@ -1,0 +1,395 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\ProductVariation;
+use App\Models\Coupon;
+use App\Models\Shift;
+use App\Models\Refund;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class OrderController extends Controller
+{
+    private function checkStaffOrAdmin(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !in_array((int)$user->role, [1, 2, 3])) {
+            abort(response()->json(['message' => 'Unauthorized. Staff or Admin role required.'], 403));
+        }
+    }
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        if ($user && in_array((int)$user->role, [1, 2, 3])) {
+            return response()->json(
+                Order::with('items.product', 'items.variation')->orderBy('created_at', 'desc')->get()
+            );
+        }
+        return response()->json(
+            Order::where('user_id', $user->id)
+                ->orWhere('customer_phone', $user->phone)
+                ->with('items.product', 'items.variation')
+                ->orderBy('created_at', 'desc')->get()
+        );
+    }
+
+    /**
+     * Staff/admin: look up a customer's history by phone (for POS loyalty).
+     */
+    public function customerLookup(Request $request)
+    {
+        $this->checkStaffOrAdmin($request);
+        $request->validate(['phone' => 'required|string']);
+
+        $phone = preg_replace('/\D/', '', (string) $request->phone);
+        if ($phone === '') {
+            return response()->json(['found' => false]);
+        }
+
+        $orders = Order::whereRaw("REPLACE(REPLACE(REPLACE(customer_phone,' ',''),'-',''),'+','') LIKE ?", ['%' . $phone . '%'])
+            ->where('status', '!=', 'cancelled')
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return response()->json(['found' => false]);
+        }
+
+        return response()->json([
+            'found' => true,
+            'name' => optional($orders->sortByDesc('created_at')->first())->customer_name,
+            'orders_count' => $orders->count(),
+            'total_spent' => round((float) $orders->sum('total_amount'), 2),
+            'last_order_at' => optional($orders->max('created_at'))?->__toString(),
+        ]);
+    }
+
+    /**
+     * Public order tracking. Requires BOTH the order id and the matching phone
+     * number, so orders can't be enumerated by id alone. Returns a limited view.
+     */
+    public function track(Request $request)
+    {
+        $request->validate([
+            'id' => 'required',
+            'phone' => 'required|string',
+        ]);
+
+        $order = Order::with('items.product')->find($request->id);
+        $phone = preg_replace('/\D/', '', (string) $request->phone);
+        $orderPhone = $order ? preg_replace('/\D/', '', (string) $order->customer_phone) : '';
+
+        if (!$order || $phone === '' || $orderPhone === '' || $phone !== $orderPhone) {
+            return response()->json(['message' => 'No matching order found.'], 404);
+        }
+
+        return response()->json([
+            'id' => $order->id,
+            'status' => $order->status,
+            'created_at' => $order->created_at,
+            'total_amount' => $order->total_amount,
+            'customer_name' => $order->customer_name,
+            'shipping_address' => $order->shipping_address,
+            'items' => $order->items->map(fn ($i) => [
+                'name' => optional($i->product)->name,
+                'quantity' => $i->quantity,
+                'price' => $i->price,
+            ]),
+        ]);
+    }
+
+    public function show(Request $request, $id)
+    {
+        $order = Order::with('items.product', 'items.variation')->findOrFail($id);
+        $user = $request->user();
+        if ($user && !in_array((int)$user->role, [2, 3]) && $order->user_id != $user->id) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+        return response()->json($order);
+    }
+
+    /**
+     * Create an order. Prices, discounts and totals are ALWAYS computed on the
+     * server from the database — the client price/total is never trusted. This
+     * closes the classic e-commerce price-tampering hole and also persists the
+     * line items and decrements stock (which the old implementation never did).
+     */
+    public function store(Request $request)
+    {
+        $user = $request->user();
+        $isStaff = $user && in_array((int)$user->role, [2, 3]);
+
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'nullable|integer|exists:products,id',
+            'items.*.product_variation_id' => 'nullable|integer|exists:product_variations,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit_price' => 'nullable|numeric|min:0',
+            'items.*.name' => 'nullable|string|max:255',
+            'status' => 'nullable|string|in:pending,processing,shipped,delivered,cancelled',
+            'shipping_address' => 'nullable|string|max:1000',
+            'payment_method' => 'nullable|string|max:255',
+            'customer_name' => 'nullable|string|max:255',
+            'customer_phone' => 'nullable|string|max:255',
+            'customer_email' => 'nullable|string|email|max:255',
+            'coupon_code' => 'nullable|string|max:255',
+            'discount_amount' => 'nullable|numeric|min:0',
+            'amount_paid' => 'nullable|numeric|min:0',
+            'user_id' => 'nullable|integer|exists:users,id',
+        ]);
+
+        try {
+            $order = DB::transaction(function () use ($validated, $request, $user, $isStaff) {
+                $subtotal = 0;
+                $lineItems = [];
+
+                foreach ($validated['items'] as $item) {
+                    $qty = (int) $item['quantity'];
+                    $variation = null;
+                    $productId = $item['product_id'] ?? null;
+                    $unitPrice = null;
+
+                    if (!empty($item['product_variation_id'])) {
+                        // Lock the row to avoid overselling under concurrent checkout.
+                        $variation = ProductVariation::with('product')
+                            ->lockForUpdate()
+                            ->find($item['product_variation_id']);
+                        if ($variation) {
+                            $productId = $variation->product_id;
+                            $product = $variation->product;
+                            $unitPrice = $variation->price_override
+                                ?? ($product->discount_price ?? $product->price);
+
+                            // Stock control: never let a customer oversell.
+                            if ($variation->stock_quantity < $qty && !$isStaff) {
+                                abort(response()->json([
+                                    'message' => 'Insufficient stock for one of the selected items.',
+                                ], 422));
+                            }
+                            $variation->stock_quantity = max(0, $variation->stock_quantity - $qty);
+                            $variation->save();
+                        }
+                    } elseif (!empty($productId)) {
+                        $product = Product::find($productId);
+                        if ($product) {
+                            $unitPrice = $product->discount_price ?? $product->price;
+                        }
+                    }
+
+                    // Custom / POS "quick add" line with no catalog product: only
+                    // trusted staff may set an arbitrary price for it.
+                    if ($unitPrice === null) {
+                        if ($isStaff && isset($item['unit_price'])) {
+                            $unitPrice = (float) $item['unit_price'];
+                            $productId = null; // not a real catalog product
+                        } else {
+                            abort(response()->json([
+                                'message' => 'Invalid order item: product could not be priced.',
+                            ], 422));
+                        }
+                    }
+
+                    $subtotal += $unitPrice * $qty;
+                    $lineItems[] = [
+                        'product_id' => $productId,
+                        'product_variation_id' => $item['product_variation_id'] ?? null,
+                        'quantity' => $qty,
+                        'price' => $unitPrice,
+                    ];
+                }
+
+                // Discount — server validates the coupon; POS staff may apply a flat discount.
+                $discount = 0;
+                $couponCode = null;
+                if (!empty($validated['coupon_code'])) {
+                    $today = now()->toDateString();
+                    $coupon = Coupon::where('code', $validated['coupon_code'])
+                        ->where('is_active', true)
+                        ->where(function ($q) use ($today) {
+                            $q->whereNull('start_date')->orWhere('start_date', '<=', $today);
+                        })
+                        ->where(function ($q) use ($today) {
+                            $q->whereNull('end_date')->orWhere('end_date', '>=', $today);
+                        })
+                        ->first();
+                    if ($coupon) {
+                        $discount = $subtotal * ((float) $coupon->discount_percentage / 100);
+                        $couponCode = $coupon->code;
+                    }
+                }
+                if ($isStaff && isset($validated['discount_amount'])) {
+                    $discount += (float) $validated['discount_amount'];
+                }
+                $discount = min($discount, $subtotal);
+                $total = max(0, $subtotal - $discount);
+
+                // Ownership: a customer can only order for themselves.
+                $userId = $isStaff
+                    ? ($validated['user_id'] ?? ($user->id ?? null))
+                    : ($user->id ?? null);
+
+                // Cash handling for POS.
+                $amountPaid = ($isStaff && isset($validated['amount_paid']))
+                    ? (float) $validated['amount_paid'] : null;
+                $changeDue = $amountPaid !== null ? max(0, $amountPaid - $total) : null;
+
+                // Attach the cashier's open shift (POS) and a friendly invoice no.
+                $shiftId = null;
+                if ($isStaff) {
+                    $shift = Shift::where('user_id', $user->id)->where('status', 'open')->first();
+                    $shiftId = $shift?->id;
+                }
+                $todayCount = Order::whereDate('created_at', now()->toDateString())->count();
+                $invoiceNo = 'INV-' . now()->format('Ymd') . '-' . str_pad((string)($todayCount + 1), 3, '0', STR_PAD_LEFT);
+
+                $order = Order::create([
+                    'user_id' => $userId,
+                    'shift_id' => $shiftId,
+                    'invoice_no' => $invoiceNo,
+                    'customer_name' => $validated['customer_name'] ?? ($user->name ?? null),
+                    'customer_phone' => $validated['customer_phone'] ?? null,
+                    'customer_email' => $validated['customer_email'] ?? ($user->email ?? null),
+                    'status' => $isStaff ? ($validated['status'] ?? 'pending') : 'pending',
+                    'subtotal' => $subtotal,
+                    'discount_amount' => $discount,
+                    'coupon_code' => $couponCode,
+                    'total_amount' => $total,
+                    'amount_paid' => $amountPaid,
+                    'change_due' => $changeDue,
+                    'shipping_address' => $validated['shipping_address'] ?? null,
+                    'payment_method' => $validated['payment_method'] ?? null,
+                    'channel' => $isStaff ? 'pos' : 'online',
+                ]);
+
+                foreach ($lineItems as $li) {
+                    $order->items()->create($li);
+                }
+
+                return $order;
+            });
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
+        }
+
+        return response()->json($order->load('items.product', 'items.variation'), 201);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $this->checkStaffOrAdmin($request);
+        $order = Order::findOrFail($id);
+
+        $validated = $request->validate([
+            'status' => 'sometimes|required|string|in:pending,processing,shipped,delivered,cancelled',
+            'shipping_address' => 'sometimes|nullable|string|max:1000',
+            'payment_method' => 'sometimes|nullable|string|max:255',
+        ]);
+
+        $order->update($validated);
+        return response()->json($order->load('items.product', 'items.variation'));
+    }
+
+    /**
+     * Cancel / refund an order and return its stock to inventory. Staff/admin only.
+     */
+    public function destroy(Request $request, $id)
+    {
+        $this->checkStaffOrAdmin($request);
+
+        DB::transaction(function () use ($id) {
+            $order = Order::with('items')->lockForUpdate()->findOrFail($id);
+
+            // Restock anything that was decremented, unless it was already cancelled.
+            if ($order->status !== 'cancelled') {
+                foreach ($order->items as $item) {
+                    if ($item->product_variation_id) {
+                        $variation = ProductVariation::lockForUpdate()->find($item->product_variation_id);
+                        if ($variation) {
+                            $variation->stock_quantity += $item->quantity;
+                            $variation->save();
+                        }
+                    }
+                }
+            }
+
+            $order->delete();
+        });
+
+        return response()->json(null, 204);
+    }
+
+    /**
+     * Refund / return items from an order (POS returns). Restocks the returned
+     * quantities, records a refund (linked to the cashier's shift for the
+     * Z-report), and updates the order's refunded amount / status. Staff/admin.
+     */
+    public function refund(Request $request, $id)
+    {
+        $this->checkStaffOrAdmin($request);
+        $user = $request->user();
+
+        $data = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.order_item_id' => 'required|integer|exists:order_items,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
+        $result = DB::transaction(function () use ($data, $id, $user) {
+            $order = Order::with('items')->lockForUpdate()->findOrFail($id);
+            $amount = 0;
+            $snapshot = [];
+
+            foreach ($data['items'] as $line) {
+                $item = $order->items->firstWhere('id', $line['order_item_id']);
+                if (!$item) {
+                    abort(response()->json(['message' => 'Item does not belong to this order.'], 422));
+                }
+                $qty = min((int) $line['quantity'], (int) $item->quantity);
+                if ($qty <= 0) continue;
+
+                $amount += (float) $item->price * $qty;
+                $snapshot[] = ['order_item_id' => $item->id, 'quantity' => $qty, 'price' => (float) $item->price];
+
+                // Return stock.
+                if ($item->product_variation_id) {
+                    $variation = ProductVariation::lockForUpdate()->find($item->product_variation_id);
+                    if ($variation) {
+                        $variation->stock_quantity += $qty;
+                        $variation->save();
+                    }
+                }
+            }
+
+            if ($amount <= 0) {
+                abort(response()->json(['message' => 'Nothing to refund.'], 422));
+            }
+
+            $shift = Shift::where('user_id', $user->id)->where('status', 'open')->first();
+
+            $refund = Refund::create([
+                'order_id' => $order->id,
+                'user_id' => $user->id,
+                'shift_id' => $shift?->id,
+                'amount' => round($amount, 2),
+                'reason' => $data['reason'] ?? null,
+                'items' => $snapshot,
+            ]);
+
+            $order->refunded_amount = (float) $order->refunded_amount + round($amount, 2);
+            // Mark fully refunded orders.
+            if ($order->refunded_amount >= (float) $order->total_amount) {
+                $order->status = 'cancelled';
+            }
+            $order->save();
+
+            return ['refund' => $refund, 'order' => $order->load('items.product', 'items.variation')];
+        });
+
+        return response()->json($result, 201);
+    }
+}

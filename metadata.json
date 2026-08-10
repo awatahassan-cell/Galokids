@@ -1,0 +1,6 @@
+{
+  "name": "Galo Kids",
+  "description": "Premium children's clothing and toys e-commerce platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
