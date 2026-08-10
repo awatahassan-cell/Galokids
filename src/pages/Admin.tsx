@@ -1729,6 +1729,7 @@ export const Admin: React.FC = () => {
         <AdminPosSalesTab
           orders={orders}
           deleteOrder={deleteOrder}
+          refreshOrders={refreshOrders}
           confirmDialog={confirmDialog}
           toast={toast}
         />

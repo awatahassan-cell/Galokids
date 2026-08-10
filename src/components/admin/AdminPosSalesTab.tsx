@@ -12,6 +12,7 @@ import { formatIQDLabel } from '../../utils/currency';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../../utils/colors';
 import { printReceiptIframe } from '../../utils/printHelper';
 import { useStore } from '../../store';
+import { Pagination } from '../Pagination';
 
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
@@ -39,7 +40,7 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
   toast: propToast,
 }) => {
   const { language } = useLanguage();
-  const { storeSettings, currentUser } = useStore();
+  const { storeSettings, currentUser, refreshOrders } = useStore();
   const L = (key: string) => adminTr(key, language);
   const hookConfirm = useConfirm();
   const hookToast = useToast();
@@ -48,6 +49,7 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
 
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedOrderForModal, setSelectedOrderForModal] = useState<Order | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filters state
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,6 +57,26 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
   const [customDate, setCustomDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Auto-refresh orders dynamically on mount & filter changes
+  React.useEffect(() => {
+    if (refreshOrders) {
+      refreshOrders(currentPage, 50);
+    }
+  }, [currentPage, dateFilter, customDate, refreshOrders]);
+
+  const handleManualRefresh = async () => {
+    if (isRefreshing || !refreshOrders) return;
+    setIsRefreshing(true);
+    try {
+      await refreshOrders(1, 50);
+      toast(language === 'ku' ? 'داتای فرۆشتنەکان نوێکرایەوە 🔄' : 'POS sales refreshed 🔄');
+    } catch (err) {
+      console.error('Refresh error:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Extract POS sales
   const posSales = useMemo(() => {
@@ -220,12 +242,12 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
           )}
         </div>
 
-        {/* Date Filter */}
-        <div>
+        {/* Date Filter & Refresh Action */}
+        <div className="flex items-center gap-2">
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value as any)}
-            className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+            className="grow py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
           >
             <option value="all">{language === 'ku' ? 'هەموو بەروارەکان' : 'All Dates'}</option>
             <option value="today">{language === 'ku' ? 'ئەمڕۆ' : 'Today'}</option>
@@ -233,6 +255,15 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
             <option value="this_month">{language === 'ku' ? 'ئەم مانگە' : 'This Month'}</option>
             <option value="custom">{language === 'ku' ? 'بەرواری دیاریکراو' : 'Specific Date'}</option>
           </select>
+
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="p-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50 shrink-0"
+            title={language === 'ku' ? 'نوێکردنەوەی داتای فرۆشتنەکان' : 'Refresh POS sales'}
+          >
+            <RefreshCw className={`w-4 h-4 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
         {/* Custom Date Input if selected */}
@@ -529,43 +560,15 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
         </table>
       </div>
 
-      {/* Custom Pagination for POS Sales */}
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 flex-wrap gap-3">
-          <span className="text-xs font-bold text-slate-500">
-            {language === 'ku' ? `لاپەڕە ${currentPage} لە ${totalPages}` : `Page ${currentPage} of ${totalPages}`}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 cursor-pointer"
-            >
-              {language === 'ku' ? 'پێشوو' : 'Previous'}
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 rounded-xl text-xs font-black cursor-pointer transition-all ${
-                  currentPage === page
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 cursor-pointer"
-            >
-              {language === 'ku' ? 'داهاتوو' : 'Next'}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Standard Unified Pagination Component */}
+      <Pagination
+        meta={{
+          currentPage,
+          lastPage: totalPages,
+          total: filteredSales.length,
+        }}
+        onPageChange={(page) => setCurrentPage(page)}
+      />
 
       {/* POS Item Details Modal */}
       {selectedOrderForModal && (
