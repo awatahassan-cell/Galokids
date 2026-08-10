@@ -1042,10 +1042,10 @@ export const POS: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900">
-                    {language === 'ku' ? 'کۆتا ١٠ فرۆشتن' : language === 'ar' ? 'آخر 10 مبيعات' : 'Recent 10 Sales'}
+                    {language === 'ku' ? 'کۆتا ١٠ فرۆشتنی پۆس' : language === 'ar' ? 'آخر 10 مبيعات POS' : 'Recent 10 POS Sales'}
                   </h3>
                   <p className="text-xs text-slate-400 font-bold">
-                    {language === 'ku' ? 'تەکمەڵ بکە لەسەر هەر فرۆشتنێک بۆ چاپکردنەوەی پسووڵەکەی بێ دەستکاری' : 'Click print next to any sale to reprint its receipt directly'}
+                    {language === 'ku' ? 'کلیک بکە لەسەر هەر فرۆشتنێک بۆ چاپکردنەوەی پسووڵەکەی بێ دەستکاری' : 'Click print next to any sale to reprint its receipt directly'}
                   </p>
                 </div>
               </div>
@@ -1059,12 +1059,27 @@ export const POS: React.FC = () => {
 
             {/* Orders List */}
             <div className="grow overflow-y-auto hide-scrollbar space-y-3 py-1">
-              {orders.length === 0 ? (
-                <div className="text-center py-12 text-slate-400 font-bold text-xs">
-                  {language === 'ku' ? 'هیچ فرۆشتنێک تۆمار نەکراوە.' : 'No recent sales recorded.'}
-                </div>
-              ) : (
-                orders.slice(0, 10).map((ord: any, idx: number) => {
+              {(() => {
+                const posOnlyOrders = orders.filter((ord: any) => {
+                  const channel = String(ord.channel || ord.order_type || ord.source || '').toLowerCase();
+                  const addr = String(ord.shippingAddress || ord.shipping_address || '').toLowerCase();
+                  const name = String(ord.customerName || ord.customer_name || '').toLowerCase();
+
+                  if (channel === 'pos' || addr.includes('pos') || addr.includes('in-store') || name.includes('pos')) return true;
+                  if (channel === 'online' || channel === 'web' || addr.includes('delivery') || addr.includes('تسلّم') || addr.includes('دەستکەوتنی')) return false;
+
+                  return true; // Default fallback for POS environment
+                });
+
+                if (posOnlyOrders.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-slate-400 font-bold text-xs">
+                      {language === 'ku' ? 'هیچ فرۆشتنێکی پۆس تۆمار نەکراوە.' : 'No recent POS sales recorded.'}
+                    </div>
+                  );
+                }
+
+                return posOnlyOrders.slice(0, 10).map((ord: any, idx: number) => {
                   const invoiceNo = ord.invoiceNo || ord.invoice_no || `INV-${ord.id}`;
                   const custName = ord.customerName || ord.customer_name || 'Walk-in Customer';
                   const totalAmount = Number(ord.totalAmount || ord.total_amount || 0);
@@ -1121,8 +1136,8 @@ export const POS: React.FC = () => {
                       </div>
                     </div>
                   );
-                })
-              )}
+                });
+              })()}
             </div>
           </div>
         </div>
