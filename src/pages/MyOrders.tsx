@@ -4,14 +4,32 @@ import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getColorHex } from '../utils/colors';
 import { Navigate } from 'react-router-dom';
-import { Package, Clock, CheckCircle, Truck, XCircle } from 'lucide-react';
+import { Package, Clock, CheckCircle, Truck, XCircle, RefreshCw } from 'lucide-react';
 
 import { isPosOrder } from '../components/admin/AdminOrdersTab';
 import { isSamePhone } from '../utils/phone';
 
 export const MyOrders: React.FC = () => {
-  const { orders, currentUser } = useStore();
+  const { orders, currentUser, refreshOrders } = useStore();
   const { t, language } = useLanguage();
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
+  // Orders change while the customer is away (the shop confirms, ships or
+  // cancels them), and the store only loaded them once at app start. Without
+  // this the page showed stale data until the browser was reloaded by hand.
+  React.useEffect(() => {
+    if (!currentUser) return;
+    refreshOrders();
+  }, [currentUser?.id, refreshOrders]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshOrders();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
@@ -61,9 +79,22 @@ export const MyOrders: React.FC = () => {
 
   return (
     <div className="grow max-w-5xl mx-auto w-full px-4 sm:px-6 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('myOrders')}</h1>
-        <p className="text-slate-500 mt-2">{t('myOrdersSubtitle')}</p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('myOrders')}</h1>
+          <p className="text-slate-500 mt-2">{t('myOrdersSubtitle')}</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all disabled:opacity-60 cursor-pointer active:scale-95"
+        >
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>
+            {language === 'ku' ? 'نوێکردنەوە' : language === 'ar' ? 'تحديث' : 'Refresh'}
+          </span>
+        </button>
       </div>
 
       {userOrders.length === 0 ? (

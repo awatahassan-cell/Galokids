@@ -3,8 +3,7 @@ import { useStore } from '../store';
 import { AlertTriangle, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
-
-const LOW = 5;
+import { LOW_STOCK_THRESHOLD, getTotalStock } from '../utils/inventory';
 
 export const LowStockAlert: React.FC = () => {
   const { products } = useStore();
@@ -13,8 +12,8 @@ export const LowStockAlert: React.FC = () => {
 
   const lowItems = useMemo(() => {
     return (products || [])
-      .map(p => ({ p, stock: (p.variations || []).reduce((s, v) => s + (v.stockQuantity || 0), 0) }))
-      .filter(x => x.stock <= LOW)
+      .map(p => ({ p, stock: getTotalStock(p) }))
+      .filter(x => x.stock <= LOW_STOCK_THRESHOLD)
       .sort((a, b) => a.stock - b.stock);
   }, [products]);
 

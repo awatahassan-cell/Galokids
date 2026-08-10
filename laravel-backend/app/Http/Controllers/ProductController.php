@@ -86,13 +86,15 @@ class ProductController extends Controller
                 break;
         }
 
-        // Pagination
-        $limit = $request->input('limit', 10);
+        // Pagination. The page size is clamped so one request can't be made to
+        // pull the entire table (the inventory audit pages through it instead).
         if ($request->has('page')) {
-            $products = $query->paginate($limit);
-            return response()->json($products);
+            $limit = max(1, min((int) $request->input('limit', 10), 100));
+
+            return response()->json($query->paginate($limit));
         }
 
+        // No page requested: unchanged behaviour, return the full result set.
         return response()->json($query->get());
     }
 

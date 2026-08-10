@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Navigate } from 'react-router-dom';
 import { User, Mail, Phone, MapPin, Lock, Shield, Calendar, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import iraqLocations from '../data/iraq-locations.json';
 import { getRoleInfo } from '../utils/roles';
+import {
+  buildAddress, parseAddress, getDistricts, getSubdistricts,
+  getGovernorateLabel, getDistrictLabel, getSubdistrictLabel,
+} from '../utils/address';
 
 const pTranslations = {
   en: {
@@ -127,14 +131,21 @@ export const Profile: React.FC = () => {
   const [email, setEmail] = useState((currentUser?.email && !currentUser.email.includes('@phone.user')) ? currentUser.email : '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
   
-  // Location States
+  // Location States. Values are always the canonical English names/ids from
+  // `utils/address`, never the translated labels — see the note there.
   const [selectedGovernorate, setSelectedGovernorate] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedSubdistrict, setSelectedSubdistrict] = useState('');
   const [streetAddress, setStreetAddress] = useState('');
 
-  const [availableDistricts, setAvailableDistricts] = useState<any[]>([]);
-  const [availableSubdistricts, setAvailableSubdistricts] = useState<{ en: string; ar: string; ku: string }[]>([]);
+  const availableDistricts = useMemo(
+    () => getDistricts(selectedGovernorate),
+    [selectedGovernorate]
+  );
+  const availableSubdistricts = useMemo(
+    () => getSubdistricts(selectedGovernorate, selectedDistrict),
+    [selectedGovernorate, selectedDistrict]
+  );
 
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -145,39 +156,6 @@ export const Profile: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Dynamic Governorate update
-  useEffect(() => {
-    if (selectedGovernorate) {
-      const gov = iraqLocations.find(l => l.governorate === selectedGovernorate || l.id === selectedGovernorate);
-      if (gov && gov.districts) {
-        setAvailableDistricts(gov.districts);
-      } else {
-        setAvailableDistricts([]);
-      }
-    } else {
-      setAvailableDistricts([]);
-    }
-  }, [selectedGovernorate]);
-
-  // Dynamic District update
-  useEffect(() => {
-    if (selectedDistrict && availableDistricts.length > 0) {
-      const dist = availableDistricts.find(d => d.id === selectedDistrict || d.name === selectedDistrict);
-      if (dist && dist.subdistricts) {
-        const list = dist.subdistricts.map((sub: string, index: number) => ({
-          en: sub,
-          ar: dist.subdistrictsAr?.[index] || sub,
-          ku: dist.subdistrictsKu?.[index] || sub,
-        }));
-        setAvailableSubdistricts(list);
-      } else {
-        setAvailableSubdistricts([]);
-      }
-    } else {
-      setAvailableSubdistricts([]);
-    }
-  }, [selectedDistrict, availableDistricts]);
-
   // Sync state if currentUser updates
   useEffect(() => {
     if (currentUser) {
@@ -186,55 +164,11 @@ export const Profile: React.FC = () => {
       setPhone(currentUser.phone || '');
 
       if (currentUser.address) {
-        const addrLower = currentUser.address.toLowerCase();
-        const matchedGov = iraqLocations.find(l =>
-          addrLower.includes(l.governorate.toLowerCase()) ||
-          addrLower.includes(l.governorateKu.toLowerCase()) ||
-          addrLower.includes(l.governorateAr.toLowerCase())
-        );
-
-        if (matchedGov) {
-          setSelectedGovernorate(matchedGov.governorate);
-          const dists = matchedGov.districts || [];
-          setAvailableDistricts(dists);
-
-          const matchedDist = dists.find(d =>
-            addrLower.includes(d.name.toLowerCase()) ||
-            (d.nameKu && addrLower.includes(d.nameKu.toLowerCase())) ||
-            (d.nameAr && addrLower.includes(d.nameAr.toLowerCase()))
-          );
-
-          if (matchedDist) {
-            setSelectedDistrict(matchedDist.id || matchedDist.name);
-
-            if (matchedDist.subdistricts) {
-              const list = matchedDist.subdistricts.map((sub: string, index: number) => ({
-                en: sub,
-                ar: matchedDist.subdistrictsAr?.[index] || sub,
-                ku: matchedDist.subdistrictsKu?.[index] || sub,
-              }));
-              setAvailableSubdistricts(list);
-
-              const matchedSub = matchedDist.subdistricts.find((sub, idx) => {
-                const subAr = matchedDist.subdistrictsAr?.[idx] || '';
-                const subKu = matchedDist.subdistrictsKu?.[idx] || '';
-                return addrLower.includes(sub.toLowerCase()) ||
-                  (subKu && addrLower.includes(subKu.toLowerCase())) ||
-                  (subAr && addrLower.includes(subAr.toLowerCase()));
-              });
-              if (matchedSub) {
-                setSelectedSubdistrict(matchedSub);
-              }
-            }
-          }
-        }
-
-        const addressMatch = currentUser.address.match(/\(([^)]+)\)/);
-        if (addressMatch && addressMatch[1]) {
-          setStreetAddress(addressMatch[1]);
-        } else {
-          setStreetAddress(currentUser.address);
-        }
+        const parts = parseAddress(currentUser.address);
+        setSelectedGovernorate(parts.governorate);
+        setSelectedDistrict(parts.district);
+        setSelectedSubdistrict(parts.subdistrict);
+        setStreetAddress(parts.street);
       }
     }
   }, [currentUser]);
@@ -282,21 +216,16 @@ export const Profile: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      // Build clean full address string
-      let fullAddress = streetAddress;
-      if (selectedGovernorate) {
-        const govObj = iraqLocations.find(l => l.governorate === selectedGovernorate || l.id === selectedGovernorate);
-        const govText = govObj 
-          ? (activeLang === 'ku' ? govObj.governorateKu : activeLang === 'ar' ? govObj.governorateAr : govObj.governorate) 
-          : selectedGovernorate;
-        
-        const distObj = availableDistricts.find(d => d.id === selectedDistrict || d.name === selectedDistrict);
-        const distText = distObj 
-          ? (activeLang === 'ku' ? (distObj.nameKu || distObj.name) : activeLang === 'ar' ? (distObj.nameAr || distObj.name) : distObj.name) 
-          : selectedDistrict;
-
-        fullAddress = `${govText}${distText ? ` - ${localT.district}: ${distText}` : ''}${selectedSubdistrict ? ` - ${localT.subdistrict}: ${selectedSubdistrict}` : ''}${streetAddress ? ` (${streetAddress})` : ''}`;
-      }
+      const fullAddress = buildAddress(
+        {
+          governorate: selectedGovernorate,
+          district: selectedDistrict,
+          subdistrict: selectedSubdistrict,
+          street: streetAddress,
+        },
+        activeLang,
+        { district: localT.district, subdistrict: localT.subdistrict }
+      );
 
       const finalEmail = email.trim() || currentUser?.email || `${(phone || currentUser?.phone || '0000').replace(/[^\d]/g, '')}@phone.user`;
 
@@ -491,7 +420,7 @@ export const Profile: React.FC = () => {
                       <option value="">-- {localT.selectGovernorate} --</option>
                       {iraqLocations.map((loc) => (
                         <option key={loc.id} value={loc.governorate}>
-                          {activeLang === 'ku' ? loc.governorateKu : activeLang === 'ar' ? loc.governorateAr : loc.governorate}
+                          {getGovernorateLabel(loc, activeLang)}
                         </option>
                       ))}
                     </select>
@@ -514,7 +443,7 @@ export const Profile: React.FC = () => {
                       <option value="">-- {localT.selectDistrict} --</option>
                       {availableDistricts.map((dist) => (
                         <option key={dist.id || dist.name} value={dist.id || dist.name}>
-                          {activeLang === 'ku' ? (dist.nameKu || dist.name) : activeLang === 'ar' ? (dist.nameAr || dist.name) : dist.name}
+                          {getDistrictLabel(dist, activeLang)}
                         </option>
                       ))}
                     </select>
@@ -534,14 +463,13 @@ export const Profile: React.FC = () => {
                       className="w-full border border-slate-300 bg-white rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 text-sm font-arabic"
                     >
                       <option value="">-- {localT.selectSubdistrict} --</option>
-                      {availableSubdistricts.map((sub, idx) => {
-                        const displayName = activeLang === 'ku' ? sub.ku : activeLang === 'ar' ? sub.ar : sub.en;
-                        return (
-                          <option key={idx} value={displayName}>
-                            {displayName}
-                          </option>
-                        );
-                      })}
+                      {/* value = canonical English name so the selection still
+                          matches after a reload or a language switch. */}
+                      {availableSubdistricts.map((sub) => (
+                        <option key={sub.value} value={sub.value}>
+                          {getSubdistrictLabel(sub, activeLang)}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 )}

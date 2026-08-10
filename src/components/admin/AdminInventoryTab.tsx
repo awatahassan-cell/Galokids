@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   Boxes, Package, DollarSign, TrendingUp, AlertTriangle, Search, 
   Filter, ArrowUpDown, Edit3, Printer, Check, X, ShieldAlert, 
@@ -8,16 +8,22 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { formatIQD, formatIQDLabel } from '../../utils/currency';
 import { getColorHex } from '../../utils/colors';
 import { Product, Category } from '../../types';
+import { LOW_STOCK_THRESHOLD } from '../../utils/inventory';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, Legend, Cell, PieChart, Pie
 } from 'recharts';
 
 interface AdminInventoryTabProps {
+  /** Products already in the store — used only until the full list arrives. */
   products: Product[];
   categories: Category[];
   updateProduct: (product: Product) => void;
   toast: (msg: string, type?: 'success' | 'error') => void;
+  /** Loads every product across all pages. */
+  fetchAllProducts: () => Promise<Product[]>;
+  /** Bumped by the store after any product create/update/delete. */
+  productsRevision: number;
 }
 
 export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
@@ -25,8 +31,44 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
   categories,
   updateProduct,
   toast,
+  fetchAllProducts,
+  productsRevision,
 }) => {
   const { language } = useLanguage();
+
+  /**
+   * An audit has to cover the WHOLE warehouse.
+   *
+   * This tab used to read the store's `products`, which is one page of the
+   * paginated catalogue — so "capital invested", "retail value" and "expected
+   * profit" only added up the handful of products that happened to be loaded,
+   * and the numbers changed every time someone paged the products screen.
+   */
+  const [allProducts, setAllProducts] = useState<Product[] | null>(null);
+  const [isLoadingAll, setIsLoadingAll] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  const loadAll = useCallback(async () => {
+    setIsLoadingAll(true);
+    setLoadFailed(false);
+    try {
+      const list = await fetchAllProducts();
+      setAllProducts(list);
+    } catch (err) {
+      console.warn('Inventory audit could not load the full catalogue:', err);
+      setLoadFailed(true);
+    } finally {
+      setIsLoadingAll(false);
+    }
+  }, [fetchAllProducts]);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll, productsRevision]);
+
+  // Fall back to the paginated list only while the full one is loading.
+  const auditProducts = allProducts ?? products;
+  const isPartialData = allProducts === null;
 
   // Filters & Sorting state
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,14 +92,14 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
     const map = new Map<string, string>();
     categories.forEach(c => {
       const name = language === 'ku' ? (c.nameKu || c.name) : language === 'ar' ? (c.nameAr || c.name) : c.name;
-      map.set(c.id, name);
+      map.set(String(c.id), name);
     });
     return map;
   }, [categories, language]);
 
   // Calculated inventory data per product
   const processedProducts = useMemo(() => {
-    return products.map(product => {
+    return auditProducts.map(product => {
       const variations = product.variations || [];
       const variationsCount = variations.length;
       const stockPieces = variations.reduce((sum, v) => sum + (Number(v.stockQuantity) || 0), 0);
@@ -86,13 +128,13 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
         expectedProfit,
         profitMargin,
         uniqueColors,
-        categoryName: categoryMap.get(product.categoryId) || L('پۆل نادیارە', 'فئة غير معروفة', 'Unknown Category'),
+        categoryName: categoryMap.get(String(product.categoryId)) || L('پۆل نادیارە', 'فئة غير معروفة', 'Unknown Category'),
         hasMissingCost: unitCost === 0,
-        isLowStock: stockPieces > 0 && stockPieces <= 5,
+        isLowStock: stockPieces > 0 && stockPieces <= LOW_STOCK_THRESHOLD,
         isOutOfStock: stockPieces === 0,
       };
     });
-  }, [products, categoryMap, language]);
+  }, [auditProducts, categoryMap, language]);
 
   // Overall Global Inventory Audit Stats
   const globalStats = useMemo(() => {
@@ -118,7 +160,7 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
     const profitMargin = totalRetailValue > 0 ? ((expectedProfit / totalRetailValue) * 100).toFixed(1) : '0';
 
     return {
-      totalProductsCount: products.length,
+      totalProductsCount: auditProducts.length,
       totalVariationsCount,
       totalPieces,
       totalCostValue,
@@ -129,14 +171,14 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
       outOfStockCount,
       missingCostCount,
     };
-  }, [processedProducts, products.length]);
+  }, [processedProducts, auditProducts.length]);
 
   // Category Breakdown for Charts
   const categoryChartData = useMemo(() => {
     const map = new Map<string, { categoryName: string; totalCost: number; totalRetail: number; totalPieces: number; productCount: number }>();
 
     processedProducts.forEach(item => {
-      const catId = item.product.categoryId || 'other';
+      const catId = String(item.product.categoryId ?? 'other');
       const catName = item.categoryName;
       const current = map.get(catId) || { categoryName: catName, totalCost: 0, totalRetail: 0, totalPieces: 0, productCount: 0 };
       
@@ -160,7 +202,11 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
       .sort((a, b) => b.totalCostValue - a.totalCostValue)
       .slice(0, 6)
       .map(p => ({
-        name: (language === 'ku' ? p.product.nameKu || p.product.name : p.product.name).slice(0, 16) + '...',
+        name: (() => {
+          const full = (language === 'ku' ? p.product.nameKu : language === 'ar' ? p.product.nameAr : p.product.name)
+            || p.product.name || '';
+          return full.length > 16 ? full.slice(0, 16) + '…' : full;
+        })(),
         totalCost: p.totalCostValue,
         totalRetail: p.totalRetailValue,
         pieces: p.stockPieces,
@@ -263,6 +309,15 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
 
           <div className="flex items-center gap-3 shrink-0 print:hidden">
             <button
+              onClick={loadAll}
+              disabled={isLoadingAll}
+              title={L('نوێکردنەوەی داتای جەرد', 'تحديث بيانات الجرد', 'Reload audit data')}
+              className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-all border border-white/20 flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-60"
+            >
+              <RefreshCw className={`w-4 h-4 text-indigo-300 ${isLoadingAll ? 'animate-spin' : ''}`} />
+              <span>{L('نوێکردنەوە', 'تحديث', 'Refresh')}</span>
+            </button>
+            <button
               onClick={handlePrintAudit}
               className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-all border border-white/20 flex items-center gap-2 shadow-sm cursor-pointer"
             >
@@ -272,6 +327,28 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* The totals below are only meaningful once every product is loaded. */}
+      {(isPartialData || loadFailed) && (
+        <div className={`p-4 rounded-2xl border flex items-center gap-3 text-sm font-bold print:hidden ${
+          loadFailed ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-slate-100 border-slate-200 text-slate-700'
+        }`}>
+          {loadFailed ? <AlertTriangle className="w-5 h-5 shrink-0" /> : <RefreshCw className="w-5 h-5 shrink-0 animate-spin" />}
+          <span>
+            {loadFailed
+              ? L(
+                  'هێنانی هەموو بەرهەمەکان سەرکەوتوو نەبوو — ئەم ژمارانە تەواو نین. تکایە نوێی بکەرەوە.',
+                  'تعذر تحميل جميع المنتجات — هذه الأرقام غير كاملة. يرجى التحديث.',
+                  'Could not load the full catalogue — these totals are incomplete. Please refresh.'
+                )
+              : L(
+                  'هێنانی هەموو بەرهەمەکانی کۆگا... ژمارەکان هێشتا تەواو نین.',
+                  'جاري تحميل جميع منتجات المستودع... الأرقام ليست نهائية بعد.',
+                  'Loading the whole warehouse… these totals are not final yet.'
+                )}
+          </span>
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
@@ -404,7 +481,7 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
                 <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
                 <span>
                   {L(
-                    `${globalStats.lowStockCount} پرۆدەکت کەمیی کۆگای هەیە (<= ٥)`,
+                    `${globalStats.lowStockCount} پرۆدەکت کەمیی کۆگای هەیە (${LOW_STOCK_THRESHOLD} یان کەمتر)`,
                     `${globalStats.lowStockCount} منتجات بنسبة مخزون منخفضة`,
                     `${globalStats.lowStockCount} Low stock items`
                   )}
@@ -558,7 +635,7 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
               className="px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 cursor-pointer"
             >
               <option value="all">{L('هەموو ڕەوشەکانی کۆگا', 'جميع حالات المخزون', 'All Stock Statuses')}</option>
-              <option value="low">{L('⚠️ کەمیی کۆگا (<= ٥)', '⚠️ مخزون منخفض', 'Low Stock (<= 5)')}</option>
+              <option value="low">{L(`⚠️ کەمیی کۆگا (${LOW_STOCK_THRESHOLD} یان کەمتر)`, '⚠️ مخزون منخفض', `Low Stock (<= ${LOW_STOCK_THRESHOLD})`)}</option>
               <option value="out">{L('🚫 تەواوبوو (٠)', '🚫 نفد المخزون', 'Out of Stock (0)')}</option>
               <option value="missingCost">{L('❗ بێ تێچوو', '❗ بدون تكلفة', 'Missing Cost Price')}</option>
             </select>
@@ -637,11 +714,18 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
                       {/* Product Name & Image */}
                       <td className="px-4 py-3 min-w-[200px]">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={p.imageUrl || 'https://via.placeholder.com/50'}
-                            alt={p.name}
-                            className="w-11 h-11 rounded-xl object-cover border border-slate-200 shrink-0"
-                          />
+                          {p.imageUrl ? (
+                            <img
+                              src={p.imageUrl}
+                              alt={p.name}
+                              loading="lazy"
+                              className="w-11 h-11 rounded-xl object-cover border border-slate-200 shrink-0 bg-slate-50"
+                            />
+                          ) : (
+                            <div className="w-11 h-11 rounded-xl border border-slate-200 shrink-0 bg-slate-100 flex items-center justify-center text-slate-300">
+                              <Package className="w-5 h-5" />
+                            </div>
+                          )}
                           <div className="min-w-0">
                             <p className="font-bold text-slate-900 truncate text-sm">
                               {language === 'ku' ? p.nameKu || p.name : language === 'ar' ? p.nameAr || p.name : p.name}

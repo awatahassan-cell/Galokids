@@ -1,5 +1,5 @@
 import { formatIQDLabel } from "../utils/currency";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
@@ -12,6 +12,11 @@ import iraqLocations from '../data/iraq-locations.json';
 import { OtpModal } from '../components/OtpModal';
 import { sendCheckoutOtp } from '../services/otpService';
 import { isSamePhone } from '../utils/phone';
+import {
+  buildAddress, parseAddress, getDistricts, getSubdistricts, findGovernorate, findDistrict,
+  getGovernorateLabel, getDistrictLabel, getSubdistrictLabel,
+  type Lang, type SubdistrictOption,
+} from '../utils/address';
 
 export const Checkout: React.FC = () => {
   const { 
@@ -40,8 +45,6 @@ export const Checkout: React.FC = () => {
   const [selectedSubdistrict, setSelectedSubdistrict] = useState('');
   const [address, setAddress] = useState(currentUser?.address || '');
 
-  const [availableDistricts, setAvailableDistricts] = useState<any[]>([]);
-  const [availableSubdistricts, setAvailableSubdistricts] = useState<{ en: string; ar: string; ku: string }[]>([]);
 
   // Personal details
   const [fullName, setFullName] = useState(currentUser?.name || '');
@@ -70,38 +73,17 @@ export const Checkout: React.FC = () => {
     return clean;
   };
 
-  // Update districts when Governorate changes
-  useEffect(() => {
-    if (selectedGovernorate) {
-      const gov = iraqLocations.find(l => l.governorate === selectedGovernorate || l.id === selectedGovernorate);
-      if (gov && gov.districts) {
-        setAvailableDistricts(gov.districts);
-      } else {
-        setAvailableDistricts([]);
-      }
-    } else {
-      setAvailableDistricts([]);
-    }
-  }, [selectedGovernorate]);
-
-  // Update sub-districts when District changes
-  useEffect(() => {
-    if (selectedDistrict && availableDistricts.length > 0) {
-      const dist = availableDistricts.find(d => d.id === selectedDistrict || d.name === selectedDistrict);
-      if (dist && dist.subdistricts) {
-        const list = dist.subdistricts.map((sub: string, index: number) => ({
-          en: sub,
-          ar: dist.subdistrictsAr?.[index] || sub,
-          ku: dist.subdistrictsKu?.[index] || sub,
-        }));
-        setAvailableSubdistricts(list);
-      } else {
-        setAvailableSubdistricts([]);
-      }
-    } else {
-      setAvailableSubdistricts([]);
-    }
-  }, [selectedDistrict, availableDistricts]);
+  // Districts / sub-districts follow the current selection. Their values are
+  // the canonical English names from `utils/address`, never the translated
+  // labels, so a selection survives a reload and a language switch.
+  const availableDistricts = useMemo(
+    () => getDistricts(selectedGovernorate),
+    [selectedGovernorate]
+  );
+  const availableSubdistricts = useMemo(
+    () => getSubdistricts(selectedGovernorate, selectedDistrict),
+    [selectedGovernorate, selectedDistrict]
+  );
 
   // Load & parse currentUser information
   const savedUserStr = localStorage.getItem('kidskart_user');
@@ -121,62 +103,11 @@ export const Checkout: React.FC = () => {
       setIsPhoneVerified(true);
 
       if (userToUse.address) {
-        const fullAddr = userToUse.address;
-        const addrLower = fullAddr.toLowerCase();
-
-        // 1. Match Governorate
-        const matchedGov = iraqLocations.find(l => 
-          addrLower.includes(l.governorate.toLowerCase()) || 
-          addrLower.includes(l.governorateKu.toLowerCase()) || 
-          addrLower.includes(l.governorateAr.toLowerCase())
-        );
-
-        if (matchedGov) {
-          const govVal = matchedGov.governorate;
-          setSelectedGovernorate(govVal);
-
-          const dists = matchedGov.districts || [];
-          setAvailableDistricts(dists);
-
-          // 2. Match District
-          const matchedDist = dists.find(d => 
-            addrLower.includes(d.name.toLowerCase()) || 
-            (d.nameKu && addrLower.includes(d.nameKu.toLowerCase())) || 
-            (d.nameAr && addrLower.includes(d.nameAr.toLowerCase()))
-          );
-
-          if (matchedDist) {
-            const distVal = matchedDist.id || matchedDist.name;
-            setSelectedDistrict(distVal);
-
-            if (matchedDist.subdistricts) {
-              const subList = matchedDist.subdistricts.map((sub: string, index: number) => ({
-                en: sub,
-                ar: matchedDist.subdistrictsAr?.[index] || sub,
-                ku: matchedDist.subdistrictsKu?.[index] || sub,
-              }));
-              setAvailableSubdistricts(subList);
-
-              // 3. Match Subdistrict
-              const matchedSub = subList.find((s: any) => 
-                addrLower.includes(s.en.toLowerCase()) || 
-                addrLower.includes(s.ku.toLowerCase()) || 
-                addrLower.includes(s.ar.toLowerCase())
-              );
-
-              if (matchedSub) {
-                setSelectedSubdistrict(matchedSub.en);
-              }
-            }
-          }
-        }
-
-        const parenMatch = fullAddr.match(/\(([^)]+)\)/);
-        if (parenMatch && parenMatch[1]) {
-          setAddress(parenMatch[1].trim());
-        } else {
-          setAddress(fullAddr);
-        }
+        const parts = parseAddress(userToUse.address);
+        setSelectedGovernorate(parts.governorate);
+        setSelectedDistrict(parts.district);
+        setSelectedSubdistrict(parts.subdistrict);
+        setAddress(parts.street);
       }
     }
   }, [currentUser]);
@@ -344,23 +275,22 @@ export const Checkout: React.FC = () => {
     return product.name;
   };
 
-  const getGovernorateName = (gov: any) => {
-    if (language === 'ku') return gov.governorateKu;
-    if (language === 'ar') return gov.governorateAr;
-    return gov.governorate;
-  };
+  const addrLang: Lang = language === 'ku' || language === 'ar' ? language : 'en';
+  const getGovernorateName = (gov: any) => getGovernorateLabel(gov, addrLang);
+  const getDistrictName = (districtObj: any) => getDistrictLabel(districtObj, addrLang);
+  const getSubdistrictDisplayName = (subObj: SubdistrictOption) => getSubdistrictLabel(subObj, addrLang);
 
-  const getDistrictName = (districtObj: any) => {
-    if (language === 'ku') return districtObj.nameKu || districtObj.name;
-    if (language === 'ar') return districtObj.nameAr || districtObj.name;
-    return districtObj.name;
-  };
-
-  const getSubdistrictDisplayName = (subObj: { en: string; ar: string; ku: string }) => {
-    if (language === 'ku') return subObj.ku;
-    if (language === 'ar') return subObj.ar;
-    return subObj.en;
-  };
+  /** The delivery address exactly as it will be stored on the order. */
+  const composeAddress = () => buildAddress(
+    {
+      governorate: selectedGovernorate,
+      district: selectedDistrict,
+      subdistrict: selectedSubdistrict,
+      street: address,
+    },
+    addrLang,
+    { district: t('district'), subdistrict: t('subdistrict') }
+  );
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -401,14 +331,13 @@ export const Checkout: React.FC = () => {
     const name = fullName || userToUse?.name || 'Online Customer';
     const mobile = mobileNumber || userToUse?.phone || '';
 
-    // Get governorate, district, and subdistrict names
-    const govObj = iraqLocations.find(l => l.governorate === selectedGovernorate || l.id === selectedGovernorate);
+    const govObj = findGovernorate(selectedGovernorate);
     const govText = govObj ? getGovernorateName(govObj) : selectedGovernorate;
-    
-    const distObj = availableDistricts.find(d => d.id === selectedDistrict || d.name === selectedDistrict);
+    const distObj = findDistrict(selectedGovernorate, selectedDistrict);
     const distText = distObj ? getDistrictName(distObj) : selectedDistrict;
 
-    const formattedAddress = `${govText} - ${t('district')}: ${distText}${selectedSubdistrict ? ` - ${t('subdistrict')}: ${selectedSubdistrict}` : ''} (${address})`;
+    // Governorate + district + sub-district (ناحیە) + street, in one place.
+    const formattedAddress = composeAddress();
 
     setIsPlacing(true);
 
@@ -956,18 +885,18 @@ export const Checkout: React.FC = () => {
           setOtpError('');
           setNotificationBanner(null);
 
-          const govObj = iraqLocations.find(l => l.governorate === selectedGovernorate || l.id === selectedGovernorate);
-          const govText = govObj ? getGovernorateName(govObj) : selectedGovernorate;
-          
-          const distObj = availableDistricts.find(d => d.id === selectedDistrict || d.name === selectedDistrict);
-          const distText = distObj ? getDistrictName(distObj) : selectedDistrict;
-
-          const formattedAddr = `${govText} - ${t('district')}: ${distText}${selectedSubdistrict ? ` - ${t('subdistrict')}: ${selectedSubdistrict}` : ''} (${address})`;
+          const govObj = findGovernorate(selectedGovernorate);
+          const distObj = findDistrict(selectedGovernorate, selectedDistrict);
 
           await registerWithPhone(
             mobileNumber,
             fullName && fullName.trim() !== 'Customer' ? fullName.trim() : undefined,
-            { address: formattedAddr, governorate: govText, district: distText, verificationToken }
+            {
+              address: composeAddress(),
+              governorate: govObj ? getGovernorateName(govObj) : selectedGovernorate,
+              district: distObj ? getDistrictName(distObj) : selectedDistrict,
+              verificationToken,
+            }
           );
         }}
         onResendOtp={(newChan) => handleSendOtp(newChan)}

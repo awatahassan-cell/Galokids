@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { useToast } from './ui/Feedback';
-import { Save, Store, Phone, Mail, MessageSquare, Facebook, Instagram, Video, Ghost } from 'lucide-react';
+import {
+  Save, Store, Phone, Mail, MessageSquare, Facebook, Instagram, Video, Ghost,
+  Upload, Trash2, Loader2, Image as ImageIcon,
+} from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
+import { uploadImages } from '../services/uploadService';
 
 export const AdminStoreSettings: React.FC = () => {
   const { storeSettings, saveSettings } = useStore();
@@ -25,6 +29,42 @@ export const AdminStoreSettings: React.FC = () => {
     snapchat_url: '',
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleLogoUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast(language === 'ku' ? 'تکایە فایلێکی وێنە هەڵبژێرە' : 'Please choose an image file', 'error');
+      return;
+    }
+    // 5 MB is well above any sane logo and matches what the API accepts.
+    if (file.size > 5 * 1024 * 1024) {
+      toast(language === 'ku' ? 'قەبارەی وێنەکە زۆرە (زۆرترین ٥MB)' : 'Image is too large (max 5MB)', 'error');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      // No JPEG re-encode: a logo is usually a PNG with a transparent
+      // background, and compressing it would fill that with black.
+      const result = await uploadImages([file], { compress: false });
+
+      if (result.urls.length === 0) {
+        toast(result.message || (language === 'ku' ? 'بارکردنی وێنە سەرکەوتوو نەبوو' : 'Logo upload failed'), 'error');
+        return;
+      }
+
+      setForm(f => ({ ...f, store_logo: result.urls[0] }));
+      toast(
+        result.uploaded
+          ? (language === 'ku' ? 'لۆگۆ بارکرا — پاشەکەوتی بکە ✅' : 'Logo uploaded — remember to save ✅')
+          : (language === 'ku' ? 'سێرڤەر بەردەست نەبوو، وێنەکە بە ناوخۆیی زیادکرا' : 'Server unavailable — logo embedded locally'),
+        result.uploaded ? 'success' : 'error'
+      );
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   useEffect(() => {
     setForm(f => ({
@@ -89,20 +129,85 @@ export const AdminStoreSettings: React.FC = () => {
             {field('store_address', L('Address'), L('City, street...'))}
           </div>
           <div className="md:col-span-2">
-            {field('store_logo', L('Logo URL'), 'https://...')}
-          </div>
-          <div className="md:col-span-2">
             {field('receipt_footer', L('Receipt footer'), L('Thank you! ❤️'))}
           </div>
         </div>
 
-        {form.store_logo && (
-          <img
-            src={form.store_logo}
-            alt="logo preview"
-            className="h-16 mt-4 object-contain rounded-2xl border border-slate-200 p-1"
-          />
-        )}
+        {/* Logo: upload a file, or paste a URL if the image is hosted elsewhere. */}
+        <div className="mt-6 pt-6 border-t border-slate-100">
+          <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+            <ImageIcon className="w-4 h-4 text-slate-400" />
+            {language === 'ku' ? 'لۆگۆی فرۆشگا' : language === 'ar' ? 'شعار المتجر' : 'Store logo'}
+          </label>
+
+          <div className="flex flex-col sm:flex-row items-start gap-4">
+            <div className="w-28 h-28 rounded-3xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+              {form.store_logo ? (
+                <img src={form.store_logo} alt="logo preview" className="w-full h-full object-contain p-2" />
+              ) : (
+                <ImageIcon className="w-8 h-8 text-slate-300" />
+              )}
+            </div>
+
+            <div className="flex-1 w-full space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={uploadingLogo}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-sm disabled:opacity-60 transition-all cursor-pointer active:scale-95"
+                >
+                  {uploadingLogo
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Upload className="w-4 h-4" />}
+                  <span>
+                    {uploadingLogo
+                      ? (language === 'ku' ? 'بارکردن...' : language === 'ar' ? 'جاري الرفع...' : 'Uploading...')
+                      : (language === 'ku' ? 'هەڵبژاردنی وێنە' : language === 'ar' ? 'اختر صورة' : 'Upload image')}
+                  </span>
+                </button>
+
+                {form.store_logo && (
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, store_logo: '' }))}
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-2xl border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 text-xs font-bold transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>{language === 'ku' ? 'لابردن' : language === 'ar' ? 'إزالة' : 'Remove'}</span>
+                  </button>
+                )}
+
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) handleLogoUpload(file);
+                  }}
+                />
+              </div>
+
+              <input
+                value={form.store_logo}
+                onChange={e => setForm({ ...form, store_logo: e.target.value })}
+                placeholder={language === 'ku' ? 'یان بەستەری وێنەکە لێرە دابنێ (https://...)' : 'https://...'}
+                className="w-full bg-slate-100/80 border border-slate-200 rounded-2xl py-2.5 px-4 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+              />
+
+              <p className="text-[11px] text-slate-400 font-medium">
+                {language === 'ku'
+                  ? 'PNG بە پاشبنەمای شەفاف باشترینە. لۆگۆکە لەسەر پسوڵەکان و سەردێڕی سایتەکە دەردەکەوێت.'
+                  : language === 'ar'
+                  ? 'يفضل PNG بخلفية شفافة. يظهر الشعار على الإيصالات ورأس الموقع.'
+                  : 'A transparent PNG works best. The logo appears on receipts and in the site header.'}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* SECTION 2: Website Contact Details & Social Media */}

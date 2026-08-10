@@ -5,7 +5,7 @@ import { API_BASE_URL, apiFetch } from '../config/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../store';
-import { Plus, Save, Package, Settings, Tags, Users, ShoppingBag, DollarSign, Star, Image as ImageIcon, AlertTriangle, BarChart3, TrendingUp, TrendingDown, Calendar, Trash2, Edit, Menu, X, UserPlus, ChevronLeft, ChevronRight, ShoppingCart, FileText, Languages, Search, Ticket, Pencil, Percent, Boxes } from 'lucide-react';
+import { Plus, Save, Package, Settings, Tags, Users, ShoppingBag, DollarSign, Star, Image as ImageIcon, AlertTriangle, BarChart3, TrendingUp, TrendingDown, Calendar, Trash2, Edit, Menu, X, UserPlus, ChevronLeft, ChevronRight, ShoppingCart, FileText, Languages, Search, Ticket, Pencil, Percent, Boxes, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { ProductVariation, Expense, Order, Category, Product, User } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie } from 'recharts';
@@ -33,6 +33,10 @@ import { AdminLabelsTab } from "../components/admin/AdminLabelsTab";
 import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
 import { BulkStockModal } from "../components/admin/BulkStockModal";
 import { getRoleInfo, isAdminRole, isCashierRole } from "../utils/roles";
+import { LOW_STOCK_THRESHOLD, getTotalStock } from "../utils/inventory";
+
+/** Rows per page in Products Management — used by the query and the pager. */
+const PRODUCTS_PER_PAGE = 12;
 
 const getDaysInMonth = (year: number, month: number) => {
   return new Date(year, month, 0).getDate();
@@ -49,7 +53,7 @@ export const Admin: React.FC = () => {
     deleteProduct, deleteCategory, deleteExpense, deleteUser, deleteOrder, addUser,
     updateProduct, updateCategory, updateExpense, updateUser,
     productsPagination, ordersPagination, expensesPagination, reviewsPagination, reviews,
-    refreshProducts, refreshOrders, refreshExpenses, refreshReviews,
+    refreshProducts, fetchAllProducts, refreshOrders, refreshExpenses, refreshReviews, isProductsLoading, productsRevision,
     coupons, addCoupon, updateCoupon, deleteCoupon
   } = useStore();
   
@@ -65,6 +69,13 @@ export const Admin: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedAdminCategory, setSelectedAdminCategory] = useState<string>('all');
   const [adminSortBy, setAdminSortBy] = useState<string>('newest');
+  const [productsPage, setProductsPage] = useState(1);
+  // Images that failed to load (dead URL, offline host) so the row shows the
+  // placeholder instead of the browser's broken-image glyph.
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const markImageFailed = useCallback((url: string) => {
+    setFailedImages(prev => (prev.has(url) ? prev : new Set(prev).add(url)));
+  }, []);
   const [isBulkStockModalOpen, setIsBulkStockModalOpen] = useState(false);
   
   const { tab: urlTab } = useParams<{ tab: string }>();
@@ -154,11 +165,12 @@ export const Admin: React.FC = () => {
     }
   }, [isAdmin, activeTab, currentUser]);
 
-  const { t, language, updateTranslation, allTranslations } = useLanguage();
+  const { t, language, updateTranslation, allTranslations, publishTranslations, resetTranslations, hasUnpublishedTranslations } = useLanguage();
   const L = (s: string) => adminTr(s, language);
   const toast = useToast();
   const confirmDialog = useConfirm();
   const [translationSearch, setTranslationSearch] = useState('');
+  const [isPublishingTranslations, setIsPublishingTranslations] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [selectedPreviewProduct, setSelectedPreviewProduct] = useState<Product | null>(null);
 
@@ -320,13 +332,34 @@ export const Admin: React.FC = () => {
     return orderCogs;
   };
 
-  // Debounced server side search for Products Management
+  /**
+   * Products Management list.
+   *
+   * Every filter goes through this one effect. Previously the search, the two
+   * dropdowns and the pagination each called refreshProducts with their own
+   * partial argument list, so searching wiped the category filter and turning
+   * the page wiped everything — and they disagreed about the page size (10 vs
+   * 25), which made the pager show the wrong number of pages.
+   */
+  const productsQuery = useMemo(() => ({
+    categoryId: selectedAdminCategory === 'all' ? undefined : selectedAdminCategory,
+    sort: adminSortBy,
+    search: productSearchQuery.trim() || undefined,
+  }), [selectedAdminCategory, adminSortBy, productSearchQuery]);
+
+  // Reset to page 1 whenever the filters change.
   useEffect(() => {
+    setProductsPage(1);
+  }, [productsQuery]);
+
+  useEffect(() => {
+    if (activeTab !== 'products') return;
     const timer = setTimeout(() => {
-      refreshProducts(1, 25, { search: productSearchQuery });
-    }, 450);
+      refreshProducts(productsPage, PRODUCTS_PER_PAGE, productsQuery, false, true);
+    }, productSearchQuery ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [productSearchQuery, refreshProducts]);
+    // productsRevision re-runs this after a product is added, edited or deleted.
+  }, [activeTab, productsPage, productsQuery, productsRevision, refreshProducts]);
 
   const getCategoryName = (category: any) => {
     if (language === 'ku' && category.nameKu) return category.nameKu;
@@ -1417,6 +1450,8 @@ export const Admin: React.FC = () => {
           categories={categories}
           updateProduct={updateProduct}
           toast={toast}
+          fetchAllProducts={fetchAllProducts}
+          productsRevision={productsRevision}
         />
       )}
 
@@ -1558,75 +1593,31 @@ export const Admin: React.FC = () => {
 
       {activeTab === 'products' && (
         <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-            <h2 className="text-xl font-black text-slate-900">{L("Products Management")}</h2>
-            
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Category Filter Dropdown */}
-              <select
-                value={selectedAdminCategory}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedAdminCategory(val);
-                  refreshProducts(1, 10, {
-                    categoryId: val === 'all' ? undefined : val,
-                    sort: adminSortBy,
-                    search: productSearchQuery
-                  });
-                }}
-                className="py-2.5 px-3 bg-slate-100/90 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none cursor-pointer hover:bg-slate-200 transition-colors shadow-2xs font-arabic"
-              >
-                <option value="all">{language === 'ku' ? 'هەموو بەشەکان' : language === 'ar' ? 'جميع الأقسام' : 'All Categories'}</option>
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {(language === 'ku' && c.nameKu) || (language === 'ar' && c.nameAr) || c.name}
-                  </option>
-                ))}
-              </select>
+          {/* Header: title + the two primary actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">{L("Products Management")}</h2>
+              <p className="text-xs font-bold text-slate-500 mt-1">
+                {productsPagination.total > 0
+                  ? (language === 'ku'
+                      ? `${productsPagination.total} بەرهەم بە گشتی`
+                      : language === 'ar'
+                      ? `${productsPagination.total} منتج إجمالاً`
+                      : `${productsPagination.total} products in total`)
+                  : L("Products Management")}
+              </p>
+            </div>
 
-              {/* Date Added / Sort Dropdown */}
-              <select
-                value={adminSortBy}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setAdminSortBy(val);
-                  refreshProducts(1, 10, {
-                    categoryId: selectedAdminCategory === 'all' ? undefined : selectedAdminCategory,
-                    sort: val,
-                    search: productSearchQuery
-                  });
-                }}
-                className="py-2.5 px-3 bg-slate-100/90 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none cursor-pointer hover:bg-slate-200 transition-colors shadow-2xs font-arabic"
-              >
-                <option value="newest">{language === 'ku' ? 'نوێترین بەروار (بەرواری زیادکردن)' : language === 'ar' ? 'الأحدث تاريخاً' : 'Newest First'}</option>
-                <option value="oldest">{language === 'ku' ? 'کۆنترین بەروار' : language === 'ar' ? 'الأقدم تاريخاً' : 'Oldest First'}</option>
-                <option value="price_asc">{language === 'ku' ? 'نرخ: لە کەمەوە بۆ زۆر' : 'Price: Low to High'}</option>
-                <option value="price_desc">{language === 'ku' ? 'نرخ: لە زۆرەوە بۆ کەم' : 'Price: High to Low'}</option>
-              </select>
-
-              {/* Bulk Stock Restock Button */}
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setIsBulkStockModalOpen(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-full font-extrabold transition-all flex items-center shadow-md text-xs shrink-0 cursor-pointer active:scale-95 gap-1.5"
+                className="bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 text-slate-700 px-4 py-2.5 rounded-full font-extrabold transition-all flex items-center shadow-2xs text-xs cursor-pointer active:scale-95 gap-1.5"
                 title={language === 'ku' ? 'ڕێکخستنەوەی کۆمەڵەیی ستۆکی چەند ئایتمێک پێکەوە' : 'Bulk Stock Adjustment'}
               >
-                <Boxes className="w-4 h-4 text-indigo-200" />
-                <span>{language === 'ku' ? 'ڕێکخستنەوەی کۆمەڵەیی ستۆک' : language === 'ar' ? 'تعديل المخزون الجماعي' : 'Bulk Stock Restock'}</span>
+                <Boxes className="w-4 h-4 text-indigo-500" />
+                <span className="hidden sm:inline">{language === 'ku' ? 'ستۆکی کۆمەڵەیی' : language === 'ar' ? 'المخزون الجماعي' : 'Bulk Stock'}</span>
               </button>
 
-              {/* Search Bar */}
-              <div className="relative max-w-xs">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder={L("Search products...")}
-                  value={productSearchQuery}
-                  onChange={(e) => setProductSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
-                />
-              </div>
-
-              {/* Add Product Button */}
               <button
                 onClick={() => setIsAddingProduct(true)}
                 className="bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold hover:bg-slate-800 transition-all flex items-center shadow-md text-xs shrink-0 cursor-pointer active:scale-95"
@@ -1634,6 +1625,54 @@ export const Admin: React.FC = () => {
                 <Plus className="w-4 h-4 mr-2" /> {L("Add Product")}
               </button>
             </div>
+          </div>
+
+          {/* Filter bar: search first, then the two dropdowns on one line */}
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto_auto] gap-2.5 items-center bg-slate-50/70 border border-slate-200/70 rounded-3xl p-2.5">
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder={L("Search products...")}
+                value={productSearchQuery}
+                onChange={(e) => setProductSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-9 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              {productSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setProductSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100 cursor-pointer"
+                  title={L("Cancel")}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <select
+              value={selectedAdminCategory}
+              onChange={(e) => setSelectedAdminCategory(e.target.value)}
+              className="py-2.5 px-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none cursor-pointer hover:border-indigo-300 transition-colors font-arabic"
+            >
+              <option value="all">{language === 'ku' ? 'هەموو بەشەکان' : language === 'ar' ? 'جميع الأقسام' : 'All Categories'}</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>
+                  {(language === 'ku' && c.nameKu) || (language === 'ar' && c.nameAr) || c.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={adminSortBy}
+              onChange={(e) => setAdminSortBy(e.target.value)}
+              className="py-2.5 px-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 outline-none cursor-pointer hover:border-indigo-300 transition-colors font-arabic"
+            >
+              <option value="newest">{language === 'ku' ? 'نوێترین' : language === 'ar' ? 'الأحدث' : 'Newest First'}</option>
+              <option value="oldest">{language === 'ku' ? 'کۆنترین' : language === 'ar' ? 'الأقدم' : 'Oldest First'}</option>
+              <option value="price_asc">{language === 'ku' ? 'نرخ: کەمەوە بۆ زۆر' : language === 'ar' ? 'السعر: تصاعدي' : 'Price: Low to High'}</option>
+              <option value="price_desc">{language === 'ku' ? 'نرخ: زۆرەوە بۆ کەم' : language === 'ar' ? 'السعر: تنازلي' : 'Price: High to Low'}</option>
+            </select>
           </div>
 
 
@@ -1653,8 +1692,38 @@ export const Admin: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
+                  {isProductsLoading && products.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-16 text-center">
+                        <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin mx-auto" />
+                      </td>
+                    </tr>
+                  )}
+
+                  {!isProductsLoading && products.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-16 text-center">
+                        <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                        <p className="text-sm font-black text-slate-700">
+                          {productSearchQuery || selectedAdminCategory !== 'all'
+                            ? (language === 'ku' ? 'هیچ بەرهەمێک نەدۆزرایەوە' : language === 'ar' ? 'لم يتم العثور على منتجات' : 'No products match your filters')
+                            : (language === 'ku' ? 'هێشتا هیچ بەرهەمێک زیاد نەکراوە' : language === 'ar' ? 'لم تتم إضافة أي منتج بعد' : 'No products yet')}
+                        </p>
+                        {(productSearchQuery || selectedAdminCategory !== 'all') && (
+                          <button
+                            type="button"
+                            onClick={() => { setProductSearchQuery(''); setSelectedAdminCategory('all'); }}
+                            className="mt-3 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer"
+                          >
+                            {language === 'ku' ? 'سڕینەوەی فلتەرەکان' : language === 'ar' ? 'مسح عوامل التصفية' : 'Clear filters'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+
                   {products.map((product, index) => {
-                    const totalStock = (product.variations || []).reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+                    const totalStock = getTotalStock(product);
                     const cost = Number(product.cost || 0);
                     const margin = Number(product.price) > 0 ? Math.round(((Number(product.price) - cost) / Number(product.price)) * 100) : 0;
                     const nameDisplay = (language === 'ku' && product.nameKu) || (language === 'ar' && product.nameAr) || product.name;
@@ -1662,13 +1731,31 @@ export const Admin: React.FC = () => {
                       <tr key={product.id || index} className="hover:bg-indigo-50/40 transition-colors cursor-pointer" onClick={() => setSelectedPreviewProduct(product)}>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-slate-900 text-right">
                           <div className="flex items-center gap-3 justify-start">
-                            <img src={product.imageUrl} alt={nameDisplay} className="w-11 h-11 object-cover rounded-xl border border-slate-200 shrink-0 shadow-xs" />
+                            {product.imageUrl && !failedImages.has(product.imageUrl) ? (
+                              <img
+                                src={product.imageUrl}
+                                alt={nameDisplay}
+                                loading="lazy"
+                                onError={() => markImageFailed(product.imageUrl!)}
+                                className="w-11 h-11 object-cover rounded-xl border border-slate-200 shrink-0 shadow-xs bg-slate-50"
+                              />
+                            ) : (
+                              <div className="w-11 h-11 rounded-xl border border-slate-200 shrink-0 bg-slate-100 flex items-center justify-center text-slate-300">
+                                <Package className="w-5 h-5" />
+                              </div>
+                            )}
                             <span className="truncate max-w-[200px]">{nameDisplay}</span>
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500 font-mono text-center">{product.barcode || product.sku || '—'}</td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black ${totalStock < 10 ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black ${
+                            totalStock === 0
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : totalStock <= LOW_STOCK_THRESHOLD
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}>
                             {totalStock} {language === 'ku' ? 'دانە' : language === 'ar' ? 'قطعة' : 'in stock'}
                           </span>
                         </td>
@@ -1729,7 +1816,7 @@ export const Admin: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            <Pagination meta={productsPagination} onPageChange={(page) => refreshProducts(page, 10)} />
+            <Pagination meta={productsPagination} onPageChange={(page) => setProductsPage(page)} />
           </div>
         </div>
       )}
@@ -2562,7 +2649,7 @@ export const Admin: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
               <Languages className="w-6 h-6 text-indigo-600" />
-              Application Translations
+              {language === 'ku' ? 'وەرگێڕانی سایت' : language === 'ar' ? 'ترجمات الموقع' : 'Application Translations'}
             </h2>
             <div className="relative flex-1 max-w-md">
               <input 
@@ -2576,11 +2663,68 @@ export const Admin: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mb-6 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-bold text-amber-900">{L("Important Note")}</p>
-              <p className="text-xs text-amber-800 mt-1">Changes made here are stored in your browser's local storage and will apply to all users visiting this specific application instance. For permanent source code changes, update the translations file manually.</p>
+          {/* Publish bar: edits are local until they are saved to the server. */}
+          <div className={`p-4 rounded-2xl mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border ${
+            hasUnpublishedTranslations
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-emerald-50 border-emerald-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              {hasUnpublishedTranslations
+                ? <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                : <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />}
+              <div>
+                <p className={`text-sm font-bold ${hasUnpublishedTranslations ? 'text-amber-900' : 'text-emerald-900'}`}>
+                  {hasUnpublishedTranslations
+                    ? (language === 'ku' ? 'گۆڕانکاری پاشەکەوت نەکراو هەیە' : language === 'ar' ? 'توجد تغييرات غير محفوظة' : 'You have unsaved changes')
+                    : (language === 'ku' ? 'هەموو گۆڕانکارییەکان بڵاوکراونەتەوە' : language === 'ar' ? 'جميع التغييرات منشورة' : 'All changes are published')}
+                </p>
+                <p className={`text-xs mt-1 ${hasUnpublishedTranslations ? 'text-amber-800' : 'text-emerald-800'}`}>
+                  {language === 'ku'
+                    ? 'دوای پاشەکەوتکردن، گۆڕانکارییەکان لەسەر سێرڤەر هەڵدەگیرێن و بۆ هەموو بەکارهێنەران دەردەکەون.'
+                    : language === 'ar'
+                    ? 'بعد الحفظ، تُخزَّن التغييرات على الخادم وتظهر لجميع المستخدمين.'
+                    : 'Once saved, changes are stored on the server and shown to every visitor.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {hasUnpublishedTranslations && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await resetTranslations();
+                    toast(language === 'ku' ? 'گۆڕانکارییەکان پاشگەزکرانەوە' : 'Changes discarded');
+                  }}
+                  className="px-4 py-2.5 rounded-2xl border border-slate-300 bg-white text-xs font-bold text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+                >
+                  {language === 'ku' ? 'پاشگەزبوونەوە' : language === 'ar' ? 'تراجع' : 'Discard'}
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={!hasUnpublishedTranslations || isPublishingTranslations}
+                onClick={async () => {
+                  setIsPublishingTranslations(true);
+                  const res = await publishTranslations();
+                  setIsPublishingTranslations(false);
+                  toast(
+                    res.success
+                      ? (language === 'ku' ? 'وەرگێڕانەکان بڵاوکرانەوە بۆ هەموو بەکارهێنەران ✅' : 'Translations published to all users ✅')
+                      : (res.message || (language === 'ku' ? 'پاشەکەوتکردن سەرکەوتوو نەبوو' : 'Could not save translations')),
+                    res.success ? 'success' : 'error'
+                  );
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer active:scale-95"
+              >
+                {isPublishingTranslations
+                  ? <RefreshCw className="w-4 h-4 animate-spin" />
+                  : <Save className="w-4 h-4" />}
+                <span>
+                  {language === 'ku' ? 'پاشەکەوتکردن بۆ هەمووان' : language === 'ar' ? 'حفظ للجميع' : 'Save for everyone'}
+                </span>
+              </button>
             </div>
           </div>
 

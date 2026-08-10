@@ -51,14 +51,18 @@ interface StoreContextType {
   addCategory: (category: Category) => void;
   addProduct: (product: Product) => void;
   isProductsLoading: boolean;
+  /** Increments after any product create/update/delete. */
+  productsRevision: number;
   productsPagination: PaginationMeta;
   ordersPagination: PaginationMeta;
   expensesPagination: PaginationMeta;
   reviewsPagination: PaginationMeta;
   reviews: Review[];
   refreshReviews: (page?: number, limit?: number) => void;
-  refreshProducts: (page?: number, limit?: number, filters?: any, append?: boolean) => void;
-  refreshOrders: (page?: number, limit?: number) => void;
+  refreshProducts: (page?: number, limit?: number, filters?: any, append?: boolean, bypassCache?: boolean) => Promise<void>;
+  /** Every product across all pages — for reports that must not be paginated. */
+  fetchAllProducts: () => Promise<Product[]>;
+  refreshOrders: (page?: number, limit?: number) => Promise<void>;
   refreshExpenses: (page?: number, limit?: number) => void;
   refreshCategories: () => void;
   addToCart: (product: Product, variation: ProductVariation, quantity: number) => void;
@@ -212,6 +216,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const toast = useToast();
   const defaultPagination: PaginationMeta = { currentPage: 1, lastPage: 1, total: 0 };
   const [isProductsLoading, setIsProductsLoading] = useState(false);
+  // Bumped whenever a product is created, edited or deleted. Screens that own a
+  // products query watch it and re-run their own fetch, keeping their filters
+  // and page instead of being reset to an unfiltered page 1.
+  const [productsRevision, setProductsRevision] = useState(0);
+  const bumpProductsRevision = useCallback(() => setProductsRevision(v => v + 1), []);
   const [productsPagination, setProductsPagination] = useState<PaginationMeta>(defaultPagination);
   const [ordersPagination, setOrdersPagination] = useState<PaginationMeta>(defaultPagination);
   const [expensesPagination, setExpensesPagination] = useState<PaginationMeta>(defaultPagination);
@@ -937,7 +946,52 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
   }, [getAuthHeaders]);
 
-  
+  /**
+   * Every product, across all pages, without touching the paginated `products`
+   * state the catalogue screens use.
+   *
+   * The inventory audit needs this: it used to add up whatever page happened to
+   * be loaded, so a shop with 200 products reported the capital and retail value
+   * of the 10 it could see.
+   */
+  const fetchAllProducts = useCallback(async (): Promise<Product[]> => {
+    const PAGE_SIZE = 100;
+    const MAX_PAGES = 100; // hard stop so a bad `lastPage` can never loop forever
+    const all: Product[] = [];
+    const seen = new Set<string>();
+
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const res = await fetch(
+        `${LARAVEL_API_BASE}/products?page=${page}&limit=${PAGE_SIZE}`,
+        { headers: getAuthHeaders() }
+      );
+
+      // Throw rather than return a short list: a partial catalogue would be
+      // presented as a complete audit, which is worse than a visible error.
+      if (!res.ok) {
+        throw new Error(`Could not load products page ${page} (HTTP ${res.status})`);
+      }
+
+      const camelData = convertKeysToCamelCase(await res.json());
+      const items: Product[] = Array.isArray(camelData)
+        ? camelData
+        : Array.isArray(camelData?.data) ? camelData.data : [];
+
+      for (const item of items) {
+        const id = String(item?.id ?? '');
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          all.push(item);
+        }
+      }
+
+      const lastPage = Array.isArray(camelData) ? 1 : Number(camelData?.lastPage || 1);
+      if (items.length === 0 || page >= lastPage) break;
+    }
+
+    return all;
+  }, [getAuthHeaders]);
+
   const refreshReviews = useCallback((page = 1, limit = 10) => {
     fetch(`${LARAVEL_API_BASE}/reviews?page=${page}&limit=${limit}`, { headers: getAuthHeaders() })
       .then(async res => { if (!res.ok) { return null; } return res.json(); })
@@ -974,8 +1028,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       .catch(err => console.warn('Categories load note:', err));
   }, []);
 
-  const refreshOrders = useCallback((page = 1, limit = 50) => {
-    fetch(`${LARAVEL_API_BASE}/orders?page=${page}&limit=${limit}`, { headers: getAuthHeaders() })
+  // Returns the in-flight promise so callers (e.g. a Refresh button) can show
+  // a spinner until the orders have actually arrived.
+  const refreshOrders = useCallback((page = 1, limit = 50): Promise<void> => {
+    return fetch(`${LARAVEL_API_BASE}/orders?page=${page}&limit=${limit}`, { headers: getAuthHeaders() })
       .then(res => {
         if (!res.ok) return null;
         return res.json();
@@ -1189,11 +1245,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }
           return [merged, ...prev];
         });
-        refreshProducts(1, 10, {}, false, true);
+        bumpProductsRevision();
       })
       .catch(err => {
         console.warn('Failed to save product to API:', err);
-        refreshProducts(1, 10, {}, false, true);
+        bumpProductsRevision();
       });
   };
 
@@ -1429,11 +1485,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       method: 'DELETE',
     })
       .then(res => {
-        refreshProducts(1, 10, {}, false, true);
+        bumpProductsRevision();
       })
       .catch(err => {
         console.warn('Product delete note:', err);
-        refreshProducts(1, 10, {}, false, true);
+        bumpProductsRevision();
       });
   };
 
@@ -1578,11 +1634,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             : updatedProd.images,
         };
         setProducts(prev => prev.map(p => String(p?.id) === String(product.id) ? merged : p));
-        refreshProducts(1, 10, {}, false, true);
+        bumpProductsRevision();
       })
       .catch(err => {
         console.warn('Product update note:', err);
-        refreshProducts(1, 10, {}, false, true);
+        bumpProductsRevision();
       });
   };
 
@@ -2090,8 +2146,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   return (
     <StoreContext.Provider value={{ 
-      categories, products, cart, wishlist, users, orders, expenses, currentUser, promoBanner, productsPagination, ordersPagination, expensesPagination, isProductsLoading,
-      updatePromoBanner, addCategory, addProduct, refreshProducts, refreshCategories, refreshOrders, refreshUsers, refreshExpenses, addToCart, removeFromCart, 
+      categories, products, cart, wishlist, users, orders, expenses, currentUser, promoBanner, productsPagination, ordersPagination, expensesPagination, isProductsLoading, productsRevision,
+      updatePromoBanner, addCategory, addProduct, refreshProducts, fetchAllProducts, refreshCategories, refreshOrders, refreshUsers, refreshExpenses, addToCart, removeFromCart, 
       updateCartItemQuantity, clearCart, toggleWishlist, addReview, updateOrderStatus, addExpense, addOrder,
       deleteProduct, deleteCategory, deleteExpense, deleteUser, deleteOrder, addUser,
       updateProduct, updateCategory, updateExpense, updateUser,
