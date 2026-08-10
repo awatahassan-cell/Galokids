@@ -12,6 +12,7 @@ import { POSProductGrid } from '../components/pos/POSProductGrid';
 import { POSCartPanel } from '../components/pos/POSCartPanel';
 import { adminTr } from '../i18n/adminDict';
 import { printReceiptIframe } from '../utils/printHelper';
+import { isCashierRole } from '../utils/roles';
 
 export const POS: React.FC = () => {
   const { products, orders, addOrder, productsPagination, refreshProducts, lookupCustomer,
@@ -1031,10 +1032,20 @@ export const POS: React.FC = () => {
                   const addr = String(ord.shippingAddress || ord.shipping_address || '').toLowerCase();
                   const name = String(ord.customerName || ord.customer_name || '').toLowerCase();
 
-                  if (channel === 'pos' || addr.includes('pos') || addr.includes('in-store') || name.includes('pos')) return true;
-                  if (channel === 'online' || channel === 'web' || addr.includes('delivery') || addr.includes('تسلّم') || addr.includes('دەستکەوتنی')) return false;
+                  const isPos = (channel === 'pos' || addr.includes('pos') || addr.includes('in-store') || name.includes('pos')) && !channel.includes('online');
+                  if (!isPos && (channel === 'online' || channel === 'web')) return false;
 
-                  return true; // Default fallback for POS environment
+                  // If cashier role (2), only show POS sales created by this cashier!
+                  if (currentUser && isCashierRole(currentUser.role)) {
+                    const cName = (currentUser.name || '').toLowerCase().trim();
+                    const ordCName = String(ord.cashierName || ord.cashier_name || '').toLowerCase().trim();
+                    const ordUser = String(ord.userId || '');
+                    if (ordUser !== String(currentUser.id) && cName && !ordCName.includes(cName)) {
+                      return false;
+                    }
+                  }
+
+                  return true;
                 });
 
                 if (posOnlyOrders.length === 0) {

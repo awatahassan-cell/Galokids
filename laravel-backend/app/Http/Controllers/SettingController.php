@@ -44,7 +44,7 @@ class SettingController extends Controller
         }
 
         $role = $user->role;
-        $isAdmin = in_array((int)$role, [3], true) || in_array($role, ['3', 'admin'], true);
+        $isAdmin = in_array((int)$role, [1], true) || in_array($role, ['1', 'admin'], true);
         if (!$isAdmin) {
             return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
         }

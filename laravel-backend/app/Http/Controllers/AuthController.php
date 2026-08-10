@@ -63,7 +63,7 @@ class AuthController extends Controller
                 'phone'    => $normalizedPhone,
                 'email'    => $email,
                 'password' => Hash::make(Str::random(16)), // Temporary random password until set by user
-                'role'     => 1, // Standard Customer
+                'role'     => 0, // Standard Customer (role 0)
             ]);
         }
 
@@ -103,7 +103,7 @@ class AuthController extends Controller
             'email'    => $email,
             'phone'    => $phone,
             'password' => Hash::make($request->password ?? Str::random(16)),
-            'role'     => 1, // Standard Customer
+            'role'     => 0, // Standard Customer (role 0)
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;

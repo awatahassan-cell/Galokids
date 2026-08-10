@@ -10,7 +10,7 @@ class AdminUserController extends Controller
     private function checkStaffOrAdmin(Request $request)
     {
         $user = $request->user();
-        if (!$user || !in_array((int)$user->role, [2, 3])) {
+        if (!$user || !in_array((int)$user->role, [1, 2, 3])) {
             abort(response()->json(['message' => 'Unauthorized. Staff or Admin role required.'], 403));
         }
     }
@@ -18,19 +18,18 @@ class AdminUserController extends Controller
     private function checkAdmin(Request $request)
     {
         $user = $request->user();
-        if (!$user || (int)$user->role !== 3) {
+        if (!$user || (int)$user->role !== 1) {
             abort(response()->json(['message' => 'Unauthorized. Admin role required.'], 403));
         }
     }
 
     /**
-     * SECURITY: only an admin (role 3) may create or promote privileged accounts
-     * (staff = 2, admin = 3). This stops a staff member from escalating themselves
-     * or others to admin.
+     * SECURITY: only an admin (role 1) may create or promote privileged accounts
+     * (cashier = 2, staff = 3, admin = 1).
      */
     private function guardPrivilegedRole(Request $request, $targetRole)
     {
-        if ($targetRole !== null && in_array((int)$targetRole, [2, 3])) {
+        if ($targetRole !== null && in_array((int)$targetRole, [1, 2, 3])) {
             $this->checkAdmin($request);
         }
     }
@@ -39,12 +38,14 @@ class AdminUserController extends Controller
     {
         if ($request->has('role')) {
             $r = $request->role;
-            if ($r === 'admin' || $r === '3' || $r === 3) {
-                $r = 3;
-            } elseif ($r === 'staff' || $r === '2' || $r === 2) {
-                $r = 2;
-            } else {
+            if ($r === 'admin' || $r === '1' || $r === 1) {
                 $r = 1;
+            } elseif ($r === 'cashier' || $r === '2' || $r === 2) {
+                $r = 2;
+            } elseif ($r === 'staff' || $r === '3' || $r === 3) {
+                $r = 3;
+            } else {
+                $r = 0;
             }
             $request->merge(['role' => $r]);
         }

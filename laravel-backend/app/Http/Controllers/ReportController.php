@@ -13,7 +13,7 @@ class ReportController extends Controller
     private function checkStaffOrAdmin(Request $request)
     {
         $user = $request->user();
-        if (!$user || !in_array((int)$user->role, [2, 3])) {
+        if (!$user || !in_array((int)$user->role, [1, 2, 3])) {
             abort(response()->json(['message' => 'Unauthorized. Staff or Admin role required.'], 403));
         }
     }
@@ -26,7 +26,7 @@ class ReportController extends Controller
     public function cashiers(Request $request)
     {
         $user = $request->user();
-        if (!$user || (int)$user->role !== 3) {
+        if (!$user || (int)$user->role !== 1) {
             abort(response()->json(['message' => 'Unauthorized. Admin role required.'], 403));
         }
 

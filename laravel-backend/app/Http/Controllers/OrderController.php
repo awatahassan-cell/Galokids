@@ -17,7 +17,7 @@ class OrderController extends Controller
     private function checkStaffOrAdmin(Request $request)
     {
         $user = $request->user();
-        if (!$user || !in_array((int)$user->role, [2, 3])) {
+        if (!$user || !in_array((int)$user->role, [1, 2, 3])) {
             abort(response()->json(['message' => 'Unauthorized. Staff or Admin role required.'], 403));
         }
     }
@@ -25,13 +25,15 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if ($user && in_array((int)$user->role, [2, 3])) {
+        if ($user && in_array((int)$user->role, [1, 2, 3])) {
             return response()->json(
                 Order::with('items.product', 'items.variation')->orderBy('created_at', 'desc')->get()
             );
         }
         return response()->json(
-            Order::where('user_id', $user->id)->with('items.product', 'items.variation')
+            Order::where('user_id', $user->id)
+                ->orWhere('customer_phone', $user->phone)
+                ->with('items.product', 'items.variation')
                 ->orderBy('created_at', 'desc')->get()
         );
     }

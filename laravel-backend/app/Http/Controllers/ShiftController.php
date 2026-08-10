@@ -17,7 +17,7 @@ class ShiftController extends Controller
             abort(response()->json(['message' => 'Unauthenticated.'], 401));
         }
         $r = $user->role;
-        $isStaffOrAdmin = in_array((int)$r, [2, 3], true) || in_array($r, ['2', '3', 'staff', 'admin'], true);
+        $isStaffOrAdmin = in_array((int)$r, [1, 2, 3], true) || in_array($r, ['1', '2', '3', 'staff', 'cashier', 'admin'], true);
         if (!$isStaffOrAdmin) {
             abort(response()->json(['message' => 'Unauthorized. Staff or Admin role required.'], 403));
         }

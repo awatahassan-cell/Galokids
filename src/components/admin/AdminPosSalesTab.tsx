@@ -13,6 +13,7 @@ import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../../
 import { printReceiptIframe } from '../../utils/printHelper';
 import { useStore } from '../../store';
 import { Pagination } from '../Pagination';
+import { isCashierRole } from '../../utils/roles';
 
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
@@ -58,12 +59,12 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Auto-refresh orders dynamically on mount & filter changes
+  // Auto-refresh orders dynamically on mount & filter changes (prevent infinite loops)
   React.useEffect(() => {
     if (refreshOrders) {
       refreshOrders(currentPage, 50);
     }
-  }, [currentPage, dateFilter, customDate, refreshOrders]);
+  }, [currentPage, dateFilter, customDate]);
 
   const handleManualRefresh = async () => {
     if (isRefreshing || !refreshOrders) return;
@@ -78,10 +79,25 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
     }
   };
 
-  // Extract POS sales
+  // Extract POS sales - Filter by Cashier if role is 2 (Cashier), show ALL if role is 1 (Admin)
   const posSales = useMemo(() => {
-    return orders.filter(isPosOrder);
-  }, [orders]);
+    const allPos = orders.filter(isPosOrder);
+    if (currentUser && isCashierRole(currentUser.role)) {
+      const cashierNameLower = (currentUser.name || '').trim().toLowerCase();
+      const cashierEmailLower = (currentUser.email || '').trim().toLowerCase();
+      return allPos.filter(order => {
+        const ordCashierName = String((order as any).cashierName || (order as any).cashier_name || '').trim().toLowerCase();
+        const ordCashierEmail = String((order as any).cashierEmail || (order as any).cashier_email || order.customerEmail || '').trim().toLowerCase();
+        const ordUserId = String(order.userId || '');
+        return (
+          ordUserId === String(currentUser.id) ||
+          (cashierNameLower && ordCashierName.includes(cashierNameLower)) ||
+          (cashierEmailLower && ordCashierEmail === cashierEmailLower)
+        );
+      });
+    }
+    return allPos;
+  }, [orders, currentUser]);
 
   // Filtered POS sales
   const filteredSales = useMemo(() => {

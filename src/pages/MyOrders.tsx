@@ -6,6 +6,8 @@ import { getColorHex } from '../utils/colors';
 import { Navigate } from 'react-router-dom';
 import { Package, Clock, CheckCircle, Truck, XCircle } from 'lucide-react';
 
+import { isPosOrder } from '../components/admin/AdminOrdersTab';
+
 export const MyOrders: React.FC = () => {
   const { orders, currentUser } = useStore();
   const { t, language } = useLanguage();
@@ -15,9 +17,15 @@ export const MyOrders: React.FC = () => {
   }
 
   const userPhoneDigits = currentUser.phone ? currentUser.phone.replace(/[^\d]/g, '') : '';
+  const userEmail = currentUser.email ? currentUser.email.toLowerCase().trim() : '';
+
   const userOrders = orders
     .filter(order => {
+      // Exclude POS sales from customer My Orders view!
+      if (isPosOrder(order)) return false;
+
       if (String(order.userId) === String(currentUser.id)) return true;
+      if (userEmail && order.customerEmail && order.customerEmail.toLowerCase().trim() === userEmail) return true;
       if (userPhoneDigits && order.customerPhone) {
         const orderPhoneDigits = order.customerPhone.replace(/[^\d]/g, '');
         if (orderPhoneDigits && (orderPhoneDigits === userPhoneDigits || (userPhoneDigits.length >= 8 && orderPhoneDigits.includes(userPhoneDigits.slice(-8))))) {

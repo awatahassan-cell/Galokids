@@ -1,6 +1,6 @@
 export interface RoleInfo {
-  id: 0 | 1 | 2;
-  code: 'admin' | 'cashier' | 'customer';
+  id: 0 | 1 | 2 | 3;
+  code: 'admin' | 'cashier' | 'staff' | 'customer';
   label: string;
   badgeClass: string;
 }
@@ -18,13 +18,23 @@ export const getRoleInfo = (roleInput: any, language: string = 'ku'): RoleInfo =
     };
   }
 
-  // 2 = Cashier / Staff (کاشێر)
-  if (roleStr === '2' || roleStr === 'cashier' || roleStr === 'staff') {
+  // 2 = Cashier (کاشێر)
+  if (roleStr === '2' || roleStr === 'cashier') {
     return {
       id: 2,
       code: 'cashier',
-      label: language === 'ku' ? 'کاشێر' : language === 'ar' ? 'أمينات صندوق' : 'Cashier',
+      label: language === 'ku' ? 'کاشێر' : language === 'ar' ? 'کاشیر' : 'Cashier',
       badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200'
+    };
+  }
+
+  // 3 = Staff (کارمەند)
+  if (roleStr === '3' || roleStr === 'staff' || roleStr === 'employee') {
+    return {
+      id: 3,
+      code: 'staff',
+      label: language === 'ku' ? 'کارمەند' : language === 'ar' ? 'موظف' : 'Staff',
+      badgeClass: 'bg-purple-100 text-purple-800 border-purple-200'
     };
   }
 
@@ -46,7 +56,17 @@ export const isAdminRole = (roleInput: any): boolean => {
 export const isCashierRole = (roleInput: any): boolean => {
   if (roleInput === undefined || roleInput === null) return false;
   const s = String(roleInput).toLowerCase().trim();
-  return s === '2' || s === 'cashier' || s === 'staff';
+  return s === '2' || s === 'cashier';
+};
+
+export const isStaffRole = (roleInput: any): boolean => {
+  if (roleInput === undefined || roleInput === null) return false;
+  const s = String(roleInput).toLowerCase().trim();
+  return s === '3' || s === 'staff' || s === 'employee';
+};
+
+export const isStaffOrAdminRole = (roleInput: any): boolean => {
+  return isAdminRole(roleInput) || isCashierRole(roleInput) || isStaffRole(roleInput);
 };
 
 export const isCustomerRole = (roleInput: any): boolean => {

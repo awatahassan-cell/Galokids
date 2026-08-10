@@ -72,12 +72,13 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Auto-refresh orders on mount & filter/page changes
+  // Auto-refresh orders on mount & filter/page changes (prevent infinite loops)
   useEffect(() => {
     if (refreshOrders) {
       refreshOrders(currentPage, 50);
     }
-  }, [currentPage, statusFilter, dateFilter, customDate, refreshOrders]);
+    // eslint-disable-next-deps
+  }, [currentPage, statusFilter, dateFilter, customDate]);
 
   const handleManualRefresh = async () => {
     if (isRefreshing || !refreshOrders) return;

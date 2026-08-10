@@ -237,7 +237,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
     return [];
   });
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>(() => {
+    const saved = localStorage.getItem('kidskart_orders_local');
+    if (saved) {
+      try {
+        return JSON.parse(saved).filter(Boolean);
+      } catch (e) {}
+    }
+    return [];
+  });
   const [expenses, setExpenses] = useState<Expense[]>(() => {
     const saved = localStorage.getItem('kidskart_expenses_local');
     if (saved) {
@@ -773,7 +781,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
 
-  const getAuthHeaders = () => {
+  const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem('kidskart_auth_token');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -783,7 +791,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       headers['Authorization'] = `Bearer ${token}`;
     }
     return headers;
-  };
+  }, []);
 
   const authedApiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
     const fetchFreshToken = async (): Promise<string | null> => {
@@ -992,21 +1000,67 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       .catch(err => console.warn('Categories load note:', err));
   }, []);
 
-  const refreshOrders = useCallback(() => {
-    fetch(`${LARAVEL_API_BASE}/orders`, { headers: getAuthHeaders() })
+  const refreshOrders = useCallback((page = 1, limit = 50) => {
+    fetch(`${LARAVEL_API_BASE}/orders?page=${page}&limit=${limit}`, { headers: getAuthHeaders() })
       .then(res => {
         if (!res.ok) return null;
         return res.json();
       })
       .then(data => {
-        if (!data) return;
-        const camelData = convertKeysToCamelCase(data);
-        if (Array.isArray(camelData)) {
-          setOrders(camelData);
+        let fetchedItems: Order[] = [];
+        let meta: PaginationMeta = { currentPage: page, lastPage: 1, total: 0 };
+
+        if (data) {
+          const camelData = convertKeysToCamelCase(data);
+          if (Array.isArray(camelData)) {
+            fetchedItems = camelData;
+            meta.total = fetchedItems.length;
+          } else if (camelData && Array.isArray(camelData.data)) {
+            fetchedItems = camelData.data;
+            meta = {
+              currentPage: camelData.currentPage || page,
+              lastPage: camelData.lastPage || 1,
+              total: camelData.total || fetchedItems.length,
+            };
+          }
         }
+
+        // Merge with local orders from localStorage
+        let localOrders: Order[] = [];
+        const savedLocal = localStorage.getItem('kidskart_orders_local');
+        if (savedLocal) {
+          try {
+            localOrders = JSON.parse(savedLocal).filter(Boolean);
+          } catch (e) {}
+        }
+
+        // Combine fetched API orders + local orders uniquely by ID
+        const orderMap = new Map<string, Order>();
+        localOrders.forEach(o => { if (o && o.id) orderMap.set(String(o.id), o); });
+        fetchedItems.forEach(o => { if (o && o.id) orderMap.set(String(o.id), o); });
+
+        const combinedOrders = Array.from(orderMap.values()).sort((a: any, b: any) => 
+          new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime()
+        );
+
+        setOrders(combinedOrders);
+        setOrdersPagination({
+          ...meta,
+          total: Math.max(meta.total, combinedOrders.length)
+        });
+        localStorage.setItem('kidskart_orders_local', JSON.stringify(combinedOrders));
       })
-      .catch(err => console.warn('Failed to load orders from API:', err));
-  }, []);
+      .catch(err => {
+        console.warn('Failed to load orders from API, fallback to local:', err);
+        const savedLocal = localStorage.getItem('kidskart_orders_local');
+        if (savedLocal) {
+          try {
+            const localOrders = JSON.parse(savedLocal).filter(Boolean);
+            setOrders(localOrders);
+          } catch (e) {}
+        }
+      });
+  }, [getAuthHeaders]);
 
   const refreshUsers = useCallback(() => {
     const token = localStorage.getItem('kidskart_auth_token');
@@ -1330,14 +1384,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       id: tempId,
       date: new Date().toISOString().split('T')[0]
     };
-    setOrders(prev => [newOrder, ...prev]);
+
+    setOrders(prev => {
+      const updated = [newOrder, ...prev.filter(o => o?.id !== tempId)];
+      try {
+        localStorage.setItem('kidskart_orders_local', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
 
     const isNumericId = (v: any) => v !== undefined && v !== null && /^\d+$/.test(String(v));
 
-    // Build a lean, server-authoritative payload. The backend recomputes every
-    // price/total from the database, so we only send identifiers + quantities.
-    // Custom POS "quick add" lines have no catalog id, so they carry a name +
-    // unit price (which the backend accepts from staff only).
     const items = (orderData.items || []).map((it: any) => {
       const productId = isNumericId(it.product?.id) ? Number(it.product.id) : null;
       const variationId = isNumericId(it.variation?.id) ? Number(it.variation.id) : null;
@@ -1359,6 +1416,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       customer_phone: (orderData as any).customerPhone,
       customer_email: orderData.customerEmail,
       payment_method: orderData.paymentMethod,
+      channel: (orderData as any).channel || (orderData as any).source || 'online',
+      source: (orderData as any).source || (orderData as any).channel || 'online',
     };
     if (orderData.couponCode) payload.coupon_code = orderData.couponCode;
     if (orderData.discountAmount !== undefined) payload.discount_amount = orderData.discountAmount;
@@ -1371,10 +1430,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }).then(async res => { if (!res.ok) { const err = await res.text(); throw new Error(`API Error: ${res.status} ${err}`); } return res.json(); })
       .then(savedOrder => {
         const camelOrder = convertKeysToCamelCase(savedOrder);
-        setOrders(prev => prev.map(o => o?.id === tempId ? camelOrder : o));
+        setOrders(prev => {
+          const updated = prev.map(o => o?.id === tempId ? camelOrder : o);
+          try {
+            localStorage.setItem('kidskart_orders_local', JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
         return camelOrder;
       })
-      .catch(err => { console.warn('Order save note:', err); return undefined; });
+      .catch(err => { 
+        console.warn('Order save note:', err); 
+        return newOrder; 
+      });
   };
 
   const deleteProduct = (productId: string) => {

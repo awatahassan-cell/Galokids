@@ -1793,6 +1793,7 @@ export const Admin: React.FC = () => {
                 >
                   <option value={1}>{language === 'ku' ? '1 - بەڕێوەبەر (Admin)' : '1 - Admin'}</option>
                   <option value={2}>{language === 'ku' ? '2 - کاشێر (Cashier)' : '2 - Cashier'}</option>
+                  <option value={3}>{language === 'ku' ? '3 - کارمەند (Staff)' : '3 - Staff'}</option>
                   <option value={0}>{language === 'ku' ? '0 - کڕیار (Customer)' : '0 - Customer'}</option>
                 </select>
               </div>
