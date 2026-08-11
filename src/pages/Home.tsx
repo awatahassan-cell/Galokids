@@ -669,26 +669,6 @@ export const Home: React.FC = () => {
           );
         })()}
 
-        {/* 8. Newsletter Strip */}
-        <div className="px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16 mb-16">
-          <div className="bg-gradient-to-r from-slate-900 via-ink-900 to-slate-900 text-white rounded-3xl p-8 sm:p-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl border border-slate-800">
-            <div>
-              <h3 className="text-xl sm:text-3xl font-black mb-1">
-                {language === 'ku' ? 'تێکەڵ بە یانەی منداڵان بە & ١٥٪ داشکاندن بەدەستبهێنە!' : 'Join Our Happy Kids Club & Get 15% Off!'}
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-300 font-bold">
-                {language === 'ku' ? 'نوێترین مۆدێل و ئاگاداری داشکاندنەکان ڕاستەوخۆ وەربگرە.' : 'Subscribe to get unique discount offers & newest arrivals.'}
-              </p>
-            </div>
-            <div className="flex w-full md:w-auto items-center gap-2">
-              <input type="email" placeholder="email@example.com" className="px-4 py-3 rounded-full bg-white/10 border border-white/20 text-white text-xs font-bold w-full md:w-64 focus:outline-none focus:border-candy-500" />
-              <button className="px-6 py-3 rounded-full bg-gradient-to-r from-candy-500 to-grape-500 text-white font-black text-xs shadow-md shrink-0 cursor-pointer hover:from-candy-600 hover:to-grape-600">
-                Subscribe
-              </button>
-            </div>
-          </div>
-        </div>
-
       </div>
     </motion.div>
   );

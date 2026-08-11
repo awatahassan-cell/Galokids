@@ -157,6 +157,14 @@ html, body {
   50%      { transform: translateY(-16px) rotate(7deg); }
 }
 
+/* The announcement strip. The track holds two copies of the messages and
+   travels exactly half its width, so the loop has no visible seam. */
+.vk-ticker { animation: vk-slide 26s linear infinite; }
+@keyframes vk-slide {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .vk-float, .animate-float, .animate-spin-slow { animation: none !important; }
+  .vk-float, .animate-float, .animate-spin-slow, .vk-ticker { animation: none !important; }
 }

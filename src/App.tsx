@@ -23,7 +23,7 @@ const SizeGuide = lazy(() => import('./pages/SizeGuide').then(m => ({ default: m
 import { Footer } from './components/Footer';
 import { Sidebar } from './components/Sidebar';
 import { StoreProvider, useStore } from './store';
-import { Menu, Layers, UserCircle, ShoppingBag, Heart, LogOut, Globe, MonitorSmartphone, Package, KeyRound, ChevronDown, ShieldCheck } from 'lucide-react';
+import { Menu, Layers, UserCircle, ShoppingBag, Heart, LogOut, Globe, MonitorSmartphone, Package, KeyRound, ChevronDown, ShieldCheck, Search } from 'lucide-react';
 import { CartDrawer } from './components/CartDrawer';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { FeedbackProvider } from './components/ui/Feedback';
@@ -32,6 +32,8 @@ import { Language } from './i18n/translations';
 import { isAdminRole, isStaffOrAdminRole, getRoleInfo } from './utils/roles';
 import { SearchBar } from './components/SearchBar';
 import { LanguageDropdown } from './components/LanguageDropdown';
+import { AnnouncementTicker } from './components/AnnouncementTicker';
+import { HeaderNav } from './components/HeaderNav';
 import { InitialLanguageModal } from './components/InitialLanguageModal';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -59,13 +61,23 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const cartItemsCount = (cart || []).filter(Boolean).reduce((acc, item) => acc + (item?.quantity || 0), 0);
   const wishlistCount = (wishlist || []).length;
 
+  /** Square action button — the header's shared shape for icons. */
+  const iconBtn =
+    'relative w-[42px] h-[42px] rounded-2xl border border-slate-200/80 bg-white grid place-items-center ' +
+    'text-slate-900 cursor-pointer transition-all hover:bg-candy-50 hover:border-candy-200 hover:-translate-y-0.5 active:translate-y-0 shrink-0';
+
+  /** Count bubble on the wishlist and basket buttons. */
+  const bubble =
+    'absolute -top-1.5 -start-1.5 min-w-[20px] h-[20px] px-1.5 rounded-full bg-candy-500 text-white ' +
+    'text-[11px] font-black grid place-items-center border-2 border-white font-sans';
+
   const MobileMenuButton = (
-    <button 
-      className="p-2.5 text-slate-500 hover:text-candy-700 md:hidden transition-all bg-slate-50 hover:bg-candy-50 rounded-full active:scale-95 border border-slate-100 shadow-sm flex items-center justify-center cursor-pointer shrink-0"
+    <button
+      className={`${iconBtn} lg:hidden`}
       onClick={() => setIsSidebarOpen(true)}
       aria-label="Open Menu"
     >
-      <Menu className="w-5 h-5 text-candy-700" />
+      <Menu className="w-[19px] h-[19px]" />
     </button>
   );
 
@@ -111,126 +123,37 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
       {isAdminOrPos ? null : (
         <>
-          {/* Top Announcement Bar (Vastraa Style) */}
-          <div className="hidden md:block bg-slate-950 text-slate-300 text-xs py-2 border-b border-slate-800/90 font-arabic relative z-[110]">
-            <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-              <div className="flex items-center gap-3 font-medium">
-                <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-candy-500 via-candy-400 to-amber-500 text-white px-3 py-0.5 rounded-full text-[11px] font-black shadow-xs tracking-wider uppercase">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                  ⚡ 🚚 {language === 'ku' ? 'گەیاندنی خێرا' : language === 'ar' ? 'توصيل سريع' : 'Fast Shipping'}
-                </span>
-                <span className="text-slate-300 font-bold">
-                  {language === 'ku' 
-                    ? 'گەیاندن بۆ سەرجەم پارێزگاکانی عێراق | 100% کواڵێتی مسۆگەرکراوی پۆشاکی منداڵان' 
-                    : language === 'ar' 
-                    ? 'توصيل لجميع محافظات العراق | 100% جودة مضمونة لملابس الأطفال' 
-                    : 'Fast Shipping across Iraq | 100% Guaranteed Kids Quality'}
-                </span>
-              </div>
-              <div className="flex items-center gap-5 text-slate-400 font-bold">
-                <a href="https://wa.me/9647500000000" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition-colors flex items-center gap-1.5 text-xs">
-                  <span className="text-emerald-400 text-sm">💬</span> {language === 'ku' ? 'واتسئەپ' : language === 'ar' ? 'واتساب' : 'WhatsApp'}
-                </a>
-                <span className="text-slate-800">|</span>
-                <Link to="/contact" className="hover:text-white transition-colors flex items-center gap-1 text-xs">
-                  <span>📞</span> {language === 'ku' ? 'پەیوەندی' : language === 'ar' ? 'اتصل بنا' : 'Contact'}
-                </Link>
-                <span className="text-slate-800">|</span>
-                <LanguageDropdown className="bg-slate-900 border-slate-700 text-white text-xs" />
-              </div>
-            </div>
-          </div>
+          <AnnouncementTicker />
 
           {/* Main Vastraa-Style Header */}
           <header className="sticky top-0 z-[100] w-full bg-white/95 backdrop-blur-2xl border-b border-slate-200/80 shadow-sm transition-all duration-300">
             <div className="max-w-7xl mx-auto h-16 sm:h-20 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
               
-              {/* Left Column: Brand Logo & Mobile Trigger */}
+              {/* Left: burger (mobile) + wordmark */}
               <div className="flex items-center gap-3 shrink-0">
-                {!isRTL && MobileMenuButton}
-                <Link to="/" className="flex items-center gap-3 group relative shrink-0" title={storeSettings?.store_name || "Galo Kids"}>
-                  <img 
-                    src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
-                    alt={storeSettings?.store_name || "Galo Kids"} 
-                    className="h-10 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105 drop-shadow-xs" 
-                  />
+                {MobileMenuButton}
+                <Link to="/" className="flex items-center gap-2.5 group shrink-0" title={storeSettings?.store_name || 'Galo Kids'}>
+                  {storeSettings?.store_logo ? (
+                    <img
+                      src={storeSettings.store_logo}
+                      alt={storeSettings?.store_name || 'Galo Kids'}
+                      className="w-[42px] h-[42px] rounded-2xl object-cover shadow-lg shadow-candy-600/25 transition-transform group-hover:scale-105"
+                    />
+                  ) : (
+                    <span className="w-[42px] h-[42px] rounded-2xl grid place-items-center bg-gradient-to-br from-candy-500 to-sunny-500 text-[#52182C] text-[19px] font-black shadow-lg shadow-candy-600/25 transition-transform group-hover:scale-105">
+                      G
+                    </span>
+                  )}
+                  <span className="leading-tight">
+                    <b className="block text-[15px] sm:text-[19px] font-black tracking-tight text-slate-900 whitespace-nowrap">
+                      {storeSettings?.store_name || (isRTL ? 'گەلۆ کیدز' : 'Galo Kids')}
+                    </b>
+                    <small className="block text-[9px] sm:text-[10.5px] font-bold tracking-[0.05em] text-slate-500">GALO KIDS</small>
+                  </span>
                 </Link>
               </div>
-              
-              {/* Center Column: Navigation Menu with Category Links */}
-              <nav className="hidden lg:flex items-center gap-1 xl:gap-2">
-                <Link 
-                  to="/" 
-                  className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
-                    location.pathname === '/' 
-                      ? 'text-white' 
-                      : 'text-slate-700 hover:text-candy-700 hover:bg-candy-50/50'
-                  }`}
-                >
-                  {location.pathname === '/' && (
-                    <motion.span
-                      layoutId="activeNavPill"
-                      className="absolute inset-0 bg-[#FF8FAB] rounded-full shadow-md shadow-candy-500/30"
-                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-                    />
-                  )}
-                  <span className="relative z-10">{t('home')}</span>
-                </Link>
 
-                <Link 
-                  to="/products" 
-                  className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
-                    location.pathname === '/products' && !location.search
-                      ? 'text-white' 
-                      : 'text-slate-700 hover:text-candy-700 hover:bg-candy-50/50'
-                  }`}
-                >
-                  {location.pathname === '/products' && !location.search && (
-                    <motion.span
-                      layoutId="activeNavPill"
-                      className="absolute inset-0 bg-[#FF8FAB] rounded-full shadow-md shadow-candy-500/30"
-                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-                    />
-                  )}
-                  <span className="relative z-10">{t('products')}</span>
-                </Link>
-
-                <Link 
-                  to="/about" 
-                  className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
-                    location.pathname === '/about' 
-                      ? 'text-white' 
-                      : 'text-slate-700 hover:text-candy-700 hover:bg-candy-50/50'
-                  }`}
-                >
-                  {location.pathname === '/about' && (
-                    <motion.span
-                      layoutId="activeNavPill"
-                      className="absolute inset-0 bg-[#FF8FAB] rounded-full shadow-md shadow-candy-500/30"
-                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-                    />
-                  )}
-                  <span className="relative z-10">{t('about')}</span>
-                </Link>
-
-                <Link 
-                  to="/contact" 
-                  className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
-                    location.pathname === '/contact' 
-                      ? 'text-white' 
-                      : 'text-slate-700 hover:text-candy-700 hover:bg-candy-50/50'
-                  }`}
-                >
-                  {location.pathname === '/contact' && (
-                    <motion.span
-                      layoutId="activeNavPill"
-                      className="absolute inset-0 bg-[#FF8FAB] rounded-full shadow-md shadow-candy-500/30"
-                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-                    />
-                  )}
-                  <span className="relative z-10">{language === 'ku' ? 'پەیوەندی' : language === 'ar' ? 'اتصل بنا' : 'Contact'}</span>
-                </Link>
-              </nav>
+              <HeaderNav />
 
               {/* Right Column: Search, Wishlist, Cart & Account Action Suite */}
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -240,32 +163,31 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   onCloseMobileModal={() => setIsMobileSearchOpen(false)} 
                 />
 
-                {/* Wishlist Solid Pink Circle Button */}
-                <Link 
-                  to="/wishlist" 
-                  className="w-11 h-11 rounded-full bg-[#FF8FAB] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all hidden sm:flex relative cursor-pointer"
-                  title={t('wishlist')}
+                {/* Below md the pill collapses to a button that opens the
+                    search sheet — the tab bar no longer carries search. */}
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSearchOpen(true)}
+                  className={`${iconBtn} md:hidden`}
+                  aria-label={t('search') || 'Search'}
                 >
-                  <Heart className="w-5 h-5 fill-white" />
-                  {wishlistCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-[#00D284] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs">
-                      {wishlistCount}
-                    </span>
-                  )}
+                  <Search className="w-[19px] h-[19px]" />
+                </button>
+
+                <LanguageDropdown className="hidden sm:flex h-[42px] rounded-2xl border-slate-200/80 bg-white text-slate-900" />
+
+                <Link to="/wishlist" className={`${iconBtn} hidden sm:grid`} title={t('wishlist')}>
+                  <Heart className="w-[19px] h-[19px]" />
+                  {wishlistCount > 0 && <span className={bubble}>{wishlistCount}</span>}
                 </Link>
 
-                {/* Cart Basket Solid Pink Circle Button */}
-                <button 
+                <button
                   onClick={() => setIsCartOpen(true)}
-                  className="w-11 h-11 rounded-full bg-[#FF8FAB] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all relative cursor-pointer"
-                  aria-label="Shopping Cart"
+                  className={iconBtn}
+                  aria-label={language === 'ku' ? 'سەبەتە' : language === 'ar' ? 'السلة' : 'Basket'}
                 >
-                  <ShoppingBag className="w-5 h-5" />
-                  {cartItemsCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-[#00D284] text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xs">
-                      {cartItemsCount}
-                    </span>
-                  )}
+                  <ShoppingBag className="w-[19px] h-[19px]" />
+                  {cartItemsCount > 0 && <span className={bubble}>{cartItemsCount}</span>}
                 </button>
                 
                 {/* User Profile Dropdown Menu */}
@@ -273,16 +195,15 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <div className="relative" ref={userDropdownRef}>
                     <button
                       onClick={() => setIsUserDropdownOpen(prev => !prev)}
-                      className="flex items-center gap-1.5 p-1 sm:px-3 sm:py-1.5 rounded-full bg-slate-100 hover:bg-candy-50 border border-slate-200/80 transition-all shadow-xs group cursor-pointer active:scale-95"
+                      className={iconBtn}
                       title={currentUser.name}
+                      aria-label={currentUser.name}
                     >
-                      <div className="w-8 h-8 rounded-full bg-[#FF8FAB] text-white flex items-center justify-center font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
-                        {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <UserCircle className="w-5 h-5" />}
-                      </div>
-                      <span className="hidden md:inline-block text-xs font-black text-slate-800 group-hover:text-candy-700 max-w-[100px] truncate">
-                        {currentUser.name}
-                      </span>
-                      <ChevronDown className={`w-4 h-4 text-slate-400 group-hover:text-candy-700 transition-transform duration-300 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
+                      {currentUser.name
+                        ? <span className="w-7 h-7 rounded-xl grid place-items-center bg-gradient-to-br from-candy-500 to-grape-500 text-white text-[13px] font-black">
+                            {currentUser.name.charAt(0).toUpperCase()}
+                          </span>
+                        : <UserCircle className="w-[19px] h-[19px]" />}
                     </button>
 
                     <AnimatePresence>
@@ -386,18 +307,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     </AnimatePresence>
                   </div>
                 ) : (
-                  <Link to="/login" className="w-11 h-11 rounded-full bg-[#FF8FAB] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all hidden sm:flex" title={t('login')}>
-                    <UserCircle className="w-5 h-5" />
+                  <Link to="/login" className={iconBtn} title={t('login')}>
+                    <UserCircle className="w-[19px] h-[19px]" />
                   </Link>
                 )}
-                {isRTL && MobileMenuButton}
               </div>
             </div>
           </header>
         </>
       )}
 
-      <main className={`flex-grow flex flex-col ${!isAdminOrPos ? 'pb-16 md:pb-0' : ''}`}>
+      <main className="flex-grow flex flex-col">
         {children}
       </main>
 

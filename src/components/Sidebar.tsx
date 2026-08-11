@@ -2,427 +2,258 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
-import { Home, ShoppingBag, Info, Mail, UserCircle, Shield, MonitorSmartphone, X, LogIn, Layers, Heart, Package, LogOut, Globe, HelpCircle, Truck, ChevronDown, LayoutGrid, Baby, ToyBrick } from 'lucide-react';
-import { Language } from '../i18n/translations';
+import {
+  Home, ShoppingBag, Info, Mail, UserCircle, Shield, MonitorSmartphone, X, LogIn,
+  Heart, Package, LogOut, HelpCircle, Truck, ChevronDown, Sparkles,
+} from 'lucide-react';
 import { CategoryIcon } from './CategoryIcon';
 import { LanguageDropdown } from './LanguageDropdown';
-import { isAdminRole, isCashierRole } from '../utils/roles';
+import { isAdminRole, isCashierRole, isStaffOrAdminRole } from '../utils/roles';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+interface NavItem {
+  name: string;
+  path: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+/**
+ * The drawer behind the burger, for screens narrower than the desktop nav.
+ *
+ * It carries the same visual language as the header: one pink accent on a
+ * neutral base, square icon tiles, and a pill for whatever page you are on.
+ * Every destination in the desktop nav is reachable here, plus the account
+ * and back-office links that only exist in the header dropdown.
+ */
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { currentUser, logout, categories, storeSettings } = useStore();
-  const { t, language, setLanguage } = useLanguage();
+  const { t, language } = useLanguage();
   const location = useLocation();
-  const [isProductsExpanded, setIsProductsExpanded] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
 
-  const isStaffOrAdmin = currentUser && (
-    currentUser.role === 2 || 
-    currentUser.role === 3 || 
-    currentUser.role === '2' || 
-    currentUser.role === '3' || 
-    currentUser.role === 'admin' || 
-    currentUser.role === 'staff'
+  const isRTL = language === 'ar' || language === 'ku';
+  const L = (ku: string, ar: string, en: string) =>
+    language === 'ku' ? ku : language === 'ar' ? ar : en;
+
+  const storeName = storeSettings?.store_name || L('گەلۆ کیدز', 'غالو كيدز', 'Galo Kids');
+  const categoryName = (c: any) =>
+    (language === 'ku' && c.nameKu) || (language === 'ar' && c.nameAr) || c.name;
+
+  const isActive = (path: string) =>
+    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+
+  const browse: NavItem[] = [
+    { name: t('home'), path: '/', icon: Home },
+    { name: t('about'), path: '/about', icon: Info },
+    { name: L('پەیوەندی', 'اتصل بنا', 'Contact'), path: '/contact', icon: Mail },
+  ];
+
+  const support: NavItem[] = [
+    { name: t('faq'), path: '/faq', icon: HelpCircle },
+    { name: t('shippingReturns'), path: '/shipping-returns', icon: Truck },
+    { name: L('بەدواداچوونی داواکاری', 'تتبع الطلب', 'Track order'), path: '/track', icon: Package },
+  ];
+
+  const account: NavItem[] = currentUser
+    ? [
+        { name: t('profile'), path: '/profile', icon: UserCircle },
+        { name: t('wishlist'), path: '/wishlist', icon: Heart },
+        { name: t('myOrders'), path: '/my-orders', icon: Package },
+      ]
+    : [{ name: t('signIn'), path: '/login', icon: LogIn }];
+
+  const backOffice: NavItem[] = [
+    ...(currentUser && (isAdminRole(currentUser.role) || isCashierRole(currentUser.role))
+      ? [{ name: t('pos'), path: '/pos', icon: MonitorSmartphone }]
+      : []),
+    ...(currentUser && isAdminRole(currentUser.role)
+      ? [{ name: t('admin'), path: '/admin', icon: Shield }]
+      : []),
+  ];
+
+  /** Section eyebrow — the same small caps used across the site. */
+  const Eyebrow: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <h3 className="px-3 mb-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">{children}</h3>
   );
 
-  const toggleLanguage = () => {
-    const nextLang: Record<Language, Language> = { en: 'ku', ku: 'ar', ar: 'en' };
-    setLanguage(nextLang[language]);
+  const Row: React.FC<{ item: NavItem }> = ({ item }) => {
+    const on = isActive(item.path);
+    return (
+      <Link
+        to={item.path}
+        onClick={onClose}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-bold transition-colors ${
+          on ? 'bg-candy-50 text-candy-700' : 'text-slate-700 hover:bg-slate-50'
+        }`}
+      >
+        <span
+          className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 transition-colors ${
+            on ? 'bg-candy-500 text-white' : 'bg-slate-100 text-slate-500'
+          }`}
+        >
+          <item.icon className="w-[18px] h-[18px]" />
+        </span>
+        <span>{item.name}</span>
+      </Link>
+    );
   };
-
-  const navItems = [
-    { 
-      name: t('home'), 
-      path: '/', 
-      icon: Home, 
-      activeBg: 'bg-candy-50/85 text-candy-800 border-candy-100/80 shadow-[0_4px_12px_rgba(244,63,94,0.1)]', 
-      hoverBg: 'hover:bg-candy-50/40 hover:text-candy-700', 
-      iconBg: 'bg-gradient-to-tr from-candy-400 to-orange-400 text-white shadow-sm shadow-candy-200', 
-      iconColor: 'text-candy-700 bg-candy-50' 
-    },
-    { 
-      name: t('products'), 
-      path: '/products', 
-      icon: ShoppingBag, 
-      activeBg: 'bg-bubble-50/85 text-bubble-700 border-bubble-100/80 shadow-[0_4px_12px_rgba(14,165,233,0.1)]', 
-      hoverBg: 'hover:bg-bubble-50/40 hover:text-bubble-700', 
-      iconBg: 'bg-gradient-to-tr from-sky-400 to-indigo-500 text-white shadow-sm shadow-sky-200', 
-      iconColor: 'text-bubble-700 bg-bubble-50' 
-    },
-    { 
-      name: t('about'), 
-      path: '/about', 
-      icon: Info, 
-      activeBg: 'bg-emerald-50/85 text-emerald-700 border-emerald-100/80 shadow-[0_4px_12px_rgba(16,185,129,0.1)]', 
-      hoverBg: 'hover:bg-emerald-50/40 hover:text-emerald-600', 
-      iconBg: 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-200', 
-      iconColor: 'text-emerald-500 bg-emerald-50' 
-    },
-    { 
-      name: t('contact'), 
-      path: '/contact', 
-      icon: Mail, 
-      activeBg: 'bg-sunny-50/85 text-amber-700 border-amber-100/80 shadow-[0_4px_12px_rgba(245,158,11,0.1)]', 
-      hoverBg: 'hover:bg-sunny-50/40 hover:text-sunny-700', 
-      iconBg: 'bg-gradient-to-tr from-sunny-500 to-grape-500 text-white shadow-sm shadow-amber-200', 
-      iconColor: 'text-sunny-600 bg-sunny-50' 
-    },
-  ];
-
-  const supportItems = [
-    { 
-      name: t('faq'), 
-      path: '/faq', 
-      icon: HelpCircle, 
-      activeBg: 'bg-grape-50/85 text-indigo-700 border-indigo-100/80 shadow-[0_4px_12px_rgba(99,102,241,0.1)]', 
-      hoverBg: 'hover:bg-grape-50/40 hover:text-grape-700', 
-      iconBg: 'bg-gradient-to-tr from-indigo-400 to-bubble-500 text-white shadow-sm shadow-indigo-200', 
-      iconColor: 'text-grape-700 bg-grape-50' 
-    },
-    { 
-      name: t('shippingReturns'), 
-      path: '/shipping-returns', 
-      icon: Truck, 
-      activeBg: 'bg-emerald-50/85 text-emerald-700 border-emerald-100/80 shadow-[0_4px_12px_rgba(16,185,129,0.1)]', 
-      hoverBg: 'hover:bg-emerald-50/40 hover:text-emerald-600', 
-      iconBg: 'bg-gradient-to-tr from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-200', 
-      iconColor: 'text-emerald-500 bg-emerald-50' 
-    },
-  ];
-
-  const authItems = currentUser ? [
-    { 
-      name: t('profile'), 
-      path: '/profile', 
-      icon: UserCircle, 
-      activeBg: 'bg-grape-50/85 text-indigo-700 border-indigo-100/80 shadow-[0_4px_12px_rgba(99,102,241,0.1)]', 
-      hoverBg: 'hover:bg-grape-50/40 hover:text-grape-700', 
-      iconBg: 'bg-gradient-to-tr from-indigo-400 to-purple-500 text-white shadow-sm shadow-indigo-200', 
-      iconColor: 'text-grape-700 bg-grape-50' 
-    },
-    { 
-      name: t('wishlist'), 
-      path: '/wishlist', 
-      icon: Heart, 
-      activeBg: 'bg-candy-50/85 text-candy-800 border-candy-100/80 shadow-[0_4px_12px_rgba(236,72,153,0.1)]', 
-      hoverBg: 'hover:bg-candy-50/40 hover:text-candy-700', 
-      iconBg: 'bg-gradient-to-tr from-candy-400 to-candy-500 text-white shadow-sm shadow-candy-200', 
-      iconColor: 'text-candy-700 bg-candy-50' 
-    },
-    { 
-      name: t('myOrders'), 
-      path: '/my-orders', 
-      icon: Package, 
-      activeBg: 'bg-violet-50/85 text-violet-700 border-violet-100/80 shadow-[0_4px_12px_rgba(139,92,246,0.1)]', 
-      hoverBg: 'hover:bg-violet-50/40 hover:text-violet-600', 
-      iconBg: 'bg-gradient-to-tr from-violet-400 to-fuchsia-500 text-white shadow-sm shadow-violet-200', 
-      iconColor: 'text-violet-500 bg-violet-50' 
-    },
-  ] : [
-    { 
-      name: t('signIn'), 
-      path: '/login', 
-      icon: LogIn, 
-      activeBg: 'bg-teal-50/85 text-teal-700 border-teal-100/80 shadow-[0_4px_12px_rgba(20,184,166,0.1)]', 
-      hoverBg: 'hover:bg-teal-50/40 hover:text-teal-600', 
-      iconBg: 'bg-gradient-to-tr from-teal-400 to-cyan-500 text-white shadow-sm shadow-teal-200', 
-      iconColor: 'text-teal-500 bg-teal-50' 
-    },
-  ];
-
-  const canSeePos = currentUser && (isAdminRole(currentUser.role) || isCashierRole(currentUser.role));
-  const canSeeAdmin = currentUser && isAdminRole(currentUser.role);
-
-  const adminItems = [
-    ...(canSeePos ? [{ 
-      name: t('pos'), 
-      path: '/pos', 
-      icon: MonitorSmartphone, 
-      activeBg: 'bg-orange-50/85 text-orange-700 border-orange-100/80 shadow-[0_4px_12px_rgba(249,115,22,0.1)]', 
-      hoverBg: 'hover:bg-orange-50/40 hover:text-orange-600', 
-      iconBg: 'bg-gradient-to-tr from-sunny-500 to-orange-500 text-white shadow-sm shadow-orange-200', 
-      iconColor: 'text-orange-500 bg-orange-50' 
-    }] : []),
-    ...(canSeeAdmin ? [{ 
-      name: t('admin'), 
-      path: '/admin', 
-      icon: Shield, 
-      activeBg: 'bg-red-50/85 text-red-700 border-red-100/80 shadow-[0_4px_12px_rgba(239,68,68,0.1)]', 
-      hoverBg: 'hover:bg-red-50/40 hover:text-red-600', 
-      iconBg: 'bg-gradient-to-tr from-red-400 to-candy-600 text-white shadow-sm shadow-candy-200', 
-      iconColor: 'text-red-500 bg-red-50' 
-    }] : [])
-  ];
-
-  const isActive = (path: string) => location.pathname === path;
 
   return (
     <>
-      {/* Backdrop */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-40 transition-opacity duration-300"
+        <div
+          className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm z-[120] transition-opacity"
           onClick={onClose}
         />
       )}
 
-      {/* Sidebar Panel */}
-      <div 
-        dir={language === 'ar' || language === 'ku' ? 'rtl' : 'ltr'}
-        className={`fixed inset-y-0 ${language === 'ar' || language === 'ku' ? 'right-0' : 'left-0'} w-[290px] bg-white shadow-2xl z-50 transform transition-transform duration-500 cubic-bezier(0.175, 0.885, 0.32, 1.275) ${
-          isOpen 
-            ? 'translate-x-0' 
-            : (language === 'ar' || language === 'ku' ? 'translate-x-full' : '-translate-x-full')
-        } flex flex-col ${language === 'ar' || language === 'ku' ? 'rounded-l-2xl text-right font-arabic' : 'rounded-r-2xl text-left'} overflow-hidden`}
+      <aside
+        dir={isRTL ? 'rtl' : 'ltr'}
+        aria-hidden={!isOpen}
+        className={`fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} w-[300px] max-w-[86vw] bg-white shadow-2xl z-[130]
+          flex flex-col transition-transform duration-400 ease-out
+          ${isOpen ? 'translate-x-0' : isRTL ? 'translate-x-full' : '-translate-x-full'}
+          ${isRTL ? 'font-arabic text-right' : 'text-left'}`}
       >
-        {/* Playful Colorful Header */}
-        <div className="flex items-center justify-between p-6 border-b border-candy-100 shrink-0 bg-gradient-to-r from-candy-50 via-amber-50 to-bubble-50 relative overflow-hidden">
-          {/* Decorative bubble backgrounds */}
-          <div className="absolute -top-6 -left-6 w-16 h-16 rounded-full bg-candy-100/40 blur-sm"></div>
-          <div className="absolute -bottom-6 right-12 w-12 h-12 rounded-full bg-bubble-100/40 blur-sm"></div>
-          
-          <Link to="/" onClick={onClose} className="flex items-center group relative z-10">
-            <img 
-              src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
-              alt={storeSettings?.store_name || "Galo Kids"} 
-              className="h-10 sm:h-12 w-auto object-contain transition-transform group-hover:scale-105 drop-shadow-sm" 
-            />
-          </Link>
-          <div className="flex items-center gap-2.5 relative z-10">
-            {currentUser && (
-              <div className="w-8 h-8 bg-gradient-to-tr from-candy-400 via-purple-400 to-sky-400 text-white rounded-xl flex items-center justify-center font-black text-xs border-2 border-white shadow-sm" title={currentUser.name || (currentUser.email && !currentUser.email.includes('@phone.user') ? currentUser.email : currentUser.phone || '')}>
-                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : '👤'}
-              </div>
+        {/* Brand row — the header's mark, repeated so the drawer reads as
+            part of the same site rather than a separate screen. */}
+        <div className="flex items-center justify-between gap-3 p-4 border-b border-slate-200/80 shrink-0">
+          <Link to="/" onClick={onClose} className="flex items-center gap-2.5 min-w-0">
+            {storeSettings?.store_logo ? (
+              <img src={storeSettings.store_logo} alt={storeName} className="w-[42px] h-[42px] rounded-2xl object-cover shrink-0" />
+            ) : (
+              <span className="w-[42px] h-[42px] rounded-2xl grid place-items-center bg-gradient-to-br from-candy-500 to-sunny-500 text-[#52182C] text-[19px] font-black shrink-0">
+                G
+              </span>
             )}
-            <button 
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-candy-700 hover:bg-candy-50 hover:scale-110 rounded-full transition-all border border-slate-100 shadow-sm bg-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+            <span className="leading-tight min-w-0">
+              <b className="block text-base font-black text-slate-900 truncate">{storeName}</b>
+              <small className="block text-[9.5px] font-bold tracking-[0.05em] text-slate-500">GALO KIDS</small>
+            </span>
+          </Link>
+
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-xl border border-slate-200/80 grid place-items-center text-slate-500 hover:bg-candy-50 hover:text-candy-700 transition-colors cursor-pointer shrink-0"
+            aria-label={L('داخستن', 'إغلاق', 'Close')}
+          >
+            <X className="w-[18px] h-[18px]" />
+          </button>
         </div>
 
-
-
-        {/* Scrolling Nav Links */}
-        <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 scrollbar-thin">
-          {/* Menu Section */}
-          <div className="space-y-1.5">
-            {navItems.map((item) => {
-              const active = isActive(item.path) && item.path !== '/products';
-              const isProducts = item.path === '/products';
-              
-              return (
-                <div key={item.path} className="flex flex-col">
-                  <div className="flex items-center">
-                    {isProducts ? (
-                      <button
-                        onClick={() => setIsProductsExpanded(!isProductsExpanded)}
-                        className={`group flex-1 flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-black transition-all duration-300 border-2 transform active:scale-95 ${
-                          active 
-                            ? `${item.activeBg} border-transparent` 
-                            : `text-slate-600 ${item.hoverBg} border-transparent ${language === 'ar' || language === 'ku' ? 'hover:-translate-x-1.5' : 'hover:translate-x-1.5'}`
-                        }`}
-                      >
-                        <div className="flex items-center gap-3.5">
-                          <div className={`p-2 rounded-xl transition-all duration-300 ${
-                            active 
-                              ? `${item.iconBg} scale-110 rotate-6` 
-                              : `bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:scale-110 group-hover:-rotate-3`
-                          }`}>
-                            <item.icon className="w-5 h-5" />
-                          </div>
-                          <span className="tracking-wide">{item.name}</span>
-                        </div>
-                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isProductsExpanded ? 'rotate-180' : ''}`} />
-                      </button>
-                    ) : (
-                      <Link
-                        to={item.path}
-                        onClick={onClose}
-                        className={`group flex-1 flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-black transition-all duration-300 border-2 transform active:scale-95 ${
-                          active 
-                            ? `${item.activeBg} border-transparent` 
-                            : `text-slate-600 ${item.hoverBg} border-transparent ${language === 'ar' || language === 'ku' ? 'hover:-translate-x-1.5' : 'hover:translate-x-1.5'}`
-                        }`}
-                      >
-                        <div className={`p-2 rounded-xl transition-all duration-300 ${
-                          active 
-                            ? `${item.iconBg} scale-110 rotate-6` 
-                            : `bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:scale-110 group-hover:-rotate-3`
-                        }`}>
-                          <item.icon className="w-5 h-5" />
-                        </div>
-                        <span className="tracking-wide">{item.name}</span>
-                      </Link>
-                    )}
-                  </div>
-                  
-                  {isProducts && (
-                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isProductsExpanded ? 'max-h-[500px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-                      <div className={`flex flex-col gap-1.5 px-2 ${language === 'ar' || language === 'ku' ? 'mr-4 border-r-2 border-slate-100' : 'ml-4 border-l-2 border-slate-100'}`}>
-                        <Link 
-                          to="/products" 
-                          onClick={onClose} 
-                          className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-bubble-700 hover:bg-bubble-50 transition-all"
-                        >
-                          <div className="p-1.5 rounded-lg bg-slate-50 text-slate-400 group-hover:bg-bubble-100 group-hover:text-bubble-700 transition-colors">
-                            <LayoutGrid className="w-4 h-4" />
-                          </div>
-                          <span>{language === 'ku' ? 'هەموو پۆلەکان' : language === 'ar' ? 'جميع الأقسام' : 'All Categories'}</span>
-                        </Link>
-                        {categories.filter(c => c).map((category) => (
-                          <Link 
-                            key={category.id}
-                            to={`/products?category=${category.slug || category?.name?.toLowerCase()}`} 
-                            onClick={onClose} 
-                            className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-bubble-700 hover:bg-bubble-50 transition-all"
-                          >
-                            <div className="p-1.5 rounded-lg bg-slate-50 text-slate-400 group-hover:bg-bubble-100 group-hover:text-bubble-700 transition-colors">
-                              <CategoryIcon name={category.icon} className="w-4 h-4" />
-                            </div>
-                            <span>
-                              {language === 'ku' ? (category.nameKu || category.name) : language === 'ar' ? (category.nameAr || category.name) : category.name}
-                            </span>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+        {currentUser && (
+          <div className="mx-4 mt-4 flex items-center gap-3 rounded-2xl bg-slate-50 border border-slate-200/70 px-3 py-2.5">
+            <span className="w-9 h-9 rounded-xl grid place-items-center bg-gradient-to-br from-candy-500 to-grape-500 text-white text-sm font-black shrink-0">
+              {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : '?'}
+            </span>
+            <span className="min-w-0">
+              <b className="block text-[13px] font-black text-slate-900 truncate">{currentUser.name}</b>
+              <small className="block text-[11px] font-bold text-slate-500 truncate">
+                {currentUser.phone || (currentUser.email && !currentUser.email.includes('@phone.user') ? currentUser.email : storeName)}
+              </small>
+            </span>
           </div>
+        )}
 
-          {/* Support Section */}
-          <div className="space-y-1.5">
-            <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
-              <span>🌈</span> {t('helpSupport')}
-            </h3>
-            {supportItems.map((item) => {
-              const active = isActive(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={onClose}
-                  className={`group flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-black transition-all duration-300 border-2 transform active:scale-95 ${
-                    active 
-                      ? `${item.activeBg} border-transparent` 
-                      : `text-slate-600 ${item.hoverBg} border-transparent ${language === 'ar' || language === 'ku' ? 'hover:-translate-x-1.5' : 'hover:translate-x-1.5'}`
-                  }`}
-                >
-                  <div className={`p-2 rounded-xl transition-all duration-300 ${
-                    active 
-                      ? `${item.iconBg} scale-110 rotate-6` 
-                      : `bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:scale-110 group-hover:-rotate-3`
-                  }`}>
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <span className="tracking-wide">{item.name}</span>
-                </Link>
-              );
-            })}
-          </div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          <div>
+            <Eyebrow>{L('گەڕان', 'التصفح', 'Browse')}</Eyebrow>
+            <div className="space-y-1">
+              <Row item={browse[0]} />
 
-          {/* Account Section */}
-          <div className="space-y-1.5">
-            <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
-              <span>🧸</span> {t('mySpace')}
-            </h3>
-            {authItems.map((item) => {
-              const active = isActive(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={onClose}
-                  className={`group flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-black transition-all duration-300 border-2 transform active:scale-95 ${
-                    active 
-                      ? `${item.activeBg} border-transparent` 
-                      : `text-slate-600 ${item.hoverBg} border-transparent ${language === 'ar' || language === 'ku' ? 'hover:-translate-x-1.5' : 'hover:translate-x-1.5'}`
-                  }`}
-                >
-                  <div className={`p-2 rounded-xl transition-all duration-300 ${
-                    active 
-                      ? `${item.iconBg} scale-110 rotate-6` 
-                      : `bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:scale-110 group-hover:-rotate-3`
-                  }`}>
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <span className="tracking-wide">{item.name}</span>
-                </Link>
-              );
-            })}
-          </div>
+              {/* Products expands into the shop's real categories. */}
+              <button
+                onClick={() => setCategoriesOpen(v => !v)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-bold transition-colors cursor-pointer ${
+                  isActive('/products') ? 'bg-candy-50 text-candy-700' : 'text-slate-700 hover:bg-slate-50'
+                }`}
+                aria-expanded={categoriesOpen}
+              >
+                <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${
+                  isActive('/products') ? 'bg-candy-500 text-white' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  <ShoppingBag className="w-[18px] h-[18px]" />
+                </span>
+                <span className="flex-1 text-start">{t('products')}</span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${categoriesOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-          {/* Management Section */}
-          {isStaffOrAdmin && (
-            <div className="space-y-1.5">
-              <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
-                <span>⚡</span> {t('staffSpace')}
-              </h3>
-              {adminItems.map((item) => {
-                const active = isActive(item.path);
-                return (
+              {categoriesOpen && (
+                <div className="ps-4 space-y-0.5 pb-1">
                   <Link
-                    key={item.path}
-                    to={item.path}
+                    to="/products"
                     onClick={onClose}
-                    className={`group flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-black transition-all duration-300 border-2 transform active:scale-95 ${
-                      active 
-                        ? `${item.activeBg} border-transparent` 
-                        : `text-slate-600 ${item.hoverBg} border-transparent ${language === 'ar' || language === 'ku' ? 'hover:-translate-x-1.5' : 'hover:translate-x-1.5'}`
-                    }`}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold text-slate-600 hover:bg-candy-50 hover:text-candy-700 transition-colors"
                   >
-                    <div className={`p-2 rounded-xl transition-all duration-300 ${
-                      active 
-                        ? `${item.iconBg} scale-110 rotate-6` 
-                        : `bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:scale-110 group-hover:-rotate-3`
-                    }`}>
-                      <item.icon className="w-5 h-5" />
-                    </div>
-                    <span className="tracking-wide">{item.name}</span>
+                    <Sparkles className="w-4 h-4 text-candy-500" />
+                    {L('هەموو بەرهەمەکان', 'كل المنتجات', 'All products')}
                   </Link>
-                );
-              })}
+                  {(categories || []).map((c: any) => (
+                    <Link
+                      key={c.id}
+                      to={`/products?category=${c.id}`}
+                      onClick={onClose}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold text-slate-600 hover:bg-candy-50 hover:text-candy-700 transition-colors"
+                    >
+                      <CategoryIcon name={c.icon} className="w-4 h-4 text-slate-400" />
+                      {categoryName(c)}
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {browse.slice(1).map(item => <Row key={item.path} item={item} />)}
+            </div>
+          </div>
+
+          <div>
+            <Eyebrow>{L('یارمەتی', 'المساعدة', 'Help')}</Eyebrow>
+            <div className="space-y-1">
+              {support.map(item => <Row key={item.path} item={item} />)}
+            </div>
+          </div>
+
+          <div>
+            <Eyebrow>{L('هەژماری من', 'حسابي', 'My account')}</Eyebrow>
+            <div className="space-y-1">
+              {account.map(item => <Row key={item.path} item={item} />)}
+            </div>
+          </div>
+
+          {backOffice.length > 0 && currentUser && isStaffOrAdminRole(currentUser.role) && (
+            <div>
+              <Eyebrow>{t('staffSpace')}</Eyebrow>
+              <div className="space-y-1">
+                {backOffice.map(item => <Row key={item.path} item={item} />)}
+              </div>
             </div>
           )}
-          {/* Settings Section */}
-          <div className="space-y-1.5">
-            <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1">
-              <span>⚙️</span> {t('settings') || 'Settings'}
-            </h3>
-            
-            {/* Language Switcher */}
-            <div className="px-4 py-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
-              <span className="text-sm font-black text-slate-700 tracking-wide">{t('language')}</span>
-              <LanguageDropdown />
-            </div>
-
-            {/* Logout Link */}
-            {currentUser && (
-              <button
-                onClick={() => {
-                  logout();
-                  onClose();
-                }}
-                className={`w-full group flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-black transition-all duration-300 border-2 transform active:scale-95 text-slate-600 hover:bg-candy-50/40 hover:text-candy-700 border-transparent ${language === 'ar' || language === 'ku' ? 'hover:-translate-x-1.5' : 'hover:translate-x-1.5'}`}
-              >
-                <div className="p-2 rounded-xl transition-all duration-300 bg-slate-50 text-slate-400 group-hover:bg-candy-100 group-hover:text-candy-700 group-hover:scale-110 group-hover:rotate-12">
-                  <LogOut className="w-5 h-5" />
-                </div>
-                <span className="tracking-wide text-start">{t('logout')}</span>
-              </button>
-            )}
-          </div>
         </div>
-      </div>
+
+        {/* Footer: language, then the way out. */}
+        <div className="border-t border-slate-200/80 p-4 space-y-2 shrink-0">
+          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200/70">
+            <span className="text-[13px] font-black text-slate-700">{t('language')}</span>
+            <LanguageDropdown />
+          </div>
+
+          {currentUser && (
+            <button
+              onClick={() => { logout(); onClose(); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-bold text-slate-700 hover:bg-candy-50 hover:text-candy-700 transition-colors cursor-pointer"
+            >
+              <span className="w-9 h-9 rounded-xl grid place-items-center bg-slate-100 text-slate-500 shrink-0">
+                <LogOut className="w-[18px] h-[18px]" />
+              </span>
+              <span>{t('logout')}</span>
+            </button>
+          )}
+        </div>
+      </aside>
     </>
   );
 };
-

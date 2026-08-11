@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, ShoppingBag, Heart, Search, ShoppingCart, User } from 'lucide-react';
+import { Home, LayoutGrid, ShoppingBag, Heart, User } from 'lucide-react';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -9,91 +9,80 @@ interface MobileBottomNavProps {
   onOpenSearch?: () => void;
 }
 
-export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenCart, onOpenSearch }) => {
+/**
+ * The phone tab bar: five labelled destinations.
+ *
+ * The active tab is marked by a short bar along the top edge rather than a
+ * filled shape, so the row keeps its rhythm and the label stays readable.
+ * It hides at lg, where the header's own navigation takes over.
+ */
+export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenCart }) => {
   const location = useLocation();
   const { cart, wishlist, currentUser } = useStore();
   const { t, language } = useLanguage();
-  const isArabicOrKurdish = language === 'ar' || language === 'ku';
+  const L = (ku: string, ar: string, en: string) =>
+    language === 'ku' ? ku : language === 'ar' ? ar : en;
 
-  const cartItemsCount = (cart || []).filter(Boolean).reduce((acc, item) => acc + (item?.quantity || 0), 0);
+  const cartCount = (cart || []).filter(Boolean).reduce((acc, item) => acc + (item?.quantity || 0), 0);
   const wishlistCount = (wishlist || []).length;
 
-  const isActive = (path: string) => {
-    if (path === '/' && location.pathname === '/') return true;
-    if (path !== '/' && location.pathname.startsWith(path)) return true;
-    return false;
-  };
+  const isActive = (path: string) =>
+    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+
+  const tab = (on: boolean) =>
+    `relative flex flex-col items-center gap-[3px] pt-[9px] pb-[11px] px-0.5 text-[10.5px] font-extrabold transition-colors ${
+      on ? 'text-candy-700' : 'text-slate-500'
+    }`;
+
+  /** The short pink rule that marks the active tab. */
+  const marker = (on: boolean) =>
+    on ? <span className="absolute top-0 inset-x-[26%] h-[3px] rounded-b-[5px] bg-candy-500" /> : null;
+
+  const badge = (n: number) =>
+    n > 0 ? (
+      <span className="absolute top-[4px] start-[27%] min-w-[17px] h-[17px] px-1 rounded-full bg-candy-500 text-white text-[9.5px] font-black grid place-items-center font-sans">
+        {n}
+      </span>
+    ) : null;
 
   return (
-    <div className={`md:hidden fixed bottom-0 left-0 right-0 w-full z-40 bg-white/95 backdrop-blur-xl text-slate-700 rounded-none px-2 py-2.5 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] flex items-center justify-between border-t border-slate-200/90 ${isArabicOrKurdish ? 'font-arabic' : 'font-sans'}`}>
-      <Link
-        to="/"
-        className={`flex items-center justify-center flex-1 py-1 rounded-xl transition-all duration-200 relative active:scale-95 ${
-          isActive('/') 
-            ? 'text-candy-700' 
-            : 'text-slate-500 hover:text-slate-900'
-        }`}
-        title={t('home') || 'سەرەکی'}
-        aria-label={t('home') || 'سەرەکی'}
-      >
-        <Home className="w-5.5 h-5.5 stroke-[2.2]" />
+    <nav
+      className="lg:hidden fixed inset-x-0 bottom-0 z-[55] grid grid-cols-5 bg-white/97 backdrop-blur-xl border-t border-slate-200/80 font-arabic"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      <Link to="/" className={tab(isActive('/'))}>
+        {marker(isActive('/'))}
+        <Home className="w-[21px] h-[21px]" />
+        {t('home')}
       </Link>
 
-      <Link
-        to="/products"
-        className={`flex items-center justify-center flex-1 py-1 rounded-xl transition-all duration-200 relative active:scale-95 ${
-          isActive('/products') 
-            ? 'text-candy-700' 
-            : 'text-slate-500 hover:text-slate-900'
-        }`}
-        title={t('products') || 'بەرهەم'}
-        aria-label={t('products') || 'بەرهەم'}
-      >
-        <ShoppingBag className="w-5.5 h-5.5 stroke-[2.2]" />
+      <Link to="/products" className={tab(isActive('/products'))}>
+        {marker(isActive('/products'))}
+        <LayoutGrid className="w-[21px] h-[21px]" />
+        {L('بەرهەم', 'المنتجات', 'Shop')}
       </Link>
 
-      <button
-        type="button"
-        onClick={onOpenSearch}
-        className="flex items-center justify-center flex-1 py-1 rounded-xl text-slate-500 hover:text-slate-900 transition-all active:scale-95 cursor-pointer"
-        title={t('search') || 'گەڕان'}
-        aria-label={t('search') || 'گەڕان'}
-      >
-        <Search className="w-5.5 h-5.5 stroke-[2.2]" />
+      <button type="button" onClick={onOpenCart} className={`${tab(false)} cursor-pointer`}>
+        <ShoppingBag className="w-[21px] h-[21px]" />
+        {badge(cartCount)}
+        {L('سەبەتە', 'السلة', 'Basket')}
       </button>
 
-      <Link
-        to="/wishlist"
-        className={`flex items-center justify-center flex-1 py-1 rounded-xl transition-all duration-200 relative active:scale-95 ${
-          isActive('/wishlist') 
-            ? 'text-candy-700' 
-            : 'text-slate-500 hover:text-slate-900'
-        }`}
-        title={t('wishlist') || 'دڵخواز'}
-        aria-label={t('wishlist') || 'دڵخواز'}
-      >
-        <div className="relative">
-          <Heart className={`w-5.5 h-5.5 stroke-[2.2] ${isActive('/wishlist') ? 'fill-candy-600' : ''}`} />
-          {wishlistCount > 0 && (
-            <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] px-1 bg-candy-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white shadow-xs">
-              {wishlistCount}
-            </span>
-          )}
-        </div>
+      <Link to="/wishlist" className={tab(isActive('/wishlist'))}>
+        {marker(isActive('/wishlist'))}
+        <Heart className={`w-[21px] h-[21px] ${isActive('/wishlist') ? 'fill-candy-500' : ''}`} />
+        {badge(wishlistCount)}
+        {L('دڵخواز', 'المفضلة', 'Saved')}
       </Link>
 
       <Link
-        to={currentUser ? "/profile" : "/login"}
-        className={`flex items-center justify-center flex-1 py-1 rounded-xl transition-all duration-200 relative active:scale-95 ${
-          isActive('/profile') || isActive('/login')
-            ? 'text-candy-700' 
-            : 'text-slate-500 hover:text-slate-900'
-        }`}
-        title={currentUser ? (t('profile') || 'پڕۆفایل') : (t('signIn') || 'چوونەژوور')}
-        aria-label={currentUser ? (t('profile') || 'پڕۆفایل') : (t('signIn') || 'چوونەژوور')}
+        to={currentUser ? '/profile' : '/login'}
+        className={tab(isActive('/profile') || isActive('/login'))}
       >
-        <User className="w-5.5 h-5.5 stroke-[2.2]" />
+        {marker(isActive('/profile') || isActive('/login'))}
+        <User className="w-[21px] h-[21px]" />
+        {L('هەژمار', 'حسابي', 'Account')}
       </Link>
-    </div>
+    </nav>
   );
 };

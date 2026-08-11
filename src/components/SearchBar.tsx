@@ -64,9 +64,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({ isMobileModalOpen, onClose
 
   return (
     <>
-      {/* Desktop Vastraa Inline Pill Search Bar */}
-      <div ref={wrapperRef} className="relative hidden sm:block w-56 md:w-64 lg:w-72 font-arabic">
-        <form onSubmit={handleSearch} className="relative">
+      {/* Desktop search pill — icon leads, input fills the rest. */}
+      <div ref={wrapperRef} className="relative hidden md:block min-w-[230px] lg:w-[260px] font-arabic">
+        <form
+          onSubmit={handleSearch}
+          className="flex items-center gap-2 bg-[#F6F5FA] border border-slate-200/80 rounded-full px-4 py-2.5 focus-within:border-candy-300 focus-within:bg-white transition-colors"
+        >
+          <button type="submit" className="text-slate-500 hover:text-candy-700 transition-colors cursor-pointer shrink-0" aria-label={t('search') || 'Search'}>
+            <Search className="w-[17px] h-[17px]" />
+          </button>
           <input
             type="text"
             value={query}
@@ -75,12 +81,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({ isMobileModalOpen, onClose
               setIsOpen(true);
             }}
             onFocus={() => setIsOpen(true)}
-            placeholder={language === 'ku' ? 'گەڕان بۆ پۆشاک، یاری...' : language === 'ar' ? 'البحث عن الملابس والألعاب...' : 'Search clothes, toys...'}
-            className="w-full bg-slate-100/90 text-slate-800 text-xs font-bold rounded-full pl-4 rtl:pl-10 pr-10 rtl:pr-4 py-2.5 transition-all border border-slate-200/60 focus:outline-none focus:ring-2 focus:ring-candy-400 focus:bg-white placeholder:text-slate-400 shadow-2xs"
+            placeholder={language === 'ku' ? 'بگەڕێ بۆ کراس، پێڵاو، کڵاو…' : language === 'ar' ? 'ابحث عن فستان، حذاء، قبعة…' : 'Search dresses, shoes, hats…'}
+            className="w-full min-w-0 bg-transparent text-slate-800 text-[13.5px] font-bold border-0 outline-none placeholder:text-slate-500 placeholder:font-semibold"
           />
-          <button type="submit" className="absolute right-3 rtl:right-auto rtl:left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-candy-700 transition-colors cursor-pointer">
-            <Search className="w-4 h-4" />
-          </button>
         </form>
 
         {isOpen && history.length > 0 && (
