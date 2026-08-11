@@ -179,23 +179,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               setTimeout(() => setAdded(false), 1500);
             }, 600);
           }}
-          className={`flex-1 min-w-0 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer active:scale-95 ${
+          title={t('addToCart') || 'سەبەتە'}
+          aria-label={t('addToCart') || 'سەبەتە'}
+          className={`shrink-0 sm:flex-1 sm:min-w-0 w-9 h-9 sm:w-auto sm:h-auto sm:py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer active:scale-95 ${
             totalStock === 0
               ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
               : 'bg-ink-900 hover:bg-candy-500 text-white'
           }`}
         >
           {isAdding ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <Loader2 className="w-4 h-4 sm:w-3.5 sm:h-3.5 animate-spin" />
           ) : added ? (
             <>
-              <Check className="w-3.5 h-3.5 text-white" />
-              <span>{t('added') || 'زیادکرا'}</span>
+              <Check className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-white" />
+              {/* The label is dropped on a phone — the card is half the screen
+                  wide there, and the text wrapped over the picture. */}
+              <span className="hidden sm:inline">{t('added') || 'زیادکرا'}</span>
             </>
           ) : (
             <>
-              <ShoppingCart className="w-3.5 h-3.5" />
-              <span>{t('addToCart') || 'سەبەتە'}</span>
+              <ShoppingCart className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">{t('addToCart') || 'سەبەتە'}</span>
             </>
           )}
         </button>

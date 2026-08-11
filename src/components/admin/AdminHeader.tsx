@@ -6,6 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store';
 import { LanguageDropdown } from '../LanguageDropdown';
 import { getRoleInfo } from '../../utils/roles';
+import { StoreLogo } from '../StoreLogo';
 
 export interface AdminHeaderProps {
   onOpenMobileMenu: () => void;
@@ -22,7 +23,6 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 }) => {
   const { language } = useLanguage();
   const L = (key: string) => adminTr(key, language);
-  const isRTL = language === 'ar' || language === 'ku';
   const navigate = useNavigate();
   const { storeSettings, logout, currentUser: storeUser } = useStore();
   const savedUserStr = localStorage.getItem('kidskart_user');
@@ -31,24 +31,20 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
   return (
     <header className="w-full relative z-50 bg-white/70 backdrop-blur-xl border border-white/80 shadow-xs rounded-[2.5rem] px-4 sm:px-6 py-3 font-arabic mb-6 shrink-0">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         
         {/* Brand Logo & Mobile Menu Toggle Button */}
-        <div className="flex items-center justify-between w-full md:w-auto gap-3">
-          <Link to="/" title={storeSettings?.store_name || "Galo Kids"} className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
-            <img 
-              src={storeSettings?.store_logo || "/assets/galo-logo.png"} 
-              alt={storeSettings?.store_name || "Galo Kids"} 
-              className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform group-hover:scale-105" 
-            />
-            <div className="flex flex-col">
-              <span className="font-black text-xs sm:text-sm text-slate-900 tracking-tight flex items-center gap-1.5">
-                {storeSettings?.store_name || 'Galo Kids'}
-                <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-black rounded-full bg-slate-900 text-white shadow-2xs">
+        <div className="flex items-center justify-between w-full md:w-auto gap-3 min-w-0">
+          <Link to="/" title={storeSettings?.store_name || "Galo Kids"} className="flex items-center gap-2.5 sm:gap-3 group min-w-0">
+            <StoreLogo className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 transition-transform group-hover:scale-105" />
+            <div className="flex flex-col min-w-0">
+              <span className="font-black text-xs sm:text-sm text-slate-900 tracking-tight flex items-center gap-1.5 min-w-0">
+                <span className="truncate">{storeSettings?.store_name || 'Galo Kids'}</span>
+                <span className="px-2 py-0.5 text-[9px] sm:text-[10px] font-black rounded-full bg-slate-900 text-white shadow-2xs shrink-0">
                   {L("Admin Panel")}
                 </span>
               </span>
-              <span className="text-[9px] sm:text-[10px] font-bold text-slate-500">
+              <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 truncate">
                 {language === 'ku' ? 'تەختەی بەڕێوەبەرایەتی' : language === 'ar' ? 'لوحة التحكم الإدارية' : 'Management Dashboard'}
               </span>
             </div>
@@ -65,21 +61,24 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         </div>
 
         {/* Right: Integrated Control Widgets */}
-        <div className="flex flex-wrap items-center gap-2 py-1 w-full md:w-auto shrink-0 justify-start md:justify-end relative z-10">
+        {/* One row that stays a row. On a phone the labels drop away rather
+            than wrapping the controls onto a second and third line. */}
+        <div className="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end relative z-10">
 
           {/* Quick POS Terminal Switcher Button */}
           <button
             onClick={() => navigate('/pos')}
-            className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            className="p-2 sm:px-3.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer shrink-0"
+            title={L("POS Terminal")}
           >
-            <ShoppingCart className="w-3.5 h-3.5 text-indigo-400" />
-            <span>{L("POS Terminal")}</span>
+            <ShoppingCart className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">{L("POS Terminal")}</span>
           </button>
 
           {/* Home Link */}
           <Link
             to="/"
-            className="p-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95"
+            className="p-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
             title="Home"
           >
             <Home className="w-4 h-4" />
@@ -109,7 +108,11 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
                     className="fixed inset-0 z-40" 
                     onClick={() => setIsUserDropdownOpen(false)} 
                   />
-                  <div className={`absolute top-full mt-2 ${isRTL ? 'left-0' : 'right-0'} w-56 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-3xl shadow-2xl p-2.5 z-[99999] animate-in fade-in zoom-in-95 duration-100 space-y-1 font-arabic`}>
+                  {/* `end-0` rather than a left/right pair: the panel hangs from
+                      the trigger's inline-end edge in both directions. The old
+                      physical `left-0` sent it off the side of the screen in
+                      Kurdish and Arabic. */}
+                  <div className="absolute top-full mt-2 end-0 w-56 max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-xl border border-slate-100 rounded-3xl shadow-2xl p-2.5 z-[99999] animate-in fade-in zoom-in-95 duration-100 space-y-1 font-arabic">
                     <div className="px-3 py-2.5 border-b border-slate-100 mb-1">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs font-black text-slate-900 truncate">{currentUser.name || currentUser.username || 'Admin User'}</p>

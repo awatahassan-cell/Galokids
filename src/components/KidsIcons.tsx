@@ -1,23 +1,22 @@
 import React from 'react';
 import {
-  PiHouseSimpleDuotone, PiStorefrontDuotone, PiBasketDuotone, PiHeartDuotone, PiUserDuotone,
-  PiTShirtDuotone, PiDressDuotone, PiSneakerDuotone, PiBaseballCapDuotone, PiSockDuotone,
-  PiPantsDuotone, PiHoodieDuotone, PiPuzzlePieceDuotone, PiBabyDuotone, PiHandbagDuotone,
-  PiGiftDuotone, PiInfoDuotone, PiEnvelopeSimpleDuotone, PiQuestionDuotone, PiTruckDuotone,
-  PiPackageDuotone, PiSignInDuotone, PiSignOutDuotone, PiShieldCheckDuotone,
-  PiCashRegisterDuotone, PiSparkleDuotone, PiMoneyWavyDuotone, PiCreditCardDuotone,
-  PiArrowUUpLeftDuotone, PiYarnDuotone, PiRulerDuotone, PiFireSimpleDuotone, PiBalloonDuotone,
-  PiStarDuotone, PiLightningDuotone, PiDeviceMobileDuotone,
-} from 'react-icons/pi';
-import type { IconType } from 'react-icons';
+  House, Store, ShoppingBasket, Heart, User,
+  Shirt, Footprints, Crown, Backpack, Baby, Gift, ToyBrick, SwatchBook,
+  Info, Mail, CircleHelp, Truck, Package, LogIn, LogOut, ShieldCheck, Sparkles,
+  Banknote, CreditCard, Undo2, Ruler, Flame, PartyPopper, Star, Zap, Smartphone,
+  type LucideIcon,
+} from 'lucide-react';
 
 /**
- * The shop's icon set: Phosphor Duotone, wearing the brand palette.
+ * The shop's icon set: Lucide, wearing the brand palette.
  *
- * Duotone draws each glyph as a solid shape at low opacity with the detail
- * stroked over it, both in `currentColor` — so setting one colour gives the
- * pastel-fill-plus-darker-line look the storefront uses, from a maintained
- * library rather than paths drawn by hand.
+ * Lucide draws a single even stroke, which is what keeps a row of icons
+ * looking like one family. Colour carries the meaning instead of weight: each
+ * icon has a standing tint from the brand palette, and callers can override it
+ * where a section has its own accent.
+ *
+ * Imported by name, one icon at a time — a namespace import here would defeat
+ * tree-shaking and drag the whole package into the bundle.
  *
  * They are icons, not decoration, so they take a label from the caller: pass
  * `title` when the icon stands alone, and leave it off when a text label sits
@@ -33,47 +32,49 @@ export type KidsIconName =
   | 'cash' | 'card' | 'return' | 'fabric' | 'ruler' | 'flame' | 'balloon'
   | 'star' | 'bolt' | 'phone';
 
-const GLYPHS: Record<KidsIconName, IconType> = {
-  home: PiHouseSimpleDuotone,
-  shop: PiStorefrontDuotone,
-  basket: PiBasketDuotone,
-  heart: PiHeartDuotone,
-  user: PiUserDuotone,
+const GLYPHS: Record<KidsIconName, LucideIcon> = {
+  home: House,
+  shop: Store,
+  basket: ShoppingBasket,
+  heart: Heart,
+  user: User,
 
-  shirt: PiTShirtDuotone,
-  dress: PiDressDuotone,
-  shoes: PiSneakerDuotone,
-  hat: PiBaseballCapDuotone,
-  socks: PiSockDuotone,
-  trousers: PiPantsDuotone,
-  jacket: PiHoodieDuotone,
+  // Lucide's clothing set is small, so a few of these are the nearest
+  // sensible stand-in rather than the garment itself.
+  shirt: Shirt,
+  dress: Shirt,
+  shoes: Footprints,
+  hat: Crown,
+  socks: Footprints,
+  trousers: Shirt,
+  jacket: Shirt,
 
-  toy: PiPuzzlePieceDuotone,
-  baby: PiBabyDuotone,
-  bag: PiHandbagDuotone,
-  gift: PiGiftDuotone,
+  toy: ToyBrick,
+  baby: Baby,
+  bag: Backpack,
+  gift: Gift,
 
-  info: PiInfoDuotone,
-  mail: PiEnvelopeSimpleDuotone,
-  help: PiQuestionDuotone,
-  truck: PiTruckDuotone,
-  box: PiPackageDuotone,
-  login: PiSignInDuotone,
-  logout: PiSignOutDuotone,
-  shield: PiShieldCheckDuotone,
-  register: PiCashRegisterDuotone,
-  sparkle: PiSparkleDuotone,
+  info: Info,
+  mail: Mail,
+  help: CircleHelp,
+  truck: Truck,
+  box: Package,
+  login: LogIn,
+  logout: LogOut,
+  shield: ShieldCheck,
+  register: Store,
+  sparkle: Sparkles,
 
-  cash: PiMoneyWavyDuotone,
-  card: PiCreditCardDuotone,
-  return: PiArrowUUpLeftDuotone,
-  fabric: PiYarnDuotone,
-  ruler: PiRulerDuotone,
-  flame: PiFireSimpleDuotone,
-  balloon: PiBalloonDuotone,
-  star: PiStarDuotone,
-  bolt: PiLightningDuotone,
-  phone: PiDeviceMobileDuotone,
+  cash: Banknote,
+  card: CreditCard,
+  return: Undo2,
+  fabric: SwatchBook,
+  ruler: Ruler,
+  flame: Flame,
+  balloon: PartyPopper,
+  star: Star,
+  bolt: Zap,
+  phone: Smartphone,
 };
 
 /** The brand palette, as the single colour each duotone glyph is drawn in. */

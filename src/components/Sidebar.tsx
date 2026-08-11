@@ -108,18 +108,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   return (
     <>
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-slate-900/45 backdrop-blur-sm z-[120] transition-opacity"
-          onClick={onClose}
-        />
-      )}
+      {/* The backdrop stays mounted so it can fade both ways; unmounting it on
+          close made the drawer snap shut against a hard cut. */}
+      <div
+        onClick={onClose}
+        aria-hidden="true"
+        className={`fixed inset-0 bg-slate-900/45 backdrop-blur-sm z-[120] transition-opacity duration-300 ease-out ${
+          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      />
 
       <aside
         dir={isRTL ? 'rtl' : 'ltr'}
         aria-hidden={!isOpen}
+        // The panel stays mounted so it can animate, so it also has to stop
+        // taking focus when closed — otherwise Tab walks into an off-screen menu.
+        inert={!isOpen}
         className={`fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} w-[300px] max-w-[86vw] bg-white shadow-2xl z-[130]
-          flex flex-col transition-transform duration-400 ease-out
+          flex flex-col will-change-transform vk-drawer
           ${isOpen ? 'translate-x-0' : isRTL ? 'translate-x-full' : '-translate-x-full'}
           ${isRTL ? 'font-arabic text-right' : 'text-left'}`}
       >
