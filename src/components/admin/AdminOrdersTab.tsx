@@ -12,6 +12,10 @@ import { formatIQDLabel } from '../../utils/currency';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../../utils/colors';
 import { useStore } from '../../store';
 import { Pagination } from '../Pagination';
+import { BulkActionBar } from './BulkActionBar';
+import { BulkCheckbox } from './BulkCheckbox';
+import { useBulkSelection } from './useBulkSelection';
+import { isAdminRole } from '../../utils/roles';
 
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
@@ -53,7 +57,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   toast: propToast,
 }) => {
   const { language } = useLanguage();
-  const { refreshOrders } = useStore();
+  const { refreshOrders, bulkDelete, bulkOrderStatus, currentUser } = useStore();
   const L = (key: string) => adminTr(key, language);
   const hookConfirm = useConfirm();
   const hookToast = useToast();
@@ -172,6 +176,35 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     const start = (currentPage - 1) * itemsPerPage;
     return filteredOrders.slice(start, start + itemsPerPage);
   }, [filteredOrders, currentPage, itemsPerPage]);
+
+  // Bulk actions on the orders currently listed. Only a true admin may run
+  // them. The router already keeps everyone else out of this panel, so this
+  // check is a second line rather than the only one — and the server refuses
+  // non-admins whatever the panel decides to show.
+  const orderSelection = useBulkSelection(
+    useMemo(() => paginatedOrders.map(o => o.id!).filter(Boolean), [paginatedOrders])
+  );
+  const canBulkDelete = !!currentUser && isAdminRole(currentUser.role);
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [bulkStatusBusy, setBulkStatusBusy] = useState(false);
+
+  const applyBulkStatus = async (status: string) => {
+    if (!status) return;
+    setBulkStatusBusy(true);
+    const res = await bulkOrderStatus(orderSelection.ids, status);
+    setBulkStatusBusy(false);
+    setBulkStatus('');
+    if (res.success) {
+      orderSelection.clear();
+      toast(language === 'ku'
+        ? `${res.updated} داواکاری نوێ کرایەوە`
+        : language === 'ar'
+        ? `تم تحديث ${res.updated} طلب`
+        : `${res.updated} orders updated`);
+    } else {
+      toast(res.message || L('Something went wrong'), 'error');
+    }
+  };
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(prev => prev === orderId ? null : orderId);
@@ -326,11 +359,48 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         )}
       </div>
 
+      <BulkActionBar
+        count={orderSelection.count}
+        totalVisible={orderSelection.totalVisible}
+        onSelectAllVisible={orderSelection.selectAllVisible}
+        onClear={orderSelection.clear}
+        onDelete={async () => {
+          const res = await bulkDelete('orders', orderSelection.ids);
+          if (res.success) orderSelection.clear();
+          return res;
+        }}
+        noun={{ ku: 'داواکاری', ar: 'طلب', en: 'orders', enOne: 'order' }}
+        isAdmin={canBulkDelete}
+        extra={canBulkDelete ? (
+          <select
+            value={bulkStatus}
+            disabled={bulkStatusBusy}
+            onChange={(e) => { setBulkStatus(e.target.value); applyBulkStatus(e.target.value); }}
+            className="bg-white/10 border border-white/20 text-white text-xs font-black rounded-xl px-3 py-2 outline-none cursor-pointer disabled:opacity-50"
+          >
+            <option value="" className="text-slate-900">
+              {language === 'ku' ? 'گۆڕینی دۆخ…' : language === 'ar' ? 'تغيير الحالة…' : 'Change status…'}
+            </option>
+            {['pending', 'processing', 'shipped', 'delivered', 'cancelled'].map(st => (
+              <option key={st} value={st} className="text-slate-900">{L(st.charAt(0).toUpperCase() + st.slice(1))}</option>
+            ))}
+          </select>
+        ) : undefined}
+      />
+
       {/* Orders Table */}
       <div className="overflow-x-auto rounded-2xl border border-slate-100">
         <table className="min-w-full divide-y divide-slate-100">
           <thead className="bg-slate-50/70">
             <tr>
+              <th className="px-4 py-3 w-10">
+                <BulkCheckbox
+                  checked={orderSelection.allVisibleSelected}
+                  indeterminate={orderSelection.count > 0 && !orderSelection.allVisibleSelected}
+                  onChange={orderSelection.toggleAllVisible}
+                  label={L("Select all")}
+                />
+              </th>
               <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{L("Order ID")}</th>
               <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">{L("Customer")}</th>
               <th className="px-4 py-3 text-left rtl:text-right text-xs font-black text-slate-500 uppercase tracking-wider">
@@ -345,7 +415,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
           <tbody className="divide-y divide-slate-100 text-xs font-medium bg-white">
             {paginatedOrders.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-slate-400 font-medium">
+                <td colSpan={8} className="text-center py-10 text-slate-400 font-medium">
                   {language === 'ku' ? 'هیچ داواکارییەکی وێبسایت بەم فلتەرانە نەدۆزرایەوە' : 'No website orders found with current filters'}
                 </td>
               </tr>
@@ -358,8 +428,18 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                   <React.Fragment key={order.id || index}>
                     <tr 
                       onClick={() => toggleExpand(order.id)}
-                      className={`hover:bg-slate-50/80 transition-colors cursor-pointer ${isExpanded ? 'bg-indigo-50/30' : ''}`}
+                      className={`transition-colors cursor-pointer ${orderSelection.isSelected(order.id) ? 'bg-indigo-50/70' : isExpanded ? 'bg-indigo-50/30' : 'hover:bg-slate-50/80'}`}
                     >
+                      <td className="px-4 py-4">
+                        {order.id && (
+                          <BulkCheckbox
+                            checked={orderSelection.isSelected(order.id)}
+                            onChange={() => orderSelection.toggle(order.id)}
+                            label={String(order.id)}
+                          />
+                        )}
+                      </td>
+
                       {/* Order ID */}
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
@@ -503,7 +583,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                     {/* Accordion Expand Details */}
                     {isExpanded && (
                       <tr className="bg-slate-50/90 border-b-2 border-indigo-100">
-                        <td colSpan={7} className="p-4 sm:p-6">
+                        <td colSpan={8} className="p-4 sm:p-6">
                           <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-4">
                             {/* Top Info Bar */}
                             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 text-xs">

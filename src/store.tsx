@@ -44,6 +44,16 @@ interface StoreContextType {
   fetchStockMovements: (filters?: Record<string, any>) => Promise<any>;
   /** Correct a stock level by hand, with a reason. */
   adjustStock: (payload: { productVariationId: string | number; countedQuantity?: number; quantityChange?: number; type?: string; note: string }) => Promise<{ success: boolean; message?: string }>;
+  /**
+   * Delete many rows at once. Admin only — the server refuses anyone else,
+   * and reports which rows it skipped and why.
+   */
+  bulkDelete: (
+    resource: 'products' | 'orders' | 'users' | 'categories' | 'reviews' | 'coupons' | 'expenses',
+    ids: (string | number)[]
+  ) => Promise<{ success: boolean; deleted: number; skipped: any[]; message?: string }>;
+  /** Move several orders to one status. Admin only. */
+  bulkOrderStatus: (ids: (string | number)[], status: string) => Promise<{ success: boolean; updated: number; message?: string }>;
   /** Who changed what (admin only). */
   fetchActivityLogs: (filters?: Record<string, any>) => Promise<any>;
   /** Cash into / out of the till outside a sale. */
@@ -766,6 +776,53 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return { success: true };
     } catch {
       return { success: false, message: 'Could not reach the server.' };
+    }
+  };
+
+  const bulkDelete = async (
+    resource: 'products' | 'orders' | 'users' | 'categories' | 'reviews' | 'coupons' | 'expenses',
+    ids: (string | number)[]
+  ): Promise<{ success: boolean; deleted: number; skipped: any[]; message?: string }> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/bulk/${resource}`, {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, deleted: 0, skipped: [], message: data?.message };
+      }
+
+      // Refresh whatever the caller just changed, so the table matches the DB.
+      if (resource === 'products') { refreshProducts(); bumpProductsRevision(); }
+      if (resource === 'orders') refreshOrders();
+      if (resource === 'users') refreshUsers();
+      if (resource === 'categories') refreshCategories();
+      if (resource === 'reviews') refreshReviews();
+      if (resource === 'coupons') refreshCoupons();
+      if (resource === 'expenses') refreshExpenses();
+
+      return { success: true, deleted: Number(data?.deleted || 0), skipped: data?.skipped || [] };
+    } catch {
+      return { success: false, deleted: 0, skipped: [], message: 'Could not reach the server.' };
+    }
+  };
+
+  const bulkOrderStatus = async (
+    ids: (string | number)[],
+    status: string
+  ): Promise<{ success: boolean; updated: number; message?: string }> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/bulk/orders/status`, {
+        method: 'POST',
+        body: JSON.stringify({ ids, status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, updated: 0, message: data?.message };
+      refreshOrders();
+      return { success: true, updated: Number(data?.updated || 0) };
+    } catch {
+      return { success: false, updated: 0, message: 'Could not reach the server.' };
     }
   };
 
@@ -2336,7 +2393,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <StoreContext.Provider value={{ 
       categories, products, cart, wishlist, users, orders, expenses, currentUser, promoBanner, productsPagination, ordersPagination, expensesPagination, isProductsLoading, productsRevision,
-      updatePromoBanner, addCategory, addProduct, refreshProducts, fetchAllProducts, refreshCategories, refreshOrders, ordersError, refreshUsers, refreshExpenses, addToCart, removeFromCart, 
+      updatePromoBanner, addCategory, addProduct, refreshProducts, fetchAllProducts, refreshCategories, refreshOrders, ordersError, refreshUsers, bulkDelete, bulkOrderStatus, refreshExpenses, addToCart, removeFromCart, 
       updateCartItemQuantity, clearCart, toggleWishlist, addReview, updateOrderStatus, addExpense, addOrder,
       deleteProduct, deleteCategory, deleteExpense, deleteUser, deleteOrder, addUser,
       updateProduct, updateCategory, updateExpense, updateUser,

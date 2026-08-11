@@ -34,6 +34,9 @@ import { AdminActivityLogTab } from "../components/admin/AdminActivityLogTab";
 import { AdminLabelsTab } from "../components/admin/AdminLabelsTab";
 import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
 import { BulkStockModal } from "../components/admin/BulkStockModal";
+import { BulkActionBar } from "../components/admin/BulkActionBar";
+import { BulkCheckbox } from "../components/admin/BulkCheckbox";
+import { useBulkSelection } from "../components/admin/useBulkSelection";
 import { getRoleInfo, isAdminRole, isCashierRole } from "../utils/roles";
 import { LOW_STOCK_THRESHOLD, getTotalStock } from "../utils/inventory";
 import { escapeHtml } from "../utils/printHelper";
@@ -58,13 +61,32 @@ export const Admin: React.FC = () => {
     productsPagination, ordersPagination, expensesPagination, reviewsPagination, reviews,
     refreshProducts, fetchAllProducts, refreshOrders, refreshExpenses, refreshReviews, isProductsLoading, productsRevision,
     coupons, addCoupon, updateCoupon, deleteCoupon,
-    fetchStockMovements, fetchActivityLogs
+    fetchStockMovements, fetchActivityLogs, bulkDelete, bulkOrderStatus
   } = useStore();
-  
+
   const isAdmin = useMemo(() => {
     if (!currentUser) return true;
     return isAdminRole(currentUser.role) || isCashierRole(currentUser.role);
   }, [currentUser]);
+
+  /**
+   * Bulk delete is stricter than `isAdmin` above, which also lets cashiers in.
+   * Only a true admin may remove rows in bulk — the server enforces the same
+   * rule, so this only keeps the panel honest about what it will accept.
+   */
+  const canBulkDelete = useMemo(
+    () => !!currentUser && isAdminRole(currentUser.role),
+    [currentUser]
+  );
+
+  // One selection per table. Each is scoped to the rows currently on screen,
+  // so paging or filtering never leaves a stale count behind.
+  const productSelection = useBulkSelection(useMemo(() => products.map(p => p.id!).filter(Boolean), [products]));
+  const userSelection = useBulkSelection(useMemo(() => users.map(u => u.id!).filter(Boolean), [users]));
+  const categorySelection = useBulkSelection(useMemo(() => categories.map(c => c.id!).filter(Boolean), [categories]));
+  const reviewSelection = useBulkSelection(useMemo(() => reviews.map((r: any) => r.id).filter(Boolean), [reviews]));
+  const couponSelection = useBulkSelection(useMemo(() => coupons.map((c: any) => c.id).filter(Boolean), [coupons]));
+  const expenseSelection = useBulkSelection(useMemo(() => expenses.map(e => e.id!).filter(Boolean), [expenses]));
 
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -1586,9 +1608,31 @@ export const Admin: React.FC = () => {
 
           <div className="mt-4">
             <h2 className="text-lg font-bold text-slate-900 mb-6">{L("Existing Categories")}</h2>
+
+            <BulkActionBar
+              count={categorySelection.count}
+              totalVisible={categorySelection.totalVisible}
+              onSelectAllVisible={categorySelection.selectAllVisible}
+              onClear={categorySelection.clear}
+              onDelete={async () => {
+                const res = await bulkDelete('categories', categorySelection.ids);
+                if (res.success) categorySelection.clear();
+                return res;
+              }}
+              noun={{ ku: 'بەش', ar: 'قسم', en: 'categories', enOne: 'category' }}
+              isAdmin={canBulkDelete}
+            />
+
             <div className="flex flex-wrap gap-2">
               {categories.map((c, index) => (
-                <span key={c.id || index} className="inline-flex items-center px-3 py-1.5 rounded-full text-sm bg-slate-100 text-slate-800 gap-2 border border-slate-200 font-medium group">
+                <span key={c.id || index} className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm gap-2 border font-medium group ${c.id && categorySelection.isSelected(c.id) ? 'bg-indigo-100 text-indigo-900 border-indigo-300' : 'bg-slate-100 text-slate-800 border-slate-200'}`}>
+                  {c.id && (
+                    <BulkCheckbox
+                      checked={categorySelection.isSelected(c.id)}
+                      onChange={() => categorySelection.toggle(c.id!)}
+                      label={getCategoryName(c)}
+                    />
+                  )}
                   <CategoryIcon name={c.icon} className="w-4 h-4 text-indigo-600" />
                   <span>{getCategoryName(c)}</span>
                   {c.id && (
@@ -1714,10 +1758,32 @@ export const Admin: React.FC = () => {
 
           <div className="mt-4">
 
+            <BulkActionBar
+              count={productSelection.count}
+              totalVisible={productSelection.totalVisible}
+              onSelectAllVisible={productSelection.selectAllVisible}
+              onClear={productSelection.clear}
+              onDelete={async () => {
+                const res = await bulkDelete('products', productSelection.ids);
+                if (res.success) productSelection.clear();
+                return res;
+              }}
+              noun={{ ku: 'بەرهەم', ar: 'منتج', en: 'products', enOne: 'product' }}
+              isAdmin={canBulkDelete}
+            />
+
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 font-arabic">
                 <thead>
                   <tr className="bg-slate-50/90 text-slate-600">
+                    <th className="px-4 py-3.5 w-10">
+                      <BulkCheckbox
+                        checked={productSelection.allVisibleSelected}
+                        indeterminate={productSelection.count > 0 && !productSelection.allVisibleSelected}
+                        onChange={productSelection.toggleAllVisible}
+                        label={L("Select all")}
+                      />
+                    </th>
                     <th className="px-4 py-3.5 text-right text-xs font-black uppercase tracking-wider">{L("Product")}</th>
                     <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Barcode")}</th>
                     <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Stock")}</th>
@@ -1730,7 +1796,7 @@ export const Admin: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {isProductsLoading && products.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-16 text-center">
+                      <td colSpan={8} className="px-4 py-16 text-center">
                         <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin mx-auto" />
                       </td>
                     </tr>
@@ -1738,7 +1804,7 @@ export const Admin: React.FC = () => {
 
                   {!isProductsLoading && products.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-16 text-center">
+                      <td colSpan={8} className="px-4 py-16 text-center">
                         <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                         <p className="text-sm font-black text-slate-700">
                           {productSearchQuery || selectedAdminCategory !== 'all'
@@ -1764,7 +1830,16 @@ export const Admin: React.FC = () => {
                     const margin = Number(product.price) > 0 ? Math.round(((Number(product.price) - cost) / Number(product.price)) * 100) : 0;
                     const nameDisplay = (language === 'ku' && product.nameKu) || (language === 'ar' && product.nameAr) || product.name;
                     return (
-                      <tr key={product.id || index} className="hover:bg-indigo-50/40 transition-colors cursor-pointer" onClick={() => setSelectedPreviewProduct(product)}>
+                      <tr key={product.id || index} className={`transition-colors cursor-pointer ${product.id && productSelection.isSelected(product.id) ? 'bg-indigo-50/70' : 'hover:bg-indigo-50/40'}`} onClick={() => setSelectedPreviewProduct(product)}>
+                        <td className="px-4 py-4">
+                          {product.id && (
+                            <BulkCheckbox
+                              checked={productSelection.isSelected(product.id)}
+                              onChange={() => productSelection.toggle(product.id!)}
+                              label={product.name}
+                            />
+                          )}
+                        </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-slate-900 text-right">
                           <div className="flex items-center gap-3 justify-start">
                             {product.imageUrl && !failedImages.has(product.imageUrl) ? (
@@ -1994,10 +2069,32 @@ export const Admin: React.FC = () => {
             document.body
           )}
 
+          <BulkActionBar
+            count={userSelection.count}
+            totalVisible={userSelection.totalVisible}
+            onSelectAllVisible={userSelection.selectAllVisible}
+            onClear={userSelection.clear}
+            onDelete={async () => {
+              const res = await bulkDelete('users', userSelection.ids);
+              if (res.success) userSelection.clear();
+              return res;
+            }}
+            noun={{ ku: 'بەکارهێنەر', ar: 'مستخدم', en: 'users', enOne: 'user' }}
+            isAdmin={canBulkDelete}
+          />
+
           <div className="overflow-x-auto mt-4">
           <table className="min-w-full divide-y divide-slate-200">
             <thead>
               <tr>
+                <th className="px-4 py-3 w-10">
+                  <BulkCheckbox
+                    checked={userSelection.allVisibleSelected}
+                    indeterminate={userSelection.count > 0 && !userSelection.allVisibleSelected}
+                    onChange={userSelection.toggleAllVisible}
+                    label={L("Select all")}
+                  />
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Name")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Email")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Role")}</th>
@@ -2007,7 +2104,16 @@ export const Admin: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-200">
               {users.map((user, index) => (
-                <tr key={user.id || index}>
+                <tr key={user.id || index} className={user.id && userSelection.isSelected(user.id) ? 'bg-indigo-50/70' : undefined}>
+                  <td className="px-4 py-4">
+                    {user.id && (
+                      <BulkCheckbox
+                        checked={userSelection.isSelected(user.id)}
+                        onChange={() => userSelection.toggle(user.id!)}
+                        label={user.name}
+                      />
+                    )}
+                  </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{user.name}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">{user.email && !user.email.includes('@phone.user') ? user.email : '-'}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
@@ -2111,10 +2217,32 @@ export const Admin: React.FC = () => {
             document.body
           )}
 
+          <BulkActionBar
+            count={expenseSelection.count}
+            totalVisible={expenseSelection.totalVisible}
+            onSelectAllVisible={expenseSelection.selectAllVisible}
+            onClear={expenseSelection.clear}
+            onDelete={async () => {
+              const res = await bulkDelete('expenses', expenseSelection.ids);
+              if (res.success) expenseSelection.clear();
+              return res;
+            }}
+            noun={{ ku: 'خەرجی', ar: 'مصروف', en: 'expenses', enOne: 'expense' }}
+            isAdmin={canBulkDelete}
+          />
+
           <div className="overflow-x-auto mt-4">
             <table className="min-w-full divide-y divide-slate-200">
               <thead>
                 <tr>
+                  <th className="px-4 py-3 w-10">
+                    <BulkCheckbox
+                      checked={expenseSelection.allVisibleSelected}
+                      indeterminate={expenseSelection.count > 0 && !expenseSelection.allVisibleSelected}
+                      onChange={expenseSelection.toggleAllVisible}
+                      label={L("Select all")}
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Date")}</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Description")}</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Category")}</th>
@@ -2124,7 +2252,16 @@ export const Admin: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {expenses.map((expense, index) => (
-                  <tr key={expense.id || index}>
+                  <tr key={expense.id || index} className={expense.id && expenseSelection.isSelected(expense.id) ? 'bg-indigo-50/70' : undefined}>
+                    <td className="px-4 py-4">
+                      {expense.id && (
+                        <BulkCheckbox
+                          checked={expenseSelection.isSelected(expense.id)}
+                          onChange={() => expenseSelection.toggle(expense.id!)}
+                          label={expense.description}
+                        />
+                      )}
+                    </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">{expense.date}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-900">{expense.description}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
@@ -2180,9 +2317,32 @@ export const Admin: React.FC = () => {
       {activeTab === 'reviews' && (
         <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)] overflow-x-auto">
           <h2 className="text-lg font-semibold text-slate-900 mb-6">{L("Product Reviews")}</h2>
+
+          <BulkActionBar
+            count={reviewSelection.count}
+            totalVisible={reviewSelection.totalVisible}
+            onSelectAllVisible={reviewSelection.selectAllVisible}
+            onClear={reviewSelection.clear}
+            onDelete={async () => {
+              const res = await bulkDelete('reviews', reviewSelection.ids);
+              if (res.success) reviewSelection.clear();
+              return res;
+            }}
+            noun={{ ku: 'پێداچوونەوە', ar: 'تقييم', en: 'reviews', enOne: 'review' }}
+            isAdmin={canBulkDelete}
+          />
+
           <table className="min-w-full divide-y divide-slate-200">
             <thead>
               <tr>
+                <th className="px-4 py-3 w-10">
+                  <BulkCheckbox
+                    checked={reviewSelection.allVisibleSelected}
+                    indeterminate={reviewSelection.count > 0 && !reviewSelection.allVisibleSelected}
+                    onChange={reviewSelection.toggleAllVisible}
+                    label={L("Select all")}
+                  />
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Product")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Author")}</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Rating")}</th>
@@ -2192,7 +2352,16 @@ export const Admin: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-200">
               {reviews.map((review, index) => (
-                <tr key={`${review.productId || ''}-${review.id || ''}-${index}`}>
+                <tr key={`${review.productId || ''}-${review.id || ''}-${index}`} className={review.id && reviewSelection.isSelected(review.id) ? 'bg-indigo-50/70' : undefined}>
+                  <td className="px-4 py-4">
+                    {review.id && (
+                      <BulkCheckbox
+                        checked={reviewSelection.isSelected(review.id)}
+                        onChange={() => reviewSelection.toggle(review.id!)}
+                        label={String(review.comment || review.id)}
+                      />
+                    )}
+                  </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">{review.productName || review.productId}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-900">{review.author || review.customerName}</td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
@@ -2646,10 +2815,33 @@ export const Admin: React.FC = () => {
                   <h3 className="text-base font-bold text-slate-900">{L("Configured Coupons")}</h3>
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{coupons.length} {L("Active Promotions")}</span>
                 </div>
+                <div className="px-6 pt-4">
+                  <BulkActionBar
+                    count={couponSelection.count}
+                    totalVisible={couponSelection.totalVisible}
+                    onSelectAllVisible={couponSelection.selectAllVisible}
+                    onClear={couponSelection.clear}
+                    onDelete={async () => {
+                      const res = await bulkDelete('coupons', couponSelection.ids);
+                      if (res.success) couponSelection.clear();
+                      return res;
+                    }}
+                    noun={{ ku: 'کۆپۆن', ar: 'كوبون', en: 'coupons', enOne: 'coupon' }}
+                    isAdmin={canBulkDelete}
+                  />
+                </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-slate-100">
                     <thead className="bg-slate-50/50">
                       <tr>
+                        <th className="px-6 py-3.5 w-10">
+                          <BulkCheckbox
+                            checked={couponSelection.allVisibleSelected}
+                            indeterminate={couponSelection.count > 0 && !couponSelection.allVisibleSelected}
+                            onChange={couponSelection.toggleAllVisible}
+                            label={L("Select all")}
+                          />
+                        </th>
                         <th className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{L("Code")}</th>
                         <th className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{L("Discount")}</th>
                         <th className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{L("Status")}</th>
@@ -2658,7 +2850,16 @@ export const Admin: React.FC = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-100">
                       {coupons.map((coupon) => (
-                        <tr key={coupon.id} className="hover:bg-slate-50/40 transition-colors">
+                        <tr key={coupon.id} className={`transition-colors ${coupon.id && couponSelection.isSelected(coupon.id) ? 'bg-indigo-50/70' : 'hover:bg-slate-50/40'}`}>
+                          <td className="px-6 py-4">
+                            {coupon.id && (
+                              <BulkCheckbox
+                                checked={couponSelection.isSelected(coupon.id)}
+                                onChange={() => couponSelection.toggle(coupon.id!)}
+                                label={coupon.code}
+                              />
+                            )}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-mono font-bold text-slate-900">{coupon.code}</div>
                             {(coupon.startDate || coupon.endDate) && (
@@ -2696,7 +2897,7 @@ export const Admin: React.FC = () => {
                       ))}
                       {coupons.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="px-6 py-12 text-center text-sm text-slate-400 font-semibold">
+                          <td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-400 font-semibold">
                             {L("No coupons configured yet. Add one above to get started!")}
                           </td>
                         </tr>

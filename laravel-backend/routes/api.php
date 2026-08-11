@@ -116,6 +116,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stock-movements', [\App\Http\Controllers\StockMovementController::class, 'index']);
     Route::post('/stock-movements', [\App\Http\Controllers\StockMovementController::class, 'store']);
 
+    // Bulk deletes and bulk status changes. ADMIN ONLY — deliberately
+    // stricter than the single-row deletes above, which staff may use.
+    Route::post('/bulk/products', [\App\Http\Controllers\BulkActionController::class, 'products']);
+    Route::post('/bulk/orders', [\App\Http\Controllers\BulkActionController::class, 'orders']);
+    Route::post('/bulk/orders/status', [\App\Http\Controllers\BulkActionController::class, 'orderStatus']);
+    Route::post('/bulk/users', [\App\Http\Controllers\BulkActionController::class, 'users']);
+    Route::post('/bulk/categories', [\App\Http\Controllers\BulkActionController::class, 'categories']);
+    Route::post('/bulk/reviews', [\App\Http\Controllers\BulkActionController::class, 'reviews']);
+    Route::post('/bulk/coupons', [\App\Http\Controllers\BulkActionController::class, 'coupons']);
+    Route::post('/bulk/expenses', [\App\Http\Controllers\BulkActionController::class, 'expenses']);
+
     // Activity trail (admin only).
     Route::get('/activity-logs', [\App\Http\Controllers\ActivityLogController::class, 'index']);
 
