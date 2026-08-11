@@ -92,7 +92,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     <motion.div 
       onClick={handleCardClick}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      whileTap={{ scale: 0.97, transition: { duration: 0.12 } }}
       className="vk2-pc group relative flex flex-col bg-white rounded-3xl border border-slate-100/90 shadow-xs hover:shadow-xl transition-shadow duration-300 overflow-hidden font-arabic h-full p-0 cursor-pointer select-none"
     >
       
@@ -105,7 +104,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             src={product.imageUrl}
             alt={getProductName()}
             loading="lazy"
-            className="vk2-pc-img w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+            className="vk2-pc-img vk-zoom w-full h-full object-cover object-center"
           />
         </Link>
 

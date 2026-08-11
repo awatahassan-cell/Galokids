@@ -118,17 +118,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <div className={`min-h-screen bg-gradient-to-b from-bubble-50/50 via-candy-50/30 via-amber-50/10 to-slate-50/80 flex flex-col ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'} selection:bg-candy-200 selection:text-candy-800 relative`}>
-      {/* Vastraa Kids Ambient Background Blobs */}
-      <div className="fixed top-0 left-0 w-96 h-96 bg-sky-200/25 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
-      <div className="fixed top-1/3 right-0 w-[30rem] h-[30rem] bg-candy-200/20 rounded-full blur-3xl pointer-events-none translate-x-1/3" />
-      <div className="fixed bottom-0 left-1/4 w-[28rem] h-[28rem] bg-amber-200/20 rounded-full blur-3xl pointer-events-none" />
+      {/* The ambient wash. Three fixed divs with blur(64px) used to sit here:
+          the same look, but three composited layers the GPU had to re-blur
+          against the page on every scrolled frame, which is what made images
+          flicker on a phone. Painted radial gradients cost nothing to
+          composite and look the same. */}
+      <div className="vk-wash pointer-events-none" aria-hidden="true" />
 
       {isAdminOrPos ? null : (
         <>
           <AnnouncementTicker />
 
           {/* Main Vastraa-Style Header */}
-          <header className="sticky top-0 z-[100] w-full bg-white/95 backdrop-blur-2xl border-b border-slate-200/80 shadow-sm transition-all duration-300">
+          <header className="sticky top-0 z-[100] w-full bg-white border-b border-slate-200/80 shadow-sm">
             <div className="max-w-7xl mx-auto h-16 sm:h-20 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
               
               {/* Left: burger (mobile) + wordmark */}

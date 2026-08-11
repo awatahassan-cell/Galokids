@@ -61,7 +61,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = () => {
 
   return (
     <nav
-      className="lg:hidden fixed inset-x-0 bottom-0 z-[55] grid grid-cols-5 bg-white/97 backdrop-blur-xl border-t border-slate-200/80 font-arabic"
+      className="lg:hidden fixed inset-x-0 bottom-0 z-[55] grid grid-cols-5 bg-white border-t border-slate-200/80 font-arabic"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <Link to="/" className={tab(isActive('/'))}>

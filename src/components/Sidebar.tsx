@@ -113,8 +113,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       <div
         onClick={onClose}
         aria-hidden="true"
-        className={`fixed inset-0 bg-slate-900/45 backdrop-blur-sm z-[120] transition-opacity duration-300 ease-out ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        className={`fixed inset-0 bg-slate-900/45 z-[120] transition-opacity duration-300 ease-out ${
+          isOpen ? 'opacity-100 backdrop-blur-sm' : 'opacity-0 pointer-events-none'
         }`}
       />
 
