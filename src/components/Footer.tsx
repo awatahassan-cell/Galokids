@@ -31,7 +31,7 @@ export const Footer: React.FC = () => {
     <footer className="vk2-footer2 bg-[#161622] text-slate-300 mt-20 relative font-arabic border-t border-slate-800/80 shadow-2xl">
       
       {/* Newsletter Strip */}
-      <div className="vk2-footer2-newsletter bg-gradient-to-r from-[#D81B60] via-[#C2185B] to-[#8E24AA] py-8 sm:py-10 px-4 sm:px-6 lg:px-8 text-white shadow-xl">
+      <div className="vk2-footer2-newsletter bg-gradient-to-r from-candy-500 via-candy-600 to-grape-600 py-8 sm:py-10 px-4 sm:px-6 lg:px-8 text-white shadow-xl">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           
           <div className="flex items-center gap-4 text-center md:text-left rtl:md:text-right">

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useStore } from '../store';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Star, Sparkles, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { FloatingDecor } from './KidsDecor';
 import { HeroSlide } from '../types';
 
 const DEFAULT_SLIDES: HeroSlide[] = [
@@ -120,19 +121,23 @@ export const Hero: React.FC = () => {
   const discountText = slide.discountTag || '25% OFF';
 
   return (
-    <section className={`relative overflow-hidden bg-gradient-to-b from-sky-50/60 via-pink-50/40 to-white py-8 sm:py-16 px-4 sm:px-6 lg:px-8 font-arabic ${radiusClass} border border-pink-100/60 shadow-sm mx-2 sm:mx-6 lg:mx-8 my-4 group/hero`}>
+    <section className={`relative overflow-hidden bg-gradient-to-b from-bubble-50/60 via-pink-50/40 to-white py-8 sm:py-16 px-4 sm:px-6 lg:px-8 font-arabic ${radiusClass} border border-candy-100/60 shadow-sm mx-2 sm:mx-6 lg:mx-8 my-4 group/hero`}>
       
-      {/* Decorative Vastraa Floating Blobs */}
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-sky-200/40 rounded-full blur-3xl pointer-events-none animate-pulse" />
-      <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-rose-200/40 rounded-full blur-3xl pointer-events-none animate-pulse" />
+      {/* Soft colour washes behind the hero. */}
+      <div className="vk-blob w-96 h-96 bg-bubble-500 -top-24 -start-24" />
+      <div className="vk-blob w-96 h-96 bg-candy-300 -bottom-24 -end-24" />
 
-      {/* Decorative Vastraa Floating Kids SVGs */}
-      <div className="absolute top-6 left-10 opacity-30 pointer-events-none hidden sm:block animate-bounce duration-1000">
-        <Sparkles className="w-8 h-8 text-amber-400" />
-      </div>
-      <div className="absolute top-12 right-12 opacity-30 pointer-events-none hidden sm:block animate-pulse">
-        <Heart className="w-9 h-9 text-rose-400 fill-rose-400" />
-      </div>
+      {/* Kid-shapes drift around the outer margins. They stay clear of the
+          headline column and drop out below lg, where there is no room. */}
+      <FloatingDecor
+        items={[
+          { shape: 'star',      style: { top: '6%', insetInlineEnd: '3%' } },
+          { shape: 'butterfly', style: { top: '4%', insetInlineStart: '7%' } },
+          { shape: 'balloon',   style: { bottom: '6%', insetInlineStart: '3%' } },
+          { shape: 'bow',       style: { bottom: '8%', insetInlineEnd: '46%' } },
+          { shape: 'rocket',    style: { top: '46%', insetInlineStart: '1%' } },
+        ]}
+      />
 
       <div className="max-w-7xl mx-auto relative z-10 min-h-[620px] sm:min-h-[660px] lg:min-h-[480px] flex flex-col justify-between">
         <AnimatePresence mode="popLayout" initial={false}>
@@ -149,9 +154,9 @@ export const Hero: React.FC = () => {
             <div className="lg:col-span-7 text-center lg:text-right rtl:lg:text-right ltr:lg:text-left min-h-[290px] sm:min-h-[320px] lg:min-h-0 flex flex-col justify-center">
               
               {/* Vastraa Hero Badge */}
-              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-rose-500/10 via-pink-500/10 to-indigo-500/10 border border-rose-200/80 px-4 py-1.5 rounded-full mb-4 sm:mb-6 shadow-xs mx-auto lg:mx-0 w-max">
-                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                <span className="text-xs font-black text-rose-600 tracking-wide">
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-candy-500/10 via-candy-400/10 to-indigo-500/10 border border-candy-200/80 px-4 py-1.5 rounded-full mb-4 sm:mb-6 shadow-xs mx-auto lg:mx-0 w-max">
+                <span className="w-2 h-2 rounded-full bg-candy-500 animate-ping" />
+                <span className="text-xs font-black text-candy-700 tracking-wide">
                   {badgeText}
                 </span>
               </div>
@@ -161,12 +166,12 @@ export const Hero: React.FC = () => {
                 {titleText.includes('!') ? (
                   <div>
                     {titleText.split('!')[0]}! <br className="hidden sm:inline" />
-                    <span className="bg-gradient-to-r from-rose-500 via-pink-500 to-indigo-600 bg-clip-text text-transparent">
+                    <span className="bg-gradient-to-r from-candy-500 via-candy-400 to-grape-600 bg-clip-text text-transparent">
                       {titleText.split('!')[1] || ''}
                     </span>
                   </div>
                 ) : (
-                  <span className="bg-gradient-to-r from-rose-500 via-pink-500 to-indigo-600 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-candy-500 via-candy-400 to-grape-600 bg-clip-text text-transparent">
                     {titleText}
                   </span>
                 )}
@@ -181,7 +186,7 @@ export const Hero: React.FC = () => {
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 sm:gap-4">
                 <Link 
                   to={cta1Link} 
-                  className="px-6 py-3.5 rounded-full text-sm font-black text-white bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 shadow-lg shadow-rose-500/25 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                  className="px-6 py-3.5 rounded-full text-sm font-black text-white bg-gradient-to-r from-candy-500 to-grape-500 hover:from-candy-600 hover:to-grape-600 shadow-lg shadow-candy-500/35 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
                 >
                   <span>{cta1Text}</span>
                   <ArrowRight className="w-4 h-4 rtl:rotate-180" />
@@ -204,9 +209,9 @@ export const Hero: React.FC = () => {
             <div className="lg:col-span-5 relative">
               
               {/* Top Floating Badge: 100% Organic Cotton */}
-              <div className="absolute -top-4 -left-2 sm:-top-6 sm:-left-6 z-20 bg-white/95 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-xl border border-rose-100 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center font-black text-lg shrink-0">
-                  <Star className="w-5 h-5 fill-rose-500 text-rose-500 animate-spin-slow" />
+              <div className="absolute -top-4 -left-2 sm:-top-6 sm:-left-6 z-20 bg-white/95 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-xl border border-candy-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-candy-50 text-candy-700 flex items-center justify-center font-black text-lg shrink-0">
+                  <Star className="w-5 h-5 fill-rose-500 text-candy-700 animate-spin-slow" />
                 </div>
                 <div>
                   <h4 className="text-xs sm:text-sm font-black text-slate-900">{floatTitle}</h4>
@@ -217,7 +222,7 @@ export const Hero: React.FC = () => {
               </div>
 
               {/* Bottom Floating Badge: Circular Discount Tag */}
-              <div className="absolute -bottom-4 -right-2 sm:-bottom-6 sm:-right-6 z-20 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-amber-400 to-rose-500 text-white shadow-2xl border-4 border-white flex flex-col items-center justify-center text-center p-2 transform rotate-6 animate-pulse">
+              <div className="absolute -bottom-4 -right-2 sm:-bottom-6 sm:-right-6 z-20 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-sunny-500 to-rose-500 text-white shadow-2xl border-4 border-white flex flex-col items-center justify-center text-center p-2 transform rotate-6 animate-pulse">
                 <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">GET</span>
                 <span className="text-base sm:text-xl font-black leading-none">{discountText.replace(/GET|OFF|\s/gi, '')}</span>
                 <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">OFF</span>
@@ -240,7 +245,7 @@ export const Hero: React.FC = () => {
 
         {/* Carousel Navigation Arrows & Slide Dots Indicator */}
         {slides.length > 1 && (
-          <div className="flex items-center justify-between mt-6 sm:mt-8 pt-4 border-t border-rose-100/50">
+          <div className="flex items-center justify-between mt-6 sm:mt-8 pt-4 border-t border-candy-100/50">
             {/* Slide Pagination Dots */}
             <div className="flex items-center gap-2">
               {slides.map((s, idx) => (
@@ -249,8 +254,8 @@ export const Hero: React.FC = () => {
                   onClick={() => setCurrentIndex(idx)}
                   className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
                     idx === currentIndex 
-                      ? 'w-8 bg-rose-500 shadow-md' 
-                      : 'w-2.5 bg-slate-200 hover:bg-rose-300'
+                      ? 'w-8 bg-candy-500 shadow-md' 
+                      : 'w-2.5 bg-slate-200 hover:bg-candy-300'
                   }`}
                   aria-label={`Go to slide ${idx + 1}`}
                 />
@@ -261,14 +266,14 @@ export const Hero: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length)}
-                className="w-9 h-9 rounded-full bg-white text-slate-700 hover:bg-rose-500 hover:text-white border border-slate-200 flex items-center justify-center shadow-md cursor-pointer transition-all active:scale-95"
+                className="w-9 h-9 rounded-full bg-white text-slate-700 hover:bg-candy-500 hover:text-white border border-slate-200 flex items-center justify-center shadow-md cursor-pointer transition-all active:scale-95"
                 aria-label="Previous Slide"
               >
                 <ChevronLeft className="w-5 h-5 rtl:rotate-180" />
               </button>
               <button
                 onClick={() => setCurrentIndex((prev) => (prev + 1) % slides.length)}
-                className="w-9 h-9 rounded-full bg-white text-slate-700 hover:bg-rose-500 hover:text-white border border-slate-200 flex items-center justify-center shadow-md cursor-pointer transition-all active:scale-95"
+                className="w-9 h-9 rounded-full bg-white text-slate-700 hover:bg-candy-500 hover:text-white border border-slate-200 flex items-center justify-center shadow-md cursor-pointer transition-all active:scale-95"
                 aria-label="Next Slide"
               >
                 <ChevronRight className="w-5 h-5 rtl:rotate-180" />

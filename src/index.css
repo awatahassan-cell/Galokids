@@ -5,6 +5,53 @@
   --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Fredoka", ui-sans-serif, system-ui, sans-serif;
   --font-arabic: "Noto Sans Arabic", sans-serif;
+
+  /* ------------------------------------------------------------------
+     Storefront brand palette.
+     Kept separate from Tailwind's own rose/amber/sky so the admin and
+     POS keep red as a danger signal — only the shop wears these.
+     500 is the fill; 700 is the text/hover tone that actually passes
+     contrast on white.
+     ------------------------------------------------------------------ */
+  --color-candy-50:  #FFF6F9;
+  --color-candy-100: #FFEBF2;
+  --color-candy-200: #FFD3E2;
+  --color-candy-300: #FFB3D9;
+  --color-candy-400: #FF9FC0;
+  --color-candy-500: #FF8FAB;
+  --color-candy-600: #E0607A;
+  --color-candy-700: #C0506A;
+  --color-candy-800: #9C3E54;
+
+  --color-sunny-50:  #FFFBF2;
+  --color-sunny-100: #FFF6E0;
+  --color-sunny-200: #FFECBE;
+  --color-sunny-400: #FFB347;
+  --color-sunny-500: #FFD166;
+  --color-sunny-600: #E0A020;
+  --color-sunny-700: #B87F14;
+
+  --color-bubble-50:  #F4FBFF;
+  --color-bubble-100: #E7F7FE;
+  --color-bubble-200: #CFEFFB;
+  --color-bubble-500: #9EE5FF;
+  --color-bubble-600: #5DB8D4;
+  --color-bubble-700: #3E93AE;
+
+  --color-grape-50:  #FAF5FF;
+  --color-grape-100: #F5EBFF;
+  --color-grape-200: #EBD9FF;
+  --color-grape-500: #D4A5FF;
+  --color-grape-600: #B07FD4;
+  --color-grape-700: #8E5CB4;
+
+  --color-mint-50:  #ECFDF7;
+  --color-mint-100: #E6FBF3;
+  --color-mint-500: #06D6A0;
+  --color-mint-700: #06805F;
+
+  --color-ink-500: #6E7391;
+  --color-ink-900: #2B2D42;
 }
 
 html, body {
@@ -41,4 +88,75 @@ html, body {
     -ms-overflow-style: none !important;
     scrollbar-width: none !important;
   }
+}
+
+/* =====================================================================
+   Storefront section furniture — the eyebrow / highlighted-title /
+   soft-blob rhythm the shop uses on every section.
+   ===================================================================== */
+
+/* Eyebrow pill above a section title. */
+.vk-sub {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--color-candy-700);
+  background: var(--color-candy-50);
+  border: 1px solid var(--color-candy-200);
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+/* Highlighted word inside a section title — a soft marker-pen sweep
+   behind the text rather than a gradient fill, so it stays readable. */
+.vk-hi {
+  position: relative;
+  white-space: nowrap;
+}
+.vk-hi::after {
+  content: "";
+  position: absolute;
+  inset-inline: -0.15em;
+  bottom: 0.12em;
+  height: 34%;
+  background: var(--color-sunny-500);
+  opacity: 0.5;
+  border-radius: 4px;
+  z-index: -1;
+}
+
+/* Big soft colour wash behind a section. Purely decorative. */
+.vk-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(52px);
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Floating kid-shapes. Hidden below lg so they never sit on a headline
+   in the one place there isn't room for them. */
+.vk-float {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  animation: vk-bob 6s ease-in-out infinite;
+}
+.vk-float:nth-of-type(even) {
+  animation-duration: 7.5s;
+  animation-direction: alternate-reverse;
+}
+@media (max-width: 1023px) {
+  .vk-float { display: none; }
+}
+@keyframes vk-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-16px) rotate(7deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vk-float, .animate-float, .animate-spin-slow { animation: none !important; }
 }
