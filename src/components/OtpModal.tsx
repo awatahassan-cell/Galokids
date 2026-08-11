@@ -249,11 +249,11 @@ export const OtpModal: React.FC<OtpModalProps> = ({
 
         <div className="text-center">
           {/* Header Icon */}
-          <div className="w-16 h-16 bg-gradient-to-tr from-rose-50 to-indigo-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-rose-100/80 shadow-sm relative">
+          <div className="w-16 h-16 bg-gradient-to-tr from-candy-50 to-indigo-50 text-candy-700 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-candy-100/80 shadow-sm relative">
             {activeChannel === 'whatsapp' ? (
               <MessageSquare className="w-8 h-8 text-emerald-600" />
             ) : (
-              <Send className="w-8 h-8 text-sky-600" />
+              <Send className="w-8 h-8 text-bubble-700" />
             )}
             <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1 border-2 border-white">
               <Sparkles className="w-3 h-3" />
@@ -297,8 +297,8 @@ export const OtpModal: React.FC<OtpModalProps> = ({
                   onPaste={handlePaste}
                   className={`w-11 h-14 sm:w-12 sm:h-16 text-center text-2xl font-black rounded-2xl border-2 transition-all shadow-xs outline-none ${
                     digit
-                      ? 'border-rose-500 bg-rose-50/30 text-rose-700 ring-2 ring-rose-500/20'
-                      : 'border-slate-200 bg-slate-50/80 text-slate-800 focus:border-rose-500 focus:bg-white focus:ring-2 focus:ring-rose-500/20'
+                      ? 'border-candy-500 bg-candy-50/30 text-candy-800 ring-2 ring-candy-500/20'
+                      : 'border-slate-200 bg-slate-50/80 text-slate-800 focus:border-candy-500 focus:bg-white focus:ring-2 focus:ring-candy-500/20'
                   }`}
                 />
               ))}
@@ -316,7 +316,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
             <button
               type="submit"
               disabled={isVerifying || isLoading || digits.join('').length < 6}
-              className="w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all shadow-md active:scale-[0.99] font-arabic flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 bg-gradient-to-r from-candy-600 to-candy-700 hover:from-candy-700 hover:to-candy-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-2xl transition-all shadow-md active:scale-[0.99] font-arabic flex items-center justify-center gap-2 cursor-pointer"
             >
               {isVerifying ? (
                 <>
@@ -345,7 +345,7 @@ export const OtpModal: React.FC<OtpModalProps> = ({
                 type="button"
                 disabled={resendTimer > 0}
                 onClick={() => handleResend(activeChannel)}
-                className="text-rose-600 font-bold hover:underline disabled:text-slate-300 disabled:no-underline flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="text-candy-700 font-bold hover:underline disabled:text-slate-300 disabled:no-underline flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${resendTimer > 0 ? '' : 'animate-spin-once'}`} />
                 <span>{t('resendCode') || (language === 'ku' ? 'ناردنەوەی کۆد' : 'Resend Code')}</span>
@@ -363,11 +363,11 @@ export const OtpModal: React.FC<OtpModalProps> = ({
                 onClick={() => handleResend('sms')}
                 className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
                   activeChannel === 'sms'
-                    ? 'bg-sky-50 text-sky-700 border-sky-200 shadow-2xs'
+                    ? 'bg-bubble-50 text-bubble-700 border-bubble-200 shadow-2xs'
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                <Send className="w-3.5 h-3.5 text-sky-600" />
+                <Send className="w-3.5 h-3.5 text-bubble-700" />
                 <span>SMS</span>
               </button>
 

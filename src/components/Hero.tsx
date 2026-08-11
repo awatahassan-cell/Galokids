@@ -121,7 +121,7 @@ export const Hero: React.FC = () => {
   const discountText = slide.discountTag || '25% OFF';
 
   return (
-    <section className={`relative overflow-hidden bg-gradient-to-b from-bubble-50/60 via-pink-50/40 to-white py-8 sm:py-16 px-4 sm:px-6 lg:px-8 font-arabic ${radiusClass} border border-candy-100/60 shadow-sm mx-2 sm:mx-6 lg:mx-8 my-4 group/hero`}>
+    <section className={`relative overflow-hidden bg-gradient-to-b from-bubble-50/60 via-candy-50/40 to-white py-8 sm:py-16 px-4 sm:px-6 lg:px-8 font-arabic ${radiusClass} border border-candy-100/60 shadow-sm mx-2 sm:mx-6 lg:mx-8 my-4 group/hero`}>
       
       {/* Soft colour washes behind the hero. */}
       <div className="vk-blob w-96 h-96 bg-bubble-500 -top-24 -start-24" />
@@ -211,7 +211,7 @@ export const Hero: React.FC = () => {
               {/* Top Floating Badge: 100% Organic Cotton */}
               <div className="absolute -top-4 -left-2 sm:-top-6 sm:-left-6 z-20 bg-white/95 backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-xl border border-candy-100 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-candy-50 text-candy-700 flex items-center justify-center font-black text-lg shrink-0">
-                  <Star className="w-5 h-5 fill-rose-500 text-candy-700 animate-spin-slow" />
+                  <Star className="w-5 h-5 fill-candy-500 text-candy-700 animate-spin-slow" />
                 </div>
                 <div>
                   <h4 className="text-xs sm:text-sm font-black text-slate-900">{floatTitle}</h4>
@@ -222,7 +222,7 @@ export const Hero: React.FC = () => {
               </div>
 
               {/* Bottom Floating Badge: Circular Discount Tag */}
-              <div className="absolute -bottom-4 -right-2 sm:-bottom-6 sm:-right-6 z-20 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-sunny-500 to-rose-500 text-white shadow-2xl border-4 border-white flex flex-col items-center justify-center text-center p-2 transform rotate-6 animate-pulse">
+              <div className="absolute -bottom-4 -right-2 sm:-bottom-6 sm:-right-6 z-20 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-sunny-500 to-candy-500 text-white shadow-2xl border-4 border-white flex flex-col items-center justify-center text-center p-2 transform rotate-6 animate-pulse">
                 <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">GET</span>
                 <span className="text-base sm:text-xl font-black leading-none">{discountText.replace(/GET|OFF|\s/gi, '')}</span>
                 <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">OFF</span>

@@ -214,9 +214,9 @@ export const Home: React.FC = () => {
             <div ref={categoryScrollRef} className="flex overflow-x-auto gap-4 sm:gap-6 pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth">
               {categories.map((c, idx) => {
                 const colorAccents = [
-                  { bar: 'bg-sunny-500', badge: 'bg-sunny-50 text-amber-800 border-amber-200', btn: 'group-hover:bg-sunny-500 text-amber-600', ring: 'border-amber-100 bg-sunny-50/60' },
+                  { bar: 'bg-sunny-500', badge: 'bg-sunny-50 text-amber-800 border-sunny-200', btn: 'group-hover:bg-sunny-500 text-sunny-700', ring: 'border-amber-100 bg-sunny-50/60' },
                   { bar: 'bg-candy-500', badge: 'bg-candy-50 text-candy-800 border-candy-200', btn: 'group-hover:bg-candy-500 text-candy-700', ring: 'border-candy-100 bg-candy-50/60' },
-                  { bar: 'bg-bubble-500', badge: 'bg-bubble-50 text-sky-700 border-bubble-200', btn: 'group-hover:bg-bubble-500 text-bubble-700', ring: 'border-sky-100 bg-bubble-50/60' },
+                  { bar: 'bg-bubble-500', badge: 'bg-bubble-50 text-bubble-700 border-bubble-200', btn: 'group-hover:bg-bubble-500 text-bubble-700', ring: 'border-bubble-100 bg-bubble-50/60' },
                   { bar: 'bg-purple-500', badge: 'bg-purple-50 text-purple-700 border-purple-200', btn: 'group-hover:bg-purple-500 text-purple-600', ring: 'border-purple-100 bg-purple-50/60' },
                 ];
                 const theme = colorAccents[idx % colorAccents.length];
@@ -261,7 +261,7 @@ export const Home: React.FC = () => {
         >
           <div className="flex items-end justify-between mb-6 sm:mb-8">
             <div>
-              <span className="inline-block bg-sunny-50 border border-amber-200/80 text-amber-600 font-bold text-xs px-4 py-1.5 rounded-full mb-2 shadow-2xs">
+              <span className="inline-block bg-sunny-50 border border-sunny-200/80 text-sunny-700 font-bold text-xs px-4 py-1.5 rounded-full mb-2 shadow-2xs">
                 🔥 {language === 'ku' ? 'داشکاندنی تایبەت' : language === 'ar' ? 'عروض لفترة محددة' : 'Limited Time Deals'}
               </span>
               <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
@@ -357,7 +357,7 @@ export const Home: React.FC = () => {
                 <h3 className="text-2xl sm:text-3xl font-black leading-tight mb-2">
                   {language === 'ku' ? 'سحر و جوانی بۆ کچانی جوان' : language === 'ar' ? 'سحر أنيق للبنات الجميلات' : 'Bright Magic For Happy Girls'}
                 </h3>
-                <p className="text-xs sm:text-sm font-bold text-pink-100 max-w-sm mb-4">
+                <p className="text-xs sm:text-sm font-bold text-candy-100 max-w-sm mb-4">
                   {language === 'ku' ? 'فستان و پۆشاکی نازدار بۆ کەشوهەوای خۆشی و شادی.' : language === 'ar' ? 'فساتين ساحرة وملابس رائعة للأوقات السعيدة.' : 'Pretty dresses & cheerful outfits for bright happy moments.'}
                 </p>
                 <div className="flex flex-wrap gap-2 mb-6 text-[11px] font-bold">
@@ -385,7 +385,7 @@ export const Home: React.FC = () => {
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="relative overflow-hidden bg-gradient-to-b from-bubble-50/50 via-candy-50/40 to-white py-10 sm:py-16 px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16 font-arabic rounded-3xl border border-candy-100/60 shadow-xs mx-2 sm:mx-6 lg:mx-8"
         >
-          <div className="absolute -top-20 -left-20 w-80 h-80 bg-rose-200/40 rounded-full blur-3xl pointer-events-none animate-pulse" />
+          <div className="absolute -top-20 -left-20 w-80 h-80 bg-candy-200/40 rounded-full blur-3xl pointer-events-none animate-pulse" />
           <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-sky-200/40 rounded-full blur-3xl pointer-events-none animate-pulse" />
 
           <div className="relative z-10">
@@ -422,7 +422,7 @@ export const Home: React.FC = () => {
                   onClick={() => setActiveProductTab('featured')}
                   className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-black transition-all shadow-xs cursor-pointer flex items-center gap-1.5 ${
                     activeProductTab === 'featured'
-                      ? 'bg-candy-500 text-white shadow-md shadow-rose-500/20'
+                      ? 'bg-candy-500 text-white shadow-md shadow-candy-500/30'
                       : 'bg-white text-slate-700 hover:bg-candy-50 border border-slate-200'
                   }`}
                 >
@@ -434,7 +434,7 @@ export const Home: React.FC = () => {
                   onClick={() => setActiveProductTab('trending')}
                   className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-black transition-all shadow-xs cursor-pointer flex items-center gap-1.5 ${
                     activeProductTab === 'trending'
-                      ? 'bg-candy-500 text-white shadow-md shadow-rose-500/20'
+                      ? 'bg-candy-500 text-white shadow-md shadow-candy-500/30'
                       : 'bg-white text-slate-700 hover:bg-candy-50 border border-slate-200'
                   }`}
                 >
@@ -446,7 +446,7 @@ export const Home: React.FC = () => {
                   onClick={() => setActiveProductTab('new')}
                   className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-black transition-all shadow-xs cursor-pointer flex items-center gap-1.5 ${
                     activeProductTab === 'new'
-                      ? 'bg-candy-500 text-white shadow-md shadow-rose-500/20'
+                      ? 'bg-candy-500 text-white shadow-md shadow-candy-500/30'
                       : 'bg-white text-slate-700 hover:bg-candy-50 border border-slate-200'
                   }`}
                 >

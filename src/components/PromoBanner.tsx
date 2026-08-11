@@ -109,7 +109,7 @@ export const PromoBanner: React.FC = () => {
                 {/* Badge */}
                 {getLangText(activeSlide, 'badge') && (
                   <div>
-                    <span className="inline-block bg-gradient-to-r from-fuchsia-500 to-rose-500 text-white text-[10px] sm:text-xs font-black px-3 py-1 rounded-lg shadow-sm tracking-wide">
+                    <span className="inline-block bg-gradient-to-r from-fuchsia-500 to-candy-500 text-white text-[10px] sm:text-xs font-black px-3 py-1 rounded-lg shadow-sm tracking-wide">
                       {getLangText(activeSlide, 'badge')}
                     </span>
                   </div>

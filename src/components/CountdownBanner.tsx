@@ -38,7 +38,7 @@ export const CountdownBanner: React.FC = () => {
   );
 
   return (
-    <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-indigo-600 px-5 py-3 flex flex-wrap items-center justify-center gap-4 shadow-md">
+    <div className="mx-4 sm:mx-6 lg:mx-8 mt-4 rounded-2xl bg-gradient-to-r from-candy-500 via-candy-400 to-grape-600 px-5 py-3 flex flex-wrap items-center justify-center gap-4 shadow-md">
       <span className="inline-flex items-center gap-2 text-white font-bold">
         <Clock className="w-5 h-5" /> {label}
       </span>

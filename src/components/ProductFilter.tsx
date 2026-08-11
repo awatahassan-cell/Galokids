@@ -94,7 +94,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
                 onClick={() => { setFilters(prev => ({ ...prev, categoryId: null })); onClose(); }}
                 className={`w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-between ${
                   filters.categoryId === null 
-                    ? 'bg-indigo-50 text-indigo-700 font-medium' 
+                    ? 'bg-grape-50 text-indigo-700 font-medium' 
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 } ${isRTL ? 'flex-row-reverse' : ''}`}
               >
@@ -105,7 +105,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
                   {t('all')}
                 </span>
                 {filters.categoryId === null && (
-                  <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                  <span className="w-2 h-2 rounded-full bg-grape-600"></span>
                 )}
               </button>
               {categories.map(category => (
@@ -114,14 +114,14 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
                   onClick={() => { setFilters(prev => ({ ...prev, categoryId: category?.id })); onClose(); }}
                   className={`w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-between group ${
                     filters.categoryId === category?.id 
-                      ? 'bg-indigo-50 text-indigo-700 font-medium' 
+                      ? 'bg-grape-50 text-indigo-700 font-medium' 
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   } ${isRTL ? 'flex-row-reverse' : ''}`}
                 >
                   <span className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse font-arabic' : ''}`}>
                     <span className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm border transition-colors ${
                       filters.categoryId === category?.id 
-                        ? 'bg-indigo-100 border-indigo-200 text-indigo-600'
+                        ? 'bg-grape-100 border-indigo-200 text-grape-700'
                         : 'bg-white border-slate-100 text-slate-400 group-hover:text-slate-600 group-hover:border-slate-200'
                     }`}>
                       <CategoryIcon name={category.icon} />
@@ -129,7 +129,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
                     {getCategoryName(category)}
                   </span>
                   {filters.categoryId === category?.id && (
-                    <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                    <span className="w-2 h-2 rounded-full bg-grape-600"></span>
                   )}
                 </button>
               ))}
@@ -150,13 +150,13 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
                   onClick={() => { setFilters(prev => ({ ...prev, gender: prev.gender === gender.value ? null : gender.value })); onClose(); }}
                   className={`w-full ${isRTL ? 'text-right' : 'text-left'} px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-between ${
                     filters.gender === gender.value 
-                      ? 'bg-rose-50 text-rose-700 font-medium' 
+                      ? 'bg-candy-50 text-candy-800 font-medium' 
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   } ${isRTL ? 'flex-row-reverse' : ''}`}
                 >
                   <span className={`capitalize ${isRTL ? 'font-arabic' : ''}`}>{gender.label}</span>
                   {filters.gender === gender.value && (
-                    <span className="w-2 h-2 rounded-full bg-rose-600"></span>
+                    <span className="w-2 h-2 rounded-full bg-candy-600"></span>
                   )}
                 </button>
               ))}
@@ -193,7 +193,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
                   onClick={() => toggleSize(size)}
                   className={`px-3 py-1.5 text-xs rounded border transition-colors ${
                     filters.sizes.includes(size)
-                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-medium'
+                      ? 'bg-grape-50 text-indigo-700 border-indigo-200 font-medium'
                       : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
                   }`}
                 >
@@ -237,7 +237,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({ filters, setFilter
                 type="checkbox" 
                 checked={filters.inStockOnly}
                 onChange={(e) => { setFilters(prev => ({ ...prev, inStockOnly: e.target.checked })); onClose(); }}
-                className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                className="w-4 h-4 text-grape-700 rounded border-slate-300 focus:ring-indigo-500"
               />
               <span className={`text-sm text-slate-700 ${isRTL ? 'font-arabic' : ''}`}>{t('inStockOnly')}</span>
             </label>

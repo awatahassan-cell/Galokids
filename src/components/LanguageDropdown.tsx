@@ -57,7 +57,7 @@ export const LanguageDropdown: React.FC<LanguageDropdownProps> = ({ className = 
                 }}
                 title={item.label}
                 className={`p-1.5 rounded-full transition-all flex items-center justify-center ${
-                  isSelected ? 'bg-rose-50 ring-2 ring-rose-400 scale-105' : 'opacity-65 hover:opacity-100 hover:scale-105'
+                  isSelected ? 'bg-candy-50 ring-2 ring-candy-400 scale-105' : 'opacity-65 hover:opacity-100 hover:scale-105'
                 }`}
               >
                 <item.Flag className="w-5 h-5" />

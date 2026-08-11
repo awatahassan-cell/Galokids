@@ -133,7 +133,7 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
         <button
           type="button"
           onClick={() => setShowUrlInput(!showUrlInput)}
-          className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+          className="text-xs font-semibold text-grape-700 hover:text-indigo-700 bg-grape-50 hover:bg-grape-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
         >
           <Link className="w-3.5 h-3.5" />
           {showUrlInput ? L("Hide URL Input") : L("Add Image URL")}
@@ -152,7 +152,7 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
           />
           <button
             type="submit"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors shadow-xs"
+            className="bg-grape-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors shadow-xs"
           >
             {L("Add")}
           </button>
@@ -186,7 +186,7 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
 
                 {/* Primary Cover Badge */}
                 {isPrimary ? (
-                  <span className="absolute top-2 left-2 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 z-10">
+                  <span className="absolute top-2 left-2 bg-grape-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 z-10">
                     <Star className="w-3 h-3 fill-amber-300 text-amber-300" />
                     {L("Cover Photo")}
                   </span>
@@ -197,7 +197,7 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
                     className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 hover:bg-white text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm border border-slate-200 flex items-center gap-1 z-10"
                     title={L("Set as main cover photo")}
                   >
-                    <Star className="w-3 h-3 text-slate-400 group-hover:text-amber-500" />
+                    <Star className="w-3 h-3 text-slate-400 group-hover:text-sunny-600" />
                     {L("Set Cover")}
                   </button>
                 )}
@@ -208,7 +208,7 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
                     <button
                       type="button"
                       onClick={() => setLightboxImage(imgUrl)}
-                      className="p-1.5 rounded-lg bg-white/90 text-slate-700 hover:bg-white hover:text-indigo-600 shadow-sm transition-colors"
+                      className="p-1.5 rounded-lg bg-white/90 text-slate-700 hover:bg-white hover:text-grape-700 shadow-sm transition-colors"
                       title={L("Zoom / Full Preview")}
                     >
                       <Maximize2 className="w-3.5 h-3.5" />
@@ -265,7 +265,7 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
         onClick={() => fileInputRef.current?.click()}
         className={`relative border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 ${
           isDragging
-            ? 'border-indigo-600 bg-indigo-50/70 scale-[1.01]'
+            ? 'border-indigo-600 bg-grape-50/70 scale-[1.01]'
             : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-slate-50'
         }`}
       >
@@ -281,17 +281,17 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
 
         {isUploading ? (
           <div className="flex flex-col items-center justify-center py-3">
-            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-2" />
+            <Loader2 className="w-8 h-8 text-grape-700 animate-spin mb-2" />
             <p className="text-sm font-bold text-slate-800">{L("Compressing & Uploading Images...")}</p>
             <p className="text-xs text-slate-500 mt-0.5">{L("Optimizing photo quality and file size")}</p>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-2">
-            <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 rounded-full bg-grape-50 text-grape-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
               <Upload className="w-6 h-6" />
             </div>
             <p className="text-sm font-bold text-slate-800">
-              {L("Drag & drop product images here, or")} <span className="text-indigo-600 underline">{L("browse files")}</span>
+              {L("Drag & drop product images here, or")} <span className="text-grape-700 underline">{L("browse files")}</span>
             </p>
             <p className="text-xs text-slate-400 mt-1">
               {L("Supports JPG, PNG, WEBP up to 10MB per file. High-res images are automatically compressed.")}

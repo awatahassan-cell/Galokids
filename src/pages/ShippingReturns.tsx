@@ -9,7 +9,7 @@ export const ShippingReturns: React.FC = () => {
     {
       title: t('shippingInfoTitle'),
       icon: Truck,
-      color: 'bg-sky-100 text-sky-600',
+      color: 'bg-bubble-100 text-bubble-700',
       items: [
         { label: t('freeShipping'), desc: t('freeShippingDesc'), icon: Globe },
         { label: t('quickPrep'), desc: t('quickPrepDesc'), icon: Clock },
@@ -19,7 +19,7 @@ export const ShippingReturns: React.FC = () => {
     {
       title: t('easyReturns'),
       icon: RefreshCcw,
-      color: 'bg-rose-100 text-rose-600',
+      color: 'bg-candy-100 text-candy-700',
       items: [
         { label: t('thirtyDayWindow'), desc: t('thirtyDayWindowDesc'), icon: Clock },
         { label: t('fullRefund'), desc: t('fullRefundDesc'), icon: CreditCard },
@@ -31,7 +31,7 @@ export const ShippingReturns: React.FC = () => {
   return (
     <div className="flex-grow max-w-6xl mx-auto w-full px-4 sm:px-6 py-12 md:py-20">
       <div className="text-center mb-20">
-        <div className="inline-flex items-center justify-center p-3 bg-sky-100 text-sky-600 rounded-2xl mb-6">
+        <div className="inline-flex items-center justify-center p-3 bg-bubble-100 text-bubble-700 rounded-2xl mb-6">
           <Truck className="w-8 h-8" />
         </div>
         <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
@@ -45,7 +45,7 @@ export const ShippingReturns: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
         {sections.map((section, idx) => (
           <div key={idx} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-            <div className={`p-8 md:p-10 ${section.color === 'bg-sky-100 text-sky-600' ? 'bg-gradient-to-br from-sky-50 to-indigo-50/30' : 'bg-gradient-to-br from-rose-50 to-pink-50/30'}`}>
+            <div className={`p-8 md:p-10 ${section.color === 'bg-bubble-100 text-bubble-700' ? 'bg-gradient-to-br from-bubble-50 to-indigo-50/30' : 'bg-gradient-to-br from-candy-50 to-candy-50/30'}`}>
               <div className={`inline-flex p-3 rounded-2xl ${section.color} mb-6 shadow-sm`}>
                 <section.icon className="w-6 h-6" />
               </div>
@@ -83,7 +83,7 @@ export const ShippingReturns: React.FC = () => {
         </div>
         <div className="hidden md:block w-px h-12 bg-slate-200"></div>
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-sky-500 border border-slate-100">
+          <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center text-bubble-700 border border-slate-100">
             <Truck className="w-8 h-8" />
           </div>
           <div>

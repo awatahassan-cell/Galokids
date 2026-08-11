@@ -242,7 +242,7 @@ export const ProductDetail: React.FC = () => {
     return (
       <div className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center">
         <h2 className="text-2xl font-bold text-slate-900 mb-4">{t('noProductsFound')}</h2>
-        <button onClick={() => navigate(-1)} className="text-indigo-600 font-medium hover:text-indigo-700">
+        <button onClick={() => navigate(-1)} className="text-grape-700 font-medium hover:text-indigo-700">
           {t('backToProducts')}
         </button>
       </div>
@@ -360,7 +360,7 @@ export const ProductDetail: React.FC = () => {
                 }}
                 className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full shadow-lg backdrop-blur-md flex items-center justify-center transition-all active:scale-90 cursor-pointer border border-white/20 ${
                   isWishlisted 
-                    ? 'bg-[#FF6584] text-white' 
+                    ? 'bg-[#FF8FAB] text-white' 
                     : 'bg-slate-900/60 hover:bg-slate-900 text-white'
                 }`}
                 title={isWishlisted ? t('removeFromWishlist') || 'Remove' : t('addToWishlist') || 'Add'}
@@ -391,7 +391,7 @@ export const ProductDetail: React.FC = () => {
             {/* Sale Badge */}
             {product.discountPrice && (
               <div className="absolute top-16 left-4 sm:top-auto sm:bottom-4 z-10 pointer-events-none">
-                <span className="bg-[#FF6584] text-white text-[10px] sm:text-xs font-black px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full uppercase tracking-wider shadow-md font-arabic">
+                <span className="bg-[#FF8FAB] text-white text-[10px] sm:text-xs font-black px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full uppercase tracking-wider shadow-md font-arabic">
                   {language === 'ku' 
                     ? `داشکانی %${Math.round(((Number(product.price) - Number(product.discountPrice)) / Number(product.price)) * 100)}` 
                     : language === 'ar' 
@@ -442,7 +442,7 @@ export const ProductDetail: React.FC = () => {
                       type="button"
                       onClick={() => setActiveImage(img)}
                       className={`h-2 rounded-full transition-all cursor-pointer ${
-                        activeImage === img ? 'w-5 bg-[#FF6584]' : 'w-2 bg-white/70 hover:bg-white'
+                        activeImage === img ? 'w-5 bg-[#FF8FAB]' : 'w-2 bg-white/70 hover:bg-white'
                       }`}
                     />
                   ))}
@@ -492,7 +492,7 @@ export const ProductDetail: React.FC = () => {
                   onClick={() => setActiveImage(img)}
                   className={`w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-2xl overflow-hidden border-2 transition-all p-0.5 bg-white ${
                     activeImage === img 
-                      ? 'border-[#FF6584] ring-2 ring-[#FF6584]/20 scale-105 shadow-md' 
+                      ? 'border-[#FF8FAB] ring-2 ring-[#FF8FAB]/20 scale-105 shadow-md' 
                       : 'border-slate-200 hover:border-slate-300 opacity-80 hover:opacity-100'
                   }`}
                 >
@@ -508,12 +508,12 @@ export const ProductDetail: React.FC = () => {
           
           {/* Category & Rating Row */}
           <div className="flex items-center justify-between gap-4 mb-2">
-            <span className="text-xs font-black text-[#FF6584] uppercase tracking-wider">
+            <span className="text-xs font-black text-[#FF8FAB] uppercase tracking-wider">
               {(product as any).categoryName || (language === 'ku' ? 'چاکەت و کراس' : 'JACKET')}
             </span>
             
             <div className="flex items-center gap-1.5 bg-white border border-slate-200/80 rounded-full px-3 py-1 text-xs font-bold text-slate-700 shadow-2xs">
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              <Star className="w-3.5 h-3.5 fill-sunny-500 text-sunny-600" />
               <span className="font-black text-slate-900">{avgRating > 0 ? avgRating.toFixed(1) : '0.0'}</span>
               <span className="text-slate-400">({(product.reviews || []).length} {t('reviews') || 'reviews'})</span>
             </div>
@@ -528,7 +528,7 @@ export const ProductDetail: React.FC = () => {
           <div className="flex items-center gap-3 mb-4">
             {product.discountPrice ? (
               <>
-                <span className="text-3xl sm:text-4xl font-black text-[#FF6584]">
+                <span className="text-3xl sm:text-4xl font-black text-[#FF8FAB]">
                   {formatIQDLabel(Number(product.discountPrice))}
                 </span>
                 <span className="text-lg sm:text-xl font-bold text-slate-400 line-through">
@@ -568,7 +568,7 @@ export const ProductDetail: React.FC = () => {
                     onClick={() => setSelectedColor(color)}
                     className={`w-10 h-10 rounded-full border-2 focus:outline-none transition-all flex items-center justify-center shrink-0 cursor-pointer ${
                       selectedColor === color 
-                        ? 'border-[#FF6584] ring-2 ring-[#FF6584]/20 scale-105 shadow-sm' 
+                        ? 'border-[#FF8FAB] ring-2 ring-[#FF8FAB]/20 scale-105 shadow-sm' 
                         : 'border-slate-200 hover:scale-102 hover:border-slate-300 bg-white'
                     }`}
                     style={{ backgroundColor: getColorHex(color) }}
@@ -605,8 +605,8 @@ export const ProductDetail: React.FC = () => {
                         onClick={() => setSelectedSize(size)}
                         className={`px-4 py-2 rounded-full font-black text-xs transition-all flex items-center justify-center cursor-pointer ${
                           isSelected
-                            ? 'bg-[#FF6584] text-white shadow-md shadow-rose-500/20 scale-105'
-                            : 'bg-white text-slate-700 border border-slate-200 hover:border-[#FF6584]'
+                            ? 'bg-[#FF8FAB] text-white shadow-md shadow-candy-500/30 scale-105'
+                            : 'bg-white text-slate-700 border border-slate-200 hover:border-[#FF8FAB]'
                         }`}
                       >
                         {getLocalizedSizeName(String(size), language)}
@@ -652,7 +652,7 @@ export const ProductDetail: React.FC = () => {
                 type="button"
                 onClick={handleAddToCart}
                 disabled={isAddingToCart}
-                className="bg-[#FF6584] hover:bg-[#FF4D73] text-white font-black h-13 px-6 rounded-full flex items-center justify-center gap-2.5 shadow-lg shadow-rose-500/20 active:scale-95 text-sm sm:text-base flex-1 cursor-pointer transition-all"
+                className="bg-[#FF8FAB] hover:bg-[#FF4D73] text-white font-black h-13 px-6 rounded-full flex items-center justify-center gap-2.5 shadow-lg shadow-candy-500/30 active:scale-95 text-sm sm:text-base flex-1 cursor-pointer transition-all"
               >
                 {isAddingToCart ? (
                   <Loader2 className="w-5 h-5 animate-spin text-white shrink-0" />
@@ -675,8 +675,8 @@ export const ProductDetail: React.FC = () => {
                 onClick={() => toggleWishlist(product.id)}
                 className={`w-13 h-13 rounded-full flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer shrink-0 ${
                   isWishlisted 
-                    ? 'bg-[#FF6584] text-white shadow-rose-500/30' 
-                    : 'bg-rose-50 hover:bg-[#FF6584] text-[#FF6584] hover:text-white border border-rose-100'
+                    ? 'bg-[#FF8FAB] text-white shadow-candy-500/35' 
+                    : 'bg-candy-50 hover:bg-[#FF8FAB] text-[#FF8FAB] hover:text-white border border-candy-100'
                 }`}
                 title={isWishlisted ? t('removeFromWishlist') || 'Remove' : t('addToWishlist') || 'Add'}
               >
@@ -688,12 +688,12 @@ export const ProductDetail: React.FC = () => {
             <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
                 <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-rose-500 shrink-0" />
+                  <ShoppingBag className="w-4 h-4 text-candy-700 shrink-0" />
                   <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 font-arabic">
                     {language === 'ku' ? 'ئایتەمەکانی ناو سەبەتەکە:' : language === 'ar' ? 'العناصر في السلة:' : 'Items in Cart:'}
                   </h3>
                   {cart && cart.length > 0 && (
-                    <span className="bg-rose-100 text-rose-700 text-[11px] font-black px-2 py-0.5 rounded-full">
+                    <span className="bg-candy-100 text-candy-800 text-[11px] font-black px-2 py-0.5 rounded-full">
                       {cart.reduce((acc, item) => acc + (item?.quantity || 1), 0)}x
                     </span>
                   )}
@@ -748,7 +748,7 @@ export const ProductDetail: React.FC = () => {
                               {getLocalizedSizeName(String(item.variation?.size || ''), language)}
                             </span>
                             <span className="text-slate-300 font-bold">•</span>
-                            <span className="font-black text-rose-600 bg-rose-50 border border-rose-100/80 px-1.5 py-0.5 rounded-md text-[10px] sm:text-[11px]">
+                            <span className="font-black text-candy-700 bg-candy-50 border border-candy-100/80 px-1.5 py-0.5 rounded-md text-[10px] sm:text-[11px]">
                               {item.quantity}x
                             </span>
                           </div>
@@ -763,7 +763,7 @@ export const ProductDetail: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => removeFromCart(item.id)}
-                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all cursor-pointer active:scale-90"
+                            className="p-1.5 text-candy-700 hover:text-candy-800 hover:bg-candy-50 rounded-lg transition-all cursor-pointer active:scale-90"
                             title={language === 'ku' ? 'سڕینەوە' : language === 'ar' ? 'حذف' : 'Remove'}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -891,7 +891,7 @@ export const ProductDetail: React.FC = () => {
                     id="photo" 
                     accept="image/*"
                     onChange={handleImageUpload}
-                    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-grape-50 file:text-indigo-700 hover:file:bg-grape-100"
                   />
                   {reviewForm.imageUrl && (
                     <div className="mt-2">
@@ -916,7 +916,7 @@ export const ProductDetail: React.FC = () => {
         <div className="mt-12 sm:mt-16 border-t border-slate-200 pt-12 font-arabic">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <span className="text-xs font-black text-[#FF6584] uppercase tracking-wider block mb-1">
+              <span className="text-xs font-black text-[#FF8FAB] uppercase tracking-wider block mb-1">
                 {language === 'ku' ? 'زیاتر ببینە' : language === 'ar' ? 'اكتشف المزيد' : 'Discover More'}
               </span>
               <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
@@ -930,7 +930,7 @@ export const ProductDetail: React.FC = () => {
                 onClick={() => {
                   if (relatedScrollRef.current) relatedScrollRef.current.scrollBy({ left: -260, behavior: 'smooth' });
                 }}
-                className="w-9 h-9 rounded-full bg-white text-slate-700 hover:bg-[#FF6584] hover:text-white border border-slate-200 flex items-center justify-center shadow-sm cursor-pointer transition-all active:scale-95"
+                className="w-9 h-9 rounded-full bg-white text-slate-700 hover:bg-[#FF8FAB] hover:text-white border border-slate-200 flex items-center justify-center shadow-sm cursor-pointer transition-all active:scale-95"
                 aria-label="Previous related products"
               >
                 <ChevronLeft className="w-5 h-5 rtl:rotate-180" />
@@ -940,7 +940,7 @@ export const ProductDetail: React.FC = () => {
                 onClick={() => {
                   if (relatedScrollRef.current) relatedScrollRef.current.scrollBy({ left: 260, behavior: 'smooth' });
                 }}
-                className="w-9 h-9 rounded-full bg-white text-slate-700 hover:bg-[#FF6584] hover:text-white border border-slate-200 flex items-center justify-center shadow-sm cursor-pointer transition-all active:scale-95"
+                className="w-9 h-9 rounded-full bg-white text-slate-700 hover:bg-[#FF8FAB] hover:text-white border border-slate-200 flex items-center justify-center shadow-sm cursor-pointer transition-all active:scale-95"
                 aria-label="Next related products"
               >
                 <ChevronRight className="w-5 h-5 rtl:rotate-180" />
@@ -1049,7 +1049,7 @@ export const ProductDetail: React.FC = () => {
                       type="button"
                       onClick={() => setActiveImage(img)}
                       className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
-                        activeImage === img ? 'border-[#FF6584] scale-105 shadow-md' : 'border-white/30 opacity-60 hover:opacity-100'
+                        activeImage === img ? 'border-[#FF8FAB] scale-105 shadow-md' : 'border-white/30 opacity-60 hover:opacity-100'
                       }`}
                     >
                       <img src={img} alt="Thumbnail preview" className="w-full h-full object-cover" />

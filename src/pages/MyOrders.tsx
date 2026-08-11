@@ -53,7 +53,7 @@ export const MyOrders: React.FC = () => {
     switch (status) {
       case 'pending': return <Clock className="w-5 h-5 text-yellow-500" />;
       case 'processing': return <Package className="w-5 h-5 text-blue-500" />;
-      case 'shipped': return <Truck className="w-5 h-5 text-indigo-500" />;
+      case 'shipped': return <Truck className="w-5 h-5 text-grape-700" />;
       case 'delivered': return <CheckCircle className="w-5 h-5 text-green-500" />;
       case 'cancelled': return <XCircle className="w-5 h-5 text-red-500" />;
       default: return null;
@@ -64,7 +64,7 @@ export const MyOrders: React.FC = () => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'shipped': return 'bg-indigo-100 text-indigo-800';
+      case 'shipped': return 'bg-grape-100 text-indigo-800';
       case 'delivered': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-slate-100 text-slate-800';
@@ -88,7 +88,7 @@ export const MyOrders: React.FC = () => {
           type="button"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all disabled:opacity-60 cursor-pointer active:scale-95"
+          className="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:text-grape-700 hover:border-indigo-200 shadow-sm transition-all disabled:opacity-60 cursor-pointer active:scale-95"
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           <span>
@@ -127,13 +127,13 @@ export const MyOrders: React.FC = () => {
                 <div className="px-4 sm:px-6 py-6 border-b border-slate-200">
                   <div className="relative">
                     <div className="overflow-hidden h-2 mb-4 text-xs flex rounded-full bg-slate-200">
-                      <div style={{ width: `${(Math.max(0, ['pending', 'processing', 'shipped', 'delivered'].indexOf(order.status)) / 3) * 100}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-indigo-500 transition-all duration-500"></div>
+                      <div style={{ width: `${(Math.max(0, ['pending', 'processing', 'shipped', 'delivered'].indexOf(order.status)) / 3) * 100}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-grape-500 transition-all duration-500"></div>
                     </div>
                     <div className="flex justify-between text-xs font-medium text-slate-500 px-1">
-                      <div className={`text-center ${['pending', 'processing', 'shipped', 'delivered'].includes(order.status) ? 'text-indigo-600' : ''}`}>{t('pending')}</div>
-                      <div className={`text-center ${['processing', 'shipped', 'delivered'].includes(order.status) ? 'text-indigo-600' : ''}`}>{t('processing')}</div>
-                      <div className={`text-center ${['shipped', 'delivered'].includes(order.status) ? 'text-indigo-600' : ''}`}>{t('shipped')}</div>
-                      <div className={`text-center ${['delivered'].includes(order.status) ? 'text-indigo-600' : ''}`}>{t('delivered')}</div>
+                      <div className={`text-center ${['pending', 'processing', 'shipped', 'delivered'].includes(order.status) ? 'text-grape-700' : ''}`}>{t('pending')}</div>
+                      <div className={`text-center ${['processing', 'shipped', 'delivered'].includes(order.status) ? 'text-grape-700' : ''}`}>{t('processing')}</div>
+                      <div className={`text-center ${['shipped', 'delivered'].includes(order.status) ? 'text-grape-700' : ''}`}>{t('shipped')}</div>
+                      <div className={`text-center ${['delivered'].includes(order.status) ? 'text-grape-700' : ''}`}>{t('delivered')}</div>
                     </div>
                   </div>
                 </div>

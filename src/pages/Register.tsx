@@ -240,7 +240,7 @@ export const Register: React.FC = () => {
         <div className="mb-6 flex justify-start">
           <Link 
             to="/" 
-            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 font-medium transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-grape-700 font-medium transition-colors"
           >
             <ArrowLeft className={`w-4 h-4 ${dir === 'rtl' ? 'rotate-180' : ''}`} />
             <span>{localT.backToHome}</span>
@@ -251,7 +251,7 @@ export const Register: React.FC = () => {
         <div className="bg-white p-8 sm:p-10 rounded-2xl border border-slate-200 shadow-md">
           {/* Logo & Headline */}
           <div className="text-center mb-6">
-            <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mx-auto mb-4 border border-indigo-100">
+            <div className="w-12 h-12 bg-grape-50 rounded-2xl flex items-center justify-center text-grape-700 mx-auto mb-4 border border-indigo-100">
               <UserPlus className="w-6 h-6" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">{localT.createAccount}</h1>
@@ -265,7 +265,7 @@ export const Register: React.FC = () => {
               onClick={() => setAuthMethod('phone')}
               className={`py-2 px-3 text-xs sm:text-sm font-extrabold rounded-lg transition-all cursor-pointer ${
                 authMethod === 'phone'
-                  ? 'bg-white text-indigo-600 shadow-xs'
+                  ? 'bg-white text-grape-700 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -276,7 +276,7 @@ export const Register: React.FC = () => {
               onClick={() => setAuthMethod('email')}
               className={`py-2 px-3 text-xs sm:text-sm font-extrabold rounded-lg transition-all cursor-pointer ${
                 authMethod === 'email'
-                  ? 'bg-white text-indigo-600 shadow-xs'
+                  ? 'bg-white text-grape-700 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -451,7 +451,7 @@ export const Register: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm sm:text-base rounded-xl py-3 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 mt-6 cursor-pointer"
+              className="w-full bg-grape-600 hover:bg-indigo-700 text-white font-medium text-sm sm:text-base rounded-xl py-3 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 mt-6 cursor-pointer"
             >
               {isLoading ? (
                 <>
@@ -470,7 +470,7 @@ export const Register: React.FC = () => {
           {/* Signin Suggestion */}
           <div className="mt-8 pt-6 border-t border-slate-100 text-center text-sm text-slate-500">
             {localT.alreadyHaveAccount}{' '}
-            <Link to="/login" className="text-indigo-600 font-semibold hover:text-indigo-700 hover:underline">
+            <Link to="/login" className="text-grape-700 font-semibold hover:text-indigo-700 hover:underline">
               {localT.signIn}
             </Link>
           </div>

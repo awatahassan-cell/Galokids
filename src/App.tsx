@@ -61,11 +61,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const MobileMenuButton = (
     <button 
-      className="p-2.5 text-slate-500 hover:text-rose-500 md:hidden transition-all bg-slate-50 hover:bg-rose-50 rounded-full active:scale-95 border border-slate-100 shadow-sm flex items-center justify-center cursor-pointer shrink-0"
+      className="p-2.5 text-slate-500 hover:text-candy-700 md:hidden transition-all bg-slate-50 hover:bg-candy-50 rounded-full active:scale-95 border border-slate-100 shadow-sm flex items-center justify-center cursor-pointer shrink-0"
       onClick={() => setIsSidebarOpen(true)}
       aria-label="Open Menu"
     >
-      <Menu className="w-5 h-5 text-rose-500" />
+      <Menu className="w-5 h-5 text-candy-700" />
     </button>
   );
 
@@ -103,10 +103,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAdminOrPos = isAdmin || isPos;
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b from-sky-50/50 via-pink-50/30 via-amber-50/10 to-slate-50/80 flex flex-col ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'} selection:bg-rose-200 selection:text-rose-900 relative`}>
+    <div className={`min-h-screen bg-gradient-to-b from-bubble-50/50 via-candy-50/30 via-amber-50/10 to-slate-50/80 flex flex-col ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'} selection:bg-candy-200 selection:text-candy-800 relative`}>
       {/* Vastraa Kids Ambient Background Blobs */}
       <div className="fixed top-0 left-0 w-96 h-96 bg-sky-200/25 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
-      <div className="fixed top-1/3 right-0 w-[30rem] h-[30rem] bg-rose-200/20 rounded-full blur-3xl pointer-events-none translate-x-1/3" />
+      <div className="fixed top-1/3 right-0 w-[30rem] h-[30rem] bg-candy-200/20 rounded-full blur-3xl pointer-events-none translate-x-1/3" />
       <div className="fixed bottom-0 left-1/4 w-[28rem] h-[28rem] bg-amber-200/20 rounded-full blur-3xl pointer-events-none" />
 
       {isAdminOrPos ? null : (
@@ -115,7 +115,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div className="hidden md:block bg-slate-950 text-slate-300 text-xs py-2 border-b border-slate-800/90 font-arabic relative z-[110]">
             <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
               <div className="flex items-center gap-3 font-medium">
-                <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 text-white px-3 py-0.5 rounded-full text-[11px] font-black shadow-xs tracking-wider uppercase">
+                <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-candy-500 via-candy-400 to-amber-500 text-white px-3 py-0.5 rounded-full text-[11px] font-black shadow-xs tracking-wider uppercase">
                   <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                   ⚡ 🚚 {language === 'ku' ? 'گەیاندنی خێرا' : language === 'ar' ? 'توصيل سريع' : 'Fast Shipping'}
                 </span>
@@ -164,13 +164,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
                     location.pathname === '/' 
                       ? 'text-white' 
-                      : 'text-slate-700 hover:text-rose-600 hover:bg-rose-50/50'
+                      : 'text-slate-700 hover:text-candy-700 hover:bg-candy-50/50'
                   }`}
                 >
                   {location.pathname === '/' && (
                     <motion.span
                       layoutId="activeNavPill"
-                      className="absolute inset-0 bg-[#FF6584] rounded-full shadow-md shadow-rose-500/20"
+                      className="absolute inset-0 bg-[#FF8FAB] rounded-full shadow-md shadow-candy-500/30"
                       transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                     />
                   )}
@@ -182,13 +182,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
                     location.pathname === '/products' && !location.search
                       ? 'text-white' 
-                      : 'text-slate-700 hover:text-rose-600 hover:bg-rose-50/50'
+                      : 'text-slate-700 hover:text-candy-700 hover:bg-candy-50/50'
                   }`}
                 >
                   {location.pathname === '/products' && !location.search && (
                     <motion.span
                       layoutId="activeNavPill"
-                      className="absolute inset-0 bg-[#FF6584] rounded-full shadow-md shadow-rose-500/20"
+                      className="absolute inset-0 bg-[#FF8FAB] rounded-full shadow-md shadow-candy-500/30"
                       transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                     />
                   )}
@@ -200,13 +200,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
                     location.pathname === '/about' 
                       ? 'text-white' 
-                      : 'text-slate-700 hover:text-rose-600 hover:bg-rose-50/50'
+                      : 'text-slate-700 hover:text-candy-700 hover:bg-candy-50/50'
                   }`}
                 >
                   {location.pathname === '/about' && (
                     <motion.span
                       layoutId="activeNavPill"
-                      className="absolute inset-0 bg-[#FF6584] rounded-full shadow-md shadow-rose-500/20"
+                      className="absolute inset-0 bg-[#FF8FAB] rounded-full shadow-md shadow-candy-500/30"
                       transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                     />
                   )}
@@ -218,13 +218,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   className={`relative px-4 py-2 rounded-full text-xs xl:text-sm font-black transition-colors ${
                     location.pathname === '/contact' 
                       ? 'text-white' 
-                      : 'text-slate-700 hover:text-rose-600 hover:bg-rose-50/50'
+                      : 'text-slate-700 hover:text-candy-700 hover:bg-candy-50/50'
                   }`}
                 >
                   {location.pathname === '/contact' && (
                     <motion.span
                       layoutId="activeNavPill"
-                      className="absolute inset-0 bg-[#FF6584] rounded-full shadow-md shadow-rose-500/20"
+                      className="absolute inset-0 bg-[#FF8FAB] rounded-full shadow-md shadow-candy-500/30"
                       transition={{ type: 'spring', stiffness: 400, damping: 32 }}
                     />
                   )}
@@ -243,7 +243,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {/* Wishlist Solid Pink Circle Button */}
                 <Link 
                   to="/wishlist" 
-                  className="w-11 h-11 rounded-full bg-[#FF6584] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all hidden sm:flex relative cursor-pointer"
+                  className="w-11 h-11 rounded-full bg-[#FF8FAB] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all hidden sm:flex relative cursor-pointer"
                   title={t('wishlist')}
                 >
                   <Heart className="w-5 h-5 fill-white" />
@@ -257,7 +257,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {/* Cart Basket Solid Pink Circle Button */}
                 <button 
                   onClick={() => setIsCartOpen(true)}
-                  className="w-11 h-11 rounded-full bg-[#FF6584] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all relative cursor-pointer"
+                  className="w-11 h-11 rounded-full bg-[#FF8FAB] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all relative cursor-pointer"
                   aria-label="Shopping Cart"
                 >
                   <ShoppingBag className="w-5 h-5" />
@@ -273,16 +273,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <div className="relative" ref={userDropdownRef}>
                     <button
                       onClick={() => setIsUserDropdownOpen(prev => !prev)}
-                      className="flex items-center gap-1.5 p-1 sm:px-3 sm:py-1.5 rounded-full bg-slate-100 hover:bg-rose-50 border border-slate-200/80 transition-all shadow-xs group cursor-pointer active:scale-95"
+                      className="flex items-center gap-1.5 p-1 sm:px-3 sm:py-1.5 rounded-full bg-slate-100 hover:bg-candy-50 border border-slate-200/80 transition-all shadow-xs group cursor-pointer active:scale-95"
                       title={currentUser.name}
                     >
-                      <div className="w-8 h-8 rounded-full bg-[#FF6584] text-white flex items-center justify-center font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
+                      <div className="w-8 h-8 rounded-full bg-[#FF8FAB] text-white flex items-center justify-center font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
                         {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <UserCircle className="w-5 h-5" />}
                       </div>
-                      <span className="hidden md:inline-block text-xs font-black text-slate-800 group-hover:text-rose-600 max-w-[100px] truncate">
+                      <span className="hidden md:inline-block text-xs font-black text-slate-800 group-hover:text-candy-700 max-w-[100px] truncate">
                         {currentUser.name}
                       </span>
-                      <ChevronDown className={`w-4 h-4 text-slate-400 group-hover:text-rose-500 transition-transform duration-300 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-4 h-4 text-slate-400 group-hover:text-candy-700 transition-transform duration-300 ${isUserDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     <AnimatePresence>
@@ -295,7 +295,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                           className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-50 overflow-hidden font-arabic`}
                         >
                           {/* Header info */}
-                          <div className="p-3 bg-gradient-to-r from-rose-50/70 via-pink-50/50 to-sky-50/50 rounded-xl mb-1 border border-pink-100/50">
+                          <div className="p-3 bg-gradient-to-r from-candy-50/70 via-candy-50/50 to-bubble-50/50 rounded-xl mb-1 border border-candy-100/50">
                             <p className="text-xs font-black text-slate-900 truncate">{currentUser.name}</p>
                             <p className="text-[11px] font-bold text-slate-500 truncate">{currentUser.phone || currentUser.email || 'Galo Kids Member'}</p>
                             {(() => {
@@ -314,9 +314,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                             <Link
                               to="/profile"
                               onClick={() => setIsUserDropdownOpen(false)}
-                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-slate-700 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-slate-700 hover:text-candy-700 hover:bg-candy-50 transition-colors"
                             >
-                              <UserCircle className="w-4 h-4 text-rose-500" />
+                              <UserCircle className="w-4 h-4 text-candy-700" />
                               <span>{language === 'ku' ? 'بینینی پڕۆفایل' : language === 'ar' ? 'عرض الملف الشخصي' : 'View Profile'}</span>
                             </Link>
 
@@ -324,9 +324,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                             <Link
                               to="/my-orders"
                               onClick={() => setIsUserDropdownOpen(false)}
-                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-slate-700 hover:text-grape-700 hover:bg-grape-50 transition-colors"
                             >
-                              <Package className="w-4 h-4 text-indigo-500" />
+                              <Package className="w-4 h-4 text-grape-700" />
                               <span>{language === 'ku' ? 'ئۆردەرەکانم' : language === 'ar' ? 'طلباتي' : 'My Orders'}</span>
                             </Link>
 
@@ -334,9 +334,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                             <Link
                               to="/profile?tab=security"
                               onClick={() => setIsUserDropdownOpen(false)}
-                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-slate-700 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-slate-700 hover:text-sunny-700 hover:bg-sunny-50 transition-colors"
                             >
-                              <KeyRound className="w-4 h-4 text-amber-500" />
+                              <KeyRound className="w-4 h-4 text-sunny-600" />
                               <span>{language === 'ku' ? 'گۆڕینی پاسۆرد' : language === 'ar' ? 'تغيير كلمة المرور' : 'Change Password'}</span>
                             </Link>
 
@@ -360,9 +360,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                               <Link
                                 to="/admin"
                                 onClick={() => setIsUserDropdownOpen(false)}
-                                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-rose-700 hover:bg-rose-50 transition-colors"
+                                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-candy-800 hover:bg-candy-50 transition-colors"
                               >
-                                <ShieldCheck className="w-4 h-4 text-rose-500" />
+                                <ShieldCheck className="w-4 h-4 text-candy-700" />
                                 <span>{t('admin')}</span>
                               </Link>
                             )}
@@ -375,9 +375,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                                 setIsUserDropdownOpen(false);
                                 logout();
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-rose-600 hover:bg-rose-50 transition-colors text-start cursor-pointer"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-black text-candy-700 hover:bg-candy-50 transition-colors text-start cursor-pointer"
                             >
-                              <LogOut className="w-4 h-4 text-rose-600" />
+                              <LogOut className="w-4 h-4 text-candy-700" />
                               <span>{language === 'ku' ? 'دەرچوون' : language === 'ar' ? 'تسجيل الخروج' : 'Logout'}</span>
                             </button>
                           </div>
@@ -386,7 +386,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     </AnimatePresence>
                   </div>
                 ) : (
-                  <Link to="/login" className="w-11 h-11 rounded-full bg-[#FF6584] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all hidden sm:flex" title={t('login')}>
+                  <Link to="/login" className="w-11 h-11 rounded-full bg-[#FF8FAB] hover:bg-[#FF4D73] text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all hidden sm:flex" title={t('login')}>
                     <UserCircle className="w-5 h-5" />
                   </Link>
                 )}

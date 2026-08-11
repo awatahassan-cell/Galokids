@@ -30,7 +30,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenCart, on
         to="/"
         className={`flex items-center justify-center flex-1 py-1 rounded-xl transition-all duration-200 relative active:scale-95 ${
           isActive('/') 
-            ? 'text-rose-600' 
+            ? 'text-candy-700' 
             : 'text-slate-500 hover:text-slate-900'
         }`}
         title={t('home') || 'سەرەکی'}
@@ -43,7 +43,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenCart, on
         to="/products"
         className={`flex items-center justify-center flex-1 py-1 rounded-xl transition-all duration-200 relative active:scale-95 ${
           isActive('/products') 
-            ? 'text-rose-600' 
+            ? 'text-candy-700' 
             : 'text-slate-500 hover:text-slate-900'
         }`}
         title={t('products') || 'بەرهەم'}
@@ -66,16 +66,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenCart, on
         to="/wishlist"
         className={`flex items-center justify-center flex-1 py-1 rounded-xl transition-all duration-200 relative active:scale-95 ${
           isActive('/wishlist') 
-            ? 'text-rose-600' 
+            ? 'text-candy-700' 
             : 'text-slate-500 hover:text-slate-900'
         }`}
         title={t('wishlist') || 'دڵخواز'}
         aria-label={t('wishlist') || 'دڵخواز'}
       >
         <div className="relative">
-          <Heart className={`w-5.5 h-5.5 stroke-[2.2] ${isActive('/wishlist') ? 'fill-rose-600' : ''}`} />
+          <Heart className={`w-5.5 h-5.5 stroke-[2.2] ${isActive('/wishlist') ? 'fill-candy-600' : ''}`} />
           {wishlistCount > 0 && (
-            <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] px-1 bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white shadow-xs">
+            <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] px-1 bg-candy-500 text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white shadow-xs">
               {wishlistCount}
             </span>
           )}
@@ -86,7 +86,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenCart, on
         to={currentUser ? "/profile" : "/login"}
         className={`flex items-center justify-center flex-1 py-1 rounded-xl transition-all duration-200 relative active:scale-95 ${
           isActive('/profile') || isActive('/login')
-            ? 'text-rose-600' 
+            ? 'text-candy-700' 
             : 'text-slate-500 hover:text-slate-900'
         }`}
         title={currentUser ? (t('profile') || 'پڕۆفایل') : (t('signIn') || 'چوونەژوور')}

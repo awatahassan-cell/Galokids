@@ -89,7 +89,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   <p>{t('emptyCart')}</p>
                   <button 
                     onClick={onClose}
-                    className="text-indigo-600 font-medium hover:text-indigo-700"
+                    className="text-grape-700 font-medium hover:text-indigo-700"
                   >
                     {t('continueShopping')}
                   </button>

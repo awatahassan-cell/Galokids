@@ -54,7 +54,7 @@ export const Wishlist: React.FC = () => {
           </p>
           <Link 
             to="/products"
-            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm"
+            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full text-white bg-grape-600 hover:bg-indigo-700 transition-colors shadow-sm"
           >
             {t('exploreProducts')}
           </Link>

@@ -38,19 +38,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: t('home'), 
       path: '/', 
       icon: Home, 
-      activeBg: 'bg-rose-50/85 text-rose-700 border-rose-100/80 shadow-[0_4px_12px_rgba(244,63,94,0.1)]', 
-      hoverBg: 'hover:bg-rose-50/40 hover:text-rose-600', 
-      iconBg: 'bg-gradient-to-tr from-rose-400 to-orange-400 text-white shadow-sm shadow-rose-200', 
-      iconColor: 'text-rose-500 bg-rose-50' 
+      activeBg: 'bg-candy-50/85 text-candy-800 border-candy-100/80 shadow-[0_4px_12px_rgba(244,63,94,0.1)]', 
+      hoverBg: 'hover:bg-candy-50/40 hover:text-candy-700', 
+      iconBg: 'bg-gradient-to-tr from-candy-400 to-orange-400 text-white shadow-sm shadow-candy-200', 
+      iconColor: 'text-candy-700 bg-candy-50' 
     },
     { 
       name: t('products'), 
       path: '/products', 
       icon: ShoppingBag, 
-      activeBg: 'bg-sky-50/85 text-sky-700 border-sky-100/80 shadow-[0_4px_12px_rgba(14,165,233,0.1)]', 
-      hoverBg: 'hover:bg-sky-50/40 hover:text-sky-600', 
+      activeBg: 'bg-bubble-50/85 text-bubble-700 border-bubble-100/80 shadow-[0_4px_12px_rgba(14,165,233,0.1)]', 
+      hoverBg: 'hover:bg-bubble-50/40 hover:text-bubble-700', 
       iconBg: 'bg-gradient-to-tr from-sky-400 to-indigo-500 text-white shadow-sm shadow-sky-200', 
-      iconColor: 'text-sky-500 bg-sky-50' 
+      iconColor: 'text-bubble-700 bg-bubble-50' 
     },
     { 
       name: t('about'), 
@@ -65,10 +65,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: t('contact'), 
       path: '/contact', 
       icon: Mail, 
-      activeBg: 'bg-amber-50/85 text-amber-700 border-amber-100/80 shadow-[0_4px_12px_rgba(245,158,11,0.1)]', 
-      hoverBg: 'hover:bg-amber-50/40 hover:text-amber-600', 
-      iconBg: 'bg-gradient-to-tr from-amber-400 to-pink-500 text-white shadow-sm shadow-amber-200', 
-      iconColor: 'text-amber-500 bg-amber-50' 
+      activeBg: 'bg-sunny-50/85 text-amber-700 border-amber-100/80 shadow-[0_4px_12px_rgba(245,158,11,0.1)]', 
+      hoverBg: 'hover:bg-sunny-50/40 hover:text-sunny-700', 
+      iconBg: 'bg-gradient-to-tr from-sunny-500 to-grape-500 text-white shadow-sm shadow-amber-200', 
+      iconColor: 'text-sunny-600 bg-sunny-50' 
     },
   ];
 
@@ -77,10 +77,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: t('faq'), 
       path: '/faq', 
       icon: HelpCircle, 
-      activeBg: 'bg-indigo-50/85 text-indigo-700 border-indigo-100/80 shadow-[0_4px_12px_rgba(99,102,241,0.1)]', 
-      hoverBg: 'hover:bg-indigo-50/40 hover:text-indigo-600', 
-      iconBg: 'bg-gradient-to-tr from-indigo-400 to-sky-500 text-white shadow-sm shadow-indigo-200', 
-      iconColor: 'text-indigo-500 bg-indigo-50' 
+      activeBg: 'bg-grape-50/85 text-indigo-700 border-indigo-100/80 shadow-[0_4px_12px_rgba(99,102,241,0.1)]', 
+      hoverBg: 'hover:bg-grape-50/40 hover:text-grape-700', 
+      iconBg: 'bg-gradient-to-tr from-indigo-400 to-bubble-500 text-white shadow-sm shadow-indigo-200', 
+      iconColor: 'text-grape-700 bg-grape-50' 
     },
     { 
       name: t('shippingReturns'), 
@@ -98,19 +98,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       name: t('profile'), 
       path: '/profile', 
       icon: UserCircle, 
-      activeBg: 'bg-indigo-50/85 text-indigo-700 border-indigo-100/80 shadow-[0_4px_12px_rgba(99,102,241,0.1)]', 
-      hoverBg: 'hover:bg-indigo-50/40 hover:text-indigo-600', 
+      activeBg: 'bg-grape-50/85 text-indigo-700 border-indigo-100/80 shadow-[0_4px_12px_rgba(99,102,241,0.1)]', 
+      hoverBg: 'hover:bg-grape-50/40 hover:text-grape-700', 
       iconBg: 'bg-gradient-to-tr from-indigo-400 to-purple-500 text-white shadow-sm shadow-indigo-200', 
-      iconColor: 'text-indigo-500 bg-indigo-50' 
+      iconColor: 'text-grape-700 bg-grape-50' 
     },
     { 
       name: t('wishlist'), 
       path: '/wishlist', 
       icon: Heart, 
-      activeBg: 'bg-pink-50/85 text-pink-700 border-pink-100/80 shadow-[0_4px_12px_rgba(236,72,153,0.1)]', 
-      hoverBg: 'hover:bg-pink-50/40 hover:text-pink-600', 
-      iconBg: 'bg-gradient-to-tr from-pink-400 to-rose-500 text-white shadow-sm shadow-pink-200', 
-      iconColor: 'text-pink-500 bg-pink-50' 
+      activeBg: 'bg-candy-50/85 text-candy-800 border-candy-100/80 shadow-[0_4px_12px_rgba(236,72,153,0.1)]', 
+      hoverBg: 'hover:bg-candy-50/40 hover:text-candy-700', 
+      iconBg: 'bg-gradient-to-tr from-candy-400 to-candy-500 text-white shadow-sm shadow-candy-200', 
+      iconColor: 'text-candy-700 bg-candy-50' 
     },
     { 
       name: t('myOrders'), 
@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       icon: MonitorSmartphone, 
       activeBg: 'bg-orange-50/85 text-orange-700 border-orange-100/80 shadow-[0_4px_12px_rgba(249,115,22,0.1)]', 
       hoverBg: 'hover:bg-orange-50/40 hover:text-orange-600', 
-      iconBg: 'bg-gradient-to-tr from-amber-400 to-orange-500 text-white shadow-sm shadow-orange-200', 
+      iconBg: 'bg-gradient-to-tr from-sunny-500 to-orange-500 text-white shadow-sm shadow-orange-200', 
       iconColor: 'text-orange-500 bg-orange-50' 
     }] : []),
     ...(canSeeAdmin ? [{ 
@@ -152,7 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       icon: Shield, 
       activeBg: 'bg-red-50/85 text-red-700 border-red-100/80 shadow-[0_4px_12px_rgba(239,68,68,0.1)]', 
       hoverBg: 'hover:bg-red-50/40 hover:text-red-600', 
-      iconBg: 'bg-gradient-to-tr from-red-400 to-rose-600 text-white shadow-sm shadow-rose-200', 
+      iconBg: 'bg-gradient-to-tr from-red-400 to-candy-600 text-white shadow-sm shadow-candy-200', 
       iconColor: 'text-red-500 bg-red-50' 
     }] : [])
   ];
@@ -179,10 +179,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         } flex flex-col ${language === 'ar' || language === 'ku' ? 'rounded-l-2xl text-right font-arabic' : 'rounded-r-2xl text-left'} overflow-hidden`}
       >
         {/* Playful Colorful Header */}
-        <div className="flex items-center justify-between p-6 border-b border-pink-100 shrink-0 bg-gradient-to-r from-pink-50 via-amber-50 to-sky-50 relative overflow-hidden">
+        <div className="flex items-center justify-between p-6 border-b border-candy-100 shrink-0 bg-gradient-to-r from-candy-50 via-amber-50 to-bubble-50 relative overflow-hidden">
           {/* Decorative bubble backgrounds */}
-          <div className="absolute -top-6 -left-6 w-16 h-16 rounded-full bg-pink-100/40 blur-sm"></div>
-          <div className="absolute -bottom-6 right-12 w-12 h-12 rounded-full bg-sky-100/40 blur-sm"></div>
+          <div className="absolute -top-6 -left-6 w-16 h-16 rounded-full bg-candy-100/40 blur-sm"></div>
+          <div className="absolute -bottom-6 right-12 w-12 h-12 rounded-full bg-bubble-100/40 blur-sm"></div>
           
           <Link to="/" onClick={onClose} className="flex items-center group relative z-10">
             <img 
@@ -193,13 +193,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </Link>
           <div className="flex items-center gap-2.5 relative z-10">
             {currentUser && (
-              <div className="w-8 h-8 bg-gradient-to-tr from-pink-400 via-purple-400 to-sky-400 text-white rounded-xl flex items-center justify-center font-black text-xs border-2 border-white shadow-sm" title={currentUser.name || (currentUser.email && !currentUser.email.includes('@phone.user') ? currentUser.email : currentUser.phone || '')}>
+              <div className="w-8 h-8 bg-gradient-to-tr from-candy-400 via-purple-400 to-sky-400 text-white rounded-xl flex items-center justify-center font-black text-xs border-2 border-white shadow-sm" title={currentUser.name || (currentUser.email && !currentUser.email.includes('@phone.user') ? currentUser.email : currentUser.phone || '')}>
                 {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : '👤'}
               </div>
             )}
             <button 
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 hover:scale-110 rounded-full transition-all border border-slate-100 shadow-sm bg-white"
+              className="p-2 text-slate-400 hover:text-candy-700 hover:bg-candy-50 hover:scale-110 rounded-full transition-all border border-slate-100 shadow-sm bg-white"
             >
               <X className="w-5 h-5" />
             </button>
@@ -268,9 +268,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         <Link 
                           to="/products" 
                           onClick={onClose} 
-                          className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-all"
+                          className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-bubble-700 hover:bg-bubble-50 transition-all"
                         >
-                          <div className="p-1.5 rounded-lg bg-slate-50 text-slate-400 group-hover:bg-sky-100 group-hover:text-sky-600 transition-colors">
+                          <div className="p-1.5 rounded-lg bg-slate-50 text-slate-400 group-hover:bg-bubble-100 group-hover:text-bubble-700 transition-colors">
                             <LayoutGrid className="w-4 h-4" />
                           </div>
                           <span>{language === 'ku' ? 'هەموو پۆلەکان' : language === 'ar' ? 'جميع الأقسام' : 'All Categories'}</span>
@@ -280,9 +280,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                             key={category.id}
                             to={`/products?category=${category.slug || category?.name?.toLowerCase()}`} 
                             onClick={onClose} 
-                            className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-all"
+                            className="group flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:text-bubble-700 hover:bg-bubble-50 transition-all"
                           >
-                            <div className="p-1.5 rounded-lg bg-slate-50 text-slate-400 group-hover:bg-sky-100 group-hover:text-sky-600 transition-colors">
+                            <div className="p-1.5 rounded-lg bg-slate-50 text-slate-400 group-hover:bg-bubble-100 group-hover:text-bubble-700 transition-colors">
                               <CategoryIcon name={category.icon} className="w-4 h-4" />
                             </div>
                             <span>
@@ -411,9 +411,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   logout();
                   onClose();
                 }}
-                className={`w-full group flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-black transition-all duration-300 border-2 transform active:scale-95 text-slate-600 hover:bg-rose-50/40 hover:text-rose-600 border-transparent ${language === 'ar' || language === 'ku' ? 'hover:-translate-x-1.5' : 'hover:translate-x-1.5'}`}
+                className={`w-full group flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-black transition-all duration-300 border-2 transform active:scale-95 text-slate-600 hover:bg-candy-50/40 hover:text-candy-700 border-transparent ${language === 'ar' || language === 'ku' ? 'hover:-translate-x-1.5' : 'hover:translate-x-1.5'}`}
               >
-                <div className="p-2 rounded-xl transition-all duration-300 bg-slate-50 text-slate-400 group-hover:bg-rose-100 group-hover:text-rose-600 group-hover:scale-110 group-hover:rotate-12">
+                <div className="p-2 rounded-xl transition-all duration-300 bg-slate-50 text-slate-400 group-hover:bg-candy-100 group-hover:text-candy-700 group-hover:scale-110 group-hover:rotate-12">
                   <LogOut className="w-5 h-5" />
                 </div>
                 <span className="tracking-wide text-start">{t('logout')}</span>

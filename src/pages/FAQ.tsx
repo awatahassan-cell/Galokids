@@ -18,7 +18,7 @@ export const FAQ: React.FC = () => {
   return (
     <div className="flex-grow max-w-4xl mx-auto w-full px-4 sm:px-6 py-12 md:py-20">
       <div className="text-center mb-16">
-        <div className="inline-flex items-center justify-center p-3 bg-indigo-100 text-indigo-600 rounded-2xl mb-6">
+        <div className="inline-flex items-center justify-center p-3 bg-grape-100 text-grape-700 rounded-2xl mb-6">
           <HelpCircle className="w-8 h-8" />
         </div>
         <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
@@ -41,7 +41,7 @@ export const FAQ: React.FC = () => {
             >
               <span className="text-lg font-bold text-slate-800 pr-8">{faq.q}</span>
               {openIndex === index ? (
-                <ChevronUp className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                <ChevronUp className="w-5 h-5 text-grape-700 flex-shrink-0" />
               ) : (
                 <ChevronDown className="w-5 h-5 text-slate-400 flex-shrink-0" />
               )}
@@ -64,7 +64,7 @@ export const FAQ: React.FC = () => {
         ))}
       </div>
 
-      <div className="mt-20 bg-gradient-to-tr from-indigo-600 to-sky-500 rounded-[2.5rem] p-8 md:p-12 text-center text-white shadow-xl relative overflow-hidden">
+      <div className="mt-20 bg-gradient-to-tr from-indigo-600 to-bubble-500 rounded-[2.5rem] p-8 md:p-12 text-center text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10">
           <h2 className="text-3xl font-black mb-4">{t('needMoreHelp')}</h2>
           <p className="text-indigo-50 text-lg mb-8 max-w-xl mx-auto">
@@ -72,7 +72,7 @@ export const FAQ: React.FC = () => {
           </p>
           <a 
             href="/contact" 
-            className="inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-600 font-black rounded-full hover:bg-indigo-50 transition-all hover:scale-105 shadow-lg"
+            className="inline-flex items-center justify-center px-8 py-4 bg-white text-grape-700 font-black rounded-full hover:bg-grape-50 transition-all hover:scale-105 shadow-lg"
           >
             {t('contactUs')}
           </a>

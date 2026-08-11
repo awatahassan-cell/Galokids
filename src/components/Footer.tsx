@@ -42,7 +42,7 @@ export const Footer: React.FC = () => {
               <h3 className="text-xl sm:text-2xl font-black mb-1">
                 {language === 'ku' ? 'تێکەڵ بە خێزانی گەلۆ کیدس بە!' : language === 'ar' ? 'انضم إلى عائلة غالو كيدز!' : 'Join the Vastraa Kids Family!'}
               </h3>
-              <p className="text-xs sm:text-sm text-pink-100 font-bold">
+              <p className="text-xs sm:text-sm text-candy-100 font-bold">
                 {language === 'ku' ? 'داشکاندنی تایبەت و نوێترین پۆشاکەکان ڕاستەوخۆ وەربگرە.' : language === 'ar' ? 'احصل على العروض الحصرية والأخبار مباشرة في بريدك.' : 'Get exclusive deals, new arrivals & style tips straight to your inbox.'}
               </p>
             </div>
@@ -60,7 +60,7 @@ export const Footer: React.FC = () => {
               />
               <button 
                 type="submit"
-                className="bg-[#1E1E2C] hover:bg-[#FF6584] text-white text-xs font-black px-6 py-2.5 rounded-full transition-all flex items-center gap-2 cursor-pointer shrink-0"
+                className="bg-[#1E1E2C] hover:bg-[#FF8FAB] text-white text-xs font-black px-6 py-2.5 rounded-full transition-all flex items-center gap-2 cursor-pointer shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>{isSubscribed ? 'Subscribed!' : 'Subscribe'}</span>
@@ -76,7 +76,7 @@ export const Footer: React.FC = () => {
           {/* Column 1: Brand Info & Socials */}
           <div className="space-y-4 lg:col-span-1">
             <Link to="/" className="vk2-footer2-logo text-2xl font-black text-white block">
-              Galo<span className="text-[#FF6584]">Kids</span>
+              Galo<span className="text-[#FF8FAB]">Kids</span>
             </Link>
             <p className="vk2-footer2-about text-xs text-slate-400 font-bold leading-relaxed">
               {language === 'ku' 
@@ -94,7 +94,7 @@ export const Footer: React.FC = () => {
             {/* Social Links */}
             <div className="vk2-footer2-socials flex items-center gap-2 pt-2">
               {['f', 'ig', 'tw', 'p', 'yt'].map((s, idx) => (
-                <span key={idx} className="w-8 h-8 rounded-full bg-slate-800/90 hover:bg-[#FF6584] text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shadow-xs">
+                <span key={idx} className="w-8 h-8 rounded-full bg-slate-800/90 hover:bg-[#FF8FAB] text-white flex items-center justify-center text-xs font-bold cursor-pointer transition-colors shadow-xs">
                   {s}
                 </span>
               ))}
@@ -107,11 +107,11 @@ export const Footer: React.FC = () => {
               {language === 'ku' ? 'بەستەرە خێراکان' : language === 'ar' ? 'روابط سريعة' : 'Quick Links'}
             </h4>
             <ul className="vk2-footer2-links space-y-2 text-xs font-bold text-slate-400 list-none p-0">
-              <li><Link to="/products" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'هەموو بەرهەمەکان' : 'Shop All'}</Link></li>
-              <li><Link to="/products?sort=newest" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'نوێترین بەرهەمەکان' : 'New Arrivals'}</Link></li>
-              <li><Link to="/products?featured=true" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پڕفرۆشترینەکان' : 'Best Sellers'}</Link></li>
-              <li><Link to="/products?sale=true" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'داشکاندنەکان' : 'Sale Items'}</Link></li>
-              <li><Link to="/about" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'دەربارەی ئێمە' : 'About Us'}</Link></li>
+              <li><Link to="/products" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'هەموو بەرهەمەکان' : 'Shop All'}</Link></li>
+              <li><Link to="/products?sort=newest" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'نوێترین بەرهەمەکان' : 'New Arrivals'}</Link></li>
+              <li><Link to="/products?featured=true" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'پڕفرۆشترینەکان' : 'Best Sellers'}</Link></li>
+              <li><Link to="/products?sale=true" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'داشکاندنەکان' : 'Sale Items'}</Link></li>
+              <li><Link to="/about" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'دەربارەی ئێمە' : 'About Us'}</Link></li>
             </ul>
           </div>
 
@@ -121,11 +121,11 @@ export const Footer: React.FC = () => {
               {language === 'ku' ? 'پۆڵەکان' : language === 'ar' ? 'الأقسام' : 'Categories'}
             </h4>
             <ul className="vk2-footer2-links space-y-2 text-xs font-bold text-slate-400 list-none p-0">
-              <li><Link to="/products?gender=1" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پۆشاکی کوڕان' : 'Boys Fashion'}</Link></li>
-              <li><Link to="/products?gender=2" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پۆشاکی کچان' : 'Girls Outfits'}</Link></li>
-              <li><Link to="/products?category=infants" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پۆشاکی ساوا' : 'Baby Clothing'}</Link></li>
-              <li><Link to="/products?category=toys" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'یاری و کات بەسەربردن' : 'Toys & Fun'}</Link></li>
-              <li><Link to="/products" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پێداویستی و جوانکاری' : 'Accessories'}</Link></li>
+              <li><Link to="/products?gender=1" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'پۆشاکی کوڕان' : 'Boys Fashion'}</Link></li>
+              <li><Link to="/products?gender=2" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'پۆشاکی کچان' : 'Girls Outfits'}</Link></li>
+              <li><Link to="/products?category=infants" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'پۆشاکی ساوا' : 'Baby Clothing'}</Link></li>
+              <li><Link to="/products?category=toys" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'یاری و کات بەسەربردن' : 'Toys & Fun'}</Link></li>
+              <li><Link to="/products" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'پێداویستی و جوانکاری' : 'Accessories'}</Link></li>
             </ul>
           </div>
 
@@ -135,11 +135,11 @@ export const Footer: React.FC = () => {
               {language === 'ku' ? 'پشتیوانی' : language === 'ar' ? 'الدعم' : 'Support'}
             </h4>
             <ul className="vk2-footer2-links space-y-2 text-xs font-bold text-slate-400 list-none p-0">
-              <li><Link to="/faq" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'ناوەندی یارمەتی' : 'Help Center'}</Link></li>
-              <li><Link to="/track-order" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'بەدواداچوونی داواکاری' : 'Track Order'}</Link></li>
-              <li><Link to="/shipping-returns" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'سیاسەتی گەڕاندنەوە' : 'Returns'}</Link></li>
-              <li><Link to="/shipping-returns" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'زانیاری گەیاندن' : 'Shipping Info'}</Link></li>
-              <li><Link to="/contact" className="hover:text-[#FF6584] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF6584] rtl:rotate-180" /> {language === 'ku' ? 'پەیوەندی' : 'Contact Us'}</Link></li>
+              <li><Link to="/faq" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'ناوەندی یارمەتی' : 'Help Center'}</Link></li>
+              <li><Link to="/track-order" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'بەدواداچوونی داواکاری' : 'Track Order'}</Link></li>
+              <li><Link to="/shipping-returns" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'سیاسەتی گەڕاندنەوە' : 'Returns'}</Link></li>
+              <li><Link to="/shipping-returns" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'زانیاری گەیاندن' : 'Shipping Info'}</Link></li>
+              <li><Link to="/contact" className="hover:text-[#FF8FAB] transition-colors flex items-center gap-1.5"><ChevronRight className="w-3.5 h-3.5 text-[#FF8FAB] rtl:rotate-180" /> {language === 'ku' ? 'پەیوەندی' : 'Contact Us'}</Link></li>
             </ul>
           </div>
 
@@ -170,7 +170,7 @@ export const Footer: React.FC = () => {
             {/* Trust Badges */}
             <div className="vk2-footer2-trust space-y-2 pt-2">
               <span className="vk2-footer2-trust-badge flex items-center gap-2 text-xs font-bold text-slate-400">
-                <Shield className="w-4 h-4 text-[#FF6584]" /> {language === 'ku' ? 'پارەدانی پارێزراو' : 'Secure Payment'}
+                <Shield className="w-4 h-4 text-[#FF8FAB]" /> {language === 'ku' ? 'پارەدانی پارێزراو' : 'Secure Payment'}
               </span>
               <span className="vk2-footer2-trust-badge flex items-center gap-2 text-xs font-bold text-slate-400">
                 <Leaf className="w-4 h-4 text-emerald-400" /> {language === 'ku' ? 'بڕوانامەدار' : 'Eco Certified'}
@@ -186,23 +186,23 @@ export const Footer: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold text-slate-400">
           <p className="vk2-footer2-copy">
             {language === 'ku'
-              ? <>© ٢٠٢٦ Galo Kids. هەموو مافەکانی پارێزراوە. دروستکراوە بە <Heart className="w-3.5 h-3.5 text-rose-500 inline fill-rose-500 mx-1" /> بۆ منداڵانی ئازیز.</>
-              : <>© 2026 Galo Kids. All Rights Reserved. Made with <Heart className="w-3.5 h-3.5 text-rose-500 inline fill-rose-500 mx-1" /> for little ones.</>
+              ? <>© ٢٠٢٦ Galo Kids. هەموو مافەکانی پارێزراوە. دروستکراوە بە <Heart className="w-3.5 h-3.5 text-candy-700 inline fill-candy-500 mx-1" /> بۆ منداڵانی ئازیز.</>
+              : <>© 2026 Galo Kids. All Rights Reserved. Made with <Heart className="w-3.5 h-3.5 text-candy-700 inline fill-candy-500 mx-1" /> for little ones.</>
             }
           </p>
           
           {/* Iraqi Payment Badges & Logos */}
           <div className="vk2-footer2-payments flex flex-wrap items-center gap-2 text-slate-200 text-xs font-black">
-            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-md text-[11px]">
+            <span className="bg-sunny-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-md text-[11px]">
               💳 Qi Card
             </span>
-            <span className="bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2.5 py-1 rounded-md text-[11px]">
+            <span className="bg-candy-500/20 text-candy-300 border border-candy-500/40 px-2.5 py-1 rounded-md text-[11px]">
               📱 ZainCash
             </span>
             <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-md text-[11px]">
               ⚡ FastPay
             </span>
-            <span className="bg-sky-500/20 text-sky-300 border border-sky-500/40 px-2.5 py-1 rounded-md text-[11px]">
+            <span className="bg-bubble-600/20 text-sky-300 border border-sky-500/40 px-2.5 py-1 rounded-md text-[11px]">
               🏦 FIB
             </span>
             <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2.5 py-1 rounded-md text-[11px]">

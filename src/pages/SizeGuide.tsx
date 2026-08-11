@@ -17,7 +17,7 @@ export const SizeGuide: React.FC = () => {
   return (
     <div className={`flex-grow max-w-3xl mx-auto w-full px-4 py-12 ${isRTL ? 'font-arabic text-right' : ''}`}>
       <div className="text-center mb-8">
-        <div className="w-14 h-14 bg-sky-100 text-sky-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="w-14 h-14 bg-bubble-100 text-bubble-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Ruler className="w-7 h-7" />
         </div>
         <h1 className="text-2xl font-extrabold text-slate-900">{t('sizeGuide') || 'Size Guide'}</h1>
@@ -37,7 +37,7 @@ export const SizeGuide: React.FC = () => {
           <tbody>
             {rows.map(r => (
               <tr key={r.size} className="border-t border-slate-100">
-                <td className="py-3 px-4 font-bold text-indigo-600">{r.size}</td>
+                <td className="py-3 px-4 font-bold text-grape-700">{r.size}</td>
                 <td className="py-3 px-4 text-slate-700">{r.age}</td>
                 <td className="py-3 px-4 text-slate-700">{r.height}</td>
                 <td className="py-3 px-4 text-slate-700">{r.weight}</td>

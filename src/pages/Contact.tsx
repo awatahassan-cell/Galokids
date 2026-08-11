@@ -15,8 +15,8 @@ export const Contact: React.FC = () => {
   return (
     <div className={`max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 ${isRTL ? 'font-arabic' : ''}`}>
       <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -mr-20 -mt-20 opacity-50 z-0 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-pink-50 rounded-full blur-3xl -ml-20 -mb-20 opacity-50 z-0 pointer-events-none"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-grape-50 rounded-full blur-3xl -mr-20 -mt-20 opacity-50 z-0 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-candy-50 rounded-full blur-3xl -ml-20 -mb-20 opacity-50 z-0 pointer-events-none"></div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 relative z-10">
           <div className={`p-8 md:p-16 bg-gradient-to-br from-sky-400 to-indigo-500 text-white flex flex-col justify-between ${isRTL ? 'text-right' : ''}`}>
@@ -85,7 +85,7 @@ export const Contact: React.FC = () => {
               </div>
 
               <button type="submit"
-                className="w-full bg-indigo-600 text-white font-bold py-4 px-6 rounded-xl hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0">
+                className="w-full bg-grape-600 text-white font-bold py-4 px-6 rounded-xl hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 active:translate-y-0">
                 {t('sendMessage')}
               </button>
             </form>

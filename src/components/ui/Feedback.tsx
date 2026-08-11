@@ -33,8 +33,8 @@ export const useConfirm = () => {
 
 const toastStyles: Record<ToastType, { icon: any; ring: string; iconColor: string }> = {
   success: { icon: CheckCircle, ring: 'border-emerald-200', iconColor: 'text-emerald-500' },
-  error: { icon: XCircle, ring: 'border-rose-200', iconColor: 'text-rose-500' },
-  info: { icon: Info, ring: 'border-sky-200', iconColor: 'text-sky-500' },
+  error: { icon: XCircle, ring: 'border-candy-200', iconColor: 'text-candy-700' },
+  info: { icon: Info, ring: 'border-bubble-200', iconColor: 'text-bubble-700' },
 };
 
 export const FeedbackProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -83,7 +83,7 @@ export const FeedbackProvider: React.FC<{ children: ReactNode }> = ({ children }
         <div className="fixed inset-0 z-[101] bg-black/50 flex items-center justify-center p-4" onClick={() => closeConfirm(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-[fbSlideIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
             <div className="p-6 text-center">
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmState.options.danger ? 'bg-rose-100 text-rose-500' : 'bg-indigo-100 text-indigo-500'}`}>
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmState.options.danger ? 'bg-candy-100 text-candy-700' : 'bg-grape-100 text-grape-700'}`}>
                 <AlertTriangle className="w-7 h-7" />
               </div>
               {confirmState.options.title && (
@@ -97,7 +97,7 @@ export const FeedbackProvider: React.FC<{ children: ReactNode }> = ({ children }
                 {confirmState.options.cancelText || 'Cancel'}
               </button>
               <button onClick={() => closeConfirm(true)}
-                className={`flex-1 py-2.5 rounded-xl font-bold text-white transition-colors ${confirmState.options.danger ? 'bg-rose-600 hover:bg-rose-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+                className={`flex-1 py-2.5 rounded-xl font-bold text-white transition-colors ${confirmState.options.danger ? 'bg-candy-600 hover:bg-candy-700' : 'bg-grape-600 hover:bg-indigo-700'}`}>
                 {confirmState.options.confirmText || 'Confirm'}
               </button>
             </div>

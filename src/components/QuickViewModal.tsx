@@ -61,7 +61,7 @@ export const QuickViewModal: React.FC<Props> = ({ product, onClose }) => {
       >
         <button 
           onClick={onClose} 
-          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 hover:bg-rose-500 hover:text-white text-slate-600 flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 hover:bg-candy-500 hover:text-white text-slate-600 flex items-center justify-center transition-colors shadow-sm cursor-pointer"
         >
           <X className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
@@ -73,7 +73,7 @@ export const QuickViewModal: React.FC<Props> = ({ product, onClose }) => {
 
           <div className="flex flex-col justify-between">
             <div>
-              <span className="inline-block text-[10px] font-black uppercase text-sky-600 bg-sky-50 px-2.5 py-0.5 rounded-full mb-1.5 sm:mb-2">
+              <span className="inline-block text-[10px] font-black uppercase text-bubble-700 bg-bubble-50 px-2.5 py-0.5 rounded-full mb-1.5 sm:mb-2">
                 {t('quickView') || (language === 'ku' ? 'تێڕوانینی خێرا' : language === 'ar' ? 'نظرة سريعة' : 'Quick View')}
               </span>
               <h2 className="text-base sm:text-xl font-black text-slate-900 leading-tight mb-1.5">{getName()}</h2>
@@ -81,7 +81,7 @@ export const QuickViewModal: React.FC<Props> = ({ product, onClose }) => {
               <div className="flex items-center flex-wrap gap-2 mb-3 sm:mb-4">
                 {product.discountPrice ? (
                   <>
-                    <span className="text-xl sm:text-2xl font-black text-rose-500">{formatIQDLabel(Number(product.discountPrice))}</span>
+                    <span className="text-xl sm:text-2xl font-black text-candy-700">{formatIQDLabel(Number(product.discountPrice))}</span>
                     <span className="text-xs sm:text-sm text-slate-400 line-through">{formatIQDLabel(Number(product.price))}</span>
                     <span className="bg-[#E0F7FA] text-[#00BFA5] border border-[#B2EBF2] font-black text-[10px] px-2 py-0.5 rounded-md font-arabic">
                       {language === 'ku' 
@@ -105,7 +105,7 @@ export const QuickViewModal: React.FC<Props> = ({ product, onClose }) => {
                         key={c} 
                         onClick={() => setColor(c)} 
                         title={getLocalizedColorName(c, language)}
-                        className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 transition-all cursor-pointer ${color === c ? 'border-rose-500 ring-2 ring-rose-200 scale-110' : 'border-slate-200'}`}
+                        className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 transition-all cursor-pointer ${color === c ? 'border-candy-500 ring-2 ring-candy-200 scale-110' : 'border-slate-200'}`}
                         style={{ backgroundColor: getColorHex(c) }} 
                       />
                     ))}
@@ -121,7 +121,7 @@ export const QuickViewModal: React.FC<Props> = ({ product, onClose }) => {
                       <button 
                         key={s} 
                         onClick={() => setSize(s)}
-                        className={`px-2.5 py-1 text-[11px] sm:text-xs rounded-xl font-black border transition-all cursor-pointer ${size === s ? 'bg-rose-500 text-white border-rose-500 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
+                        className={`px-2.5 py-1 text-[11px] sm:text-xs rounded-xl font-black border transition-all cursor-pointer ${size === s ? 'bg-candy-500 text-white border-candy-500 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}`}
                       >
                         {getLocalizedSizeName(s, language)}
                       </button>
@@ -135,7 +135,7 @@ export const QuickViewModal: React.FC<Props> = ({ product, onClose }) => {
               <button 
                 onClick={handleAdd} 
                 disabled={!selectedVar}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-rose-500 text-white font-black py-2.5 sm:py-3 rounded-xl sm:rounded-2xl transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer text-xs"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-candy-500 text-white font-black py-2.5 sm:py-3 rounded-xl sm:rounded-2xl transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer text-xs"
               >
                 {added ? <Check className="w-3.5 h-3.5" /> : <ShoppingCart className="w-3.5 h-3.5" />}
                 {added ? (t('added') || 'Added!') : (t('addToCart') || 'Add to Cart')}

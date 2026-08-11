@@ -65,7 +65,7 @@ export const InitialLanguageModal: React.FC = () => {
             className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center space-y-6 relative overflow-hidden"
           >
         {/* Top Decorative Background Glow */}
-        <div className="absolute -top-16 -left-16 w-32 h-32 bg-pink-200/50 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -top-16 -left-16 w-32 h-32 bg-candy-200/50 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute -top-16 -right-16 w-32 h-32 bg-sky-200/50 rounded-full blur-2xl pointer-events-none" />
 
         {/* Logo */}
@@ -79,7 +79,7 @@ export const InitialLanguageModal: React.FC = () => {
 
         {/* Title */}
         <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-600 text-xs font-black tracking-wide border border-rose-100">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-candy-50 text-candy-700 text-xs font-black tracking-wide border border-candy-100">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Welcome to Galo Kids</span>
           </div>
@@ -98,14 +98,14 @@ export const InitialLanguageModal: React.FC = () => {
               key={item.code}
               type="button"
               onClick={() => handleSelectLanguage(item.code)}
-              className="w-full p-4 rounded-2xl border-2 border-slate-100 hover:border-rose-400 bg-slate-50/50 hover:bg-rose-50/30 transition-all duration-200 flex items-center justify-between group active:scale-98 text-right font-arabic cursor-pointer"
+              className="w-full p-4 rounded-2xl border-2 border-slate-100 hover:border-candy-400 bg-slate-50/50 hover:bg-candy-50/30 transition-all duration-200 flex items-center justify-between group active:scale-98 text-right font-arabic cursor-pointer"
             >
               <div className="flex items-center gap-3.5">
                 <div className="p-2 bg-white rounded-xl shadow-xs border border-slate-100 group-hover:scale-110 transition-transform">
                   <item.Flag className="w-7 h-7" />
                 </div>
                 <div className="text-right">
-                  <h3 className="font-extrabold text-base text-slate-900 group-hover:text-rose-600 transition-colors">
+                  <h3 className="font-extrabold text-base text-slate-900 group-hover:text-candy-700 transition-colors">
                     {item.title}
                   </h3>
                   <p className="text-xs font-semibold text-slate-400">
@@ -113,7 +113,7 @@ export const InitialLanguageModal: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <div className="w-7 h-7 rounded-full bg-white border border-slate-200 group-hover:border-rose-500 group-hover:bg-rose-500 group-hover:text-white flex items-center justify-center text-transparent transition-all">
+              <div className="w-7 h-7 rounded-full bg-white border border-slate-200 group-hover:border-candy-500 group-hover:bg-candy-500 group-hover:text-white flex items-center justify-center text-transparent transition-all">
                 <Check className="w-4 h-4 stroke-[3]" />
               </div>
             </button>

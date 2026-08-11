@@ -76,9 +76,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({ isMobileModalOpen, onClose
             }}
             onFocus={() => setIsOpen(true)}
             placeholder={language === 'ku' ? 'گەڕان بۆ پۆشاک، یاری...' : language === 'ar' ? 'البحث عن الملابس والألعاب...' : 'Search clothes, toys...'}
-            className="w-full bg-slate-100/90 text-slate-800 text-xs font-bold rounded-full pl-4 rtl:pl-10 pr-10 rtl:pr-4 py-2.5 transition-all border border-slate-200/60 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:bg-white placeholder:text-slate-400 shadow-2xs"
+            className="w-full bg-slate-100/90 text-slate-800 text-xs font-bold rounded-full pl-4 rtl:pl-10 pr-10 rtl:pr-4 py-2.5 transition-all border border-slate-200/60 focus:outline-none focus:ring-2 focus:ring-candy-400 focus:bg-white placeholder:text-slate-400 shadow-2xs"
           />
-          <button type="submit" className="absolute right-3 rtl:right-auto rtl:left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer">
+          <button type="submit" className="absolute right-3 rtl:right-auto rtl:left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-candy-700 transition-colors cursor-pointer">
             <Search className="w-4 h-4" />
           </button>
         </form>
@@ -93,10 +93,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({ isMobileModalOpen, onClose
               <div 
                 key={idx} 
                 onClick={(e) => handleSearch(e as any, item)}
-                className="px-3 py-1.5 rounded-xl hover:bg-rose-50 text-xs font-bold text-slate-700 flex items-center justify-between cursor-pointer group"
+                className="px-3 py-1.5 rounded-xl hover:bg-candy-50 text-xs font-bold text-slate-700 flex items-center justify-between cursor-pointer group"
               >
                 <span>{item}</span>
-                <button onClick={(e) => removeHistoryItem(e, item)} className="text-slate-300 hover:text-rose-500 p-0.5 cursor-pointer">
+                <button onClick={(e) => removeHistoryItem(e, item)} className="text-slate-300 hover:text-candy-700 p-0.5 cursor-pointer">
                   <X className="w-3 h-3" />
                 </button>
               </div>
@@ -111,7 +111,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ isMobileModalOpen, onClose
           <div className="bg-white rounded-3xl p-5 shadow-2xl border border-slate-100 flex flex-col max-w-lg w-full mx-auto my-auto space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className={`text-base font-black text-slate-900 flex items-center gap-2 ${isRTL ? 'font-arabic' : ''}`}>
-                <Search className="w-5 h-5 text-rose-500" />
+                <Search className="w-5 h-5 text-candy-700" />
                 {t('search')}
               </h3>
               <button 
@@ -131,7 +131,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ isMobileModalOpen, onClose
                 autoFocus
                 className={`w-full bg-slate-100 border border-slate-200 rounded-2xl py-3.5 ${
                   isRTL ? 'pr-12 pl-12 text-right font-arabic' : 'pl-12 pr-12 font-sans'
-                } text-base font-bold focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white shadow-inner`}
+                } text-base font-bold focus:outline-none focus:ring-2 focus:ring-candy-500 focus:bg-white shadow-inner`}
               />
               <Search className={`w-5 h-5 text-slate-400 absolute top-1/2 -translate-y-1/2 ${
                 isRTL ? 'right-4' : 'left-4'
@@ -160,7 +160,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ isMobileModalOpen, onClose
                     <div 
                       key={index}
                       onClick={(e) => handleSearch(e as any, item)}
-                      className="flex items-center justify-between p-2.5 rounded-xl hover:bg-rose-50/60 cursor-pointer text-sm font-semibold text-slate-700 transition-colors"
+                      className="flex items-center justify-between p-2.5 rounded-xl hover:bg-candy-50/60 cursor-pointer text-sm font-semibold text-slate-700 transition-colors"
                     >
                       <span className="flex items-center gap-2">
                         <History className="w-4 h-4 text-slate-400" />
@@ -168,7 +168,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ isMobileModalOpen, onClose
                       </span>
                       <button 
                         onClick={(e) => removeHistoryItem(e, item)}
-                        className="text-slate-400 hover:text-rose-500 p-1 cursor-pointer"
+                        className="text-slate-400 hover:text-candy-700 p-1 cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -181,7 +181,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ isMobileModalOpen, onClose
             <button
               type="button"
               onClick={(e) => handleSearch(e as any)}
-              className={`w-full py-3.5 bg-gradient-to-r from-pink-500 via-rose-500 to-indigo-600 text-white font-black text-sm rounded-2xl shadow-lg shadow-rose-200 active:scale-95 transition-all text-center cursor-pointer ${
+              className={`w-full py-3.5 bg-gradient-to-r from-candy-500 via-candy-500 to-grape-600 text-white font-black text-sm rounded-2xl shadow-lg shadow-candy-200 active:scale-95 transition-all text-center cursor-pointer ${
                 isRTL ? 'font-arabic' : ''
               }`}
             >

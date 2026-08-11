@@ -425,7 +425,7 @@ export const Checkout: React.FC = () => {
           </p>
           <Link 
             to="/"
-            className="inline-flex items-center justify-center w-full px-6 py-3.5 border border-transparent text-base font-bold rounded-full text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-md active:scale-98"
+            className="inline-flex items-center justify-center w-full px-6 py-3.5 border border-transparent text-base font-bold rounded-full text-white bg-candy-600 hover:bg-candy-700 transition-all shadow-md active:scale-98"
           >
             {t('continueShopping')}
           </Link>
@@ -441,7 +441,7 @@ export const Checkout: React.FC = () => {
         <p className="text-slate-600 mb-8">{t('emptyCart')}</p>
         <Link 
           to="/products"
-          className="inline-flex items-center justify-center px-6 py-3.5 border border-transparent text-base font-bold rounded-full text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-md active:scale-98"
+          className="inline-flex items-center justify-center px-6 py-3.5 border border-transparent text-base font-bold rounded-full text-white bg-candy-600 hover:bg-candy-700 transition-all shadow-md active:scale-98"
         >
           {t('continueShopping')}
         </Link>
@@ -476,7 +476,7 @@ export const Checkout: React.FC = () => {
           <form id="checkout-form" onSubmit={handlePlaceOrder} className="space-y-8 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200">
             <div>
               <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-rose-500" />
+                <MapPin className="w-5 h-5 text-candy-700" />
                 {t('shippingInfo')}
               </h2>
               
@@ -485,7 +485,7 @@ export const Checkout: React.FC = () => {
                 {userToUse ? (
                   <div className="sm:col-span-2 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-4 sm:p-5 rounded-2xl shadow-md flex items-center justify-between gap-4 font-arabic">
                     <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-11 h-11 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0 shadow-inner">
+                      <div className="w-11 h-11 rounded-xl bg-candy-500/20 border border-candy-500/30 text-candy-600 flex items-center justify-center shrink-0 shadow-inner">
                         <UserCheck className="w-6 h-6" />
                       </div>
                       <div className="min-w-0">
@@ -512,7 +512,7 @@ export const Checkout: React.FC = () => {
                   <div className="sm:col-span-2 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-5 rounded-2xl shadow-md border border-slate-700/80 space-y-3 font-arabic">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                        <div className="w-10 h-10 rounded-xl bg-candy-500/20 text-candy-600 border border-candy-500/30 flex items-center justify-center shrink-0 shadow-inner">
                           <UserCheck className="w-5 h-5" />
                         </div>
                         <div>
@@ -531,7 +531,7 @@ export const Checkout: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setShowQuickLogin(true)}
-                        className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-xl transition-all shadow-md shrink-0 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                        className="px-4 py-2.5 bg-candy-600 hover:bg-candy-500 text-white text-xs font-black rounded-xl transition-all shadow-md shrink-0 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                       >
                         <UserCheck className="w-4 h-4" />
                         <span>{language === 'ku' ? 'چوونە ژوورەوە' : language === 'ar' ? 'تسجيل الدخول' : 'Sign In / Login'}</span>
@@ -560,7 +560,7 @@ export const Checkout: React.FC = () => {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-slate-50/50"
+                    className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-candy-500 focus:border-candy-500 bg-slate-50/50"
                   />
                 </div>
 
@@ -569,7 +569,7 @@ export const Checkout: React.FC = () => {
                   {/* Header: Label & Status */}
                   <div className="flex items-center justify-between gap-2">
                     <label htmlFor="mobileNumber" className="block text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                      <Phone className="w-4 h-4 text-rose-500" />
+                      <Phone className="w-4 h-4 text-candy-700" />
                       {t('mobileNumber')}
                     </label>
 
@@ -579,8 +579,8 @@ export const Checkout: React.FC = () => {
                         {t('phoneVerified')}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 shrink-0">
-                        <AlertCircle className="w-3 h-3 text-amber-600" />
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-sunny-50 px-2.5 py-1 rounded-full border border-sunny-200 shrink-0">
+                        <AlertCircle className="w-3 h-3 text-sunny-700" />
                         {language === 'ku' ? 'پشتڕاست نەکراوەتەوە' : 'Not verified'}
                       </span>
                     )}
@@ -596,7 +596,7 @@ export const Checkout: React.FC = () => {
                         placeholder="0750 xxx xxxx"
                         value={mobileNumber}
                         onChange={handlePhoneChange}
-                        className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white shadow-xs"
+                        className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-candy-500 focus:border-candy-500 bg-white shadow-xs"
                       />
                     </div>
 
@@ -605,7 +605,7 @@ export const Checkout: React.FC = () => {
                         type="button"
                         onClick={handleSendOtp}
                         disabled={isSendingOtp}
-                        className="w-full sm:w-auto px-5 py-3 bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-extrabold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 active:scale-98 cursor-pointer"
+                        className="w-full sm:w-auto px-5 py-3 bg-candy-600 hover:bg-candy-700 text-white text-xs sm:text-sm font-extrabold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 active:scale-98 cursor-pointer"
                       >
                         {isSendingOtp ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -621,9 +621,9 @@ export const Checkout: React.FC = () => {
 
                   {/* Registered Account Prompt if Guest types a registered phone */}
                   {!userToUse && existingUserForPhone && (
-                    <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-bold text-amber-900 shadow-xs animate-fadeIn">
+                    <div className="p-3 bg-sunny-50 border border-sunny-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-bold text-amber-900 shadow-xs animate-fadeIn">
                       <div className="flex items-center gap-2">
-                        <UserCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                        <UserCheck className="w-4 h-4 text-sunny-700 shrink-0" />
                         <span>
                           {language === 'ku'
                             ? `ئەم ژمارەیە تۆمارکراوە بە ناوی (${existingUserForPhone.name})`
@@ -670,7 +670,7 @@ export const Checkout: React.FC = () => {
                           className={`p-2.5 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 ${
                             otpChannel === 'sms'
                               ? 'bg-sky-600 text-white border-sky-600 shadow-xs'
-                              : 'bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:bg-sky-50/30'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:bg-bubble-50/30'
                           }`}
                         >
                           <Send className="w-4 h-4" />
@@ -689,7 +689,7 @@ export const Checkout: React.FC = () => {
                     required 
                     value={selectedGovernorate}
                     onChange={handleGovernorateSelect}
-                    className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white font-arabic"
+                    className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-candy-500 focus:border-candy-500 bg-white font-arabic"
                   >
                     <option value="">{t('selectGovernorate')}</option>
                     {iraqLocations.map((gov) => (
@@ -709,7 +709,7 @@ export const Checkout: React.FC = () => {
                     value={selectedDistrict}
                     onChange={handleDistrictSelect}
                     disabled={!selectedGovernorate || availableDistricts.length === 0}
-                    className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white disabled:bg-slate-100 disabled:text-slate-400 font-arabic"
+                    className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-candy-500 focus:border-candy-500 bg-white disabled:bg-slate-100 disabled:text-slate-400 font-arabic"
                   >
                     <option value="">{t('selectDistrict')}</option>
                     {availableDistricts.map((dist) => (
@@ -730,7 +730,7 @@ export const Checkout: React.FC = () => {
                     value={selectedSubdistrict}
                     onChange={(e) => setSelectedSubdistrict(e.target.value)}
                     disabled={!selectedDistrict || availableSubdistricts.length === 0}
-                    className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-white disabled:bg-slate-100 disabled:text-slate-400 font-arabic"
+                    className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-candy-500 focus:border-candy-500 bg-white disabled:bg-slate-100 disabled:text-slate-400 font-arabic"
                   >
                     <option value="">{t('selectSubdistrict')}</option>
                     {availableSubdistricts.map((sub, idx) => (
@@ -751,7 +751,7 @@ export const Checkout: React.FC = () => {
                     placeholder={language === 'ku' ? 'ناوی گەڕەک، جادەی سەرەکی، یان نیشانەی دیار' : 'Neighborhood, main street, or landmark'}
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 bg-slate-50/50"
+                    className="w-full border border-slate-300 rounded-xl py-3 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-candy-500 focus:border-candy-500 bg-slate-50/50"
                   />
                 </div>
               </div>
@@ -761,13 +761,13 @@ export const Checkout: React.FC = () => {
             <div className="pt-6 border-t border-slate-200">
               <h2 className="text-xl font-black text-slate-900 mb-6">{t('paymentMethod')}</h2>
               <div className="space-y-4">
-                <label className="flex items-center p-4 border border-rose-200 bg-rose-50/30 rounded-2xl cursor-pointer hover:bg-rose-50/60 transition-colors shadow-xs">
+                <label className="flex items-center p-4 border border-candy-200 bg-candy-50/30 rounded-2xl cursor-pointer hover:bg-candy-50/60 transition-colors shadow-xs">
                   <input 
                     type="radio" 
                     name="paymentMethod" 
                     value="cod" 
                     defaultChecked 
-                    className="h-4 w-4 text-rose-600 focus:ring-rose-500 border-slate-300" 
+                    className="h-4 w-4 text-candy-700 focus:ring-candy-500 border-slate-300" 
                   />
                   <div className="ml-3 rtl:mr-3 rtl:ml-0">
                     <span className="block text-sm font-extrabold text-slate-900">{t('payOnDelivery')}</span>
@@ -795,7 +795,7 @@ export const Checkout: React.FC = () => {
                       <div>
                         <div className="flex justify-between text-sm font-bold text-slate-900">
                           <h3>{getProductName(item.product)}</h3>
-                          <p className="ml-2 rtl:mr-2 rtl:ml-0 font-extrabold text-rose-600">{formatIQDLabel(getLineTotal(item.product, item.variation, item.quantity))}</p>
+                          <p className="ml-2 rtl:mr-2 rtl:ml-0 font-extrabold text-candy-700">{formatIQDLabel(getLineTotal(item.product, item.variation, item.quantity))}</p>
                         </div>
                         <p className="mt-1 text-xs text-slate-500"><span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full border border-slate-200" style={{ backgroundColor: getColorHex(item.variation.color) }} title={item.variation.color} /> {item.variation.size}</span></p>
                       </div>
@@ -811,7 +811,7 @@ export const Checkout: React.FC = () => {
             {/* Coupon Code Section */}
             <div className="mb-6 pt-4 border-t border-slate-200">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-rose-600" />
+                <Tag className="w-3.5 h-3.5 text-candy-700" />
                 {t('discountCode') || 'Discount Code'}
               </label>
               {appliedCoupon ? (
@@ -837,7 +837,7 @@ export const Checkout: React.FC = () => {
                       placeholder={t("discountCode") || "Discount code"}
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
-                      className="flex-1 min-w-0 border border-slate-300 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white"
+                      className="flex-1 min-w-0 border border-slate-300 rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-candy-500 bg-white"
                     />
                     <button
                       type="submit"
@@ -847,7 +847,7 @@ export const Checkout: React.FC = () => {
                       {couponLoading ? '...' : (t('applyBtn') || 'Apply')}
                     </button>
                   </div>
-                  {couponError && <p className="text-xs text-rose-600 font-medium px-1">{couponError}</p>}
+                  {couponError && <p className="text-xs text-candy-700 font-medium px-1">{couponError}</p>}
                 </form>
               )}
             </div>
@@ -879,7 +879,7 @@ export const Checkout: React.FC = () => {
               )}
               <div className="flex items-center justify-between text-lg font-black text-slate-900 pt-4 border-t border-slate-200">
                 <p>{t('total')}</p>
-                <p className="text-rose-600">{formatIQDLabel(totalAmount)}</p>
+                <p className="text-candy-700">{formatIQDLabel(totalAmount)}</p>
               </div>
             </div>
 
@@ -887,7 +887,7 @@ export const Checkout: React.FC = () => {
               type="submit"
               form="checkout-form"
               disabled={isPlacing}
-              className="mt-8 w-full flex items-center justify-center rounded-2xl border border-transparent bg-rose-600 px-6 py-4 text-base font-bold text-white shadow-md hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed active:scale-98"
+              className="mt-8 w-full flex items-center justify-center rounded-2xl border border-transparent bg-candy-600 px-6 py-4 text-base font-bold text-white shadow-md hover:bg-candy-700 focus:outline-none focus:ring-2 focus:ring-candy-500 transition-all disabled:bg-slate-300 disabled:cursor-not-allowed active:scale-98"
             >
               {isPlacing ? (
                 <>
@@ -947,7 +947,7 @@ export const Checkout: React.FC = () => {
             </button>
 
             <div className="text-center mb-5 pt-2">
-              <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
+              <div className="w-12 h-12 bg-candy-100 text-candy-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
                 <UserCheck className="w-6 h-6" />
               </div>
               <h3 className="text-xl font-black text-slate-900">
@@ -977,7 +977,7 @@ export const Checkout: React.FC = () => {
                   placeholder="0750 xxx xxxx"
                   value={loginInput}
                   onChange={(e) => setLoginInput(e.target.value)}
-                  className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-500 bg-slate-50/50"
+                  className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-candy-500 bg-slate-50/50"
                 />
               </div>
 
@@ -990,7 +990,7 @@ export const Checkout: React.FC = () => {
                   placeholder="••••••••"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 bg-slate-50/50"
+                  className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-candy-500 bg-slate-50/50"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
                   {language === 'ku' ? 'ئەگەر پاسۆردت نییە بە بەتاڵی جێی بهێڵە (چوونە ژوورەوەی خێرا بە مۆبایل)' : language === 'ar' ? 'اتركه فارغاً للدخول السريع برقم الهاتف' : 'Leave empty to log in instantly with phone number.'}
@@ -1000,7 +1000,7 @@ export const Checkout: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoggingIn}
-                className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-98"
+                className="w-full py-3 bg-candy-600 hover:bg-candy-700 text-white font-extrabold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-98"
               >
                 {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>{language === 'ku' ? 'چوونە ژوورەوە' : language === 'ar' ? 'تسجيل الدخول' : 'Log In'}</span>}
               </button>
