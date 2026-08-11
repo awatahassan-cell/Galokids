@@ -29,6 +29,8 @@ import { AdminOverviewTab } from "../components/admin/AdminOverviewTab";
 import { AdminOrdersTab } from "../components/admin/AdminOrdersTab";
 import { AdminPosSalesTab } from "../components/admin/AdminPosSalesTab";
 import { AdminInventoryTab } from "../components/admin/AdminInventoryTab";
+import { AdminStockLedgerTab } from "../components/admin/AdminStockLedgerTab";
+import { AdminActivityLogTab } from "../components/admin/AdminActivityLogTab";
 import { AdminLabelsTab } from "../components/admin/AdminLabelsTab";
 import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
 import { BulkStockModal } from "../components/admin/BulkStockModal";
@@ -55,7 +57,8 @@ export const Admin: React.FC = () => {
     updateProduct, updateCategory, updateExpense, updateUser,
     productsPagination, ordersPagination, expensesPagination, reviewsPagination, reviews,
     refreshProducts, fetchAllProducts, refreshOrders, refreshExpenses, refreshReviews, isProductsLoading, productsRevision,
-    coupons, addCoupon, updateCoupon, deleteCoupon
+    coupons, addCoupon, updateCoupon, deleteCoupon,
+    fetchStockMovements, fetchActivityLogs
   } = useStore();
   
   const isAdmin = useMemo(() => {
@@ -81,7 +84,7 @@ export const Admin: React.FC = () => {
   
   const { tab: urlTab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
-  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'inventory', 'categories', 'orders', 'pos-sales', 'users', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings'], []);
+  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'inventory', 'stock-ledger', 'categories', 'orders', 'pos-sales', 'users', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings', 'activity-log'], []);
 
   const [activeTab, setActiveTabState] = useState<string>(() => {
     if (urlTab && validTabs.includes(urlTab)) return urlTab;
@@ -1470,6 +1473,21 @@ export const Admin: React.FC = () => {
           toast={toast}
           fetchAllProducts={fetchAllProducts}
           productsRevision={productsRevision}
+        />
+      )}
+
+      {activeTab === 'stock-ledger' && (
+        <AdminStockLedgerTab
+          fetchStockMovements={fetchStockMovements}
+          productsRevision={productsRevision}
+          toast={toast}
+        />
+      )}
+
+      {activeTab === 'activity-log' && isAdmin && (
+        <AdminActivityLogTab
+          fetchActivityLogs={fetchActivityLogs}
+          toast={toast}
         />
       )}
 

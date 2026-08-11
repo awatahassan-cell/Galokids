@@ -38,6 +38,21 @@ interface StoreContextType {
   getRecentlyViewedIds: () => string[];
   trackOrder: (id: string, phone: string) => Promise<{ success: boolean; order?: any; message?: string }>;
   lookupCustomer: (phone: string) => Promise<any>;
+  /** Delivery charge for a governorate, matching what the order will charge. */
+  fetchShippingQuote: (governorate?: string, subtotal?: number) => Promise<{ fee: number; freeOver: number }>;
+  /** Stock ledger (staff/admin). */
+  fetchStockMovements: (filters?: Record<string, any>) => Promise<any>;
+  /** Correct a stock level by hand, with a reason. */
+  adjustStock: (payload: { productVariationId: string | number; countedQuantity?: number; quantityChange?: number; type?: string; note: string }) => Promise<{ success: boolean; message?: string }>;
+  /** Who changed what (admin only). */
+  fetchActivityLogs: (filters?: Record<string, any>) => Promise<any>;
+  /** Cash into / out of the till outside a sale. */
+  recordCashMovement: (direction: 'in' | 'out', amount: number, reason: string) => Promise<{ success: boolean; message?: string; summary?: any }>;
+  fetchCashMovements: () => Promise<any[]>;
+  /** Return items and take replacements in one transaction. */
+  exchangeOrder: (orderId: string | number, returnedItems: any[], newItems: any[], reason?: string) => Promise<any>;
+  /** Status changes for one order. */
+  fetchOrderHistory: (orderId: string | number) => Promise<any[]>;
   storeSettings: Record<string, any>;
   saveSettings: (values: Record<string, any>) => Promise<boolean>;
   getCurrentShift: () => Promise<any>;
@@ -679,6 +694,120 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // Staff/POS: look up a customer's history by phone.
+  const fetchShippingQuote = async (governorate?: string, subtotal = 0) => {
+    try {
+      const params = new URLSearchParams();
+      if (governorate) params.set('governorate', governorate);
+      params.set('subtotal', String(subtotal));
+      const res = await fetch(`${LARAVEL_API_BASE}/shipping/quote?${params.toString()}`);
+      if (!res.ok) return { fee: 0, freeOver: 0 };
+      const data = await res.json();
+      return { fee: Number(data?.fee || 0), freeOver: Number(data?.free_over || 0) };
+    } catch {
+      // Never block checkout on a quote failing — the server charges the
+      // authoritative amount when the order is placed.
+      return { fee: 0, freeOver: 0 };
+    }
+  };
+
+  const fetchStockMovements = async (filters: Record<string, any> = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+    });
+    const res = await authedApiFetch(`${LARAVEL_API_BASE}/stock-movements?${params.toString()}`);
+    if (!res.ok) throw new Error(`Stock ledger error: ${res.status}`);
+    return convertKeysToCamelCase(await res.json());
+  };
+
+  const adjustStock = async (payload: {
+    productVariationId: string | number;
+    countedQuantity?: number;
+    quantityChange?: number;
+    type?: string;
+    note: string;
+  }): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/stock-movements`, {
+        method: 'POST',
+        body: JSON.stringify(convertKeysToSnakeCase(payload)),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, message: data?.message };
+      bumpProductsRevision();
+      return { success: true };
+    } catch {
+      return { success: false, message: 'Could not reach the server.' };
+    }
+  };
+
+  const fetchActivityLogs = async (filters: Record<string, any> = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+    });
+    const res = await authedApiFetch(`${LARAVEL_API_BASE}/activity-logs?${params.toString()}`);
+    if (!res.ok) throw new Error(`Activity log error: ${res.status}`);
+    return convertKeysToCamelCase(await res.json());
+  };
+
+  const recordCashMovement = async (
+    direction: 'in' | 'out',
+    amount: number,
+    reason: string
+  ): Promise<{ success: boolean; message?: string; summary?: any }> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/shifts/cash`, {
+        method: 'POST',
+        body: JSON.stringify({ direction, amount, reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, message: data?.message };
+      return { success: true, summary: convertKeysToCamelCase(data)?.summary };
+    } catch {
+      return { success: false, message: 'Could not reach the server.' };
+    }
+  };
+
+  const fetchCashMovements = async (): Promise<any[]> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/shifts/cash`);
+      if (!res.ok) return [];
+      const data = convertKeysToCamelCase(await res.json());
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const exchangeOrder = async (
+    orderId: string | number,
+    returnedItems: any[],
+    newItems: any[],
+    reason?: string
+  ): Promise<any> => {
+    const res = await authedApiFetch(`${LARAVEL_API_BASE}/orders/${orderId}/exchange`, {
+      method: 'POST',
+      body: JSON.stringify({ returned_items: returnedItems, new_items: newItems, reason }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.message || 'Exchange failed');
+    refreshOrders();
+    bumpProductsRevision();
+    return convertKeysToCamelCase(data);
+  };
+
+  const fetchOrderHistory = async (orderId: string | number): Promise<any[]> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/orders/${orderId}/history`);
+      if (!res.ok) return [];
+      const data = convertKeysToCamelCase(await res.json());
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  };
+
   const lookupCustomer = async (phone: string): Promise<any> => {
     try {
       const res = await fetch(`${LARAVEL_API_BASE}/customers/lookup?phone=${encodeURIComponent(phone)}`, { headers: getAuthHeaders() });
@@ -1457,6 +1586,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       channel: (orderData as any).channel || (orderData as any).source || 'online',
       source: (orderData as any).source || (orderData as any).channel || 'online',
     };
+    // The governorate decides the delivery charge. The server recalculates the
+    // fee from it, so sending it is what makes the customer's total match.
+    if ((orderData as any).governorate) payload.governorate = (orderData as any).governorate;
     if (orderData.couponCode) payload.coupon_code = orderData.couponCode;
     if (orderData.discountAmount !== undefined) payload.discount_amount = orderData.discountAmount;
     if (orderData.amountPaid !== undefined) payload.amount_paid = orderData.amountPaid;
@@ -2163,6 +2295,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       reviews, reviewsPagination, refreshReviews,
       coupons, appliedCoupon, setAppliedCoupon, addCoupon, updateCoupon, deleteCoupon, applyCoupon, fetchSalesReport, fetchCashierReport,
       fetchBestSellers, recordRecentlyViewed, getRecentlyViewedIds, trackOrder, lookupCustomer,
+      fetchShippingQuote, fetchStockMovements, adjustStock, fetchActivityLogs,
+      recordCashMovement, fetchCashMovements, exchangeOrder, fetchOrderHistory,
       storeSettings, saveSettings, getCurrentShift, openShift, getShiftReport, closeShift, getOrderById, refundOrder
     }}>
       {children}

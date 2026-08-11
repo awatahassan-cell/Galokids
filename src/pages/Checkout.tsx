@@ -23,7 +23,7 @@ export const Checkout: React.FC = () => {
   const { 
     cart, clearCart, addOrder, currentUser, users, appliedCoupon, 
     setAppliedCoupon, applyCoupon, coupons, registerWithPhone, 
-    login, updateProfile
+    login, updateProfile, fetchShippingQuote
   } = useStore();
   const navigate = useNavigate();
   const [isSuccess, setIsSuccess] = useState(false);
@@ -62,6 +62,11 @@ export const Checkout: React.FC = () => {
   const [resendTimer, setResendTimer] = useState(0);
   const [notificationBanner, setNotificationBanner] = useState<string | null>(null);
   const [directOtpUrl, setDirectOtpUrl] = useState<string>('');
+
+  // Delivery charge. Quoted by the server for the selected governorate so the
+  // total shown here is the total the order will charge.
+  const [shippingFee, setShippingFee] = useState(0);
+  const [freeShippingOver, setFreeShippingOver] = useState(0);
 
   // Helper to format Iraqi mobile numbers to international format (e.g., 07501234567 -> 9647501234567)
   const formatIraqiPhone = (phone: string): string => {
@@ -267,8 +272,24 @@ export const Checkout: React.FC = () => {
 
 
   const subtotal = roundIQD(cart.reduce((acc, item) => acc + getLineTotal(item.product, item.variation, item.quantity), 0));
-  const discountAmount = appliedCoupon ? (subtotal * (appliedCoupon.discountPercentage / 100)) : 0;
-  const totalAmount = subtotal - discountAmount;
+  const discountAmount = roundIQD(appliedCoupon ? (subtotal * (appliedCoupon.discountPercentage / 100)) : 0);
+  const goodsTotal = Math.max(0, subtotal - discountAmount);
+  const totalAmount = goodsTotal + shippingFee;
+
+  // Ask the server what delivery costs for the chosen governorate. The server
+  // is the authority — it recalculates the same figure when the order is
+  // placed, so the customer can never be shown a cheaper total than they pay.
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchShippingQuote(selectedGovernorate || undefined, goodsTotal).then(quote => {
+      if (cancelled) return;
+      setShippingFee(quote.fee);
+      setFreeShippingOver(quote.freeOver);
+    }).catch(() => { /* keep the last known fee */ });
+
+    return () => { cancelled = true; };
+  }, [selectedGovernorate, goodsTotal, fetchShippingQuote]);
 
   const getProductName = (product: any) => {
     if (language === 'ku' && product.nameKu) return product.nameKu;
@@ -379,6 +400,7 @@ export const Checkout: React.FC = () => {
         shippingAddress: formattedAddress,
         paymentMethod: 'cod',
         couponCode: appliedCoupon?.code,
+        governorate: selectedGovernorate,
         channel: 'online',
         source: 'online',
       } as any);
@@ -843,8 +865,18 @@ export const Checkout: React.FC = () => {
               )}
               <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
                 <p>{t('shipping')}</p>
-                <p className="text-emerald-600 font-bold">{t('free')}</p>
+                {shippingFee > 0 ? (
+                  <p className="font-bold">{formatIQDLabel(shippingFee)}</p>
+                ) : (
+                  <p className="text-emerald-600 font-bold">{t('free')}</p>
+                )}
               </div>
+              {/* Nudge: how much more is needed for free delivery. */}
+              {shippingFee > 0 && freeShippingOver > 0 && goodsTotal < freeShippingOver && (
+                <p className="text-[11px] text-emerald-700 font-bold bg-emerald-50 rounded-lg px-3 py-2">
+                  {formatIQDLabel(freeShippingOver - goodsTotal)} {t('moreForFreeShipping')}
+                </p>
+              )}
               <div className="flex items-center justify-between text-lg font-black text-slate-900 pt-4 border-t border-slate-200">
                 <p>{t('total')}</p>
                 <p className="text-rose-600">{formatIQDLabel(totalAmount)}</p>

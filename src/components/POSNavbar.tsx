@@ -14,7 +14,8 @@ import {
   X,
   Lock,
   CheckCircle2,
-  History
+  History,
+  Wallet
 } from 'lucide-react';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -33,6 +34,8 @@ interface POSNavbarProps {
   onReprintLastReceipt: () => void;
   onOpenReturnModal: () => void;
   onOpenRecentSales?: () => void;
+  /** Cash paid into / taken out of the drawer outside a sale. */
+  onOpenCashDrawer?: () => void;
 }
 
 export const POSNavbar: React.FC<POSNavbarProps> = ({
@@ -45,6 +48,7 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
   onReprintLastReceipt,
   onOpenReturnModal,
   onOpenRecentSales,
+  onOpenCashDrawer,
 }) => {
   const { currentUser: storeUser, logout, storeSettings } = useStore();
   const savedUserStr = localStorage.getItem('kidskart_user');
@@ -164,6 +168,19 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
               >
                 <History className="w-3.5 h-3.5 text-indigo-600" />
                 <span className="whitespace-nowrap">{language === 'ku' ? 'کۆتا ١٠ فرۆشتن' : language === 'ar' ? 'آخر 10 مبيعات' : 'Recent 10 Sales'}</span>
+              </button>
+            )}
+
+            {/* Cash in / out of the drawer — only meaningful while a shift is open */}
+            {shift && onOpenCashDrawer && (
+              <button
+                onClick={onOpenCashDrawer}
+                className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl text-[11px] sm:text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95 flex items-center gap-1.5 shrink-0"
+              >
+                <Wallet className="w-3.5 h-3.5 text-amber-600" />
+                <span className="whitespace-nowrap">
+                  {language === 'ku' ? 'پارەی سندوق' : language === 'ar' ? 'حركة الصندوق' : 'Cash In / Out'}
+                </span>
               </button>
             )}
 

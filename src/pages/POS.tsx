@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import { useStore } from '../store';
 import { Product, ProductVariation } from '../types';
-import { Search, Plus, Minus, Trash2, CreditCard, Receipt, ShoppingBag, X, Pause, Printer, Play, Clock, RotateCcw } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Receipt, ShoppingBag, X, Pause, Printer, Play, Clock, RotateCcw, Wallet, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getColorHex } from '../utils/colors';
 import { useToast } from '../components/ui/Feedback';
@@ -17,7 +17,8 @@ import { getUnitPrice, getLineTotal, roundIQD } from '../utils/pricing';
 
 export const POS: React.FC = () => {
   const { products, orders, addOrder, productsPagination, refreshProducts, lookupCustomer,
-    storeSettings, getCurrentShift, openShift, getShiftReport, closeShift, getOrderById, refundOrder, currentUser } = useStore();
+    storeSettings, getCurrentShift, openShift, getShiftReport, closeShift, getOrderById, refundOrder, currentUser,
+    recordCashMovement, fetchCashMovements, exchangeOrder } = useStore();
   const toast = useToast();
   const [customerInfo, setCustomerInfo] = useState<any>(null);
 
@@ -29,6 +30,50 @@ export const POS: React.FC = () => {
   const [countedCash, setCountedCash] = useState('');
   const [shiftReport, setShiftReport] = useState<any>(null);
   const [zReport, setZReport] = useState<any>(null); // result after closing
+
+  // ---- Cash paid into / taken out of the drawer outside a sale ----
+  // Without this, any petty-cash spend or float top-up shows up as a till
+  // difference at close, and the cashier gets blamed for it.
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashDirection, setCashDirection] = useState<'in' | 'out'>('out');
+  const [cashAmount, setCashAmount] = useState('');
+  const [cashReason, setCashReason] = useState('');
+  const [cashMovements, setCashMovements] = useState<any[]>([]);
+  const [isSavingCash, setIsSavingCash] = useState(false);
+
+  const openCashModal = async (direction: 'in' | 'out') => {
+    setCashDirection(direction);
+    setCashAmount('');
+    setCashReason('');
+    setShowCashModal(true);
+    setCashMovements(await fetchCashMovements());
+  };
+
+  const handleCashMovement = async () => {
+    const amount = Math.round(parseFloat(cashAmount) || 0);
+    if (amount <= 0) {
+      toast(language === 'ku' ? 'بڕێکی دروست بنووسە' : language === 'ar' ? 'أدخل مبلغاً صحيحاً' : 'Enter a valid amount', 'error');
+      return;
+    }
+    if (!cashReason.trim()) {
+      toast(language === 'ku' ? 'هۆکارەکە بنووسە' : language === 'ar' ? 'اكتب السبب' : 'A reason is required', 'error');
+      return;
+    }
+
+    setIsSavingCash(true);
+    const res = await recordCashMovement(cashDirection, amount, cashReason.trim());
+    setIsSavingCash(false);
+
+    if (!res.success) {
+      toast(res.message || (language === 'ku' ? 'تۆمار نەکرا' : language === 'ar' ? 'لم يتم الحفظ' : 'Could not save'), 'error');
+      return;
+    }
+
+    toast(language === 'ku' ? 'تۆمارکرا ✅' : language === 'ar' ? 'تم التسجيل ✅' : 'Recorded ✅');
+    setCashAmount('');
+    setCashReason('');
+    setCashMovements(await fetchCashMovements());
+  };
 
   useEffect(() => {
     getCurrentShift().then(s => { 
@@ -80,6 +125,58 @@ export const POS: React.FC = () => {
     setReturnLoading(false);
     if (o) { setReturnOrder(o); setReturnQty({}); }
     else toast('Order not found', 'error');
+  };
+
+  // Exchange: the items coming back are chosen below, the replacements are
+  // whatever is already in the POS cart. One transaction, so stock for both
+  // legs moves together.
+  const [isExchange, setIsExchange] = useState(false);
+
+  const submitExchange = async () => {
+    const returned = Object.entries(returnQty)
+      .filter(([, q]) => Number(q) > 0)
+      .map(([id, q]) => ({ order_item_id: Number(id), quantity: Number(q) }));
+
+    if (returned.length === 0) {
+      toast(language === 'ku' ? 'کەمترین یەک بەرهەم بۆ گەڕاندنەوە هەڵبژێرە' : language === 'ar' ? 'اختر عنصراً واحداً على الأقل' : 'Select at least one item to return', 'error');
+      return;
+    }
+
+    const replacements = posCart
+      .filter(item => /^\d+$/.test(String(item.variation?.id)))
+      .map(item => ({ product_variation_id: Number(item.variation.id), quantity: item.quantity }));
+
+    if (replacements.length === 0) {
+      toast(language === 'ku' ? 'بەرهەمی جێگرەوە بخە ناو سەبەتەکە' : language === 'ar' ? 'أضف البدائل إلى السلة' : 'Put the replacement items in the cart first', 'error');
+      return;
+    }
+
+    setReturnLoading(true);
+    try {
+      const res = await exchangeOrder(returnOrder.id, returned, replacements, returnReason);
+      const difference = Number(res?.difference || 0);
+
+      toast(
+        difference > 0
+          ? (language === 'ku' ? `ئاڵوگۆڕ کرا — کڕیار ${formatIQDLabel(difference)} دەدات` : language === 'ar' ? `تم الاستبدال — يدفع العميل ${formatIQDLabel(difference)}` : `Exchanged — customer pays ${formatIQDLabel(difference)}`)
+          : difference < 0
+            ? (language === 'ku' ? `ئاڵوگۆڕ کرا — ${formatIQDLabel(-difference)} بگەڕێنەوە` : language === 'ar' ? `تم الاستبدال — أعد ${formatIQDLabel(-difference)}` : `Exchanged — give back ${formatIQDLabel(-difference)}`)
+            : (language === 'ku' ? 'ئاڵوگۆڕ کرا ✅' : language === 'ar' ? 'تم الاستبدال ✅' : 'Exchanged ✅')
+      );
+
+      setShowReturn(false);
+      setReturnOrder(null);
+      setReturnOrderId('');
+      setReturnQty({});
+      setReturnReason('');
+      setIsExchange(false);
+      setPosCart([]);
+      refreshProducts(1, 20, { search });
+    } catch (e: any) {
+      toast(e?.message || 'Exchange failed', 'error');
+    } finally {
+      setReturnLoading(false);
+    }
   };
 
   const submitReturn = async () => {
@@ -557,6 +654,7 @@ export const POS: React.FC = () => {
         onOpenHeldOrders={() => setShowHeld(true)}
         onOpenShiftModal={() => setShowShiftModal(true)}
         onOpenCloseShiftModal={openCloseModal}
+        onOpenCashDrawer={() => openCashModal('out')}
         lastReceipt={lastReceipt}
         onReprintLastReceipt={() => {
           if (lastReceipt) {
@@ -653,6 +751,105 @@ export const POS: React.FC = () => {
       )}
 
 
+      {/* Cash into / out of the drawer */}
+      {showCashModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowCashModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-amber-600" />
+                <h3 className="text-base font-bold text-slate-900">
+                  {language === 'ku' ? 'پارەی سندوق' : language === 'ar' ? 'حركة الصندوق' : 'Cash In / Out'}
+                </h3>
+              </div>
+              <button onClick={() => setShowCashModal(false)} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCashDirection('in')}
+                  className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-bold transition-colors ${
+                    cashDirection === 'in'
+                      ? 'bg-emerald-600 border-emerald-600 text-white'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <ArrowDownCircle className="w-4 h-4" />
+                  {language === 'ku' ? 'خستنە ناو' : language === 'ar' ? 'إيداع' : 'Cash in'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCashDirection('out')}
+                  className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-bold transition-colors ${
+                    cashDirection === 'out'
+                      ? 'bg-rose-600 border-rose-600 text-white'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <ArrowUpCircle className="w-4 h-4" />
+                  {language === 'ku' ? 'دەرهێنان' : language === 'ar' ? 'سحب' : 'Cash out'}
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {language === 'ku' ? 'بڕ' : language === 'ar' ? 'المبلغ' : 'Amount'}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={cashAmount}
+                  onChange={e => setCashAmount(e.target.value)}
+                  placeholder="0"
+                  className="w-full border border-slate-300 rounded-lg py-2.5 px-3 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  {language === 'ku' ? 'هۆکار' : language === 'ar' ? 'السبب' : 'Reason'}
+                </label>
+                <input
+                  type="text"
+                  value={cashReason}
+                  onChange={e => setCashReason(e.target.value)}
+                  placeholder={language === 'ku' ? 'وەک: کڕینی پاکەت' : language === 'ar' ? 'مثال: شراء أكياس' : 'e.g. bought bags'}
+                  className="w-full border border-slate-300 rounded-lg py-2.5 px-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <button
+                onClick={handleCashMovement}
+                disabled={isSavingCash}
+                className="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl hover:bg-slate-800 disabled:bg-slate-300 transition-colors"
+              >
+                {language === 'ku' ? 'تۆمارکردن' : language === 'ar' ? 'تسجيل' : 'Record'}
+              </button>
+
+              {cashMovements.length > 0 && (
+                <div className="pt-3 border-t border-slate-100">
+                  <p className="text-xs font-black text-slate-500 mb-2">
+                    {language === 'ku' ? 'ئەم شیفتە' : language === 'ar' ? 'هذه الوردية' : 'This shift'}
+                  </p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {cashMovements.map((m: any) => (
+                      <div key={m.id} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="text-slate-600 truncate">{m.reason}</span>
+                        <b className={m.direction === 'out' ? 'text-rose-600 shrink-0' : 'text-emerald-600 shrink-0'}>
+                          {m.direction === 'out' ? '-' : '+'}{formatIQDLabel(m.amount)}
+                        </b>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Shift open / close modal */}
       {showShiftModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowShiftModal(false)}>
@@ -678,6 +875,12 @@ export const POS: React.FC = () => {
                       <div className="flex justify-between items-center"><span className="text-slate-600 font-medium">{t('card') || 'Card'} {t('sales') || 'sales'}</span><b className="text-slate-900">{formatIQDLabel(shiftReport.card_sales)}</b></div>
                       <div className="flex justify-between items-center font-bold text-indigo-700 pt-1.5 border-t border-slate-200"><span className="font-bold">{t('totalShiftSales') || 'Total Shift Sales'}</span><b className="text-base">{formatIQDLabel((Number(shiftReport.cash_sales || 0) + Number(shiftReport.card_sales || 0)))}</b></div>
                       <div className="flex justify-between items-center text-rose-600"><span className="text-slate-600 font-medium">{t('refunds') || 'Refunds'}</span><b>-{formatIQDLabel(shiftReport.refunds)}</b></div>
+                      {Number(shiftReport.cash_in || 0) > 0 && (
+                        <div className="flex justify-between items-center text-emerald-700"><span className="text-slate-600 font-medium">{language === 'ku' ? 'پارەی خراوەتە ناو' : language === 'ar' ? 'إيداع نقدي' : 'Cash in'}</span><b>+{formatIQDLabel(shiftReport.cash_in)}</b></div>
+                      )}
+                      {Number(shiftReport.cash_out || 0) > 0 && (
+                        <div className="flex justify-between items-center text-rose-600"><span className="text-slate-600 font-medium">{language === 'ku' ? 'پارەی دەرهێنراو' : language === 'ar' ? 'سحب نقدي' : 'Cash out'}</span><b>-{formatIQDLabel(shiftReport.cash_out)}</b></div>
+                      )}
                       <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-emerald-700"><span className="font-bold">{t('expectedCash') || 'Expected cash'}</span><b className="text-base font-black">{formatIQDLabel(shiftReport.expected_cash)}</b></div>
                     </div>
                   )}
@@ -732,6 +935,12 @@ export const POS: React.FC = () => {
               <div className="flex justify-between"><span className="text-slate-500">{t('cash') || 'Cash'} {t('sales') || 'sales'}</span><b>{formatIQDLabel(zReport.cash_sales)}</b></div>
               <div className="flex justify-between"><span className="text-slate-500">{t('card') || 'Card'} {t('sales') || 'sales'}</span><b>{formatIQDLabel(zReport.card_sales)}</b></div>
               <div className="flex justify-between"><span className="text-slate-500">{t('refunds') || 'Refunds'}</span><b>-{formatIQDLabel(zReport.refunds)}</b></div>
+              {Number(zReport.cash_in || 0) > 0 && (
+                <div className="flex justify-between"><span className="text-slate-500">{language === 'ku' ? 'پارەی خراوەتە ناو' : language === 'ar' ? 'إيداع نقدي' : 'Cash in'}</span><b>+{formatIQDLabel(zReport.cash_in)}</b></div>
+              )}
+              {Number(zReport.cash_out || 0) > 0 && (
+                <div className="flex justify-between"><span className="text-slate-500">{language === 'ku' ? 'پارەی دەرهێنراو' : language === 'ar' ? 'سحب نقدي' : 'Cash out'}</span><b>-{formatIQDLabel(zReport.cash_out)}</b></div>
+              )}
               <div className="flex justify-between"><span className="text-slate-500">{t('orders') || 'Orders'}</span><b>{zReport.orders_count}</b></div>
               <div className="flex justify-between pt-2 border-t border-slate-100"><span className="text-slate-500">{t('expectedCash') || 'Expected cash'}</span><b>{formatIQDLabel(zReport.expected_cash)}</b></div>
               <div className="flex justify-between"><span className="text-slate-500">{t('countedCash') || 'Counted'}</span><b>{formatIQDLabel(zReport.counted)}</b></div>
@@ -757,11 +966,37 @@ export const POS: React.FC = () => {
             <div className={`p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between ${isRTL ? 'flex-row-reverse font-arabic' : ''}`}>
               <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <RotateCcw className="w-5 h-5 text-rose-600" />
-                <h3 className="text-base font-bold text-slate-900">{t('returnRefund') || 'Return / Refund'}</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  {isExchange
+                    ? (language === 'ku' ? 'ئاڵوگۆڕی کاڵا' : language === 'ar' ? 'استبدال' : 'Exchange')
+                    : (t('returnRefund') || 'Return / Refund')}
+                </h3>
               </div>
               <button onClick={() => setShowReturn(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"><X className="w-5 h-5" /></button>
             </div>
             <div className={`p-5 space-y-4 max-h-[75vh] overflow-y-auto ${isRTL ? 'font-arabic' : ''}`}>
+              {/* Refund gives the money back; exchange swaps for what is in the cart. */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsExchange(false)}
+                  className={`rounded-xl border py-2 text-xs font-bold transition-colors ${
+                    !isExchange ? 'bg-rose-600 border-rose-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {t('returnRefund') || 'Return / Refund'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsExchange(true)}
+                  className={`rounded-xl border py-2 text-xs font-bold transition-colors ${
+                    isExchange ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {language === 'ku' ? 'ئاڵوگۆڕ' : language === 'ar' ? 'استبدال' : 'Exchange'}
+                </button>
+              </div>
+
               <div>
                 <label className={`block text-xs font-semibold text-slate-600 mb-1.5 ${isRTL ? 'text-right' : ''}`}>
                   {t('orderLabel') || 'Order'} # / Invoice
@@ -838,14 +1073,44 @@ export const POS: React.FC = () => {
                     />
                   </div>
 
+                  {isExchange && (
+                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-xs space-y-1">
+                      <p className="font-black text-indigo-800">
+                        {language === 'ku' ? 'بەرهەمە نوێیەکان (لە سەبەتەدا)' : language === 'ar' ? 'العناصر الجديدة (في السلة)' : 'Replacement items (from the cart)'}
+                      </p>
+                      {posCart.length === 0 ? (
+                        <p className="text-slate-500">
+                          {language === 'ku' ? 'سەبەتەکە بەتاڵە — بەرهەمی جێگرەوە زیاد بکە.' : language === 'ar' ? 'السلة فارغة — أضف البدائل.' : 'The cart is empty — add the replacements first.'}
+                        </p>
+                      ) : (
+                        <>
+                          {posCart.map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between gap-2">
+                              <span className="truncate text-slate-700">{item.product?.name} × {item.quantity}</span>
+                              <b className="shrink-0 text-slate-800">{formatIQDLabel(getLineTotal(item.product, item.variation, item.quantity))}</b>
+                            </div>
+                          ))}
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-indigo-100 font-black text-indigo-800">
+                            <span>{t('total') || 'Total'}</span>
+                            <span>{formatIQDLabel(subtotalVal)}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   <button
                     type="button"
-                    onClick={submitReturn}
+                    onClick={isExchange ? submitExchange : submitReturn}
                     disabled={returnLoading}
-                    className={`w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl disabled:opacity-50 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}
+                    className={`w-full ${isExchange ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-rose-600 hover:bg-rose-700'} text-white font-bold py-2.5 rounded-xl disabled:opacity-50 shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}
                   >
                     <RotateCcw className="w-4 h-4" />
-                    <span>{t('processRefund') || 'Process Refund'}</span>
+                    <span>
+                      {isExchange
+                        ? (language === 'ku' ? 'ئەنجامدانی ئاڵوگۆڕ' : language === 'ar' ? 'تنفيذ الاستبدال' : 'Complete exchange')
+                        : (t('processRefund') || 'Process Refund')}
+                    </span>
                   </button>
                 </div>
               )}

@@ -3,11 +3,12 @@ import { useStore } from '../store';
 import { useToast } from './ui/Feedback';
 import {
   Save, Store, Phone, Mail, MessageSquare, Facebook, Instagram, Video, Ghost,
-  Upload, Trash2, Loader2, Image as ImageIcon,
+  Upload, Trash2, Loader2, Image as ImageIcon, Truck, Bell,
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
 import { uploadImages } from '../services/uploadService';
+import iraqLocations from '../data/iraq-locations.json';
 
 export const AdminStoreSettings: React.FC = () => {
   const { storeSettings, saveSettings } = useStore();
@@ -28,6 +29,13 @@ export const AdminStoreSettings: React.FC = () => {
     tiktok_url: '',
     snapchat_url: '',
   });
+  // Delivery charges. Kept out of `form` because the value saved is a JSON
+  // map of governorate -> fee, not a plain string field.
+  const [shippingRates, setShippingRates] = useState<Record<string, string>>({});
+  const [shippingDefaultFee, setShippingDefaultFee] = useState('');
+  const [shippingFreeOver, setShippingFreeOver] = useState('');
+  const [notifyOrderStatus, setNotifyOrderStatus] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
@@ -80,6 +88,24 @@ export const AdminStoreSettings: React.FC = () => {
       tiktok_url: storeSettings.tiktok_url ?? f.tiktok_url,
       snapchat_url: storeSettings.snapchat_url ?? f.snapchat_url,
     }));
+
+    // `shipping_rates` arrives already JSON-decoded by the settings endpoint,
+    // but tolerate a raw string in case it was written by hand.
+    let rates = storeSettings.shipping_rates;
+    if (typeof rates === 'string') {
+      try { rates = JSON.parse(rates); } catch { rates = {}; }
+    }
+    if (rates && typeof rates === 'object') {
+      const asText: Record<string, string> = {};
+      Object.entries(rates as Record<string, unknown>).forEach(([key, value]) => {
+        asText[key] = value == null ? '' : String(value);
+      });
+      setShippingRates(asText);
+    }
+
+    setShippingDefaultFee(storeSettings.shipping_default_fee != null ? String(storeSettings.shipping_default_fee) : '');
+    setShippingFreeOver(storeSettings.shipping_free_over != null ? String(storeSettings.shipping_free_over) : '');
+    setNotifyOrderStatus(storeSettings.notify_order_status === true || storeSettings.notify_order_status === 'true');
   }, [storeSettings]);
 
   const field = (
@@ -105,7 +131,23 @@ export const AdminStoreSettings: React.FC = () => {
 
   const save = async () => {
     setSaving(true);
-    const ok = await saveSettings(form);
+
+    // Blank rows mean "use the default", so they are dropped rather than saved
+    // as a zero — a stored 0 would mean free delivery to that governorate.
+    const cleanedRates: Record<string, number> = {};
+    Object.entries(shippingRates).forEach(([key, raw]) => {
+      const value = String(raw ?? '');
+      if (value.trim() === '') return;
+      cleanedRates[key] = Math.max(0, Math.round(parseFloat(value) || 0));
+    });
+
+    const ok = await saveSettings({
+      ...form,
+      shipping_rates: cleanedRates,
+      shipping_default_fee: Math.max(0, Math.round(parseFloat(shippingDefaultFee) || 0)),
+      shipping_free_over: Math.max(0, Math.round(parseFloat(shippingFreeOver) || 0)),
+      notify_order_status: notifyOrderStatus,
+    });
     setSaving(false);
     toast(
       ok ? L('Store settings saved successfully ✅') : L('Could not save settings'),
@@ -264,6 +306,103 @@ export const AdminStoreSettings: React.FC = () => {
             <Ghost className="w-4 h-4 text-amber-500" />
           )}
         </div>
+      </div>
+
+      {/* SECTION 3: Delivery charges */}
+      <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
+        <h2 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
+          <Truck className="w-5 h-5 text-indigo-600" />
+          {language === 'ku' ? 'کرێی گەیاندن' : language === 'ar' ? 'رسوم التوصيل' : 'Delivery charges'}
+        </h2>
+        <p className="text-xs text-slate-500 mb-6 font-medium">
+          {language === 'ku'
+            ? 'کرێی گەیاندن بۆ هەر پارێزگایەک. ئەو پارێزگایانەی بەتاڵ بن نرخی بنەڕەتی بەکاردەهێنن.'
+            : language === 'ar'
+            ? 'رسوم التوصيل لكل محافظة. المحافظات الفارغة تستخدم الرسوم الافتراضية.'
+            : 'What delivery costs per governorate. Blank rows fall back to the default fee.'}
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              {language === 'ku' ? 'نرخی بنەڕەتی (دینار)' : language === 'ar' ? 'الرسوم الافتراضية (دينار)' : 'Default fee (IQD)'}
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={shippingDefaultFee}
+              onChange={e => setShippingDefaultFee(e.target.value)}
+              placeholder="0"
+              className="w-full bg-slate-100/80 border border-slate-200 rounded-2xl py-2.5 px-4 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              {language === 'ku' ? 'گەیاندنی بێ بەرامبەر لە سەرووی (دینار)' : language === 'ar' ? 'توصيل مجاني فوق (دينار)' : 'Free delivery over (IQD)'}
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={shippingFreeOver}
+              onChange={e => setShippingFreeOver(e.target.value)}
+              placeholder="0"
+              className="w-full bg-slate-100/80 border border-slate-200 rounded-2xl py-2.5 px-4 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+            />
+            <p className="text-[11px] text-slate-400 mt-1 font-medium">
+              {language === 'ku' ? '٠ = ناچالاک' : language === 'ar' ? '٠ = معطل' : '0 disables it'}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {(iraqLocations as any[]).map(gov => (
+            <div key={gov.id} className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700 w-28 shrink-0 truncate">
+                {language === 'ku' ? gov.governorateKu : language === 'ar' ? gov.governorateAr : gov.governorate}
+              </span>
+              <input
+                type="number"
+                min="0"
+                value={shippingRates[gov.governorate] ?? ''}
+                onChange={e => setShippingRates(prev => ({ ...prev, [gov.governorate]: e.target.value }))}
+                placeholder={shippingDefaultFee || '0'}
+                className="flex-1 min-w-0 bg-slate-100/80 border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* SECTION 4: Customer notifications */}
+      <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
+        <h2 className="text-lg font-black text-slate-900 mb-1 flex items-center gap-2">
+          <Bell className="w-5 h-5 text-indigo-600" />
+          {language === 'ku' ? 'ئاگادارکردنەوەی کڕیار' : language === 'ar' ? 'إشعارات العملاء' : 'Customer notifications'}
+        </h2>
+        <p className="text-xs text-slate-500 mb-5 font-medium">
+          {language === 'ku'
+            ? 'بە کارخستنی ئەمە نامەی SMS بۆ کڕیار دەنێرێت هەر کاتێک دۆخی داواکارییەکەی بگۆڕێت. هەر نامەیەک تێچووی هەیە.'
+            : language === 'ar'
+            ? 'عند التفعيل تُرسل رسالة SMS للعميل عند تغيّر حالة طلبه. كل رسالة لها تكلفة.'
+            : 'When on, the customer gets an SMS whenever their order status changes. Each message costs credit.'}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setNotifyOrderStatus(v => !v)}
+          className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-xs font-black transition-all ${
+            notifyOrderStatus
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-slate-50 border-slate-200 text-slate-500'
+          }`}
+        >
+          <span className={`w-10 h-6 rounded-full p-1 transition-colors ${notifyOrderStatus ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+            <span className={`block w-4 h-4 rounded-full bg-white transition-transform ${notifyOrderStatus ? 'translate-x-4' : ''}`} />
+          </span>
+          {notifyOrderStatus
+            ? (language === 'ku' ? 'چالاکە' : language === 'ar' ? 'مفعّل' : 'Enabled')
+            : (language === 'ku' ? 'ناچالاکە' : language === 'ar' ? 'معطّل' : 'Disabled')}
+        </button>
       </div>
 
       <div className="flex justify-end">

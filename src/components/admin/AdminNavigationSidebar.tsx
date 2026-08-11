@@ -2,7 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { 
   BarChart3, Calendar, TrendingUp, Package, Tags, ShoppingBag, 
   Users, DollarSign, Star, Ticket, Image as ImageIcon, Settings, 
-  Languages, FileText, X, ChevronLeft, ChevronRight, Store, Boxes
+  Languages, FileText, X, ChevronLeft, ChevronRight, Store, Boxes,
+  History, ShieldCheck
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
@@ -84,6 +85,7 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
         items: [
           { id: 'products', label: t('products') || 'Products', icon: Package, adminOnly: false },
           { id: 'inventory', label: language === 'ku' ? 'جەردی کۆگا' : language === 'ar' ? 'جرد المستودع' : 'Inventory Audit', icon: Boxes, adminOnly: false },
+          { id: 'stock-ledger', label: language === 'ku' ? 'مێژووی ستۆک' : language === 'ar' ? 'سجل المخزون' : 'Stock Ledger', icon: History, adminOnly: false },
           { id: 'categories', label: t('allCategories') || 'Categories', icon: Tags, adminOnly: false },
           { id: 'labels', label: L("Print Labels"), icon: FileText, adminOnly: true },
           { id: 'barcode-stickers', label: L("Barcode Stickers"), icon: Tags, adminOnly: true },
@@ -111,6 +113,7 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
         items: [
           { id: 'settings', label: L("Settings"), icon: Settings, adminOnly: true },
           { id: 'translations', label: L("Translations"), icon: Languages, adminOnly: true },
+          { id: 'activity-log', label: language === 'ku' ? 'تۆماری چالاکی' : language === 'ar' ? 'سجل النشاطات' : 'Activity Log', icon: ShieldCheck, adminOnly: true },
         ]
       }
     ];
