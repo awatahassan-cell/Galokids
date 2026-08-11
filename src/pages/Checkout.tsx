@@ -13,6 +13,8 @@ import { OtpModal } from '../components/OtpModal';
 import { sendCheckoutOtp } from '../services/otpService';
 import { isSamePhone } from '../utils/phone';
 import { getLineTotal, roundIQD } from '../utils/pricing';
+import { KidsIcon } from '../components/KidsIcons';
+import { useScrollLock } from '../utils/useScrollLock';
 import {
   buildAddress, parseAddress, getDistricts, getSubdistricts, findGovernorate, findDistrict,
   getGovernorateLabel, getDistrictLabel, getSubdistrictLabel,
@@ -246,17 +248,12 @@ export const Checkout: React.FC = () => {
     }
   };
 
-  // Lock body scroll when quick login modal is open
-  useEffect(() => {
-    if (showQuickLogin) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [showQuickLogin]);
+  // Hold the page still behind either overlay. `overflow: hidden` on <body>
+  // alone does not do it — the page scrolls on <html>, so a flick over the
+  // backdrop moved the checkout underneath and left you somewhere else when
+  // the modal closed.
+  useScrollLock(showQuickLogin || showOtpModal);
+
   useEffect(() => {
     if (appliedCoupon && coupons.length > 0) {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -804,7 +801,7 @@ export const Checkout: React.FC = () => {
                     className="h-[18px] w-[18px] mt-0.5 accent-candy-500 shrink-0"
                   />
                   <span className="flex items-start gap-3 grow">
-                    <span className="w-10 h-10 rounded-xl bg-white grid place-items-center text-lg shrink-0">💵</span>
+                    <span className="w-10 h-10 rounded-xl bg-white grid place-items-center shrink-0"><KidsIcon name="cash" className="w-6 h-6" /></span>
                     <span>
                       <span className="block text-sm font-black text-slate-900">{t('payOnDelivery')}</span>
                       <span className="block text-xs text-slate-500 font-bold">{t('payOnDeliveryDesc')}</span>

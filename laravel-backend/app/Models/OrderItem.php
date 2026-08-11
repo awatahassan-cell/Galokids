@@ -13,6 +13,12 @@ class OrderItem extends Model
         'order_id',
         'product_id',
         'product_variation_id',
+        // What was sold, recorded at the time of sale. A receipt must not
+        // change when the catalogue does — and the product may later be gone.
+        'product_name',
+        'product_name_ku',
+        'product_name_ar',
+        'variation_label',
         'quantity',
         'price'
     ];

@@ -16,6 +16,7 @@ import { BulkActionBar } from './BulkActionBar';
 import { BulkCheckbox } from './BulkCheckbox';
 import { useBulkSelection } from './useBulkSelection';
 import { isAdminRole } from '../../utils/roles';
+import { orderItemName } from '../../utils/orderItems';
 
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
@@ -139,7 +140,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
         let itemsMatch = false;
         const items = safeGetItems(order);
         itemsMatch = items.some(item => {
-          const pName = getProductName(item.product).toLowerCase();
+          const pName = lineName(item).toLowerCase();
           const color = String(item.variation?.color || '').toLowerCase();
           const size = String(item.variation?.size || '').toLowerCase();
           return pName.includes(searchLower) || color.includes(searchLower) || size.includes(searchLower);
@@ -223,11 +224,14 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     return Array.isArray(order.items) ? order.items : [];
   }
 
-  function getProductName(product: any) {
-    if (!product) return language === 'ku' ? 'بەرهەم' : 'Product';
-    if (language === 'ku' && product.nameKu) return product.nameKu;
-    if (language === 'ar' && product.nameAr) return product.nameAr;
-    return product.name || product.title || (language === 'ku' ? 'بەرهەم' : 'Product');
+  /**
+   * The line's own recorded name, falling back to the live product.
+   *
+   * A function declaration, not a const: the filter memo above calls it while
+   * the component body is still being evaluated, so it has to be hoisted.
+   */
+  function lineName(item: any) {
+    return orderItemName(item, language);
   }
 
   return (
@@ -474,7 +478,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                             <div 
                               key={i} 
                               className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] font-bold text-slate-700 shadow-2xs"
-                              title={`${getProductName(item.product)} - ${item.variation?.color || ''} / ${item.variation?.size || ''}`}
+                              title={`${lineName(item)} - ${item.variation?.color || ''} / ${item.variation?.size || ''}`}
                             >
                               {item.product?.imageUrl && (
                                 <img 
@@ -642,7 +646,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                                           {item.product?.imageUrl ? (
                                             <img 
                                               src={item.product.imageUrl} 
-                                              alt={getProductName(item.product)} 
+                                              alt={lineName(item)} 
                                               className="w-full h-full object-cover" 
                                             />
                                           ) : (
@@ -652,7 +656,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
                                         <div className="grow min-w-0">
                                           <h5 className="font-bold text-slate-900 text-xs line-clamp-1">
-                                            {getProductName(item.product)}
+                                            {lineName(item)}
                                           </h5>
 
                                           <div className="flex items-center gap-2 flex-wrap mt-1.5">
@@ -796,7 +800,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                       {item.product?.imageUrl ? (
                         <img 
                           src={item.product.imageUrl} 
-                          alt={getProductName(item.product)} 
+                          alt={lineName(item)} 
                           className="w-full h-full object-cover" 
                         />
                       ) : (
@@ -805,7 +809,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                     </div>
 
                     <div className="grow min-w-0">
-                      <h5 className="font-bold text-slate-900 text-sm">{getProductName(item.product)}</h5>
+                      <h5 className="font-bold text-slate-900 text-sm">{lineName(item)}</h5>
                       
                       <div className="flex items-center gap-2 flex-wrap mt-1.5">
                         {item.variation?.color && (

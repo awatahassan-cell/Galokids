@@ -333,7 +333,7 @@ class OrderController extends Controller
             'customer_name' => $order->customer_name,
             'shipping_address' => $order->shipping_address,
             'items' => $order->items->map(fn ($i) => [
-                'name' => optional($i->product)->name,
+                'name' => $i->product_name ?: optional($i->product)->name,
                 'quantity' => $i->quantity,
                 'price' => $i->price,
             ]),
@@ -402,6 +402,7 @@ class OrderController extends Controller
                     $variation = null;
                     $productId = $item['product_id'] ?? null;
                     $unitPrice = null;
+                    $product = null;
 
                     if (!empty($item['product_variation_id'])) {
                         // Lock the row to avoid overselling under concurrent checkout.
@@ -444,9 +445,21 @@ class OrderController extends Controller
                     }
 
                     $subtotal += $unitPrice * $qty;
+
+                    // Record what was sold alongside the id. The catalogue can
+                    // change or the product can be deleted; the order is a
+                    // receipt and must still read correctly years later.
+                    $variationLabel = $variation
+                        ? trim(implode(' · ', array_filter([$variation->color, $variation->size])))
+                        : null;
+
                     $lineItems[] = [
                         'product_id' => $productId,
                         'product_variation_id' => $item['product_variation_id'] ?? null,
+                        'product_name' => $product->name ?? ($item['name'] ?? null),
+                        'product_name_ku' => $product->name_ku ?? null,
+                        'product_name_ar' => $product->name_ar ?? null,
+                        'variation_label' => $variationLabel ?: null,
                         'quantity' => $qty,
                         'price' => $unitPrice,
                     ];

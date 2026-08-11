@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useStore } from '../store';
 import { StoreLogo } from './StoreLogo';
+import { KidsIcon, KidsIconName } from './KidsIcons';
 
 /**
  * The newsletter strip and the site footer.
@@ -83,7 +84,9 @@ export const Footer: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-5 py-8">
             <div className="flex items-center gap-4">
-              <span className="w-[54px] h-[54px] rounded-[18px] bg-candy-500 grid place-items-center text-[23px] shrink-0">✉️</span>
+              <span className="w-[54px] h-[54px] rounded-[18px] bg-candy-500 grid place-items-center shrink-0">
+                <KidsIcon name="mail" className="w-7 h-7" tint="sun" />
+              </span>
               <div>
                 <strong className="block text-lg font-black">
                   {L(`ببە بە بەشێک لە خێزانی ${storeName}!`, `انضم إلى عائلة ${storeName}!`, `Join the ${storeName} family!`)}
@@ -135,8 +138,18 @@ export const Footer: React.FC = () => {
 
               {(phone || email) && (
                 <ul className="text-[13.5px] space-y-1.5 mb-4 list-none p-0">
-                  {phone && <li dir="ltr" className="text-start">📞 {phone}</li>}
-                  {email && <li dir="ltr" className="text-start">✉️ {email}</li>}
+                  {phone && (
+                    <li className="flex items-center gap-2">
+                      <KidsIcon name="phone" className="w-4 h-4 shrink-0" />
+                      <span dir="ltr">{phone}</span>
+                    </li>
+                  )}
+                  {email && (
+                    <li className="flex items-center gap-2">
+                      <KidsIcon name="mail" className="w-4 h-4 shrink-0" />
+                      <span dir="ltr" className="truncate">{email}</span>
+                    </li>
+                  )}
                 </ul>
               )}
 
@@ -192,11 +205,14 @@ export const Footer: React.FC = () => {
                 {L('شێوازی پارەدان', 'طرق الدفع', 'Payment methods')}
               </h4>
               <div className="flex flex-wrap gap-2">
-                {[
-                  L('💵 لە کاتی وەرگرتن', '💵 عند الاستلام', '💵 Cash on delivery'),
-                  L('💳 فاست پەی', '💳 فاست باي', '💳 FastPay'),
-                ].map((p, i) => (
-                  <span key={i} className="bg-white/8 rounded-[10px] px-3 py-2 text-xs font-bold">{p}</span>
+                {([
+                  { icon: 'cash', label: L('لە کاتی وەرگرتن', 'عند الاستلام', 'Cash on delivery') },
+                  { icon: 'card', label: L('فاست پەی', 'فاست باي', 'FastPay') },
+                ] as { icon: KidsIconName; label: string }[]).map((p, i) => (
+                  <span key={i} className="bg-white/8 rounded-[10px] px-3 py-2 text-xs font-bold inline-flex items-center gap-1.5">
+                    <KidsIcon name={p.icon} className="w-[17px] h-[17px]" />
+                    {p.label}
+                  </span>
                 ))}
               </div>
             </div>

@@ -7,6 +7,7 @@ import { KidsIcon, KidsIconName } from './KidsIcons';
 import { CategoryIcon } from './CategoryIcon';
 import { LanguageDropdown } from './LanguageDropdown';
 import { StoreLogo } from './StoreLogo';
+import { useScrollLock } from '../utils/useScrollLock';
 import { isAdminRole, isCashierRole, isStaffOrAdminRole } from '../utils/roles';
 
 interface SidebarProps {
@@ -33,6 +34,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { t, language } = useLanguage();
   const location = useLocation();
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+
+  // The drawer covers the page; the page should not move behind it.
+  useScrollLock(isOpen);
 
   const isRTL = language === 'ar' || language === 'ku';
   const L = (ku: string, ar: string, en: string) =>

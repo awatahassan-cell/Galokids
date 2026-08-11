@@ -11,6 +11,7 @@ import { ProductCard } from '../components/ProductCard';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../utils/colors';
 import { formatIQDLabel } from '../utils/currency';
+import { KidsIcon, KidsIconName } from '../components/KidsIcons';
 
 export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -621,14 +622,14 @@ export const ProductDetail: React.FC = () => {
           {/* The four promises, as a grid under the buy controls. This is the
               information a parent actually weighs before tapping buy. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-5 bg-bubble-50 border border-bubble-200 rounded-2xl p-4">
-            {[
-              ['🚚', language === 'ku' ? 'گەیاندن بۆ هەموو پارێزگاکان' : language === 'ar' ? 'توصيل لكل المحافظات' : 'Delivery nationwide'],
-              ['💵', language === 'ku' ? 'پارەدان لە کاتی وەرگرتن' : language === 'ar' ? 'الدفع عند الاستلام' : 'Cash on delivery'],
-              ['↩️', language === 'ku' ? 'گەڕاندنەوە تا ١٤ ڕۆژ' : language === 'ar' ? 'إرجاع خلال 14 يوم' : 'Returns within 14 days'],
-              ['🧵', language === 'ku' ? 'پارچەی سروشتی و پێستپارێز' : language === 'ar' ? 'أقمشة طبيعية آمنة' : 'Natural, skin-safe fabric'],
-            ].map(([icon, label]) => (
+            {([
+              { icon: 'truck',  label: language === 'ku' ? 'گەیاندن بۆ هەموو پارێزگاکان' : language === 'ar' ? 'توصيل لكل المحافظات' : 'Delivery nationwide' },
+              { icon: 'cash',   label: language === 'ku' ? 'پارەدان لە کاتی وەرگرتن' : language === 'ar' ? 'الدفع عند الاستلام' : 'Cash on delivery' },
+              { icon: 'return', label: language === 'ku' ? 'گەڕاندنەوە تا ١٤ ڕۆژ' : language === 'ar' ? 'إرجاع خلال 14 يوم' : 'Returns within 14 days' },
+              { icon: 'fabric', label: language === 'ku' ? 'پارچەی سروشتی و پێستپارێز' : language === 'ar' ? 'أقمشة طبيعية آمنة' : 'Natural, skin-safe fabric' },
+            ] as { icon: KidsIconName; label: string }[]).map(({ icon, label }) => (
               <div key={label} className="flex items-center gap-2.5 text-xs font-bold text-slate-700">
-                <span className="text-base shrink-0">{icon}</span>
+                <KidsIcon name={icon} className="w-5 h-5 shrink-0" />
                 {label}
               </div>
             ))}

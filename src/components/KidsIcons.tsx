@@ -19,7 +19,9 @@ export type KidsIconName =
   | 'shirt' | 'dress' | 'shoes' | 'hat' | 'socks' | 'trousers' | 'jacket'
   | 'toy' | 'baby' | 'bag' | 'gift'
   | 'info' | 'mail' | 'help' | 'truck' | 'box' | 'login' | 'logout'
-  | 'shield' | 'register' | 'sparkle';
+  | 'shield' | 'register' | 'sparkle'
+  | 'cash' | 'card' | 'return' | 'fabric' | 'ruler' | 'flame' | 'balloon'
+  | 'star' | 'bolt' | 'phone';
 
 /** pastel fill, darker stroke of the same hue */
 const P = {
@@ -197,6 +199,64 @@ const ICONS: Record<KidsIconName, (c: Pair) => React.ReactNode> = {
       <path d="M6.6 13.6h5.2" stroke={s} strokeWidth="1.6" strokeLinecap="round" />
     </>
   ),
+  cash: ([f, s]) => (
+    <>
+      <rect x="2.4" y="6" width="19.2" height="12" rx="2.2" fill={f} stroke={s} strokeWidth="1.4" />
+      <circle cx="12" cy="12" r="3.1" fill="#fff" stroke={s} strokeWidth="1.4" />
+      <path d="M5.6 9.2v5.6M18.4 9.2v5.6" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+    </>
+  ),
+  card: ([f, s]) => (
+    <>
+      <rect x="2.4" y="5.2" width="19.2" height="13.6" rx="2.4" fill={f} stroke={s} strokeWidth="1.4" />
+      <path d="M2.4 9.8h19.2" stroke={s} strokeWidth="1.6" />
+      <path d="M5.8 14.6h4.4" stroke={s} strokeWidth="1.6" strokeLinecap="round" />
+    </>
+  ),
+  return: ([f, s]) => (
+    <>
+      <path d="M20.4 13a8 8 0 1 1-2.7-6" fill={f} stroke={s} strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M18.6 2.9v4.4h-4.4" stroke={s} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  fabric: ([f, s]) => (
+    <>
+      <path d="M3.4 5.4c3-2 5.6 2 8.6 0s5.6 2 8.6 0v13.2c-3 2-5.6-2-8.6 0s-5.6-2-8.6 0z" fill={f} stroke={s} strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M3.4 11.9c3-2 5.6 2 8.6 0s5.6 2 8.6 0" stroke={s} strokeWidth="1.2" fill="none" />
+    </>
+  ),
+  ruler: ([f, s]) => (
+    <>
+      <rect x="2" y="8" width="20" height="8" rx="1.8" fill={f} stroke={s} strokeWidth="1.4" />
+      <path d="M6.4 8v3.2M10 8v4.4M13.6 8v3.2M17.2 8v4.4" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+    </>
+  ),
+  flame: ([f, s]) => (
+    <>
+      <path d="M12 2.4s5.6 4.3 5.6 9.4a5.6 5.6 0 1 1-11.2 0c0-2.4 1.4-4.2 2.6-5.6.5 1 1.2 1.7 2 2 0-2.2.4-4.2 1-5.8Z" fill={f} stroke={s} strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M12 19.4a2.9 2.9 0 0 1-2.9-2.9c0-1.6 1.5-2.9 2.9-4.4 1.4 1.5 2.9 2.8 2.9 4.4a2.9 2.9 0 0 1-2.9 2.9Z" fill="#fff" opacity=".45" />
+    </>
+  ),
+  balloon: ([f, s]) => (
+    <>
+      <ellipse cx="12" cy="9.4" rx="6.2" ry="7.2" fill={f} stroke={s} strokeWidth="1.4" />
+      <path d="M12 16.6q-1 2.6 0 4.6.9-2 0-4.6" stroke={s} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <ellipse cx="9.6" cy="7.4" rx="1.4" ry="2" fill="#fff" opacity=".45" />
+    </>
+  ),
+  star: ([f, s]) => (
+    <path d="M12 2.6 14.9 8.6 21.4 9.5l-4.7 4.6 1.1 6.5L12 17.5l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" fill={f} stroke={s} strokeWidth="1.3" strokeLinejoin="round" />
+  ),
+  bolt: ([f, s]) => (
+    <path d="M13.6 2.4 4.8 13.4h5.6l-.4 8.2 8.8-11h-5.6z" fill={f} stroke={s} strokeWidth="1.4" strokeLinejoin="round" />
+  ),
+  phone: ([f, s]) => (
+    <>
+      <rect x="6.2" y="2.4" width="11.6" height="19.2" rx="2.6" fill={f} stroke={s} strokeWidth="1.4" />
+      <path d="M10.4 5h3.2" stroke={s} strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="12" cy="18.4" r="1.1" fill={s} />
+    </>
+  ),
   sparkle: ([f, s]) => (
     <path
       d="M12 2.6 14 9l6.4 2-6.4 2-2 6.4-2-6.4L3.6 11 10 9z"
@@ -212,6 +272,8 @@ const TINT: Record<KidsIconName, Pair> = {
   trousers: P.grape, jacket: P.sky, toy: P.mint, baby: P.pink, bag: P.sand, gift: P.rose,
   info: P.sky, mail: P.grape, help: P.sun, truck: P.mint, box: P.sand,
   login: P.mint, logout: P.rose, shield: P.grape, register: P.sky, sparkle: P.sun,
+  cash: P.mint, card: P.sky, return: P.grape, fabric: P.pink, ruler: P.sun,
+  flame: P.rose, balloon: P.pink, star: P.sun, bolt: P.sun, phone: P.sky,
 };
 
 export interface KidsIconProps {

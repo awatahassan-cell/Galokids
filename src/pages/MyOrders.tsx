@@ -8,6 +8,7 @@ import { Package, Clock, CheckCircle, Truck, XCircle, RefreshCw, AlertCircle } f
 
 import { isPosOrder } from '../components/admin/AdminOrdersTab';
 import { isSamePhone } from '../utils/phone';
+import { orderItemName, orderItemVariation } from '../utils/orderItems';
 
 export const MyOrders: React.FC = () => {
   const { orders, currentUser, refreshOrders, ordersError } = useStore();
@@ -71,12 +72,6 @@ export const MyOrders: React.FC = () => {
       case 'cancelled': return 'bg-red-100 text-red-700';
       default: return 'bg-slate-100 text-slate-600';
     }
-  };
-
-  const getProductName = (product: any) => {
-    if (language === 'ku' && product.nameKu) return product.nameKu;
-    if (language === 'ar' && product.nameAr) return product.nameAr;
-    return product.name;
   };
 
   return (
@@ -203,16 +198,16 @@ export const MyOrders: React.FC = () => {
                     <div key={idx} className="flex items-center gap-3">
                       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-candy-50 to-candy-200 overflow-hidden shrink-0">
                         {item.product?.imageUrl && (
-                          <img src={item.product.imageUrl} alt={getProductName(item.product)} loading="lazy" className="w-full h-full object-cover" />
+                          <img src={item.product.imageUrl} alt={orderItemName(item, language)} loading="lazy" className="w-full h-full object-cover" />
                         )}
                       </div>
                       <div className="grow min-w-0">
-                        <h4 className="font-black text-slate-900 text-sm truncate">{getProductName(item.product)}</h4>
+                        <h4 className="font-black text-slate-900 text-sm truncate">{orderItemName(item, language)}</h4>
                         <p className="text-xs text-slate-500 font-bold flex items-center gap-1.5 mt-0.5">
                           {item.variation?.color && (
                             <span className="w-3 h-3 rounded-full border border-slate-200 shrink-0" style={{ backgroundColor: getColorHex(item.variation.color) }} title={item.variation.color} />
                           )}
-                          {item.variation?.size} × {item.quantity}
+                          {orderItemVariation(item)} × {item.quantity}
                         </p>
                       </div>
                       <span className="font-mono text-sm font-black text-slate-800 shrink-0">

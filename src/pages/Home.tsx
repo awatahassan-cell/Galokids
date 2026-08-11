@@ -4,6 +4,7 @@ import { PromoBanner } from '../components/PromoBanner';
 import { ProductCard } from '../components/ProductCard';
 import { ProductCardSkeleton } from '../components/ProductCardSkeleton';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { KidsIcon, KidsIconName } from '../components/KidsIcons';
 import { CountdownBanner } from '../components/CountdownBanner';
 import { useStore } from '../store';
 import { formatIQDLabel } from '../utils/currency';
@@ -262,7 +263,7 @@ export const Home: React.FC = () => {
           <div className="flex items-end justify-between mb-6 sm:mb-8">
             <div>
               <span className="inline-block bg-sunny-50 border border-sunny-200/80 text-sunny-700 font-bold text-xs px-4 py-1.5 rounded-full mb-2 shadow-2xs">
-                🔥 {language === 'ku' ? 'داشکاندنی تایبەت' : language === 'ar' ? 'عروض لفترة محددة' : 'Limited Time Deals'}
+                <KidsIcon name="flame" className="w-4 h-4 inline-block align-[-3px] me-1" /> {language === 'ku' ? 'داشکاندنی تایبەت' : language === 'ar' ? 'عروض لفترة محددة' : 'Limited Time Deals'}
               </span>
               <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
                 {language === 'ku' ? (
@@ -316,7 +317,7 @@ export const Home: React.FC = () => {
               </div>
               <div className="relative z-10">
                 <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black mb-3 border border-white/30">
-                  ⚡ {language === 'ku' ? 'یاری و جووڵە' : language === 'ar' ? 'نشاط ولعب' : 'Playground Active'}
+                  <KidsIcon name="bolt" className="w-4 h-4 inline-block align-[-3px] me-1" /> {language === 'ku' ? 'یاری و جووڵە' : language === 'ar' ? 'نشاط ولعب' : 'Playground Active'}
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-black leading-tight mb-2">
                   {language === 'ku' ? 'مۆدێلی شیک بۆ کوڕانی بچووک' : language === 'ar' ? 'تصاميم رائعة للأولاد الصغار' : 'Cool Styles For Little Boys'}
@@ -391,7 +392,7 @@ export const Home: React.FC = () => {
           <div className="relative z-10">
             <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-8">
               <span className="inline-block bg-bubble-50 border border-bubble-200/80 text-bubble-700 font-bold text-xs px-4 py-1.5 rounded-full mb-3 shadow-2xs">
-                🎈 {language === 'ku' ? 'هەڵبژێردراوی منداڵان' : language === 'ar' ? 'معتمد للأطفال' : 'Playground Approved'}
+                <KidsIcon name="balloon" className="w-4 h-4 inline-block align-[-3px] me-1" /> {language === 'ku' ? 'هەڵبژێردراوی منداڵان' : language === 'ar' ? 'معتمد للأطفال' : 'Playground Approved'}
               </span>
               <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">
                 {language === 'ku' ? (
@@ -426,7 +427,7 @@ export const Home: React.FC = () => {
                       : 'bg-white text-slate-700 hover:bg-candy-50 border border-slate-200'
                   }`}
                 >
-                  <span>⭐</span>
+                  <KidsIcon name="star" className="w-[18px] h-[18px]" />
                   <span>{language === 'ku' ? 'تایبەت' : language === 'ar' ? 'المميزة' : 'Featured'}</span>
                 </button>
 
@@ -438,7 +439,7 @@ export const Home: React.FC = () => {
                       : 'bg-white text-slate-700 hover:bg-candy-50 border border-slate-200'
                   }`}
                 >
-                  <span>🔥</span>
+                  <KidsIcon name="flame" className="w-[18px] h-[18px]" />
                   <span>{language === 'ku' ? 'باوترین' : language === 'ar' ? 'الرائج' : 'Trending'}</span>
                 </button>
 
@@ -450,7 +451,7 @@ export const Home: React.FC = () => {
                       : 'bg-white text-slate-700 hover:bg-candy-50 border border-slate-200'
                   }`}
                 >
-                  <span>⚡</span>
+                  <KidsIcon name="bolt" className="w-[18px] h-[18px]" />
                   <span>{language === 'ku' ? 'نوێترین' : language === 'ar' ? 'جديدنا' : 'New Arrival'}</span>
                 </button>
               </div>
@@ -520,7 +521,7 @@ export const Home: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
             {[
               {
-                n: '٠١', tone: 'bg-bubble-100', icon: '🚚',
+                n: '٠١', tone: 'bg-bubble-100', icon: 'truck' as KidsIconName,
                 title: language === 'ku' ? 'گەیاندن بۆ هەموو پارێزگاکان' : language === 'ar' ? 'توصيل لكل المحافظات' : 'Delivery nationwide',
                 body: freeOver > 0
                   ? (language === 'ku' ? `بێ بەرامبەر بۆ داواکاری سەرووی ${formatIQDLabel(freeOver)}.`
@@ -532,7 +533,7 @@ export const Home: React.FC = () => {
                 tags: [language === 'ku' ? '١٩ پارێزگا' : language === 'ar' ? '19 محافظة' : '19 governorates'],
               },
               {
-                n: '٠٢', tone: 'bg-candy-100', icon: '💵',
+                n: '٠٢', tone: 'bg-candy-100', icon: 'cash' as KidsIconName,
                 title: language === 'ku' ? 'پارەدان لە کاتی وەرگرتن' : language === 'ar' ? 'الدفع عند الاستلام' : 'Cash on delivery',
                 body: language === 'ku' ? 'پارە تەنها کاتێک دەدەیت کە داواکارییەکەت بە دەستت گەیشت.'
                   : language === 'ar' ? 'تدفع فقط عند وصول طلبك إليك.'
@@ -540,7 +541,7 @@ export const Home: React.FC = () => {
                 tags: [language === 'ku' ? 'بێ پێشەکی' : language === 'ar' ? 'بدون مقدم' : 'No prepayment'],
               },
               {
-                n: '٠٣', tone: 'bg-sunny-100', icon: '📏',
+                n: '٠٣', tone: 'bg-sunny-100', icon: 'ruler' as KidsIconName,
                 title: language === 'ku' ? 'قەبارە بەپێی تەمەن' : language === 'ar' ? 'المقاس حسب العمر' : 'Sized by age',
                 body: language === 'ku' ? 'هەموو قەبارەکان بە تەمەن نیشان دراون، بۆیە هەڵبژاردن ئاسانە.'
                   : language === 'ar' ? 'كل المقاسات معروضة بالعمر لتسهيل الاختيار.'
@@ -548,7 +549,7 @@ export const Home: React.FC = () => {
                 tags: [language === 'ku' ? 'گەڕاندنەوەی کەمتر' : language === 'ar' ? 'إرجاع أقل' : 'Fewer returns'],
               },
               {
-                n: '٠٤', tone: 'bg-mint-100', icon: smsOn ? '📱' : '↩️',
+                n: '٠٤', tone: 'bg-mint-100', icon: (smsOn ? 'phone' : 'return') as KidsIconName,
                 title: smsOn
                   ? (language === 'ku' ? 'ئاگادارکردنەوە بە SMS' : language === 'ar' ? 'إشعارات SMS' : 'SMS updates')
                   : (language === 'ku' ? 'گەڕاندنەوە و ئاڵوگۆڕ' : language === 'ar' ? 'الإرجاع والاستبدال' : 'Returns & exchanges'),
@@ -564,7 +565,9 @@ export const Home: React.FC = () => {
             ].map((f) => (
               <div key={f.n} className="relative bg-white border border-slate-100 rounded-3xl p-6 shadow-2xs hover:shadow-lg hover:-translate-y-1 transition-all overflow-hidden">
                 <span className="absolute top-3 end-4 text-4xl font-black text-slate-100 leading-none select-none">{f.n}</span>
-                <div className={`w-14 h-14 rounded-2xl ${f.tone} grid place-items-center text-2xl mb-4`}>{f.icon}</div>
+                <div className={`w-14 h-14 rounded-2xl ${f.tone} grid place-items-center mb-4`}>
+                  <KidsIcon name={f.icon} className="w-8 h-8" />
+                </div>
                 <h3 className="text-base font-black text-slate-900 mb-2">{f.title}</h3>
                 <p className="text-xs text-slate-500 font-bold leading-relaxed mb-3">{f.body}</p>
                 <div className="flex flex-wrap gap-1.5">

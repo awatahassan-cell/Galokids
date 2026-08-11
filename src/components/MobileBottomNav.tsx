@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { KidsIcon } from './KidsIcons';
+import { KidsIcon, KidsIconName } from './KidsIcons';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -29,7 +29,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = () => {
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
   const tab = (on: boolean) =>
-    `relative flex flex-col items-center gap-[3px] pt-[9px] pb-[11px] px-0.5 text-[10.5px] font-extrabold transition-colors ${
+    `relative flex flex-col items-center gap-1 pt-2 pb-2.5 px-0.5 text-[10.5px] font-extrabold transition-colors ${
       on ? 'text-candy-700' : 'text-slate-500'
     }`;
 
@@ -37,9 +37,24 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = () => {
   const marker = (on: boolean) =>
     on ? <span className="absolute top-0 inset-x-[26%] h-[3px] rounded-b-[5px] bg-candy-500" /> : null;
 
+  /**
+   * The icon in its tile. The selected tab keeps the icon's own colours on a
+   * soft pink ground; the rest wear a single muted tint, so exactly one tab
+   * reads as chosen instead of five competing colours along the bottom.
+   */
+  const tile = (name: KidsIconName, on: boolean) => (
+    <span
+      className={`w-9 h-9 rounded-2xl grid place-items-center transition-colors ${
+        on ? 'bg-candy-100' : 'bg-transparent'
+      }`}
+    >
+      <KidsIcon name={name} className="w-[22px] h-[22px]" tint={on ? undefined : 'ink'} />
+    </span>
+  );
+
   const badge = (n: number) =>
     n > 0 ? (
-      <span className="absolute top-[4px] start-[27%] min-w-[17px] h-[17px] px-1 rounded-full bg-candy-500 text-white text-[9.5px] font-black grid place-items-center font-sans">
+      <span className="absolute top-1 start-[26%] min-w-[17px] h-[17px] px-1 rounded-full bg-candy-500 text-white text-[9.5px] font-black grid place-items-center font-sans border-2 border-white">
         {n}
       </span>
     ) : null;
@@ -51,26 +66,26 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = () => {
     >
       <Link to="/" className={tab(isActive('/'))}>
         {marker(isActive('/'))}
-        <KidsIcon name="home" className="w-[23px] h-[23px]" />
+        {tile('home', isActive('/'))}
         {t('home')}
       </Link>
 
       <Link to="/products" className={tab(isActive('/products'))}>
         {marker(isActive('/products'))}
-        <KidsIcon name="shop" className="w-[23px] h-[23px]" />
+        {tile('shop', isActive('/products'))}
         {L('بەرهەم', 'المنتجات', 'Shop')}
       </Link>
 
       <Link to="/cart" className={tab(isActive('/cart'))}>
         {marker(isActive('/cart'))}
-        <KidsIcon name="basket" className="w-[23px] h-[23px]" />
+        {tile('basket', isActive('/cart'))}
         {badge(cartCount)}
         {L('سەبەتە', 'السلة', 'Basket')}
       </Link>
 
       <Link to="/wishlist" className={tab(isActive('/wishlist'))}>
         {marker(isActive('/wishlist'))}
-        <KidsIcon name="heart" className="w-[23px] h-[23px]" />
+        {tile('heart', isActive('/wishlist'))}
         {badge(wishlistCount)}
         {L('دڵخواز', 'المفضلة', 'Saved')}
       </Link>
@@ -80,7 +95,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = () => {
         className={tab(isActive('/profile') || isActive('/login'))}
       >
         {marker(isActive('/profile') || isActive('/login'))}
-        <KidsIcon name="user" className="w-[23px] h-[23px]" />
+        {tile('user', isActive('/profile') || isActive('/login'))}
         {L('هەژمار', 'حسابي', 'Account')}
       </Link>
     </nav>
