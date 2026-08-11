@@ -233,7 +233,7 @@ export const Home: React.FC = () => {
                         {c.imageUrl ? (
                           <img src={c.imageUrl} alt={categoryNameStr} className="w-full h-full object-cover object-center" />
                         ) : (
-                          <CategoryIcon name={c.icon || c.name} className="w-9 h-9 sm:w-11 sm:h-11 text-slate-700" />
+                          <CategoryIcon name={c.icon || c.name} className="w-9 h-9 sm:w-11 sm:h-11" />
                         )}
                       </div>
                       <h3 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-candy-700 transition-colors leading-tight mb-4">

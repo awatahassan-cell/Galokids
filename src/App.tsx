@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Home } from './pages/Home';
 import { Products } from './pages/Products';
 // Heavy / less-frequent routes are code-split so the initial bundle stays small.
@@ -8,6 +8,7 @@ import { Products } from './pages/Products';
 const Admin = lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
 const POS = lazy(() => import('./pages/POS').then(m => ({ default: m.POS })));
 const ProductDetail = lazy(() => import('./pages/ProductDetail').then(m => ({ default: m.ProductDetail })));
+const Cart = lazy(() => import('./pages/Cart').then(m => ({ default: m.Cart })));
 const Checkout = lazy(() => import('./pages/Checkout').then(m => ({ default: m.Checkout })));
 const Wishlist = lazy(() => import('./pages/Wishlist').then(m => ({ default: m.Wishlist })));
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
@@ -24,7 +25,6 @@ import { Footer } from './components/Footer';
 import { Sidebar } from './components/Sidebar';
 import { StoreProvider, useStore } from './store';
 import { Menu, Layers, UserCircle, ShoppingBag, Heart, LogOut, Globe, MonitorSmartphone, Package, KeyRound, ChevronDown, ShieldCheck, Search } from 'lucide-react';
-import { CartDrawer } from './components/CartDrawer';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { FeedbackProvider } from './components/ui/Feedback';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -33,12 +33,13 @@ import { isAdminRole, isStaffOrAdminRole, getRoleInfo } from './utils/roles';
 import { SearchBar } from './components/SearchBar';
 import { LanguageDropdown } from './components/LanguageDropdown';
 import { AnnouncementTicker } from './components/AnnouncementTicker';
+import { KidsIcon } from './components/KidsIcons';
+import { StoreLogo } from './components/StoreLogo';
 import { HeaderNav } from './components/HeaderNav';
 import { InitialLanguageModal } from './components/InitialLanguageModal';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
@@ -57,6 +58,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  /** The shop's name, in the language being read — never two at once. */
+  const storeName =
+    storeSettings?.store_name ||
+    (language === 'ku' ? 'گەلۆ کیدز' : language === 'ar' ? 'غالو كيدز' : 'Galo Kids');
 
   const cartItemsCount = (cart || []).filter(Boolean).reduce((acc, item) => acc + (item?.quantity || 0), 0);
   const wishlistCount = (wishlist || []).length;
@@ -85,10 +91,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     document.documentElement.dir = language === 'ar' || language === 'ku' ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
   }, [language]);
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [location.pathname]);
 
   // Per-route document title for SEO / shareable tabs.
   useEffect(() => {
@@ -133,23 +135,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <div className="flex items-center gap-3 shrink-0">
                 {MobileMenuButton}
                 <Link to="/" className="flex items-center gap-2.5 group shrink-0" title={storeSettings?.store_name || 'Galo Kids'}>
-                  {storeSettings?.store_logo ? (
-                    <img
-                      src={storeSettings.store_logo}
-                      alt={storeSettings?.store_name || 'Galo Kids'}
-                      className="w-[42px] h-[42px] rounded-2xl object-cover shadow-lg shadow-candy-600/25 transition-transform group-hover:scale-105"
-                    />
-                  ) : (
-                    <span className="w-[42px] h-[42px] rounded-2xl grid place-items-center bg-gradient-to-br from-candy-500 to-sunny-500 text-[#52182C] text-[19px] font-black shadow-lg shadow-candy-600/25 transition-transform group-hover:scale-105">
-                      G
-                    </span>
-                  )}
-                  <span className="leading-tight">
-                    <b className="block text-[15px] sm:text-[19px] font-black tracking-tight text-slate-900 whitespace-nowrap">
-                      {storeSettings?.store_name || (isRTL ? 'گەلۆ کیدز' : 'Galo Kids')}
-                    </b>
-                    <small className="block text-[9px] sm:text-[10.5px] font-bold tracking-[0.05em] text-slate-500">GALO KIDS</small>
-                  </span>
+                  <StoreLogo className="w-[42px] h-[42px] transition-transform group-hover:scale-105" />
+                  <b className="text-[15px] sm:text-[19px] font-black tracking-tight text-slate-900 whitespace-nowrap">
+                    {storeName}
+                  </b>
                 </Link>
               </div>
 
@@ -177,18 +166,18 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <LanguageDropdown className="hidden sm:flex h-[42px] rounded-2xl border-slate-200/80 bg-white text-slate-900" />
 
                 <Link to="/wishlist" className={`${iconBtn} hidden sm:grid`} title={t('wishlist')}>
-                  <Heart className="w-[19px] h-[19px]" />
+                  <KidsIcon name="heart" className="w-[21px] h-[21px]" />
                   {wishlistCount > 0 && <span className={bubble}>{wishlistCount}</span>}
                 </Link>
 
-                <button
-                  onClick={() => setIsCartOpen(true)}
+                <Link
+                  to="/cart"
                   className={iconBtn}
                   aria-label={language === 'ku' ? 'سەبەتە' : language === 'ar' ? 'السلة' : 'Basket'}
                 >
-                  <ShoppingBag className="w-[19px] h-[19px]" />
+                  <KidsIcon name="basket" className="w-[21px] h-[21px]" />
                   {cartItemsCount > 0 && <span className={bubble}>{cartItemsCount}</span>}
-                </button>
+                </Link>
                 
                 {/* User Profile Dropdown Menu */}
                 {currentUser ? (
@@ -308,7 +297,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   </div>
                 ) : (
                   <Link to="/login" className={iconBtn} title={t('login')}>
-                    <UserCircle className="w-[19px] h-[19px]" />
+                    <KidsIcon name="user" className="w-[21px] h-[21px]" />
                   </Link>
                 )}
               </div>
@@ -323,12 +312,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
       {!isAdminOrPos && <Footer />}
       {!isAdminOrPos && (
-        <MobileBottomNav 
-          onOpenCart={() => setIsCartOpen(true)}
-          onOpenSearch={() => setIsMobileSearchOpen(true)}
-        />
+        <MobileBottomNav onOpenSearch={() => setIsMobileSearchOpen(true)} />
       )}
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <InitialLanguageModal />
     </div>
@@ -380,16 +365,57 @@ const UserProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children 
   return <>{children}</>;
 };
 
+/**
+ * Shown while a code-split route is still downloading.
+ *
+ * It keeps the page's own height so the header and footer do not jump, and
+ * fades in after a beat — a chunk that arrives quickly should show nothing at
+ * all rather than a flash of spinner.
+ */
+const RouteFallback: React.FC = () => (
+  <div className="grow grid place-items-center py-32 vk-late">
+    <div className="w-9 h-9 border-[3px] border-candy-100 border-t-candy-500 rounded-full animate-spin" />
+  </div>
+);
+
+/**
+ * The wrapper every route animates through.
+ *
+ * Deliberately plain: opacity and a few pixels of travel, both of which the
+ * compositor can do on the GPU. The previous version also animated a blur,
+ * which forces a full repaint on every frame and was what made navigation
+ * feel heavy on a phone.
+ *
+ * Scrolling to the top happens here rather than on the pathname changing,
+ * because the old page is still on screen while it animates out — moving the
+ * viewport then yanks the page the reader is still looking at.
+ */
 const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const prefersReducedMotion = useReducedMotion();
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+  }, []);
+
+  const body = <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+
+  if (prefersReducedMotion) {
+    return <div className="grow flex flex-col w-full">{body}</div>;
+  }
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12, filter: 'blur(3px)' }}
-      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-      exit={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
-      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-      className="flex-grow flex flex-col w-full"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={{
+        duration: 0.22,
+        ease: [0.22, 1, 0.36, 1],
+        exit: { duration: 0.13, ease: 'easeIn' },
+      }}
+      className="grow flex flex-col w-full"
     >
-      {children}
+      {body}
     </motion.div>
   );
 };
@@ -404,6 +430,7 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/" element={<PageTransition key={routeKey}><Home /></PageTransition>} />
         <Route path="/products" element={<PageTransition key={routeKey}><Products /></PageTransition>} />
         <Route path="/product/:id" element={<PageTransition key={routeKey}><ProductDetail /></PageTransition>} />
+        <Route path="/cart" element={<PageTransition key={routeKey}><Cart /></PageTransition>} />
         <Route path="/checkout" element={<PageTransition key={routeKey}><Checkout /></PageTransition>} />
         <Route path="/wishlist" element={<PageTransition key={routeKey}><Wishlist /></PageTransition>} />
         <Route path="/about" element={<PageTransition key={routeKey}><About /></PageTransition>} />
@@ -431,13 +458,7 @@ export default function App() {
       <StoreProvider>
         <BrowserRouter>
           <Layout>
-            <Suspense fallback={
-              <div className="flex-grow flex items-center justify-center py-32">
-                <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-              </div>
-            }>
-              <AnimatedRoutes />
-            </Suspense>
+            <AnimatedRoutes />
           </Layout>
         </BrowserRouter>
       </StoreProvider>

@@ -3,6 +3,7 @@ import { Facebook, Instagram, MessageCircle, Video, Ghost } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useStore } from '../store';
+import { StoreLogo } from './StoreLogo';
 
 /**
  * The newsletter strip and the site footer.
@@ -120,17 +121,8 @@ export const Footer: React.FC = () => {
             {/* Brand */}
             <div>
               <Link to="/" className="flex items-center gap-2.5 mb-4">
-                {storeSettings?.store_logo ? (
-                  <img src={storeSettings.store_logo} alt={storeName} className="w-[42px] h-[42px] rounded-2xl object-cover" />
-                ) : (
-                  <span className="w-[42px] h-[42px] rounded-2xl grid place-items-center bg-gradient-to-br from-candy-500 to-sunny-500 text-[#52182C] text-[19px] font-black">
-                    G
-                  </span>
-                )}
-                <span className="leading-tight">
-                  <b className="block text-[19px] font-black text-white">{storeName}</b>
-                  <small className="block text-[10.5px] font-bold tracking-[0.05em] text-[#9EA1C4]">GALO KIDS</small>
-                </span>
+                <StoreLogo className="w-[42px] h-[42px]" />
+                <b className="text-[19px] font-black text-white">{storeName}</b>
               </Link>
 
               <p className="text-[13.5px] mb-4 leading-relaxed">

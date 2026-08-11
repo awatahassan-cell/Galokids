@@ -114,6 +114,9 @@ html, body {
 .vk-hi {
   position: relative;
   white-space: nowrap;
+  /* Without its own stacking context the z-index below sends the sweep behind
+     any ancestor that paints a background, which hid it everywhere. */
+  isolation: isolate;
 }
 .vk-hi::after {
   content: "";
@@ -122,7 +125,7 @@ html, body {
   bottom: 0.12em;
   height: 34%;
   background: var(--color-sunny-500);
-  opacity: 0.5;
+  opacity: 0.55;
   border-radius: 4px;
   z-index: -1;
 }
@@ -155,6 +158,14 @@ html, body {
 @keyframes vk-bob {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50%      { transform: translateY(-16px) rotate(7deg); }
+}
+
+/* Route loading spinner. Held back for a beat so a chunk that arrives
+   quickly shows nothing at all rather than a flash of spinner. */
+.vk-late { animation: vk-fade-in .2s ease-out .15s both; }
+@keyframes vk-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* The announcement strip. The track holds two copies of the messages and

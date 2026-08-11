@@ -1,49 +1,36 @@
 import React from 'react';
 import * as LucideIcons from 'lucide-react';
+import { KidsIcon, kidsIconForCategory } from './KidsIcons';
 
 interface CategoryIconProps {
+  /** The category's stored icon name, or its display name. */
   name?: string;
   className?: string;
+  /**
+   * Use the plain single-stroke glyph instead of the coloured one. The admin
+   * tables want a quiet icon that sits in a row of text; the storefront wants
+   * the coloured one.
+   */
+  plain?: boolean;
 }
 
-export const CategoryIcon: React.FC<CategoryIconProps> = ({ name, className = 'w-6 h-6' }) => {
-  if (!name) {
-    return <LucideIcons.Sparkles className={className} />;
+export const CategoryIcon: React.FC<CategoryIconProps> = ({ name, className = 'w-6 h-6', plain }) => {
+  if (!plain) {
+    const drawn = kidsIconForCategory(name);
+    if (drawn) return <KidsIcon name={drawn} className={className} />;
   }
 
-  const cleanName = name.trim().toLowerCase();
+  // Fall back to the Lucide set: an exact match on the stored name first,
+  // then its capitalised form, then a neutral placeholder.
+  if (name) {
+    const Exact = (LucideIcons as any)[name];
+    if (Exact) return <Exact className={className} />;
 
-  // Keyword mappings for common category terms (in Kurdish, English, Arabic)
-  if (cleanName.includes('yari') || cleanName.includes('toy') || cleanName.includes('car') || cleanName.includes('بازی') || cleanName.includes('یاری')) {
-    return <LucideIcons.Car className={className} />;
-  }
-  if (cleanName.includes('pilaw') || cleanName.includes('shoe') || cleanName.includes('foot') || cleanName.includes('حذاء') || cleanName.includes('پێڵاو')) {
-    return <LucideIcons.Footprints className={className} />;
-  }
-  if (cleanName.includes('shirt') || cleanName.includes('tshirt') || cleanName.includes('cloth') || cleanName.includes('قميص') || cleanName.includes('تیشێرت') || cleanName.includes('پۆشاک')) {
-    return <LucideIcons.Shirt className={className} />;
-  }
-  if (cleanName.includes('baby') || cleanName.includes('mndal') || cleanName.includes('طفل')) {
-    return <LucideIcons.Baby className={className} />;
-  }
-  if (cleanName.includes('bag') || cleanName.includes('çant') || cleanName.includes('چانتە')) {
-    return <LucideIcons.ShoppingBag className={className} />;
+    const capitalised = name.charAt(0).toUpperCase() + name.slice(1);
+    const Capital = (LucideIcons as any)[capitalised];
+    if (Capital) return <Capital className={className} />;
   }
 
-  // Find exact matching Lucide icon dynamically
-  const IconComponent = (LucideIcons as any)[name];
-  if (IconComponent) {
-    return <IconComponent className={className} />;
-  }
-
-  // Try capitalized version (e.g. "shirt" -> "Shirt")
-  const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
-  const CapitalComponent = (LucideIcons as any)[capitalized];
-  if (CapitalComponent) {
-    return <CapitalComponent className={className} />;
-  }
-
-  // Fallback icon
+  if (!plain) return <KidsIcon name="sparkle" className={className} />;
   return <LucideIcons.Sparkles className={className} />;
 };
-

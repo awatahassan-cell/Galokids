@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
-import {
-  Home, ShoppingBag, Info, Mail, UserCircle, Shield, MonitorSmartphone, X, LogIn,
-  Heart, Package, LogOut, HelpCircle, Truck, ChevronDown, Sparkles,
-} from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
+import { KidsIcon, KidsIconName } from './KidsIcons';
 import { CategoryIcon } from './CategoryIcon';
 import { LanguageDropdown } from './LanguageDropdown';
+import { StoreLogo } from './StoreLogo';
 import { isAdminRole, isCashierRole, isStaffOrAdminRole } from '../utils/roles';
 
 interface SidebarProps {
@@ -18,7 +17,7 @@ interface SidebarProps {
 interface NavItem {
   name: string;
   path: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: KidsIconName;
 }
 
 /**
@@ -47,31 +46,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
   const browse: NavItem[] = [
-    { name: t('home'), path: '/', icon: Home },
-    { name: t('about'), path: '/about', icon: Info },
-    { name: L('پەیوەندی', 'اتصل بنا', 'Contact'), path: '/contact', icon: Mail },
+    { name: t('home'), path: '/', icon: 'home' },
+    { name: t('about'), path: '/about', icon: 'info' },
+    { name: L('پەیوەندی', 'اتصل بنا', 'Contact'), path: '/contact', icon: 'mail' },
   ];
 
   const support: NavItem[] = [
-    { name: t('faq'), path: '/faq', icon: HelpCircle },
-    { name: t('shippingReturns'), path: '/shipping-returns', icon: Truck },
-    { name: L('بەدواداچوونی داواکاری', 'تتبع الطلب', 'Track order'), path: '/track', icon: Package },
+    { name: t('faq'), path: '/faq', icon: 'help' },
+    { name: t('shippingReturns'), path: '/shipping-returns', icon: 'truck' },
+    { name: L('بەدواداچوونی داواکاری', 'تتبع الطلب', 'Track order'), path: '/track', icon: 'box' },
   ];
 
   const account: NavItem[] = currentUser
     ? [
-        { name: t('profile'), path: '/profile', icon: UserCircle },
-        { name: t('wishlist'), path: '/wishlist', icon: Heart },
-        { name: t('myOrders'), path: '/my-orders', icon: Package },
+        { name: t('profile'), path: '/profile', icon: 'user' },
+        { name: t('wishlist'), path: '/wishlist', icon: 'heart' },
+        { name: t('myOrders'), path: '/my-orders', icon: 'box' },
       ]
-    : [{ name: t('signIn'), path: '/login', icon: LogIn }];
+    : [{ name: t('signIn'), path: '/login', icon: 'login' }];
 
   const backOffice: NavItem[] = [
+    // The POS has no kid-shaped equivalent, so it borrows the till glyph.
     ...(currentUser && (isAdminRole(currentUser.role) || isCashierRole(currentUser.role))
-      ? [{ name: t('pos'), path: '/pos', icon: MonitorSmartphone }]
+      ? [{ name: t('pos'), path: '/pos', icon: 'register' } as NavItem]
       : []),
     ...(currentUser && isAdminRole(currentUser.role)
-      ? [{ name: t('admin'), path: '/admin', icon: Shield }]
+      ? [{ name: t('admin'), path: '/admin', icon: 'shield' } as NavItem]
       : []),
   ];
 
@@ -92,10 +92,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       >
         <span
           className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 transition-colors ${
-            on ? 'bg-candy-500 text-white' : 'bg-slate-100 text-slate-500'
+            on ? 'bg-candy-100' : 'bg-slate-50'
           }`}
         >
-          <item.icon className="w-[18px] h-[18px]" />
+          <KidsIcon name={item.icon} className="w-[19px] h-[19px]" />
         </span>
         <span>{item.name}</span>
       </Link>
@@ -123,17 +123,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             part of the same site rather than a separate screen. */}
         <div className="flex items-center justify-between gap-3 p-4 border-b border-slate-200/80 shrink-0">
           <Link to="/" onClick={onClose} className="flex items-center gap-2.5 min-w-0">
-            {storeSettings?.store_logo ? (
-              <img src={storeSettings.store_logo} alt={storeName} className="w-[42px] h-[42px] rounded-2xl object-cover shrink-0" />
-            ) : (
-              <span className="w-[42px] h-[42px] rounded-2xl grid place-items-center bg-gradient-to-br from-candy-500 to-sunny-500 text-[#52182C] text-[19px] font-black shrink-0">
-                G
-              </span>
-            )}
-            <span className="leading-tight min-w-0">
-              <b className="block text-base font-black text-slate-900 truncate">{storeName}</b>
-              <small className="block text-[9.5px] font-bold tracking-[0.05em] text-slate-500">GALO KIDS</small>
-            </span>
+            <StoreLogo className="w-[42px] h-[42px]" />
+            <b className="text-base font-black text-slate-900 truncate min-w-0">{storeName}</b>
           </Link>
 
           <button
@@ -174,9 +165,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 aria-expanded={categoriesOpen}
               >
                 <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${
-                  isActive('/products') ? 'bg-candy-500 text-white' : 'bg-slate-100 text-slate-500'
+                  isActive('/products') ? 'bg-candy-100' : 'bg-slate-50'
                 }`}>
-                  <ShoppingBag className="w-[18px] h-[18px]" />
+                  <KidsIcon name="shop" className="w-[19px] h-[19px]" />
                 </span>
                 <span className="flex-1 text-start">{t('products')}</span>
                 <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${categoriesOpen ? 'rotate-180' : ''}`} />
@@ -189,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     onClick={onClose}
                     className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold text-slate-600 hover:bg-candy-50 hover:text-candy-700 transition-colors"
                   >
-                    <Sparkles className="w-4 h-4 text-candy-500" />
+                    <KidsIcon name="sparkle" className="w-[18px] h-[18px]" />
                     {L('هەموو بەرهەمەکان', 'كل المنتجات', 'All products')}
                   </Link>
                   {(categories || []).map((c: any) => (
@@ -199,7 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       onClick={onClose}
                       className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-bold text-slate-600 hover:bg-candy-50 hover:text-candy-700 transition-colors"
                     >
-                      <CategoryIcon name={c.icon} className="w-4 h-4 text-slate-400" />
+                      <CategoryIcon name={c.icon || c.name} className="w-[18px] h-[18px]" />
                       {categoryName(c)}
                     </Link>
                   ))}
@@ -246,8 +237,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               onClick={() => { logout(); onClose(); }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-bold text-slate-700 hover:bg-candy-50 hover:text-candy-700 transition-colors cursor-pointer"
             >
-              <span className="w-9 h-9 rounded-xl grid place-items-center bg-slate-100 text-slate-500 shrink-0">
-                <LogOut className="w-[18px] h-[18px]" />
+              <span className="w-9 h-9 rounded-xl grid place-items-center bg-slate-50 shrink-0">
+                <KidsIcon name="logout" className="w-[19px] h-[19px]" />
               </span>
               <span>{t('logout')}</span>
             </button>

@@ -1,11 +1,10 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, LayoutGrid, ShoppingBag, Heart, User } from 'lucide-react';
+import { KidsIcon } from './KidsIcons';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface MobileBottomNavProps {
-  onOpenCart: () => void;
   onOpenSearch?: () => void;
 }
 
@@ -16,7 +15,7 @@ interface MobileBottomNavProps {
  * filled shape, so the row keeps its rhythm and the label stays readable.
  * It hides at lg, where the header's own navigation takes over.
  */
-export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenCart }) => {
+export const MobileBottomNav: React.FC<MobileBottomNavProps> = () => {
   const location = useLocation();
   const { cart, wishlist, currentUser } = useStore();
   const { t, language } = useLanguage();
@@ -52,25 +51,26 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenCart }) 
     >
       <Link to="/" className={tab(isActive('/'))}>
         {marker(isActive('/'))}
-        <Home className="w-[21px] h-[21px]" />
+        <KidsIcon name="home" className="w-[23px] h-[23px]" />
         {t('home')}
       </Link>
 
       <Link to="/products" className={tab(isActive('/products'))}>
         {marker(isActive('/products'))}
-        <LayoutGrid className="w-[21px] h-[21px]" />
+        <KidsIcon name="shop" className="w-[23px] h-[23px]" />
         {L('بەرهەم', 'المنتجات', 'Shop')}
       </Link>
 
-      <button type="button" onClick={onOpenCart} className={`${tab(false)} cursor-pointer`}>
-        <ShoppingBag className="w-[21px] h-[21px]" />
+      <Link to="/cart" className={tab(isActive('/cart'))}>
+        {marker(isActive('/cart'))}
+        <KidsIcon name="basket" className="w-[23px] h-[23px]" />
         {badge(cartCount)}
         {L('سەبەتە', 'السلة', 'Basket')}
-      </button>
+      </Link>
 
       <Link to="/wishlist" className={tab(isActive('/wishlist'))}>
         {marker(isActive('/wishlist'))}
-        <Heart className={`w-[21px] h-[21px] ${isActive('/wishlist') ? 'fill-candy-500' : ''}`} />
+        <KidsIcon name="heart" className="w-[23px] h-[23px]" />
         {badge(wishlistCount)}
         {L('دڵخواز', 'المفضلة', 'Saved')}
       </Link>
@@ -80,7 +80,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onOpenCart }) 
         className={tab(isActive('/profile') || isActive('/login'))}
       >
         {marker(isActive('/profile') || isActive('/login'))}
-        <User className="w-[21px] h-[21px]" />
+        <KidsIcon name="user" className="w-[23px] h-[23px]" />
         {L('هەژمار', 'حسابي', 'Account')}
       </Link>
     </nav>

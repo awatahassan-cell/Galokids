@@ -1589,7 +1589,7 @@ export const Admin: React.FC = () => {
                           }`}
                           title={iconName}
                         >
-                          <CategoryIcon name={iconName} className="w-5 h-5 mb-1" />
+                          <CategoryIcon name={iconName} className="w-5 h-5 mb-1" plain />
                           <span className="text-[9px] font-bold truncate max-w-full">{iconName}</span>
                         </button>
                       ))}
@@ -1633,7 +1633,7 @@ export const Admin: React.FC = () => {
                       label={getCategoryName(c)}
                     />
                   )}
-                  <CategoryIcon name={c.icon} className="w-4 h-4 text-indigo-600" />
+                  <CategoryIcon name={c.icon} className="w-4 h-4 text-indigo-600" plain />
                   <span>{getCategoryName(c)}</span>
                   {c.id && (
                     <>

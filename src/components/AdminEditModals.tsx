@@ -116,7 +116,7 @@ export const AdminEditModals: React.FC<Props> = ({
                       }`}
                       title={iconName}
                     >
-                      <CategoryIcon name={iconName} className="w-5 h-5 mb-1" />
+                      <CategoryIcon name={iconName} className="w-5 h-5 mb-1" plain />
                     </button>
                   ))}
                 </div>
