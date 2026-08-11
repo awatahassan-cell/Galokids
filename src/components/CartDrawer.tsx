@@ -107,7 +107,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                         transition={{ duration: 0.2 }}
                         className="flex gap-4"
                       >
-                        <div className="w-24 h-24 flex-shrink-0 bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+                        <div className="w-24 h-24 shrink-0 rounded-2xl overflow-hidden bg-gradient-to-br from-candy-50 to-candy-200">
                           <img 
                             src={item.product.imageUrl} 
                             alt={item.product.name} 
@@ -117,29 +117,29 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                         <div className="flex-1 flex flex-col">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h3 className="text-sm font-semibold text-slate-900 line-clamp-1">{getProductName(item.product)}</h3>
+                              <h3 className="text-sm font-black text-slate-900 line-clamp-1">{getProductName(item.product)}</h3>
                               <p className="text-xs text-slate-500 mt-1">
                                 <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border border-slate-200" style={{ backgroundColor: getColorHex(item.variation.color) }} title={getLocalizedColorName(item.variation.color, language)} /> {getLocalizedColorName(item.variation.color, language)} {item.variation.color && item.variation.size ? '•' : ''} {getLocalizedSizeName(item.variation.size, language)}</span>
                               </p>
                             </div>
-                            <p className="text-sm font-medium text-slate-900">{formatIQDLabel(getLineTotal(item.product, item.variation, item.quantity))}</p>
+                            <p className="font-mono text-sm font-black text-candy-700">{formatIQDLabel(getLineTotal(item.product, item.variation, item.quantity))}</p>
                           </div>
                           
                           <div className="mt-auto flex items-center justify-between">
-                            <div className="flex items-center border border-slate-200 rounded-lg">
+                            <div className="flex items-center gap-1 bg-slate-100 rounded-full p-1">
                               <button 
                                 onClick={() => updateCartItemQuantity(item?.id, item.quantity - 1)}
-                                className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 disabled:opacity-50"
+                                className="w-7 h-7 grid place-items-center rounded-full text-slate-600 hover:bg-white disabled:opacity-40 transition-colors"
                                 disabled={item.quantity <= 1}
                               >
                                 <Minus className="w-3.5 h-3.5" />
                               </button>
-                              <span className="px-3 text-sm font-medium text-slate-700 min-w-[2rem] text-center">
+                              <span className="font-mono px-1 text-sm font-black text-slate-800 min-w-[1.75rem] text-center">
                                 {item.quantity}
                               </span>
                               <button 
                                 onClick={() => updateCartItemQuantity(item?.id, item.quantity + 1)}
-                                className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-50 disabled:opacity-50"
+                                className="w-7 h-7 grid place-items-center rounded-full text-slate-600 hover:bg-white disabled:opacity-40 transition-colors"
                                 disabled={item.quantity >= item.variation.stockQuantity}
                               >
                                 <Plus className="w-3.5 h-3.5" />

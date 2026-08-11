@@ -119,7 +119,7 @@ const pTranslations = {
 };
 
 export const Profile: React.FC = () => {
-  const { currentUser, updateProfile } = useStore();
+  const { currentUser, updateProfile, orders, wishlist } = useStore();
   const { language, dir } = useLanguage();
 
   // Safely default language
@@ -272,14 +272,39 @@ export const Profile: React.FC = () => {
         <p className="text-slate-500 mt-2 text-sm sm:text-base">{localT.profileSubtitle}</p>
       </div>
 
+      {/* At-a-glance counts, straight from the store — no separate request. */}
+      <div className="grid grid-cols-3 gap-3 mb-8">
+        {[
+          {
+            n: (orders || []).filter(o => String(o?.userId) === String(currentUser?.id)).length,
+            label: language === 'ku' ? 'داواکاری' : language === 'ar' ? 'طلبات' : 'Orders',
+          },
+          {
+            n: (wishlist || []).length,
+            label: language === 'ku' ? 'دڵخواز' : language === 'ar' ? 'مفضلة' : 'Wishlist',
+          },
+          {
+            n: (orders || []).filter(o => String(o?.userId) === String(currentUser?.id) && o?.status === 'delivered').length,
+            label: language === 'ku' ? 'گەیشتوو' : language === 'ar' ? 'مكتملة' : 'Delivered',
+          },
+        ].map(box => (
+          <div key={box.label} className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-2xs">
+            <b className="block font-mono text-2xl font-black text-candy-700">{box.n}</b>
+            <span className="text-xs font-bold text-slate-500">{box.label}</span>
+          </div>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Left Side: Profile Card summary (ReadOnly Info) */}
         <div className="md:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center">
-            <div className="w-20 h-20 bg-grape-50 rounded-full flex items-center justify-center text-grape-700 mb-4 border border-indigo-100">
-              <User className="w-10 h-10" />
+          <div className="bg-white p-6 rounded-[1.75rem] border border-slate-100 shadow-2xs flex flex-col items-center text-center">
+            {/* The initial on a brand gradient, the way the proposal showed it —
+                warmer than a grey glyph and it reads as "this is you". */}
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-candy-500 to-sunny-500 grid place-items-center text-white text-3xl font-black mb-4 shadow-lg shadow-candy-500/30">
+              {(currentUser.name || '؟').trim().charAt(0)}
             </div>
-            <h2 className="text-xl font-bold text-slate-900 line-clamp-1">{currentUser.name}</h2>
+            <h2 className="text-xl font-black text-slate-900 line-clamp-1">{currentUser.name}</h2>
             {currentUser.email && !currentUser.email.includes('@phone.user') && (
               <p className="text-slate-500 text-sm mt-1 line-clamp-1">{currentUser.email}</p>
             )}
