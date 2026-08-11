@@ -468,7 +468,19 @@ export const Checkout: React.FC = () => {
         <ArrowLeft className={`w-4 h-4 ${dir === 'rtl' ? 'ml-2 rotate-180' : 'mr-2'}`} /> {t('continueShopping')}
       </Link>
 
-      <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-8">{t('checkout')}</h1>
+      <div className="relative mb-8">
+        <div className="vk-blob w-72 h-72 bg-candy-300 -top-24 -start-24" />
+        <div className="relative z-10">
+          <span className="vk-sub">
+            {language === 'ku' ? 'دوا هەنگاو' : language === 'ar' ? 'الخطوة الأخيرة' : 'Last step'}
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            {language === 'ku' ? <>تەواوکردنی <span className="vk-hi">داواکاری</span></>
+              : language === 'ar' ? <>إتمام <span className="vk-hi">الطلب</span></>
+              : <>Complete your <span className="vk-hi">order</span></>}
+          </h1>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         {/* Shipping Form */}

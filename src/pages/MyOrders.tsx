@@ -3,14 +3,14 @@ import React from 'react';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getColorHex } from '../utils/colors';
-import { Navigate } from 'react-router-dom';
-import { Package, Clock, CheckCircle, Truck, XCircle, RefreshCw } from 'lucide-react';
+import { Navigate, Link } from 'react-router-dom';
+import { Package, Clock, CheckCircle, Truck, XCircle, RefreshCw, AlertCircle } from 'lucide-react';
 
 import { isPosOrder } from '../components/admin/AdminOrdersTab';
 import { isSamePhone } from '../utils/phone';
 
 export const MyOrders: React.FC = () => {
-  const { orders, currentUser, refreshOrders } = useStore();
+  const { orders, currentUser, refreshOrders, ordersError } = useStore();
   const { t, language } = useLanguage();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
@@ -81,8 +81,15 @@ export const MyOrders: React.FC = () => {
     <div className="grow max-w-5xl mx-auto w-full px-4 sm:px-6 py-8">
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('myOrders')}</h1>
-          <p className="text-slate-500 mt-2">{t('myOrdersSubtitle')}</p>
+          <span className="vk-sub">
+            {language === 'ku' ? 'هەژمارەکەم' : language === 'ar' ? 'حسابي' : 'My account'}
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            {language === 'ku' ? <>داواکاری<span className="vk-hi">یەکانم</span></>
+              : language === 'ar' ? <>طلبا<span className="vk-hi">تي</span></>
+              : <>My <span className="vk-hi">orders</span></>}
+          </h1>
+          <p className="text-slate-500 mt-2 font-bold text-sm">{t('myOrdersSubtitle')}</p>
         </div>
         <button
           type="button"
@@ -97,7 +104,33 @@ export const MyOrders: React.FC = () => {
         </button>
       </div>
 
-      {userOrders.length === 0 ? (
+      {ordersError && userOrders.length === 0 ? (
+        /* A request that never landed is not an empty history. Saying "you
+           have no orders" when the session expired makes a customer think
+           their purchases vanished. */
+        <div className="bg-white rounded-2xl shadow-sm border border-sunny-200 p-12 text-center">
+          <AlertCircle className="w-12 h-12 text-sunny-600 mx-auto mb-4" />
+          <h2 className="text-xl font-black text-slate-900 mb-2">
+            {ordersError === 'unauthorized'
+              ? (language === 'ku' ? 'دانیشتنەکەت بەسەرچووە' : language === 'ar' ? 'انتهت جلستك' : 'Your session expired')
+              : (language === 'ku' ? 'نەتوانرا داواکارییەکان بهێنرێن' : language === 'ar' ? 'تعذر تحميل الطلبات' : "Couldn't load your orders")}
+          </h2>
+          <p className="text-slate-500 mb-5">
+            {ordersError === 'unauthorized'
+              ? (language === 'ku' ? 'تکایە دووبارە بچۆرە ژوورەوە بۆ بینینی داواکارییەکانت. داواکارییەکانت لەدەست نەچوون.' : language === 'ar' ? 'يرجى تسجيل الدخول مرة أخرى. طلباتك لم تُفقد.' : 'Please sign in again — your orders are safe.')
+              : (language === 'ku' ? 'پەیوەندی بە سێرڤەرەوە نەکرا. دووبارە هەوڵبدەوە.' : language === 'ar' ? 'تعذر الاتصال بالخادم. حاول مرة أخرى.' : 'We could not reach the server. Please try again.')}
+          </p>
+          {ordersError === 'unauthorized' ? (
+            <Link to="/login" className="inline-block bg-candy-500 hover:bg-candy-600 text-white font-black px-6 py-3 rounded-full transition-colors">
+              {t('signIn') || 'چوونەژوورەوە'}
+            </Link>
+          ) : (
+            <button onClick={handleRefresh} className="bg-candy-500 hover:bg-candy-600 text-white font-black px-6 py-3 rounded-full transition-colors">
+              {language === 'ku' ? 'هەوڵدانەوە' : language === 'ar' ? 'إعادة المحاولة' : 'Try again'}
+            </button>
+          )}
+        </div>
+      ) : userOrders.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
           <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-slate-900 mb-2">{t('noOrdersFound')}</h2>

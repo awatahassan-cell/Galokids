@@ -261,7 +261,14 @@ export const Profile: React.FC = () => {
     <div className="flex-grow max-w-4xl mx-auto w-full px-4 sm:px-6 py-8">
       {/* Header section */}
       <div className="mb-8 text-start">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{localT.profileSettings}</h1>
+        <span className="vk-sub">
+          {language === 'ku' ? 'هەژمارەکەم' : language === 'ar' ? 'حسابي' : 'My account'}
+        </span>
+        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+          {language === 'ku' ? <>ڕێکخستنی <span className="vk-hi">پرۆفایل</span></>
+            : language === 'ar' ? <>إعدادات <span className="vk-hi">الحساب</span></>
+            : <>Profile <span className="vk-hi">settings</span></>}
+        </h1>
         <p className="text-slate-500 mt-2 text-sm sm:text-base">{localT.profileSubtitle}</p>
       </div>
 

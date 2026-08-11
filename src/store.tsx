@@ -78,6 +78,8 @@ interface StoreContextType {
   /** Every product across all pages — for reports that must not be paginated. */
   fetchAllProducts: () => Promise<Product[]>;
   refreshOrders: (page?: number, limit?: number) => Promise<void>;
+  /** Non-null when the last orders fetch failed; the list on screen is stale. */
+  ordersError: null | 'unauthorized' | 'unreachable';
   refreshExpenses: (page?: number, limit?: number) => void;
   refreshCategories: () => void;
   addToCart: (product: Product, variation: ProductVariation, quantity: number) => void;
@@ -242,9 +244,35 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [reviewsPagination, setReviewsPagination] = useState<PaginationMeta>(defaultPagination);
   const [reviews, setReviews] = useState<Review[]>([]);
 
+  // Set when the last orders fetch failed, so pages can tell an empty
+  // history apart from a request that never landed.
+  const [ordersError, setOrdersError] = useState<null | 'unauthorized' | 'unreachable'>(null);
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // The basket has to survive a reload — a shopper who refreshes mid-shop
+  // was losing everything they had picked. Stored whole (product + variation
+  // + quantity) so prices and stock limits are still there on the way back.
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('kidskart_cart');
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed)
+        ? parsed.filter((item: any) => item && item.id && item.product && item.variation)
+        : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kidskart_cart', JSON.stringify(cart));
+    } catch {
+      // A full quota shouldn't break checkout; the in-memory cart still works.
+    }
+  }, [cart]);
   const [wishlist, setWishlist] = useState<string[]>(() => {
     const saved = localStorage.getItem('kidskart_wishlist');
     if (saved) {
@@ -1168,9 +1196,27 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // Returns the in-flight promise so callers (e.g. a Refresh button) can show
   // a spinner until the orders have actually arrived.
   const refreshOrders = useCallback((page = 1, limit = 50): Promise<void> => {
+    // The cache is keyed per account. It used to be one shared bucket, so a
+    // staff login (which receives every order) left the whole shop's orders
+    // behind for the next customer who signed in on the same browser.
+    const cacheKey = (() => {
+      try {
+        const u = JSON.parse(localStorage.getItem('kidskart_user') || 'null');
+        return u?.id ? `kidskart_orders_local:${u.id}` : 'kidskart_orders_local';
+      } catch {
+        return 'kidskart_orders_local';
+      }
+    })();
+
     return fetch(`${LARAVEL_API_BASE}/orders?page=${page}&limit=${limit}`, { headers: getAuthHeaders() })
       .then(res => {
-        if (!res.ok) return null;
+        // A rejected request is not "no orders". Reporting an expired session
+        // as an empty history told the customer their purchases were gone.
+        if (!res.ok) {
+          const err: any = new Error(`Orders request failed: ${res.status}`);
+          err.status = res.status;
+          throw err;
+        }
         return res.json();
       })
       .then(data => {
@@ -1194,7 +1240,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
         // Merge with local orders from localStorage
         let localOrders: Order[] = [];
-        const savedLocal = localStorage.getItem('kidskart_orders_local');
+        const savedLocal = localStorage.getItem(cacheKey);
         if (savedLocal) {
           try {
             localOrders = JSON.parse(savedLocal).filter(Boolean);
@@ -1215,17 +1261,20 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           ...meta,
           total: Math.max(meta.total, combinedOrders.length)
         });
-        localStorage.setItem('kidskart_orders_local', JSON.stringify(combinedOrders));
+        localStorage.setItem(cacheKey, JSON.stringify(combinedOrders));
+        setOrdersError(null);
       })
       .catch(err => {
-        console.warn('Failed to load orders from API, fallback to local:', err);
-        const savedLocal = localStorage.getItem('kidskart_orders_local');
+        console.warn('Failed to load orders from API, falling back to cache:', err);
+        // Show whatever was last seen rather than an empty page, and remember
+        // that this list is stale so the page can say so.
+        const savedLocal = localStorage.getItem(cacheKey);
         if (savedLocal) {
           try {
-            const localOrders = JSON.parse(savedLocal).filter(Boolean);
-            setOrders(localOrders);
+            setOrders(JSON.parse(savedLocal).filter(Boolean));
           } catch (e) {}
         }
+        setOrdersError(err?.status === 401 ? 'unauthorized' : 'unreachable');
       });
   }, [getAuthHeaders]);
 
@@ -2287,7 +2336,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   return (
     <StoreContext.Provider value={{ 
       categories, products, cart, wishlist, users, orders, expenses, currentUser, promoBanner, productsPagination, ordersPagination, expensesPagination, isProductsLoading, productsRevision,
-      updatePromoBanner, addCategory, addProduct, refreshProducts, fetchAllProducts, refreshCategories, refreshOrders, refreshUsers, refreshExpenses, addToCart, removeFromCart, 
+      updatePromoBanner, addCategory, addProduct, refreshProducts, fetchAllProducts, refreshCategories, refreshOrders, ordersError, refreshUsers, refreshExpenses, addToCart, removeFromCart, 
       updateCartItemQuantity, clearCart, toggleWishlist, addReview, updateOrderStatus, addExpense, addOrder,
       deleteProduct, deleteCategory, deleteExpense, deleteUser, deleteOrder, addUser,
       updateProduct, updateCategory, updateExpense, updateUser,
