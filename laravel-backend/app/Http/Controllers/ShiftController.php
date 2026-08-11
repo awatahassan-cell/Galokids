@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Shift;
 use App\Models\Order;
 use App\Models\Refund;
+use App\Models\CashMovement;
+use App\Support\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -83,7 +85,14 @@ class ShiftController extends Controller
         $cardSales = (float) $orders->where('payment_method', 'card')->sum('total_amount');
         $refundsTotal = (float) Refund::where('shift_id', $shift->id)->sum('amount');
 
-        $expected = (float) $shift->opening_float + $cashSales - $refundsTotal;
+        // Cash paid into or taken out of the drawer outside of a sale (paying a
+        // driver, buying supplies). Without these the count never matched.
+        $cashIn = (float) CashMovement::where('shift_id', $shift->id)
+            ->where('direction', CashMovement::IN)->sum('amount');
+        $cashOut = (float) CashMovement::where('shift_id', $shift->id)
+            ->where('direction', CashMovement::OUT)->sum('amount');
+
+        $expected = (float) $shift->opening_float + $cashSales - $refundsTotal + $cashIn - $cashOut;
 
         return [
             'orders_count' => $orders->count(),
@@ -91,6 +100,8 @@ class ShiftController extends Controller
             'card_sales' => round($cardSales),
             'total_sales' => round((float) $orders->sum('total_amount')),
             'refunds' => round($refundsTotal),
+            'cash_in' => round($cashIn),
+            'cash_out' => round($cashOut),
             'opening_float' => round((float) $shift->opening_float),
             'expected_cash' => round($expected),
         ];
@@ -133,6 +144,62 @@ class ShiftController extends Controller
         ]);
 
         return response()->json(['shift' => $shift, 'summary' => $summary]);
+    }
+
+    /**
+     * Record cash moving into or out of the drawer outside a sale.
+     */
+    public function cashMovement(Request $request)
+    {
+        $this->checkStaffOrAdmin($request);
+        $user = $request->user();
+
+        $data = $request->validate([
+            'direction' => 'required|string|in:in,out',
+            'amount' => 'required|numeric|min:1',
+            'reason' => 'required|string|max:255',
+        ]);
+
+        $shift = Shift::where('user_id', $user->id)->where('status', 'open')->first();
+        if (!$shift) {
+            return response()->json(['message' => 'Open a shift first.'], 422);
+        }
+
+        $movement = CashMovement::create([
+            'shift_id' => $shift->id,
+            'user_id' => $user->id,
+            'direction' => $data['direction'],
+            'amount' => round((float) $data['amount']),
+            'reason' => $data['reason'],
+        ]);
+
+        ActivityLogger::log(
+            'cash.' . $data['direction'],
+            'shift',
+            $shift->id,
+            $data['direction'] === 'in' ? 'Cash in: ' . $data['reason'] : 'Cash out: ' . $data['reason'],
+            ['amount' => [null, $movement->amount]]
+        );
+
+        return response()->json([
+            'movement' => $movement,
+            'summary' => $this->summary($shift->fresh()),
+        ], 201);
+    }
+
+    /** Cash movements for the cashier's open shift. */
+    public function cashMovements(Request $request)
+    {
+        $this->checkStaffOrAdmin($request);
+
+        $shift = Shift::where('user_id', $request->user()->id)->where('status', 'open')->first();
+        if (!$shift) {
+            return response()->json([]);
+        }
+
+        return response()->json(
+            CashMovement::where('shift_id', $shift->id)->orderByDesc('created_at')->get()
+        );
     }
 
     /** Admin: list recent shifts (Z-report history). */

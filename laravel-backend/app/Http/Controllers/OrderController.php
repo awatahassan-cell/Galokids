@@ -9,7 +9,13 @@ use App\Models\ProductVariation;
 use App\Models\Coupon;
 use App\Models\Shift;
 use App\Models\Refund;
+use App\Models\StockMovement;
+use App\Models\OrderStatusHistory;
+use App\Services\CustomerNotifier;
+use App\Support\ActivityLogger;
 use App\Support\PhoneNumber;
+use App\Support\Shipping;
+use App\Support\StockLedger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -19,6 +25,191 @@ class OrderController extends Controller
     {
         // 1 = admin, 2 = cashier, 3 = staff (see App\Support\Roles).
         $this->requirePrivileged($request);
+    }
+
+    /**
+     * Exchange: give an item back and take a different one, in one go.
+     *
+     * Swapping a size is the most common counter request in a children's
+     * clothing shop, and doing it as "refund, then a new sale" left two
+     * unrelated records and double-counted the day's takings. This records the
+     * return and the replacement together and reports the difference to pay
+     * (or to give back).
+     */
+    public function exchange(Request $request, $id)
+    {
+        $user = $this->requirePrivileged($request);
+
+        $data = $request->validate([
+            'returned_items' => 'required|array|min:1',
+            'returned_items.*.order_item_id' => 'required|integer|exists:order_items,id',
+            'returned_items.*.quantity' => 'required|integer|min:1',
+            'new_items' => 'required|array|min:1',
+            'new_items.*.product_variation_id' => 'required|integer|exists:product_variations,id',
+            'new_items.*.quantity' => 'required|integer|min:1',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $result = DB::transaction(function () use ($data, $id, $user, $request) {
+            $order = Order::with('items')->lockForUpdate()->findOrFail($id);
+
+            // --- what is coming back -------------------------------------
+            $alreadyReturned = [];
+            foreach (Refund::where('order_id', $order->id)->get() as $previous) {
+                foreach ((array) $previous->items as $line) {
+                    $itemId = $line['order_item_id'] ?? null;
+                    if ($itemId !== null) {
+                        $alreadyReturned[$itemId] = ($alreadyReturned[$itemId] ?? 0) + (int) ($line['quantity'] ?? 0);
+                    }
+                }
+            }
+
+            $subtotal = (float) $order->subtotal;
+            $paidRatio = $subtotal > 0 ? ((float) $order->total_amount - (float) $order->shipping_fee) / $subtotal : 1.0;
+
+            $returnedValue = 0.0;
+            $snapshot = [];
+
+            foreach ($data['returned_items'] as $line) {
+                $item = $order->items->firstWhere('id', $line['order_item_id']);
+                if (!$item) {
+                    abort(response()->json(['message' => 'Item does not belong to this order.'], 422));
+                }
+
+                $remaining = (int) $item->quantity - (int) ($alreadyReturned[$item->id] ?? 0);
+                $qty = min((int) $line['quantity'], $remaining);
+                if ($qty <= 0) {
+                    continue;
+                }
+
+                $returnedValue += (float) $item->price * $qty * $paidRatio;
+                $snapshot[] = ['order_item_id' => $item->id, 'quantity' => $qty, 'price' => (float) $item->price];
+
+                if ($item->product_variation_id) {
+                    $variation = ProductVariation::lockForUpdate()->find($item->product_variation_id);
+                    if ($variation) {
+                        StockLedger::move(
+                            $variation,
+                            $qty,
+                            StockMovement::TYPE_REFUND,
+                            'Exchange from ' . ($order->invoice_no ?: ('#' . $order->id)),
+                            $order->id,
+                            $user->id
+                        );
+                    }
+                }
+            }
+
+            if ($returnedValue <= 0) {
+                abort(response()->json(['message' => 'Nothing left to exchange on this order.'], 422));
+            }
+
+            // --- what is going out ---------------------------------------
+            $newValue = 0.0;
+            $newLines = [];
+
+            foreach ($data['new_items'] as $line) {
+                $variation = ProductVariation::with('product')
+                    ->lockForUpdate()
+                    ->find($line['product_variation_id']);
+
+                if (!$variation || !$variation->product) {
+                    abort(response()->json(['message' => 'Replacement item could not be priced.'], 422));
+                }
+
+                $qty = (int) $line['quantity'];
+                $unitPrice = $this->effectiveUnitPrice($variation->product, $variation);
+
+                $newValue += $unitPrice * $qty;
+                $newLines[] = [
+                    'product_id' => $variation->product_id,
+                    'product_variation_id' => $variation->id,
+                    'quantity' => $qty,
+                    'price' => $unitPrice,
+                ];
+
+                StockLedger::move(
+                    $variation,
+                    -$qty,
+                    StockMovement::TYPE_SALE,
+                    'Exchange for ' . ($order->invoice_no ?: ('#' . $order->id)),
+                    $order->id,
+                    $user->id
+                );
+            }
+
+            $returnedValue = round($returnedValue);
+            $newValue = round($newValue);
+            $difference = $newValue - $returnedValue;   // > 0 customer pays, < 0 shop refunds
+
+            $shift = Shift::where('user_id', $user->id)->where('status', 'open')->first();
+
+            // The return leg is recorded as a refund so the shift reconciles.
+            $refund = Refund::create([
+                'order_id' => $order->id,
+                'user_id' => $user->id,
+                'shift_id' => $shift?->id,
+                'amount' => $returnedValue,
+                'reason' => 'Exchange' . (!empty($data['reason']) ? ': ' . $data['reason'] : ''),
+                'items' => $snapshot,
+            ]);
+
+            $order->refunded_amount = min(
+                (float) $order->refunded_amount + $returnedValue,
+                (float) $order->total_amount
+            );
+            if ($order->refunded_amount >= (float) $order->total_amount) {
+                $order->status = 'cancelled';
+            }
+            $order->save();
+
+            // The replacement leg becomes its own small sale, linked by note.
+            $replacement = Order::create([
+                'user_id' => $order->user_id,
+                'shift_id' => $shift?->id,
+                'customer_name' => $order->customer_name,
+                'customer_phone' => $order->customer_phone,
+                'customer_email' => $order->customer_email,
+                'status' => 'delivered',
+                'subtotal' => $newValue,
+                'discount_amount' => 0,
+                'shipping_fee' => 0,
+                'total_amount' => $newValue,
+                'amount_paid' => max(0, $difference),
+                'change_due' => 0,
+                'shipping_address' => 'Exchange for ' . ($order->invoice_no ?: ('#' . $order->id)),
+                'payment_method' => $order->payment_method,
+                'channel' => 'pos',
+            ]);
+
+            foreach ($newLines as $line) {
+                $replacement->items()->create($line);
+            }
+
+            $replacement->invoice_no = 'EXC-' . $replacement->created_at->format('Ymd')
+                . '-' . str_pad((string) $replacement->id, 4, '0', STR_PAD_LEFT);
+            $replacement->save();
+
+            ActivityLogger::log(
+                'order.exchanged',
+                'order',
+                $order->id,
+                'Exchange on ' . ($order->invoice_no ?: ('#' . $order->id))
+                    . ' — returned ' . $returnedValue . ', new ' . $newValue
+            );
+
+            return [
+                'returned_value' => $returnedValue,
+                'new_value' => $newValue,
+                // Positive: collect from the customer. Negative: give back.
+                'difference' => $difference,
+                'refund' => $refund,
+                'original_order' => $order->fresh(),
+                'replacement_order' => $replacement->load('items.product', 'items.variation'),
+            ];
+        });
+
+        return response()->json($result, 201);
     }
 
     /** Human-readable reason a coupon was refused. */
@@ -189,6 +380,7 @@ class OrderController extends Controller
             'items.*.name' => 'nullable|string|max:255',
             'status' => 'nullable|string|in:pending,processing,shipped,delivered,cancelled',
             'shipping_address' => 'nullable|string|max:1000',
+            'governorate' => 'nullable|string|max:120',
             'payment_method' => 'nullable|string|max:255',
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:255',
@@ -203,6 +395,7 @@ class OrderController extends Controller
             $order = DB::transaction(function () use ($validated, $request, $user, $isStaff) {
                 $subtotal = 0;
                 $lineItems = [];
+                $stockToDeduct = [];
 
                 foreach ($validated['items'] as $item) {
                     $qty = (int) $item['quantity'];
@@ -226,8 +419,9 @@ class OrderController extends Controller
                                     'message' => 'Insufficient stock for one of the selected items.',
                                 ], 422));
                             }
-                            $variation->stock_quantity = max(0, $variation->stock_quantity - $qty);
-                            $variation->save();
+                            // Recorded in the stock ledger further down, once
+                            // the order exists and can be referenced.
+                            $stockToDeduct[] = ['variation' => $variation, 'qty' => $qty];
                         }
                     } elseif (!empty($productId)) {
                         $product = Product::find($productId);
@@ -296,7 +490,15 @@ class OrderController extends Controller
                 // fractions a percentage discount produces.
                 $subtotal = round($subtotal);
                 $discount = min(round($discount), $subtotal);
-                $total = max(0, $subtotal - $discount);
+                $goodsTotal = max(0, $subtotal - $discount);
+
+                // Delivery is charged on web orders only — a walk-in customer
+                // carries the bag home.
+                $shippingFee = $isStaff
+                    ? 0.0
+                    : Shipping::feeFor($validated['governorate'] ?? null, $goodsTotal);
+
+                $total = $goodsTotal + $shippingFee;
 
                 // Ownership: a customer can only order for themselves.
                 $userId = $isStaff
@@ -327,6 +529,8 @@ class OrderController extends Controller
                     'status' => $isStaff ? ($validated['status'] ?? 'pending') : 'pending',
                     'subtotal' => $subtotal,
                     'discount_amount' => $discount,
+                    'shipping_fee' => $shippingFee,
+                    'governorate' => $validated['governorate'] ?? null,
                     'coupon_code' => $couponCode,
                     'total_amount' => $total,
                     'amount_paid' => $amountPaid,
@@ -348,6 +552,26 @@ class OrderController extends Controller
                 $order->invoice_no = 'INV-' . $order->created_at->format('Ymd') . '-' . str_pad((string) $order->id, 4, '0', STR_PAD_LEFT);
                 $order->save();
 
+                // Stock ledger: one entry per line, pointing back at the order.
+                foreach ($stockToDeduct as $deduction) {
+                    StockLedger::move(
+                        $deduction['variation'],
+                        -$deduction['qty'],
+                        StockMovement::TYPE_SALE,
+                        $order->invoice_no,
+                        $order->id,
+                        $user->id ?? null
+                    );
+                }
+
+                OrderStatusHistory::create([
+                    'order_id' => $order->id,
+                    'from_status' => null,
+                    'to_status' => $order->status,
+                    'user_id' => $user->id ?? null,
+                    'note' => $isStaff ? 'POS sale' : 'Placed online',
+                ]);
+
                 return $order;
             });
         } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
@@ -359,17 +583,58 @@ class OrderController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $user = $this->requirePrivileged($request);
         $order = Order::findOrFail($id);
 
         $validated = $request->validate([
             'status' => 'sometimes|required|string|in:pending,processing,shipped,delivered,cancelled',
             'shipping_address' => 'sometimes|nullable|string|max:1000',
             'payment_method' => 'sometimes|nullable|string|max:255',
+            'note' => 'sometimes|nullable|string|max:500',
         ]);
 
-        $order->update($validated);
+        $previousStatus = $order->status;
+        $order->update(collect($validated)->except('note')->all());
+
+        $newStatus = $order->status;
+
+        if ($newStatus !== $previousStatus) {
+            // Tell the customer their order moved on. Best-effort: a failed SMS
+            // must not undo the status change.
+            $notified = app(CustomerNotifier::class)->orderStatusChanged($order, $newStatus);
+
+            OrderStatusHistory::create([
+                'order_id' => $order->id,
+                'from_status' => $previousStatus,
+                'to_status' => $newStatus,
+                'user_id' => $user->id,
+                'note' => $validated['note'] ?? null,
+                'customer_notified' => $notified,
+            ]);
+
+            ActivityLogger::log(
+                'order.status_changed',
+                'order',
+                $order->id,
+                ($order->invoice_no ?: "#{$order->id}") . ": {$previousStatus} → {$newStatus}",
+                ['status' => [$previousStatus, $newStatus]]
+            );
+        }
+
         return response()->json($order->load('items.product', 'items.variation'));
+    }
+
+    /** Status changes for one order, newest first. */
+    public function history(Request $request, $id)
+    {
+        $this->checkStaffOrAdmin($request);
+
+        return response()->json(
+            OrderStatusHistory::with('user:id,name')
+                ->where('order_id', $id)
+                ->orderByDesc('created_at')
+                ->get()
+        );
     }
 
     /**
@@ -384,15 +649,24 @@ class OrderController extends Controller
             return response()->json(['message' => 'Order already deleted or not found.'], 200);
         }
 
-        DB::transaction(function () use ($order) {
+        $actorId = $request->user()->id;
+        $label = $order->invoice_no ?: ('#' . $order->id);
+
+        DB::transaction(function () use ($order, $actorId, $label) {
             // Restock anything that was decremented, unless it was already cancelled.
             if ($order->status !== 'cancelled') {
                 foreach ($order->items as $item) {
                     if ($item->product_variation_id) {
                         $variation = ProductVariation::lockForUpdate()->find($item->product_variation_id);
                         if ($variation) {
-                            $variation->stock_quantity += $item->quantity;
-                            $variation->save();
+                            StockLedger::move(
+                                $variation,
+                                (int) $item->quantity,
+                                StockMovement::TYPE_ADJUSTMENT,
+                                'Order deleted: ' . $label,
+                                null,
+                                $actorId
+                            );
                         }
                     }
                 }
@@ -400,6 +674,9 @@ class OrderController extends Controller
 
             $order->delete();
         });
+
+        // Deleting a sale removes money from every report — always leave a trace.
+        ActivityLogger::log('order.deleted', 'order', $id, 'Deleted order ' . $label);
 
         return response()->json(['message' => 'Order deleted successfully.'], 200);
     }
@@ -463,8 +740,14 @@ class OrderController extends Controller
                 if ($item->product_variation_id) {
                     $variation = ProductVariation::lockForUpdate()->find($item->product_variation_id);
                     if ($variation) {
-                        $variation->stock_quantity += $qty;
-                        $variation->save();
+                        StockLedger::move(
+                            $variation,
+                            $qty,
+                            StockMovement::TYPE_REFUND,
+                            'Refund for ' . ($order->invoice_no ?: ('#' . $order->id)),
+                            $order->id,
+                            $user->id
+                        );
                     }
                 }
             }
@@ -495,6 +778,13 @@ class OrderController extends Controller
                 $order->status = 'cancelled';
             }
             $order->save();
+
+            ActivityLogger::log(
+                'order.refunded',
+                'order',
+                $order->id,
+                'Refunded ' . round($amount) . ' on ' . ($order->invoice_no ?: ('#' . $order->id))
+            );
 
             return ['refund' => $refund, 'order' => $order->load('items.product', 'items.variation')];
         });

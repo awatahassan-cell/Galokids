@@ -19,6 +19,8 @@ class Order extends Model
         'status',
         'subtotal',
         'discount_amount',
+        'shipping_fee',
+        'governorate',
         'coupon_code',
         'total_amount',
         'refunded_amount',
@@ -32,6 +34,7 @@ class Order extends Model
     protected $casts = [
         'subtotal' => 'float',
         'discount_amount' => 'float',
+        'shipping_fee' => 'float',
         'total_amount' => 'float',
         'refunded_amount' => 'float',
         'amount_paid' => 'float',

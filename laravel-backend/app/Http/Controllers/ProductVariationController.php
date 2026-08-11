@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProductVariation;
+use App\Models\StockMovement;
+use App\Support\ActivityLogger;
+use App\Support\StockLedger;
 use Illuminate\Http\Request;
 
 class ProductVariationController extends Controller
@@ -43,6 +46,20 @@ class ProductVariationController extends Controller
         ]);
 
         $variation = ProductVariation::create($request->all());
+
+        // Opening balance, so the ledger starts from a known point.
+        if ((int) $variation->stock_quantity > 0) {
+            StockMovement::create([
+                'product_variation_id' => $variation->id,
+                'product_id' => $variation->product_id,
+                'type' => StockMovement::TYPE_INITIAL,
+                'quantity_change' => (int) $variation->stock_quantity,
+                'quantity_after' => (int) $variation->stock_quantity,
+                'user_id' => $request->user()->id,
+                'note' => 'Variant created',
+            ]);
+        }
+
         return response()->json($variation, 201);
     }
 
@@ -60,8 +77,32 @@ class ProductVariationController extends Controller
             'price_override' => 'nullable|numeric|min:0',
         ]);
 
-        $variation->update($request->all());
-        return response()->json($variation);
+        $before = (int) $variation->stock_quantity;
+
+        // Stock is changed through the ledger, everything else directly, so an
+        // edit that happens to touch the quantity is still explained.
+        $variation->update(collect($request->all())->except('stock_quantity')->all());
+
+        if ($request->has('stock_quantity')) {
+            StockLedger::setLevel(
+                $variation,
+                (int) $request->input('stock_quantity'),
+                StockMovement::TYPE_ADJUSTMENT,
+                $request->input('note') ?: 'Edited from the product form',
+                $request->user()->id
+            );
+        }
+
+        if ($before !== (int) $variation->fresh()->stock_quantity) {
+            ActivityLogger::log(
+                'stock.adjustment',
+                'variation',
+                $variation->id,
+                'Stock ' . $before . ' → ' . $variation->fresh()->stock_quantity
+            );
+        }
+
+        return response()->json($variation->fresh());
     }
 
     public function destroy(Request $request, $id)

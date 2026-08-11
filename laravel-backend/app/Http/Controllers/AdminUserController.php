@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Support\PhoneNumber;
+use App\Support\ActivityLogger;
 use App\Support\Roles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -114,6 +115,7 @@ class AdminUserController extends Controller
         $this->sanitizeRoleRequest($request);
 
         $user = User::findOrFail($id);
+        $previousRole = $user->roleId();
 
         if ($request->filled('phone')) {
             $request->merge(['phone' => PhoneNumber::normalize($request->input('phone'))]);
@@ -170,6 +172,16 @@ class AdminUserController extends Controller
 
         $user->save();
 
+        if ($request->has('role') && Roles::normalize($request->input('role')) !== $previousRole) {
+            ActivityLogger::log(
+                'user.role_changed',
+                'user',
+                $user->id,
+                $user->name . ': ' . Roles::label($previousRole) . ' → ' . Roles::label($user->roleId()),
+                ['role' => [$previousRole, $user->roleId()]]
+            );
+        }
+
         return response()->json($user);
     }
 
@@ -195,7 +207,10 @@ class AdminUserController extends Controller
             ], 422);
         }
 
+        $name = $user->name;
         $user->delete();
+
+        ActivityLogger::log('user.deleted', 'user', $id, $name);
 
         return response()->json(null, 204);
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Support\ActivityLogger;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -303,6 +304,9 @@ class ProductController extends Controller
         $this->checkStaffOrAdmin($request);
         $product = Product::create($this->validateProduct($request));
         $this->syncVariations($product, $request->input('variations', []));
+
+        ActivityLogger::log('product.created', 'product', $product->id, $product->name);
+
         return response()->json($product->load('variations'), 201);
     }
 
@@ -310,18 +314,38 @@ class ProductController extends Controller
     {
         $this->checkStaffOrAdmin($request);
         $product = Product::findOrFail($id);
+
+        $before = $product->only(['name', 'price', 'discount_price', 'cost', 'category_id']);
         $product->update($this->validateProduct($request, true));
+
         // Only touch variations when the client actually sent them.
         if ($request->has('variations')) {
             $this->syncVariations($product, $request->input('variations', []), true);
         }
+
+        // Price and cost edits move every report — record who changed them.
+        $changes = ActivityLogger::diff(
+            $before,
+            $product->only(['name', 'price', 'discount_price', 'cost', 'category_id']),
+            ['name', 'price', 'discount_price', 'cost', 'category_id']
+        );
+
+        if ($changes) {
+            ActivityLogger::log('product.updated', 'product', $product->id, $product->name, $changes);
+        }
+
         return response()->json($product->load('variations'));
     }
 
     public function destroy(Request $request, $id)
     {
         $this->checkStaffOrAdmin($request);
-        Product::findOrFail($id)->delete();
+        $product = Product::findOrFail($id);
+        $name = $product->name;
+        $product->delete();
+
+        ActivityLogger::log('product.deleted', 'product', $id, $name);
+
         return response()->json(null, 204);
     }
 }

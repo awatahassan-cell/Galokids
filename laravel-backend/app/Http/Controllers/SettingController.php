@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Support\ActivityLogger;
+use App\Support\Shipping;
 use Illuminate\Http\Request;
 
 class SettingController extends Controller
@@ -35,6 +37,27 @@ class SettingController extends Controller
         return response()->json($map);
     }
 
+    /**
+     * Public: what delivery costs for a governorate, so the basket total shown
+     * to the shopper matches what the order will charge.
+     */
+    public function shippingQuote(Request $request)
+    {
+        $request->validate([
+            'governorate' => 'nullable|string|max:120',
+            'subtotal' => 'nullable|numeric|min:0',
+        ]);
+
+        $config = Shipping::config();
+        $subtotal = (float) $request->input('subtotal', 0);
+
+        return response()->json([
+            'fee' => Shipping::feeFor($request->input('governorate'), $subtotal),
+            'free_over' => $config['free_over'],
+            'default_fee' => $config['default'],
+        ]);
+    }
+
     /** Admin: upsert one or more settings. Body: { key: value, ... } */
     public function update(Request $request)
     {
@@ -53,6 +76,13 @@ class SettingController extends Controller
         } catch (\Exception $e) {
             // DB error fallback
         }
+
+        ActivityLogger::log(
+            'settings.updated',
+            'settings',
+            null,
+            'Updated: ' . implode(', ', array_slice(array_keys($request->except(['_token', '_method'])), 0, 10))
+        );
 
         return $this->index();
     }

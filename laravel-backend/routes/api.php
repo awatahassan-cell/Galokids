@@ -47,6 +47,8 @@ Route::get('/orders/track', [OrderController::class, 'track'])->middleware('thro
 
 // Public store settings (name/logo/address for receipts, etc.)
 Route::get('/settings', [\App\Http\Controllers\SettingController::class, 'index']);
+// Public: delivery charge for a governorate, so the basket can show the total.
+Route::get('/shipping/quote', [\App\Http\Controllers\SettingController::class, 'shippingQuote']);
 
 Route::get('/reviews', [ReviewController::class, 'index']);
 // SECURITY: throttle public review submission to limit spam.
@@ -95,6 +97,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders', [OrderController::class, 'store']);
     Route::put('/orders/{id}', [OrderController::class, 'update']);
     Route::post('/orders/{id}/refund', [OrderController::class, 'refund']);
+    // Exchange: return items and take replacements in one transaction.
+    Route::post('/orders/{id}/exchange', [OrderController::class, 'exchange']);
+    Route::get('/orders/{id}/history', [OrderController::class, 'history']);
     Route::delete('/orders/{id}', [OrderController::class, 'destroy']);
 
     // POS shift / Z-report (staff/admin)
@@ -103,6 +108,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shifts/open', [\App\Http\Controllers\ShiftController::class, 'open']);
     Route::post('/shifts/close', [\App\Http\Controllers\ShiftController::class, 'close']);
     Route::get('/shifts', [\App\Http\Controllers\ShiftController::class, 'index']); // admin history
+    // Cash paid into / taken out of the drawer outside a sale.
+    Route::post('/shifts/cash', [\App\Http\Controllers\ShiftController::class, 'cashMovement']);
+    Route::get('/shifts/cash', [\App\Http\Controllers\ShiftController::class, 'cashMovements']);
+
+    // Stock ledger (staff/admin) and manual corrections.
+    Route::get('/stock-movements', [\App\Http\Controllers\StockMovementController::class, 'index']);
+    Route::post('/stock-movements', [\App\Http\Controllers\StockMovementController::class, 'store']);
+
+    // Activity trail (admin only).
+    Route::get('/activity-logs', [\App\Http\Controllers\ActivityLogController::class, 'index']);
 
     // Store settings (admin write)
     Route::put('/settings', [\App\Http\Controllers\SettingController::class, 'update']);
