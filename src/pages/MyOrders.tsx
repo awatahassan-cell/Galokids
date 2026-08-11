@@ -51,23 +51,25 @@ export const MyOrders: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="w-5 h-5 text-yellow-500" />;
-      case 'processing': return <Package className="w-5 h-5 text-blue-500" />;
-      case 'shipped': return <Truck className="w-5 h-5 text-grape-700" />;
-      case 'delivered': return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'cancelled': return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'pending': return <Clock className="w-3.5 h-3.5" />;
+      case 'processing': return <Package className="w-3.5 h-3.5" />;
+      case 'shipped': return <Truck className="w-3.5 h-3.5" />;
+      case 'delivered': return <CheckCircle className="w-3.5 h-3.5" />;
+      case 'cancelled': return <XCircle className="w-3.5 h-3.5" />;
       default: return null;
     }
   };
 
+  // Status tones follow the brand: warm while the parcel is in motion, mint
+  // once it has landed. Cancelled keeps red — that is the one real warning.
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'shipped': return 'bg-grape-100 text-indigo-800';
-      case 'delivered': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-slate-100 text-slate-800';
+      case 'pending': return 'bg-slate-100 text-slate-600';
+      case 'processing': return 'bg-bubble-100 text-bubble-700';
+      case 'shipped': return 'bg-sunny-100 text-sunny-700';
+      case 'delivered': return 'bg-mint-50 text-mint-700';
+      case 'cancelled': return 'bg-red-100 text-red-700';
+      default: return 'bg-slate-100 text-slate-600';
     }
   };
 
@@ -137,64 +139,103 @@ export const MyOrders: React.FC = () => {
           <p className="text-slate-500">{t('noOrdersYet')}</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          {userOrders.map((order) => (
-            <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="border-b border-slate-200 bg-slate-50 p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-slate-500 mb-1">{t('orderLabel')} #{order.id}</p>
-                  <p className="font-medium text-slate-900">{new Date(order.createdAt || order.date || Date.now()).toLocaleDateString()}</p>
-                  <p className="text-sm text-slate-500 mt-1">{t('mobileNumber')}: {order.customerPhone || '-'}</p>
-                </div>
-                <div className="flex flex-col sm:items-end gap-2">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${getStatusColor(order.status)}`}>
-                    {getStatusIcon(order.status)}
-                    <span className="ml-2">{t(order.status)}</span>
+        <div className="space-y-4">
+          {userOrders.map((order) => {
+            const steps = ['pending', 'processing', 'shipped', 'delivered'];
+            const reached = Math.max(0, steps.indexOf(order.status));
+            const cancelled = order.status === 'cancelled';
+            const itemCount = (order.items || []).reduce((n, it) => n + (it.quantity || 0), 0);
+            const placedOn = new Date(order.createdAt || order.date || Date.now());
+            const stepLabels = language === 'ku'
+              ? ['وەرگیرا', 'ئامادەکرا', 'ڕێکەوت', 'گەیشت']
+              : language === 'ar'
+              ? ['استُلم', 'جُهّز', 'في الطريق', 'وصل']
+              : ['Received', 'Packed', 'On the way', 'Delivered'];
+
+            return (
+              <div key={order.id} className="bg-white rounded-3xl border border-slate-100 shadow-2xs hover:shadow-lg transition-shadow overflow-hidden">
+                {/* Invoice number and status, as one row */}
+                <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5 border-b border-dashed border-slate-200">
+                  <span className="font-mono text-xs sm:text-sm font-black text-slate-500 tracking-wide">
+                    {order.invoiceNo || `#${order.id}`}
                   </span>
-                  <p className="font-bold text-slate-900">{t('totalLabel')}: {formatIQDLabel(Number(order.totalAmount || 0))}</p>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-black ${getStatusColor(order.status)}`}>
+                    {getStatusIcon(order.status)}
+                    {t(order.status)}
+                  </span>
                 </div>
-              </div>
-              
-              {/* Progress Bar */}
-              {order.status !== 'cancelled' && (
-                <div className="px-4 sm:px-6 py-6 border-b border-slate-200">
-                  <div className="relative">
-                    <div className="overflow-hidden h-2 mb-4 text-xs flex rounded-full bg-slate-200">
-                      <div style={{ width: `${(Math.max(0, ['pending', 'processing', 'shipped', 'delivered'].indexOf(order.status)) / 3) * 100}%` }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-grape-500 transition-all duration-500"></div>
+
+                {/* Four dots joined by a rail — where the parcel actually is. */}
+                {!cancelled && (
+                  <div className="px-4 sm:px-5 pt-5">
+                    <div className="flex items-center">
+                      {steps.map((_, i) => (
+                        <React.Fragment key={i}>
+                          {i > 0 && (
+                            <span className={`flex-1 h-[3px] ${i <= reached ? 'bg-candy-500' : 'bg-slate-200'}`} />
+                          )}
+                          <span
+                            className={`w-3.5 h-3.5 rounded-full shrink-0 ${
+                              i <= reached ? 'bg-candy-500 ring-4 ring-candy-500/20' : 'bg-slate-200'
+                            }`}
+                          />
+                        </React.Fragment>
+                      ))}
                     </div>
-                    <div className="flex justify-between text-xs font-medium text-slate-500 px-1">
-                      <div className={`text-center ${['pending', 'processing', 'shipped', 'delivered'].includes(order.status) ? 'text-grape-700' : ''}`}>{t('pending')}</div>
-                      <div className={`text-center ${['processing', 'shipped', 'delivered'].includes(order.status) ? 'text-grape-700' : ''}`}>{t('processing')}</div>
-                      <div className={`text-center ${['shipped', 'delivered'].includes(order.status) ? 'text-grape-700' : ''}`}>{t('shipped')}</div>
-                      <div className={`text-center ${['delivered'].includes(order.status) ? 'text-grape-700' : ''}`}>{t('delivered')}</div>
+                    <div className="flex justify-between mt-2.5">
+                      {stepLabels.map((label, i) => (
+                        <span
+                          key={label}
+                          className={`text-[10px] sm:text-[11px] font-black ${
+                            i <= reached ? 'text-candy-700' : 'text-slate-400'
+                          }`}
+                        >
+                          {label}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                </div>
-              )}
-              
-              <div className="p-4 sm:p-6">
-                <h3 className="text-sm font-medium text-slate-900 mb-4">{t('orderItems')}</h3>
-                <div className="space-y-4">
-                  {order.items.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-4 py-3 border-b border-slate-100 last:border-0 last:pb-0">
-                      <div className="w-16 h-16 rounded-lg bg-slate-100 overflow-hidden shrink-0">
-                        <img src={item.product.imageUrl} alt={getProductName(item.product)} className="w-full h-full object-cover" />
+                )}
+
+                {/* Items */}
+                <div className="p-4 sm:p-5 space-y-3">
+                  {(order.items || []).map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-candy-50 to-candy-200 overflow-hidden shrink-0">
+                        {item.product?.imageUrl && (
+                          <img src={item.product.imageUrl} alt={getProductName(item.product)} loading="lazy" className="w-full h-full object-cover" />
+                        )}
                       </div>
-                      <div className="grow">
-                        <h4 className="font-medium text-slate-900 text-sm">{getProductName(item.product)}</h4>
-                        <p className="text-sm text-slate-500">
-                          <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded-full border border-slate-200" style={{ backgroundColor: getColorHex(item.variation.color) }} title={item.variation.color} /> {item.variation.size}</span> × {item.quantity}
+                      <div className="grow min-w-0">
+                        <h4 className="font-black text-slate-900 text-sm truncate">{getProductName(item.product)}</h4>
+                        <p className="text-xs text-slate-500 font-bold flex items-center gap-1.5 mt-0.5">
+                          {item.variation?.color && (
+                            <span className="w-3 h-3 rounded-full border border-slate-200 shrink-0" style={{ backgroundColor: getColorHex(item.variation.color) }} title={item.variation.color} />
+                          )}
+                          {item.variation?.size} × {item.quantity}
                         </p>
                       </div>
-                      <div className="text-right font-medium text-slate-900 text-sm">
-                        {formatIQDLabel(Number(item.product.price || 0) * item.quantity)}
-                      </div>
+                      <span className="font-mono text-sm font-black text-slate-800 shrink-0">
+                        {formatIQDLabel(Number(item.price ?? item.product?.price ?? 0) * item.quantity)}
+                      </span>
                     </div>
                   ))}
                 </div>
+
+                {/* What it came to, and where it went */}
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 py-4 border-t border-dashed border-slate-200 bg-slate-50/60">
+                  <span className="text-xs font-bold text-slate-500">
+                    {itemCount} {language === 'ku' ? 'بەرهەم' : language === 'ar' ? 'منتج' : 'items'}
+                    {' · '}{placedOn.toLocaleDateString()}
+                    {order.shippingAddress ? ` · ${String(order.shippingAddress).split('-')[0].trim()}` : ''}
+                  </span>
+                  <span className="font-mono text-lg font-black text-candy-700">
+                    {formatIQDLabel(Number(order.totalAmount || 0))}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

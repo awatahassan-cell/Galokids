@@ -482,10 +482,32 @@ export const Checkout: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+      {/* Where the shopper is in the flow. The basket is behind them, the
+          confirmation is ahead — this is the middle step. */}
+      <div className="flex items-center gap-0 mb-8">
+        {[
+          { n: '✓', label: language === 'ku' ? 'سەبەتە' : language === 'ar' ? 'السلة' : 'Basket', done: true },
+          { n: '٢', label: language === 'ku' ? 'ناونیشان و پارەدان' : language === 'ar' ? 'العنوان والدفع' : 'Address & payment', now: true },
+          { n: '٣', label: language === 'ku' ? 'پشتڕاستکردنەوە' : language === 'ar' ? 'التأكيد' : 'Confirmation' },
+        ].map((st, i) => (
+          <React.Fragment key={st.label}>
+            {i > 0 && <span className={`flex-1 h-0.5 mx-2 ${st.done || st.now ? 'bg-candy-500' : 'bg-slate-200'}`} />}
+            <span className="flex items-center gap-2 shrink-0">
+              <span className={`w-8 h-8 rounded-full grid place-items-center text-xs font-black ${
+                st.done || st.now ? 'bg-candy-500 text-white' : 'bg-slate-200 text-slate-500'
+              }`}>{st.n}</span>
+              <span className={`text-xs font-black hidden sm:inline ${st.done || st.now ? 'text-slate-900' : 'text-slate-400'}`}>
+                {st.label}
+              </span>
+            </span>
+          </React.Fragment>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
         {/* Shipping Form */}
         <div className="lg:col-span-7">
-          <form id="checkout-form" onSubmit={handlePlaceOrder} className="space-y-8 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200">
+          <form id="checkout-form" onSubmit={handlePlaceOrder} className="space-y-8 bg-white p-5 sm:p-7 rounded-[1.75rem] shadow-2xs border border-slate-100">
             <div>
               <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-candy-700" />
@@ -773,18 +795,21 @@ export const Checkout: React.FC = () => {
             <div className="pt-6 border-t border-slate-200">
               <h2 className="text-xl font-black text-slate-900 mb-6">{t('paymentMethod')}</h2>
               <div className="space-y-4">
-                <label className="flex items-center p-4 border border-candy-200 bg-candy-50/30 rounded-2xl cursor-pointer hover:bg-candy-50/60 transition-colors shadow-xs">
-                  <input 
-                    type="radio" 
-                    name="paymentMethod" 
-                    value="cod" 
-                    defaultChecked 
-                    className="h-4 w-4 text-candy-700 focus:ring-candy-500 border-slate-300" 
+                <label className="flex items-start gap-3 p-4 border-2 border-candy-500 bg-candy-50 rounded-2xl cursor-pointer transition-colors">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="cod"
+                    defaultChecked
+                    className="h-[18px] w-[18px] mt-0.5 accent-candy-500 shrink-0"
                   />
-                  <div className="ml-3 rtl:mr-3 rtl:ml-0">
-                    <span className="block text-sm font-extrabold text-slate-900">{t('payOnDelivery')}</span>
-                    <span className="block text-xs text-slate-500 font-medium">{t('payOnDeliveryDesc')}</span>
-                  </div>
+                  <span className="flex items-start gap-3 grow">
+                    <span className="w-10 h-10 rounded-xl bg-white grid place-items-center text-lg shrink-0">💵</span>
+                    <span>
+                      <span className="block text-sm font-black text-slate-900">{t('payOnDelivery')}</span>
+                      <span className="block text-xs text-slate-500 font-bold">{t('payOnDeliveryDesc')}</span>
+                    </span>
+                  </span>
                 </label>
               </div>
             </div>
@@ -793,7 +818,7 @@ export const Checkout: React.FC = () => {
 
         {/* Order Summary */}
         <div className="lg:col-span-5">
-          <div className="bg-slate-50 p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 sticky top-24">
+          <div className="bg-white p-5 sm:p-7 rounded-[1.75rem] shadow-2xs border border-slate-100 sticky top-24">
             <h2 className="text-xl font-black text-slate-900 mb-6">{t('orderSummary')}</h2>
             
             <div className="flow-root mb-6">
@@ -864,34 +889,45 @@ export const Checkout: React.FC = () => {
               )}
             </div>
 
-            <div className="border-t border-slate-200 pt-5 space-y-3">
-              <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
+            {/* How close the basket is to free delivery — a bar reads faster
+                than a sentence, and it is the same figure the server charges. */}
+            {shippingFee > 0 && freeShippingOver > 0 && goodsTotal < freeShippingOver && (
+              <div className="bg-sunny-50 border border-sunny-200 rounded-2xl px-4 py-3 mb-4">
+                <p className="text-xs font-black text-slate-700 mb-2">
+                  🎉 <span className="font-mono">{formatIQDLabel(freeShippingOver - goodsTotal)}</span>{' '}
+                  {t('moreForFreeShipping')}
+                </p>
+                <div className="h-2 rounded-full bg-sunny-200 overflow-hidden">
+                  <span
+                    className="block h-full rounded-full bg-gradient-to-r from-sunny-500 to-mint-500 transition-all duration-500"
+                    style={{ width: `${Math.min(100, Math.round((goodsTotal / freeShippingOver) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="border-t border-dashed border-slate-200 pt-5 space-y-2.5">
+              <div className="flex items-center justify-between text-sm text-slate-500 font-bold">
                 <p>{t('subtotal')}</p>
-                <p className="font-bold">{formatIQDLabel(subtotal)}</p>
+                <p className="font-mono text-slate-900">{formatIQDLabel(subtotal)}</p>
               </div>
               {appliedCoupon && (
-                <div className="flex items-center justify-between text-xs text-emerald-600 font-bold">
+                <div className="flex items-center justify-between text-sm text-slate-500 font-bold">
                   <p>{t('discount')} ({appliedCoupon.discountPercentage}%)</p>
-                  <p>-{formatIQDLabel(discountAmount)}</p>
+                  <p className="font-mono text-mint-700">−{formatIQDLabel(discountAmount)}</p>
                 </div>
               )}
-              <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
+              <div className="flex items-center justify-between text-sm text-slate-500 font-bold">
                 <p>{t('shipping')}</p>
                 {shippingFee > 0 ? (
-                  <p className="font-bold">{formatIQDLabel(shippingFee)}</p>
+                  <p className="font-mono text-slate-900">{formatIQDLabel(shippingFee)}</p>
                 ) : (
-                  <p className="text-emerald-600 font-bold">{t('free')}</p>
+                  <p className="text-mint-700">{t('free')}</p>
                 )}
               </div>
-              {/* Nudge: how much more is needed for free delivery. */}
-              {shippingFee > 0 && freeShippingOver > 0 && goodsTotal < freeShippingOver && (
-                <p className="text-[11px] text-emerald-700 font-bold bg-emerald-50 rounded-lg px-3 py-2">
-                  {formatIQDLabel(freeShippingOver - goodsTotal)} {t('moreForFreeShipping')}
-                </p>
-              )}
-              <div className="flex items-center justify-between text-lg font-black text-slate-900 pt-4 border-t border-slate-200">
-                <p>{t('total')}</p>
-                <p className="text-candy-700">{formatIQDLabel(totalAmount)}</p>
+              <div className="flex items-center justify-between pt-4 mt-2 border-t-2 border-dashed border-slate-200">
+                <p className="text-base font-black text-slate-900">{t('total')}</p>
+                <p className="font-mono text-2xl font-black text-candy-700">{formatIQDLabel(totalAmount)}</p>
               </div>
             </div>
 
