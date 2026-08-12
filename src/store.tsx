@@ -21,6 +21,15 @@ import {
  * worked because the panel held every order; once the list is paged, a
  * browser-side filter searches one page and reports it as the whole shop.
  */
+/** Which slice of the books the sales report should cover. */
+export interface SalesReportQuery {
+  from?: string;
+  to?: string;
+  channel?: 'pos' | 'online' | string;
+  /** Narrow to the signed-in cashier's own sales. */
+  mine?: boolean;
+}
+
 export interface OrderQuery {
   page?: number;
   limit?: number;
@@ -49,7 +58,7 @@ interface StoreContextType {
   updateCoupon: (coupon: Coupon) => void;
   deleteCoupon: (id: string) => void;
   applyCoupon: (code: string, context?: { subtotal?: number; phone?: string }) => Promise<{ success: boolean; coupon?: Coupon; message?: string }>;
-  fetchSalesReport: (from?: string, to?: string, channel?: string) => Promise<any>;
+  fetchSalesReport: (fromOrOptions?: string | SalesReportQuery, to?: string, channel?: string) => Promise<any>;
   fetchCashierReport: (from?: string, to?: string) => Promise<any>;
   /** Day-by-day totals for the calendar, counted by the server. */
   fetchDailyReport: (from?: string, to?: string) => Promise<any>;
@@ -966,11 +975,26 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // Sales & profit report (staff/admin). Returns the raw report payload.
-  const fetchSalesReport = async (from?: string, to?: string, channel?: string): Promise<any> => {
+  /**
+   * The sales and profit figures for a range.
+   *
+   * Takes the three arguments it always took, or an options object when the
+   * caller also needs `mine` — a cashier's own till rather than the shop's.
+   */
+  const fetchSalesReport = async (
+    fromOrOptions?: string | SalesReportQuery,
+    to?: string,
+    channel?: string,
+  ): Promise<any> => {
+    const options: SalesReportQuery = typeof fromOrOptions === 'object'
+      ? fromOrOptions
+      : { from: fromOrOptions, to, channel };
+
     const params = new URLSearchParams();
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
-    if (channel) params.set('channel', channel);
+    if (options.from) params.set('from', options.from);
+    if (options.to) params.set('to', options.to);
+    if (options.channel) params.set('channel', options.channel);
+    if (options.mine) params.set('mine', '1');
     const res = await fetch(`${LARAVEL_API_BASE}/reports/sales?${params.toString()}`, { headers: getAuthHeaders() });
     if (!res.ok) throw new Error(`Report error: ${res.status}`);
     return res.json();

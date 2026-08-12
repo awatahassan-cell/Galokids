@@ -11,7 +11,7 @@ import { useConfirm, useToast } from '../ui/Feedback';
 import { formatIQDLabel } from '../../utils/currency';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../../utils/colors';
 import { printReceiptIframe } from '../../utils/printHelper';
-import { useStore } from '../../store';
+import { useStore, type OrderQuery } from '../../store';
 import { Pagination } from '../Pagination';
 import { isCashierRole } from '../../utils/roles';
 import { OrderReturnBadge, OrderItemReturnNote } from '../OrderReturnBadge';
@@ -43,7 +43,7 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
   toast: propToast,
 }) => {
   const { language } = useLanguage();
-  const { storeSettings, currentUser, refreshOrders } = useStore();
+  const { storeSettings, currentUser, refreshOrders, ordersPagination, fetchSalesReport } = useStore();
   const L = (key: string) => adminTr(key, language);
   const hookConfirm = useConfirm();
   const hookToast = useToast();
@@ -61,18 +61,53 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Auto-refresh orders dynamically on mount & filter changes (prevent infinite loops)
+  // Typing should not fire a request per keystroke; the server searches now.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   React.useEffect(() => {
-    if (refreshOrders) {
-      refreshOrders(currentPage, 50);
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // A cashier sees their own till; the owner sees the shop. This used to be
+  // decided in the browser by matching names and e-mail addresses against every
+  // order held in memory — which stopped working the moment the list paged.
+  const onlyMine = !!currentUser && isCashierRole(currentUser.role);
+
+  // Every filter is applied by the server. Filtering a page in the browser
+  // would search one page and present it as the whole day.
+  const query = useMemo(() => {
+    const today = shopToday();
+    const q: OrderQuery & { mine?: boolean } = {
+      channel: 'pos', page: currentPage, limit: itemsPerPage,
+    };
+
+    if (debouncedSearch) q.search = debouncedSearch;
+
+    if (dateFilter === 'today') {
+      q.from = today; q.to = today;
+    } else if (dateFilter === 'yesterday') {
+      const yesterday = shopDaysAgo(1);
+      q.from = yesterday; q.to = yesterday;
+    } else if (dateFilter === 'this_month') {
+      q.from = `${today.slice(0, 7)}-01`; q.to = today;
+    } else if (dateFilter === 'custom' && customDate) {
+      q.from = customDate; q.to = customDate;
     }
-  }, [currentPage, dateFilter, customDate]);
+
+    if (onlyMine) q.mine = true;
+
+    return q;
+  }, [currentPage, dateFilter, customDate, debouncedSearch, itemsPerPage, onlyMine]);
+
+  React.useEffect(() => {
+    if (refreshOrders) refreshOrders(query as OrderQuery);
+  }, [query, refreshOrders]);
 
   const handleManualRefresh = async () => {
     if (isRefreshing || !refreshOrders) return;
     setIsRefreshing(true);
     try {
-      await refreshOrders(1, 50);
+      await refreshOrders(query as OrderQuery);
       toast(language === 'ku' ? 'داتای فرۆشتنەکان نوێکرایەوە 🔄' : 'POS sales refreshed 🔄');
     } catch (err) {
       console.error('Refresh error:', err);
@@ -81,102 +116,48 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
     }
   };
 
-  // Extract POS sales - Filter by Cashier if role is 2 (Cashier), show ALL if role is 1 (Admin)
-  const posSales = useMemo(() => {
-    const allPos = orders.filter(isPosOrder);
-    if (currentUser && isCashierRole(currentUser.role)) {
-      const cashierNameLower = (currentUser.name || '').trim().toLowerCase();
-      const cashierEmailLower = (currentUser.email || '').trim().toLowerCase();
-      return allPos.filter(order => {
-        const ordCashierName = String((order as any).cashierName || (order as any).cashier_name || '').trim().toLowerCase();
-        const ordCashierEmail = String((order as any).cashierEmail || (order as any).cashier_email || order.customerEmail || '').trim().toLowerCase();
-        const ordUserId = String(order.userId || '');
-        return (
-          ordUserId === String(currentUser.id) ||
-          (cashierNameLower && ordCashierName.includes(cashierNameLower)) ||
-          (cashierEmailLower && ordCashierEmail === cashierEmailLower)
-        );
-      });
-    }
-    return allPos;
-  }, [orders, currentUser]);
-
-  // Filtered POS sales
-  const filteredSales = useMemo(() => {
-    const todayStr = shopToday();
-    const yesterdayStr = shopDaysAgo(1);
-
-    const searchLower = searchTerm.trim().toLowerCase();
-
-    return posSales.filter(order => {
-      // Date filtering
-      if (dateFilter === 'today') {
-        if (!order.date || !order.date.startsWith(todayStr)) return false;
-      } else if (dateFilter === 'yesterday') {
-        if (!order.date || !order.date.startsWith(yesterdayStr)) return false;
-      } else if (dateFilter === 'this_month') {
-        const currentMonthStr = todayStr.slice(0, 7);
-        if (!order.date || !order.date.startsWith(currentMonthStr)) return false;
-      } else if (dateFilter === 'custom' && customDate) {
-        if (!order.date || !order.date.startsWith(customDate)) return false;
-      }
-
-      // Search term filtering
-      if (searchLower) {
-        const idMatch = String(order.id || '').toLowerCase().includes(searchLower);
-        const customerMatch = String(order.customerName || '').toLowerCase().includes(searchLower);
-        const phoneMatch = String(order.customerPhone || '').toLowerCase().includes(searchLower);
-        const addressMatch = String(order.shippingAddress || '').toLowerCase().includes(searchLower);
-
-        let itemsMatch = false;
-        const items = safeGetItems(order);
-        itemsMatch = items.some(item => {
-          const pName = getProductName(item.product).toLowerCase();
-          const color = String(item.variation?.color || '').toLowerCase();
-          const size = String(item.variation?.size || '').toLowerCase();
-          return pName.includes(searchLower) || color.includes(searchLower) || size.includes(searchLower);
-        });
-
-        if (!idMatch && !customerMatch && !phoneMatch && !addressMatch && !itemsMatch) {
-          return false;
-        }
-      }
-
-      return true;
-    }).sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
-  }, [posSales, searchTerm, dateFilter, customDate]);
+  // The page the server sent is the list; it is already filtered and sorted.
+  const filteredSales = orders;
+  const paginatedSales = orders;
+  const totalPages = ordersPagination?.lastPage || 1;
 
   // Reset pagination on filter change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, dateFilter, customDate]);
+  }, [debouncedSearch, dateFilter, customDate]);
 
-  // Calculate statistics
-  const stats = useMemo(() => {
-    const totalAmount = filteredSales.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-    const totalCount = filteredSales.length;
-    const avgTicket = totalCount > 0 ? totalAmount / totalCount : 0;
-    
-    // Today's POS sales
-    const todayStr = shopToday();
-    const todaySales = posSales.filter(o => o.date && o.date.startsWith(todayStr));
-    const todayAmount = todaySales.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+  // The headline figures cover the whole filtered range, not the page shown.
+  // They used to be summed from the orders in memory, which was only ever the
+  // right answer because that was every order the shop had.
+  const [stats, setStats] = useState({
+    totalAmount: 0, totalCount: 0, avgTicket: 0, todayAmount: 0, todayCount: 0,
+  });
 
-    return {
-      totalAmount,
-      totalCount,
-      avgTicket,
-      todayAmount,
-      todayCount: todaySales.length
-    };
-  }, [filteredSales, posSales]);
+  React.useEffect(() => {
+    let cancelled = false;
+    const scope = { channel: 'pos' as const, mine: onlyMine || undefined };
+    const today = shopToday();
 
-  // Pagination calculation
-  const totalPages = Math.ceil(filteredSales.length / itemsPerPage) || 1;
-  const paginatedSales = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredSales.slice(start, start + itemsPerPage);
-  }, [filteredSales, currentPage, itemsPerPage]);
+    Promise.all([
+      fetchSalesReport({ ...scope, from: query.from, to: query.to }),
+      fetchSalesReport({ ...scope, from: today, to: today }),
+    ])
+      .then(([range, todayReport]) => {
+        if (cancelled) return;
+        const totalCount = Number(range?.order_count ?? range?.orderCount ?? 0);
+        const totalAmount = Number(range?.revenue ?? 0);
+        setStats({
+          totalAmount,
+          totalCount,
+          avgTicket: totalCount > 0 ? totalAmount / totalCount : 0,
+          todayAmount: Number(todayReport?.revenue ?? 0),
+          todayCount: Number(todayReport?.order_count ?? todayReport?.orderCount ?? 0),
+        });
+      })
+      .catch(() => { /* keep the last known figures rather than flashing zeroes */ });
+
+    return () => { cancelled = true; };
+  }, [query.from, query.to, onlyMine, fetchSalesReport, orders]);
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId(prev => prev === orderId ? null : orderId);
