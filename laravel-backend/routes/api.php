@@ -93,6 +93,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Orders Management (All authenticated users can create orders, and fetch their respective authorized lists)
     Route::get('/orders', [OrderController::class, 'index']);
+    // Status totals for the panel's chips, counted over the whole filtered set
+    // rather than the page on screen. Declared before /orders/{id} so "counts"
+    // is not read as an order number.
+    Route::get('/orders/counts', [OrderController::class, 'counts']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::put('/orders/{id}', [OrderController::class, 'update']);
@@ -140,6 +144,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/sales', [\App\Http\Controllers\ReportController::class, 'sales']);
     // Per-cashier sales (admin only)
     Route::get('/reports/cashiers', [\App\Http\Controllers\ReportController::class, 'cashiers']);
+    // Day-by-day and per-coupon totals, counted in SQL so the screens that show
+    // them never depend on how many orders the browser happens to be holding.
+    Route::get('/reports/daily', [\App\Http\Controllers\ReportController::class, 'daily']);
+    Route::get('/reports/coupons', [\App\Http\Controllers\ReportController::class, 'coupons']);
 
     // POS customer lookup by phone (staff/admin only)
     Route::get('/customers/lookup', [OrderController::class, 'customerLookup']);

@@ -316,7 +316,7 @@ class ReturnsAndCancellationsTest extends TestCase
 
         // The list endpoint carries the same per-line detail, so the admin table
         // does not have to open every order to find out.
-        $listed = collect($this->actingAs($cashier)->getJson('/api/orders')->assertOk()->json())
+        $listed = collect($this->actingAs($cashier)->getJson('/api/orders')->assertOk()->json('data'))
             ->firstWhere('id', $order['id']);
         $this->assertSame(
             1,

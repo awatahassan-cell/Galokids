@@ -246,33 +246,162 @@ class OrderController extends Controller
         return (float) $product->price;
     }
 
+    /**
+     * The order list, a page at a time.
+     *
+     * This used to return every order the shop had ever taken on every request.
+     * That is fine for a few hundred and ruinous for a few thousand — the whole
+     * table plus its line items, its products and its variations, serialised
+     * into one response, on every visit to the panel.
+     *
+     * Searching and filtering happen here too. They used to be done in the
+     * browser over that full list, which only worked *because* it was the full
+     * list: filtering a page would silently search one page and call it the
+     * whole shop.
+     */
     public function index(Request $request)
     {
         $user = $this->requireAuth($request);
 
-        if ($user->isPrivileged()) {
-            return response()->json(
-                Order::with('items.product', 'items.variation')
-                    ->orderBy('created_at', 'desc')->get()
-            );
+        $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'limit' => 'nullable|integer|min:1',
+            'channel' => 'nullable|string|in:pos,online',
+            'status' => 'nullable|string|in:pending,processing,shipped,delivered,cancelled,returned',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date',
+            'search' => 'nullable|string|max:255',
+        ]);
+
+        $query = Order::with('items.product', 'items.variation');
+
+        if (!$user->isPrivileged()) {
+            // A customer sees their own orders: the ones linked to their account
+            // and the guest/POS orders placed with the same phone number. The
+            // phone is matched across every format it may have been stored in,
+            // otherwise an order saved as "0750…" stays invisible to an account
+            // saved as "964750…".
+            $phoneVariants = PhoneNumber::variants($user->phone);
+
+            $query->where(function ($q) use ($user, $phoneVariants) {
+                $q->where('user_id', $user->id);
+                if (!empty($phoneVariants)) {
+                    $q->orWhereIn('customer_phone', $phoneVariants);
+                }
+            });
         }
 
-        // A customer sees their own orders: the ones linked to their account and
-        // the guest/POS orders placed with the same phone number. The phone is
-        // matched across every format it may have been stored in, otherwise an
-        // order saved as "0750…" stays invisible to an account saved as "964750…".
-        $phoneVariants = PhoneNumber::variants($user->phone);
+        $this->applyOrderFilters($query, $request);
+
+        $limit = max(1, min((int) $request->input('limit', 50), 200));
 
         return response()->json(
-            Order::where(function ($query) use ($user, $phoneVariants) {
-                $query->where('user_id', $user->id);
-                if (!empty($phoneVariants)) {
-                    $query->orWhereIn('customer_phone', $phoneVariants);
-                }
-            })
-                ->with('items.product', 'items.variation')
-                ->orderBy('created_at', 'desc')->get()
+            $query->orderBy('created_at', 'desc')->paginate($limit)
         );
+    }
+
+    /**
+     * How many orders sit in each status, for the panel's summary chips.
+     *
+     * The chips used to count the array the browser was holding. That was the
+     * whole table, so it was right; against a page it would report "3 pending"
+     * when the shop had ninety. Counting in the database keeps the headline
+     * honest no matter how little of the list is on screen.
+     *
+     * Takes the same filters as the list, so the chips describe the view the
+     * user is actually looking at.
+     */
+    public function counts(Request $request)
+    {
+        $this->checkStaffOrAdmin($request);
+
+        $request->validate([
+            'channel' => 'nullable|string|in:pos,online',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date',
+            'search' => 'nullable|string|max:255',
+        ]);
+
+        $query = Order::query();
+        $this->applyOrderFilters($query, $request);
+
+        $byStatus = $query
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $counts = [];
+        foreach (['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'] as $status) {
+            $counts[$status] = (int) ($byStatus[$status] ?? 0);
+        }
+
+        // An order with no status set reads as pending everywhere else, so it
+        // has to be counted as pending here too or the chips will not add up.
+        $counts['pending'] += (int) ($byStatus[''] ?? 0);
+        $counts['total'] = (int) $byStatus->sum();
+        $counts['new_and_pending'] = $counts['pending'] + $counts['processing'];
+
+        return response()->json($counts);
+    }
+
+    /**
+     * The filters the order tables offer, applied in the database.
+     *
+     * "online" is written as "not POS" rather than as a match on the word, so
+     * the two channel filters partition the table exactly: every order shows up
+     * under one of them and none can hide from both, whatever ends up in the
+     * column.
+     */
+    private function applyOrderFilters($query, Request $request): void
+    {
+        if ($request->filled('channel')) {
+            if ($request->channel === 'pos') {
+                $query->where('channel', 'pos');
+            } else {
+                $query->where(function ($q) {
+                    $q->where('channel', '!=', 'pos')->orWhereNull('channel');
+                });
+            }
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('from')) {
+            $query->where('created_at', '>=', $request->from . ' 00:00:00');
+        }
+
+        if ($request->filled('to')) {
+            $query->where('created_at', '<=', $request->to . ' 23:59:59');
+        }
+
+        if ($request->filled('search')) {
+            $term = '%' . trim($request->search) . '%';
+            $phoneVariants = PhoneNumber::variants($request->search);
+
+            $query->where(function ($q) use ($term, $request, $phoneVariants) {
+                $q->where('invoice_no', 'like', $term)
+                    ->orWhere('customer_name', 'like', $term)
+                    ->orWhere('customer_phone', 'like', $term)
+                    ->orWhere('shipping_address', 'like', $term)
+                    // A shop looks an order up by the number on the receipt, so
+                    // the plain id has to match exactly as well.
+                    ->orWhere('id', $request->search)
+                    // Matching by product means joining the lines; a customer
+                    // asking about "the pink dress" is a normal counter request.
+                    ->orWhereHas('items', function ($line) use ($term) {
+                        $line->where('product_name', 'like', $term)
+                            ->orWhere('product_name_ku', 'like', $term)
+                            ->orWhere('product_name_ar', 'like', $term)
+                            ->orWhere('variation_label', 'like', $term);
+                    });
+
+                if (!empty($phoneVariants)) {
+                    $q->orWhereIn('customer_phone', $phoneVariants);
+                }
+            });
+        }
     }
 
     /**

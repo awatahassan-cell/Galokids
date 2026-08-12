@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Expense;
+use App\Models\Coupon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -131,10 +132,7 @@ class ReportController extends Controller
         // Pieces that stayed sold. Returned goods went back on the shelf, so
         // counting them here sold the same piece twice and — through COGS —
         // charged the shop for stock it still owns.
-        $net = 'MAX(order_items.quantity - order_items.returned_quantity, 0)';
-        if (DB::connection()->getDriverName() === 'mysql') {
-            $net = 'GREATEST(order_items.quantity - order_items.returned_quantity, 0)';
-        }
+        $net = self::netPieces();
 
         $itemsSold = (int) OrderItem::whereIn('order_id', $inWindow)->sum(DB::raw($net));
 
@@ -189,6 +187,229 @@ class ReportController extends Controller
             'average_order_value' => $orderCount ? round($revenue / $orderCount) : 0,
             'daily' => $daily,
             'top_products' => $topProducts,
+        ]);
+    }
+
+    /**
+     * SQL for the pieces of a line that stayed sold.
+     *
+     * Returned goods went back on the shelf, so counting them as sold would
+     * sell the same piece twice and — through COGS — charge the shop for stock
+     * it still owns. MySQL spells the two-argument maximum differently to
+     * SQLite, which is the only reason this is not a plain string.
+     */
+    private static function netPieces(): string
+    {
+        $expression = 'order_items.quantity - order_items.returned_quantity';
+
+        return in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)
+            ? "GREATEST($expression, 0)"
+            : "MAX($expression, 0)";
+    }
+
+    /**
+     * Day-by-day totals for a range.
+     *
+     * The calendar screen used to work these out in the browser by reducing over
+     * every order the admin panel had loaded. That only held while the orders
+     * endpoint returned the whole table — the moment it pages, the calendar
+     * would quietly report one page of a month. Counting in SQL keeps it right
+     * however many orders the shop has taken.
+     */
+    public function daily(Request $request)
+    {
+        $this->checkStaffOrAdmin($request);
+
+        $request->validate([
+            'from' => 'nullable|date',
+            'to' => 'nullable|date',
+        ]);
+
+        $from = $request->input('from', now()->startOfMonth()->toDateString());
+        $to = $request->input('to', now()->endOfMonth()->toDateString());
+
+        $window = [$from . ' 00:00:00', $to . ' 23:59:59'];
+        $net = self::netPieces();
+        $returned = Order::STATUS_RETURNED;
+
+        $money = Order::whereBetween('created_at', $window)
+            ->where('status', '!=', Order::STATUS_CANCELLED)
+            ->select(
+                DB::raw('DATE(created_at) as day'),
+                DB::raw('COALESCE(SUM(total_amount - COALESCE(refunded_amount, 0)), 0) as revenue'),
+                DB::raw("COALESCE(SUM(CASE WHEN channel = 'pos' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as pos_revenue"),
+                DB::raw("COALESCE(SUM(CASE WHEN channel = 'pos' THEN 0 ELSE total_amount - COALESCE(refunded_amount, 0) END), 0) as online_revenue"),
+                DB::raw("SUM(CASE WHEN status = '$returned' THEN 0 ELSE 1 END) as orders_count"),
+                DB::raw("SUM(CASE WHEN channel = 'pos' AND status != '$returned' THEN 1 ELSE 0 END) as pos_orders"),
+                DB::raw("SUM(CASE WHEN channel != 'pos' AND status != '$returned' THEN 1 ELSE 0 END) as online_orders")
+            )
+            ->groupBy('day')
+            ->get()
+            ->keyBy('day');
+
+        // Pieces and cost come off the lines, so they need their own pass.
+        $goods = OrderItem::join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->leftJoin('products', 'order_items.product_id', '=', 'products.id')
+            ->whereBetween('orders.created_at', $window)
+            ->where('orders.status', '!=', Order::STATUS_CANCELLED)
+            ->select(
+                DB::raw('DATE(orders.created_at) as day'),
+                DB::raw("COALESCE(SUM($net), 0) as items_sold"),
+                DB::raw("COALESCE(SUM(COALESCE(products.cost, 0) * $net), 0) as cogs"),
+                DB::raw("COALESCE(SUM(CASE WHEN orders.channel = 'pos' THEN COALESCE(products.cost, 0) * $net ELSE 0 END), 0) as pos_cogs"),
+                DB::raw("COALESCE(SUM(CASE WHEN orders.channel != 'pos' THEN COALESCE(products.cost, 0) * $net ELSE 0 END), 0) as online_cogs")
+            )
+            ->groupBy('day')
+            ->get()
+            ->keyBy('day');
+
+        $spending = Expense::whereDate('date', '>=', $from)
+            ->whereDate('date', '<=', $to)
+            ->select(DB::raw('DATE(date) as day'), DB::raw('COALESCE(SUM(amount), 0) as expenses'))
+            ->groupBy('day')
+            ->get()
+            ->keyBy('day');
+
+        $days = collect($money->keys())
+            ->merge($goods->keys())
+            ->merge($spending->keys())
+            ->unique()
+            ->sort()
+            ->values()
+            ->map(function ($day) use ($money, $goods, $spending) {
+                $m = $money->get($day);
+                $g = $goods->get($day);
+                $revenue = (float) ($m->revenue ?? 0);
+                $cogs = (float) ($g->cogs ?? 0);
+                $spent = (float) ($spending->get($day)->expenses ?? 0);
+
+                return [
+                    'day' => $day,
+                    'revenue' => round($revenue),
+                    'pos_revenue' => round((float) ($m->pos_revenue ?? 0)),
+                    'online_revenue' => round((float) ($m->online_revenue ?? 0)),
+                    'orders_count' => (int) ($m->orders_count ?? 0),
+                    'pos_orders' => (int) ($m->pos_orders ?? 0),
+                    'online_orders' => (int) ($m->online_orders ?? 0),
+                    'items_sold' => (int) ($g->items_sold ?? 0),
+                    'cogs' => round($cogs),
+                    'pos_cogs' => round((float) ($g->pos_cogs ?? 0)),
+                    'online_cogs' => round((float) ($g->online_cogs ?? 0)),
+                    'expenses' => round($spent),
+                    'net_profit' => round($revenue - $cogs - $spent),
+                ];
+            });
+
+        return response()->json([
+            'from' => $from,
+            'to' => $to,
+            'days' => $days,
+            'totals' => [
+                'revenue' => round((float) $days->sum('revenue')),
+                'pos_revenue' => round((float) $days->sum('pos_revenue')),
+                'online_revenue' => round((float) $days->sum('online_revenue')),
+                'orders_count' => (int) $days->sum('orders_count'),
+                'pos_orders' => (int) $days->sum('pos_orders'),
+                'online_orders' => (int) $days->sum('online_orders'),
+                'items_sold' => (int) $days->sum('items_sold'),
+                'cogs' => round((float) $days->sum('cogs')),
+                'expenses' => round((float) $days->sum('expenses')),
+                'net_profit' => round((float) $days->sum('net_profit')),
+            ],
+        ]);
+    }
+
+    /**
+     * Coupon performance for a range.
+     *
+     * Same reason as the daily report: the browser was reducing over every
+     * order it happened to be holding, so the moment the orders endpoint pages
+     * this screen would describe one page of history as if it were all of it.
+     */
+    public function coupons(Request $request)
+    {
+        $this->requireAdmin($request);
+
+        $request->validate([
+            'from' => 'nullable|date',
+            'to' => 'nullable|date',
+        ]);
+
+        $from = $request->input('from', now()->startOfMonth()->toDateString());
+        $to = $request->input('to', now()->toDateString());
+        $window = [$from . ' 00:00:00', $to . ' 23:59:59'];
+
+        $base = fn () => Order::whereBetween('created_at', $window)
+            ->where('status', '!=', Order::STATUS_CANCELLED);
+
+        // Every order in the window, so "how many of our sales used a coupon"
+        // has a denominator.
+        $orderCount = (int) $base()->where('status', '!=', Order::STATUS_RETURNED)->count();
+
+        $rows = $base()
+            ->whereNotNull('coupon_code')
+            ->where('coupon_code', '!=', '')
+            ->select(
+                'coupon_code as code',
+                DB::raw('COUNT(*) as uses'),
+                DB::raw('COALESCE(SUM(discount_amount), 0) as total_discount'),
+                DB::raw('COALESCE(SUM(total_amount - COALESCE(refunded_amount, 0)), 0) as total_sales')
+            )
+            ->groupBy('coupon_code')
+            ->orderByDesc('uses')
+            ->get();
+
+        $timeline = $base()
+            ->whereNotNull('coupon_code')
+            ->where('coupon_code', '!=', '')
+            ->select(
+                DB::raw('DATE(created_at) as day'),
+                DB::raw('COUNT(*) as uses'),
+                DB::raw('COALESCE(SUM(discount_amount), 0) as discount'),
+                DB::raw('COALESCE(SUM(total_amount - COALESCE(refunded_amount, 0)), 0) as sales')
+            )
+            ->groupBy('day')->orderBy('day')->get();
+
+        $known = Coupon::select('code', 'is_active', 'discount_percentage')->get()->keyBy('code');
+
+        $performance = $rows->map(fn ($row) => [
+            'code' => $row->code,
+            'uses' => (int) $row->uses,
+            'total_discount' => round((float) $row->total_discount),
+            'total_sales' => round((float) $row->total_sales),
+            'is_active' => (bool) ($known[$row->code]->is_active ?? false),
+        ]);
+
+        // Coupons that exist but were never redeemed in the window still belong
+        // on the list — "nobody used it" is the useful answer about a coupon.
+        $unused = $known->keys()
+            ->diff($rows->pluck('code'))
+            ->map(fn ($code) => [
+                'code' => $code,
+                'uses' => 0,
+                'total_discount' => 0,
+                'total_sales' => 0,
+                'is_active' => (bool) ($known[$code]->is_active ?? false),
+            ]);
+
+        $totalUses = (int) $rows->sum('uses');
+        $totalDiscount = round((float) $rows->sum('total_discount'));
+        $totalSales = round((float) $rows->sum('total_sales'));
+
+        return response()->json([
+            'from' => $from,
+            'to' => $to,
+            'performance' => $performance->concat($unused)->values(),
+            'timeline' => $timeline,
+            'total_uses' => $totalUses,
+            'total_discount' => $totalDiscount,
+            'total_sales_with_coupons' => $totalSales,
+            'order_count' => $orderCount,
+            'conversion_rate' => $orderCount > 0 ? round($totalUses / $orderCount * 100, 1) : 0.0,
+            // What share of the ticket the average redemption took off.
+            'average_discount_percentage' => ($totalSales + $totalDiscount) > 0
+                ? round($totalDiscount / ($totalSales + $totalDiscount) * 100, 1)
+                : 0.0,
         ]);
     }
 }
