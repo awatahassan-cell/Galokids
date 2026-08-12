@@ -568,7 +568,9 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
         meta={{
           currentPage,
           lastPage: totalPages,
-          total: filteredSales.length,
+          // The whole filtered set, not the rows on screen — the server counts
+          // it, and the footer is meant to say how many there are in total.
+          total: ordersPagination?.total ?? filteredSales.length,
         }}
         onPageChange={(page) => setCurrentPage(page)}
       />

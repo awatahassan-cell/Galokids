@@ -8,26 +8,32 @@ import { Package, Clock, CheckCircle, Truck, XCircle, RefreshCw, AlertCircle, Ro
 
 import { isPosOrder } from '../components/admin/AdminOrdersTab';
 import { isSamePhone } from '../utils/phone';
+import { Pagination } from '../components/Pagination';
 import { orderItemName, orderItemVariation } from '../utils/orderItems';
 import { OrderReturnBadge, OrderItemReturnNote } from '../components/OrderReturnBadge';
 
 export const MyOrders: React.FC = () => {
-  const { orders, currentUser, refreshOrders, ordersError } = useStore();
+  const { orders, currentUser, refreshOrders, ordersError, ordersPagination } = useStore();
   const { t, language } = useLanguage();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   // Orders change while the customer is away (the shop confirms, ships or
   // cancels them), and the store only loaded them once at app start. Without
   // this the page showed stale data until the browser was reloaded by hand.
+  // A customer who has shopped here for years can have more orders than fit in
+  // one page, and there is nothing more alarming than a purchase history that
+  // silently stops.
+  const [page, setPage] = React.useState(1);
+
   React.useEffect(() => {
     if (!currentUser) return;
-    refreshOrders();
-  }, [currentUser?.id, refreshOrders]);
+    refreshOrders({ page, limit: 20 });
+  }, [currentUser?.id, refreshOrders, page]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refreshOrders();
+      await refreshOrders({ page, limit: 20 });
     } finally {
       setIsRefreshing(false);
     }
@@ -240,6 +246,19 @@ export const MyOrders: React.FC = () => {
               </div>
             );
           })}
+          {(ordersPagination?.lastPage || 1) > 1 && (
+            <Pagination
+              meta={{
+                currentPage: page,
+                lastPage: ordersPagination.lastPage,
+                total: ordersPagination.total,
+              }}
+              onPageChange={next => {
+                setPage(next);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          )}
         </div>
       )}
     </div>
