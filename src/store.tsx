@@ -14,6 +14,23 @@ import {
   MOCK_EXPENSES as initialExpenses
 } from './data';
 
+/**
+ * Which slice of the order list to fetch.
+ *
+ * Every field is applied by the server. Filtering in the browser only ever
+ * worked because the panel held every order; once the list is paged, a
+ * browser-side filter searches one page and reports it as the whole shop.
+ */
+export interface OrderQuery {
+  page?: number;
+  limit?: number;
+  channel?: 'pos' | 'online';
+  status?: string;
+  from?: string;
+  to?: string;
+  search?: string;
+}
+
 interface StoreContextType {
   categories: Category[];
   products: Product[];
@@ -34,6 +51,12 @@ interface StoreContextType {
   applyCoupon: (code: string, context?: { subtotal?: number; phone?: string }) => Promise<{ success: boolean; coupon?: Coupon; message?: string }>;
   fetchSalesReport: (from?: string, to?: string, channel?: string) => Promise<any>;
   fetchCashierReport: (from?: string, to?: string) => Promise<any>;
+  /** Day-by-day totals for the calendar, counted by the server. */
+  fetchDailyReport: (from?: string, to?: string) => Promise<any>;
+  /** Per-coupon performance, counted by the server. */
+  fetchCouponReport: (from?: string, to?: string) => Promise<any>;
+  /** Order totals per status over the whole filtered set, not the page shown. */
+  fetchOrderCounts: (query?: OrderQuery) => Promise<any>;
   fetchBestSellers: (limit?: number) => Promise<Product[]>;
   recordRecentlyViewed: (productId: string) => void;
   getRecentlyViewedIds: () => string[];
@@ -88,7 +111,7 @@ interface StoreContextType {
   refreshProducts: (page?: number, limit?: number, filters?: any, append?: boolean, bypassCache?: boolean) => Promise<void>;
   /** Every product across all pages — for reports that must not be paginated. */
   fetchAllProducts: () => Promise<Product[]>;
-  refreshOrders: (page?: number, limit?: number) => Promise<void>;
+  refreshOrders: (pageOrQuery?: number | OrderQuery, limit?: number) => Promise<void>;
   /** Non-null when the last orders fetch failed; the list on screen is stale. */
   ordersError: null | 'unauthorized' | 'unreachable';
   refreshExpenses: (page?: number, limit?: number) => void;
@@ -953,6 +976,48 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return res.json();
   };
 
+  /**
+   * Day-by-day totals for a range, counted by the server.
+   *
+   * The calendar used to reduce over every order the panel held. That answer
+   * was only ever right because the panel held all of them.
+   */
+  const fetchDailyReport = async (from?: string, to?: string): Promise<any> => {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const res = await fetch(`${LARAVEL_API_BASE}/reports/daily?${params.toString()}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error(`Daily report error: ${res.status}`);
+    return convertKeysToCamelCase(await res.json());
+  };
+
+  /** Per-coupon redemptions and what they cost, counted by the server. */
+  const fetchCouponReport = async (from?: string, to?: string): Promise<any> => {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    const res = await fetch(`${LARAVEL_API_BASE}/reports/coupons?${params.toString()}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error(`Coupon report error: ${res.status}`);
+    return convertKeysToCamelCase(await res.json());
+  };
+
+  /**
+   * How many orders sit in each status, over the whole filtered set.
+   *
+   * The panel's summary chips need this separately from the page on screen —
+   * counting the page would tell a shop with ninety orders that it had ten.
+   */
+  const fetchOrderCounts = async (query: OrderQuery = {}): Promise<any> => {
+    const params = new URLSearchParams();
+    if (query.channel) params.set('channel', query.channel);
+    if (query.from) params.set('from', query.from);
+    if (query.to) params.set('to', query.to);
+    if (query.search) params.set('search', query.search);
+    const res = await fetch(`${LARAVEL_API_BASE}/orders/counts?${params.toString()}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error(`Order counts error: ${res.status}`);
+    return convertKeysToCamelCase(await res.json());
+  };
+
   useEffect(() => {
     refreshCoupons();
     refreshSettings();
@@ -1259,7 +1324,30 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Returns the in-flight promise so callers (e.g. a Refresh button) can show
   // a spinner until the orders have actually arrived.
-  const refreshOrders = useCallback((page = 1, limit = 50): Promise<void> => {
+  //
+  // Takes either a plain page number (the old shape, still used by the simple
+  // callers) or a query describing the page and the filters. The filters go to
+  // the server: the panel used to hold every order and sift them in the
+  // browser, which stopped being possible — and stopped being correct — the
+  // moment the endpoint started returning one page.
+  const refreshOrders = useCallback((
+    pageOrQuery: number | OrderQuery = 1,
+    limitArg = 50,
+  ): Promise<void> => {
+    const query: OrderQuery = typeof pageOrQuery === 'number'
+      ? { page: pageOrQuery, limit: limitArg }
+      : pageOrQuery;
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? limitArg;
+
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (query.channel) params.set('channel', query.channel);
+    if (query.status) params.set('status', query.status);
+    if (query.from) params.set('from', query.from);
+    if (query.to) params.set('to', query.to);
+    if (query.search) params.set('search', query.search);
+
     // The cache is keyed per account. It used to be one shared bucket, so a
     // staff login (which receives every order) left the whole shop's orders
     // behind for the next customer who signed in on the same browser.
@@ -1272,7 +1360,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
     })();
 
-    return fetch(`${LARAVEL_API_BASE}/orders?page=${page}&limit=${limit}`, { headers: getAuthHeaders() })
+    return fetch(`${LARAVEL_API_BASE}/orders?${params.toString()}`, { headers: getAuthHeaders() })
       .then(res => {
         // A rejected request is not "no orders". Reporting an expired session
         // as an empty history told the customer their purchases were gone.
@@ -1302,30 +1390,22 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           }
         }
 
-        // Merge with local orders from localStorage
-        let localOrders: Order[] = [];
-        const savedLocal = localStorage.getItem(cacheKey);
-        if (savedLocal) {
-          try {
-            localOrders = JSON.parse(savedLocal).filter(Boolean);
-          } catch (e) {}
+        // What the server sent for this page IS the list. It used to be merged
+        // with a cache of everything seen before, which was harmless while the
+        // endpoint returned the whole table and wrong the moment it pages: page
+        // two would arrive carrying page one, and a filtered view would show
+        // rows that did not match the filter.
+        setOrders(fetchedItems);
+        setOrdersPagination(meta);
+
+        // The cache is only a fallback for a request that fails. Keep the
+        // unfiltered first page in it, so a customer who loses their connection
+        // still sees their history rather than an empty page.
+        const unfiltered = page === 1 && !query.search && !query.status
+          && !query.channel && !query.from && !query.to;
+        if (unfiltered) {
+          localStorage.setItem(cacheKey, JSON.stringify(fetchedItems));
         }
-
-        // Combine fetched API orders + local orders uniquely by ID
-        const orderMap = new Map<string, Order>();
-        localOrders.forEach(o => { if (o && o.id) orderMap.set(String(o.id), o); });
-        fetchedItems.forEach(o => { if (o && o.id) orderMap.set(String(o.id), o); });
-
-        const combinedOrders = Array.from(orderMap.values()).sort((a: any, b: any) => 
-          new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime()
-        );
-
-        setOrders(combinedOrders);
-        setOrdersPagination({
-          ...meta,
-          total: Math.max(meta.total, combinedOrders.length)
-        });
-        localStorage.setItem(cacheKey, JSON.stringify(combinedOrders));
         setOrdersError(null);
       })
       .catch(err => {
@@ -2406,7 +2486,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       updateProduct, updateCategory, updateExpense, updateUser,
       isPhoneRegistered, checkPhoneRegistered, login, loginWithPhone, registerWithPhone, logout, register, updateProfile,
       reviews, reviewsPagination, refreshReviews,
-      coupons, appliedCoupon, setAppliedCoupon, addCoupon, updateCoupon, deleteCoupon, applyCoupon, fetchSalesReport, fetchCashierReport,
+      coupons, appliedCoupon, setAppliedCoupon, addCoupon, updateCoupon, deleteCoupon, applyCoupon, fetchSalesReport, fetchCashierReport, fetchDailyReport, fetchCouponReport, fetchOrderCounts,
       fetchBestSellers, recordRecentlyViewed, getRecentlyViewedIds, trackOrder, lookupCustomer,
       fetchShippingQuote, fetchStockMovements, adjustStock, fetchActivityLogs,
       recordCashMovement, fetchCashMovements, exchangeOrder, fetchOrderHistory,
