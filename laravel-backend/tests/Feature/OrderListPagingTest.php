@@ -282,4 +282,45 @@ class OrderListPagingTest extends TestCase
     {
         $this->actingAs(User::factory()->create())->getJson('/api/orders/counts')->assertForbidden();
     }
+
+    /* ------------------------------------------------- a cashier's till --- */
+
+    public function test_a_cashier_can_narrow_the_list_to_their_own_sales(): void
+    {
+        $me = $this->cashier();
+        $colleague = $this->cashier();
+
+        $this->makeOrders(6, ['user_id' => $me->id]);
+        $this->makeOrders(9, ['user_id' => $colleague->id]);
+
+        $mine = $this->actingAs($me)->getJson('/api/orders?mine=1')->assertOk()->json();
+        $all = $this->actingAs($me)->getJson('/api/orders')->assertOk()->json();
+
+        $this->assertSame(6, $mine['total'], 'the POS tab shows a cashier their own takings');
+        $this->assertSame(15, $all['total'], 'but they can still look any order up at the counter');
+    }
+
+    public function test_the_chips_follow_the_same_narrowing(): void
+    {
+        $me = $this->cashier();
+        $this->makeOrders(4, ['user_id' => $me->id, 'status' => 'delivered']);
+        $this->makeOrders(7, ['user_id' => $this->cashier()->id, 'status' => 'delivered']);
+
+        $counts = $this->actingAs($me)->getJson('/api/orders/counts?mine=1')->assertOk()->json();
+
+        $this->assertSame(4, $counts['total']);
+        $this->assertSame(4, $counts['delivered']);
+    }
+
+    public function test_the_sales_report_can_be_narrowed_to_one_cashier(): void
+    {
+        $me = $this->cashier();
+        $this->makeOrders(3, ['user_id' => $me->id]);
+        $this->makeOrders(5, ['user_id' => $this->cashier()->id]);
+
+        $mine = $this->actingAs($me)->getJson('/api/reports/sales?mine=1')->assertOk()->json();
+
+        $this->assertSame(30000.0, (float) $mine['revenue'], 'three sales of 10,000');
+        $this->assertSame(3, $mine['order_count']);
+    }
 }

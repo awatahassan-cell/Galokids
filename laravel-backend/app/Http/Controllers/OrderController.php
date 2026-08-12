@@ -271,6 +271,7 @@ class OrderController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date',
             'search' => 'nullable|string|max:255',
+            'mine' => 'nullable|boolean',
         ]);
 
         $query = Order::with('items.product', 'items.variation');
@@ -320,6 +321,7 @@ class OrderController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date',
             'search' => 'nullable|string|max:255',
+            'mine' => 'nullable|boolean',
         ]);
 
         $query = Order::query();
@@ -354,6 +356,13 @@ class OrderController extends Controller
      */
     private function applyOrderFilters($query, Request $request): void
     {
+        // The POS tab shows a cashier their own takings. It is a view filter,
+        // not a permission — any of them may still look an order up at the
+        // counter to take a return.
+        if ($request->boolean('mine') && $request->user()) {
+            $query->where('user_id', $request->user()->id);
+        }
+
         if ($request->filled('channel')) {
             if ($request->channel === 'pos') {
                 $query->where('channel', 'pos');

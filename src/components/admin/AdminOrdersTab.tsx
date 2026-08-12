@@ -10,7 +10,7 @@ import { Order, PaginationMeta, CartItem } from '../../types';
 import { useConfirm, useToast } from '../ui/Feedback';
 import { formatIQDLabel } from '../../utils/currency';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../../utils/colors';
-import { useStore } from '../../store';
+import { useStore, type OrderQuery } from '../../store';
 import { Pagination } from '../Pagination';
 import { BulkActionBar } from './BulkActionBar';
 import { BulkCheckbox } from './BulkCheckbox';
@@ -60,7 +60,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   toast: propToast,
 }) => {
   const { language } = useLanguage();
-  const { refreshOrders, bulkDelete, bulkOrderStatus, currentUser } = useStore();
+  const { refreshOrders, bulkDelete, bulkOrderStatus, currentUser, fetchOrderCounts, ordersPagination } = useStore();
   const L = (key: string) => adminTr(key, language);
   const hookConfirm = useConfirm();
   const hookToast = useToast();
@@ -79,19 +79,62 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Auto-refresh orders on mount & filter/page changes (prevent infinite loops)
+  // Typing should not fire a request per keystroke, and the server is the one
+  // searching now.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   useEffect(() => {
-    if (refreshOrders) {
-      refreshOrders(currentPage, 50);
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // The filters the server is being asked for. Every one of them used to be
+  // applied in the browser over the whole order table; now that the list
+  // arrives a page at a time, filtering here would search one page and present
+  // it as the whole shop.
+  const query = useMemo(() => {
+    const today = shopToday();
+    const q: OrderQuery = { channel: 'online', page: currentPage, limit: itemsPerPage };
+
+    if (statusFilter !== 'all') q.status = statusFilter;
+    if (debouncedSearch) q.search = debouncedSearch;
+
+    if (dateFilter === 'today') {
+      q.from = today; q.to = today;
+    } else if (dateFilter === 'yesterday') {
+      const yesterday = shopDaysAgo(1);
+      q.from = yesterday; q.to = yesterday;
+    } else if (dateFilter === 'this_month') {
+      q.from = `${today.slice(0, 7)}-01`; q.to = today;
+    } else if (dateFilter === 'custom' && customDate) {
+      q.from = customDate; q.to = customDate;
     }
-    // eslint-disable-next-deps
-  }, [currentPage, statusFilter, dateFilter, customDate]);
+
+    return q;
+  }, [currentPage, statusFilter, dateFilter, customDate, debouncedSearch, itemsPerPage]);
+
+  useEffect(() => {
+    if (refreshOrders) refreshOrders(query);
+  }, [query, refreshOrders]);
+
+  // The summary chips describe the whole filtered set, not the page on screen.
+  const [counts, setCounts] = useState({
+    total: 0, pending: 0, processing: 0, shipped: 0,
+    delivered: 0, cancelled: 0, returned: 0, newAndPending: 0,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchOrderCounts({ channel: 'online', from: query.from, to: query.to, search: query.search })
+      .then(data => { if (!cancelled) setCounts(prev => ({ ...prev, ...data })); })
+      .catch(() => { /* keep the last known figures rather than flashing zeroes */ });
+    return () => { cancelled = true; };
+  }, [query.from, query.to, query.search, fetchOrderCounts, orders]);
 
   const handleManualRefresh = async () => {
     if (isRefreshing || !refreshOrders) return;
     setIsRefreshing(true);
     try {
-      await refreshOrders(1, 50);
+      await refreshOrders(query);
       toast(language === 'ku' ? 'داواکارییەکان نوێکرانەوە 🔄' : 'Orders refreshed 🔄');
     } catch (err) {
       console.error('Refresh error:', err);
@@ -100,83 +143,17 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     }
   };
 
-  // Filter ONLY website orders
-  const websiteOrders = useMemo(() => {
-    return orders.filter(o => !isPosOrder(o));
-  }, [orders]);
-
-  // Apply Search, Status, and Date filters
-  const filteredOrders = useMemo(() => {
-    const todayStr = shopToday();
-    const yesterdayStr = shopDaysAgo(1);
-
-    const searchLower = searchTerm.trim().toLowerCase();
-
-    return websiteOrders.filter(order => {
-      // Status Filter
-      if (statusFilter !== 'all' && order.status !== statusFilter) {
-        return false;
-      }
-
-      // Date Filter
-      if (dateFilter === 'today') {
-        if (!order.date || !order.date.startsWith(todayStr)) return false;
-      } else if (dateFilter === 'yesterday') {
-        if (!order.date || !order.date.startsWith(yesterdayStr)) return false;
-      } else if (dateFilter === 'this_month') {
-        const currentMonthStr = todayStr.slice(0, 7);
-        if (!order.date || !order.date.startsWith(currentMonthStr)) return false;
-      } else if (dateFilter === 'custom' && customDate) {
-        if (!order.date || !order.date.startsWith(customDate)) return false;
-      }
-
-      // Search term
-      if (searchLower) {
-        const idMatch = String(order.id || '').toLowerCase().includes(searchLower);
-        const customerMatch = String(order.customerName || '').toLowerCase().includes(searchLower);
-        const phoneMatch = String(order.customerPhone || '').toLowerCase().includes(searchLower);
-        const addressMatch = String(order.shippingAddress || '').toLowerCase().includes(searchLower);
-
-        let itemsMatch = false;
-        const items = safeGetItems(order);
-        itemsMatch = items.some(item => {
-          const pName = lineName(item).toLowerCase();
-          const color = String(item.variation?.color || '').toLowerCase();
-          const size = String(item.variation?.size || '').toLowerCase();
-          return pName.includes(searchLower) || color.includes(searchLower) || size.includes(searchLower);
-        });
-
-        if (!idMatch && !customerMatch && !phoneMatch && !addressMatch && !itemsMatch) {
-          return false;
-        }
-      }
-
-      return true;
-    }).sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime());
-  }, [websiteOrders, searchTerm, statusFilter, dateFilter, customDate]);
+  // The server already filtered and sorted this page.
+  const filteredOrders = orders;
 
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, dateFilter, customDate]);
 
-  // Website-specific status counts
-  const counts = useMemo(() => {
-    const total = websiteOrders.length;
-    const pending = websiteOrders.filter(o => o.status === 'pending' || !o.status).length;
-    const processing = websiteOrders.filter(o => o.status === 'processing').length;
-    const shipped = websiteOrders.filter(o => o.status === 'shipped').length;
-    const delivered = websiteOrders.filter(o => o.status === 'delivered').length;
-    const cancelled = websiteOrders.filter(o => o.status === 'cancelled').length;
-    return { total, pending, processing, shipped, delivered, cancelled, newAndPending: pending + processing };
-  }, [websiteOrders]);
-
-  // Pagination calculation
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage) || 1;
-  const paginatedOrders = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredOrders.slice(start, start + itemsPerPage);
-  }, [filteredOrders, currentPage, itemsPerPage]);
+  // Paging is the server's answer too, so a page is never a slice of a slice.
+  const totalPages = ordersPagination?.lastPage || 1;
+  const paginatedOrders = filteredOrders;
 
   // Bulk actions on the orders currently listed. Only a true admin may run
   // them. The router already keeps everyone else out of this panel, so this

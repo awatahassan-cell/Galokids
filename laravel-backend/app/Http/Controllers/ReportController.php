@@ -74,6 +74,7 @@ class ReportController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date',
             'channel' => 'nullable|string|in:online,pos',
+            'mine' => 'nullable|boolean',
         ]);
 
         $from = $request->input('from', now()->subDays(30)->toDateString());
@@ -87,6 +88,10 @@ class ReportController extends Controller
             ->where('status', '!=', Order::STATUS_CANCELLED);
         if ($request->filled('channel')) {
             $ordersQuery->where('channel', $request->channel);
+        }
+        // A cashier looking at their own till, rather than the whole shop.
+        if ($request->boolean('mine') && $request->user()) {
+            $ordersQuery->where('user_id', $request->user()->id);
         }
 
         // Aggregate in SQL. The previous version loaded every order in the range
@@ -126,6 +131,9 @@ class ReportController extends Controller
                 ->where('status', '!=', Order::STATUS_CANCELLED);
             if ($request->filled('channel')) {
                 $query->where('channel', $request->channel);
+            }
+            if ($request->boolean('mine') && $request->user()) {
+                $query->where('user_id', $request->user()->id);
             }
         };
 
