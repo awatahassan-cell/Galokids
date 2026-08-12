@@ -409,6 +409,14 @@ class OrderController extends Controller
                 if (!empty($phoneVariants)) {
                     $q->orWhereIn('customer_phone', $phoneVariants);
                 }
+
+                // A shop looks an order up by the number on the receipt. Only
+                // worth asking when the search actually is a number — comparing
+                // an integer column against a word makes the database coerce
+                // every row before it can rule any of them out.
+                if (ctype_digit(trim((string) $request->search))) {
+                    $q->orWhere('id', (int) trim($request->search));
+                }
             });
         }
     }
