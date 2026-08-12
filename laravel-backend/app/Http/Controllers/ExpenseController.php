@@ -13,10 +13,44 @@ class ExpenseController extends Controller
         $this->requirePrivileged($request);
     }
 
+    /**
+     * The expense list, a page at a time when the caller asks for one.
+     *
+     * A shop records these every day and never deletes them, so the table only
+     * grows. The reports total expenses in SQL, so nothing here needs the whole
+     * list in hand any more.
+     */
     public function index(Request $request)
     {
         $this->checkStaffOrAdmin($request);
-        return response()->json(Expense::orderBy('date', 'desc')->get());
+
+        $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'limit' => 'nullable|integer|min:1',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date',
+            'category' => 'nullable|string|max:255',
+        ]);
+
+        $query = Expense::orderBy('date', 'desc');
+
+        if ($request->filled('from')) {
+            $query->whereDate('date', '>=', $request->from);
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('date', '<=', $request->to);
+        }
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        if ($request->has('page')) {
+            $limit = max(1, min((int) $request->input('limit', 25), 200));
+
+            return response()->json($query->paginate($limit));
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request)

@@ -57,11 +57,52 @@ class AdminUserController extends Controller
             ->count();
     }
 
+    /**
+     * The user list, a page at a time when the caller asks for one.
+     *
+     * Every customer who ever signs in lands in this table, so it only ever
+     * grows. Returning all of it on every visit to the panel is a bill that
+     * comes due later rather than never.
+     */
     public function index(Request $request)
     {
         $this->checkStaffOrAdmin($request);
 
-        return response()->json(User::orderBy('id', 'desc')->get());
+        $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'limit' => 'nullable|integer|min:1',
+            'role' => 'nullable|integer',
+            'search' => 'nullable|string|max:255',
+        ]);
+
+        $query = User::orderBy('id', 'desc');
+
+        if ($request->filled('role')) {
+            $query->where('role', (int) $request->role);
+        }
+
+        if ($request->filled('search')) {
+            $term = '%' . trim($request->search) . '%';
+            $variants = \App\Support\PhoneNumber::variants($request->search);
+
+            $query->where(function ($q) use ($term, $variants) {
+                $q->where('name', 'like', $term)
+                    ->orWhere('email', 'like', $term)
+                    ->orWhere('phone', 'like', $term);
+
+                if (!empty($variants)) {
+                    $q->orWhereIn('phone', $variants);
+                }
+            });
+        }
+
+        if ($request->has('page')) {
+            $limit = max(1, min((int) $request->input('limit', 25), 200));
+
+            return response()->json($query->paginate($limit));
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request)

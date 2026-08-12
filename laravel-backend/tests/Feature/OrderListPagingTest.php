@@ -323,4 +323,53 @@ class OrderListPagingTest extends TestCase
         $this->assertSame(30000.0, (float) $mine['revenue'], 'three sales of 10,000');
         $this->assertSame(3, $mine['order_count']);
     }
+
+    /* ------------------------------------------ the other growing lists --- */
+
+    public function test_the_user_list_pages_and_searches(): void
+    {
+        User::factory()->count(40)->create();
+        User::factory()->create(['name' => 'Bahar Karim']);
+
+        $admin = User::factory()->create(['role' => Roles::ADMIN]);
+
+        $page = $this->actingAs($admin)->getJson('/api/users?page=1&limit=10')->assertOk()->json();
+        $this->assertCount(10, $page['data']);
+        $this->assertSame(42, $page['total'], 'the count covers everyone, page or no page');
+
+        $found = $this->actingAs($admin)->getJson('/api/users?page=1&search=Bahar')->assertOk()->json();
+        $this->assertSame(1, $found['total']);
+    }
+
+    public function test_the_expense_list_pages_and_filters_by_date(): void
+    {
+        $admin = User::factory()->create(['role' => Roles::ADMIN]);
+
+        foreach (range(1, 30) as $i) {
+            \App\Models\Expense::create([
+                'description' => 'Item ' . $i, 'amount' => 1000, 'category' => 'misc',
+                'date' => $i <= 5 ? '2026-07-04' : '2026-08-04',
+            ]);
+        }
+
+        $page = $this->actingAs($admin)->getJson('/api/expenses?page=1&limit=10')->assertOk()->json();
+        $this->assertCount(10, $page['data']);
+        $this->assertSame(30, $page['total']);
+
+        $july = $this->actingAs($admin)
+            ->getJson('/api/expenses?page=1&from=2026-07-01&to=2026-07-31')->assertOk()->json();
+        $this->assertSame(5, $july['total']);
+    }
+
+    public function test_the_lists_still_answer_callers_that_ask_for_everything(): void
+    {
+        // The panel has screens that legitimately want the whole short list —
+        // asking without a page keeps working the way it always did.
+        $admin = User::factory()->create(['role' => Roles::ADMIN]);
+        User::factory()->count(4)->create();
+
+        $all = $this->actingAs($admin)->getJson('/api/users')->assertOk()->json();
+        $this->assertIsArray($all);
+        $this->assertCount(5, $all);
+    }
 }
