@@ -1,4 +1,5 @@
 import { formatIQDLabel } from "../utils/currency";
+import { shopToday } from '../utils/shopTime';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store';
 import { useNavigate, Link } from 'react-router-dom';
@@ -256,7 +257,7 @@ export const Checkout: React.FC = () => {
 
   useEffect(() => {
     if (appliedCoupon && coupons.length > 0) {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = shopToday();
       const knownCoupon = coupons.find(c => c.id === appliedCoupon.id || c.code === appliedCoupon.code);
       if (knownCoupon) {
         const stillValid = knownCoupon.isActive

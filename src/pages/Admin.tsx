@@ -10,6 +10,7 @@ import { ProductVariation, Expense, Order, Category, Product, User } from '../ty
 import { useLanguage } from '../i18n/LanguageContext';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie } from 'recharts';
 import { getColorHex } from '../utils/colors';
+import { shopToday, shopDaysAgo, shopDateParts } from '../utils/shopTime';
 import { getOrderRevenue, getOrderCost, getOrderItemsSold, isCountableOrder, isCompletedSale, summariseOrders } from '../utils/orderMoney';
 import { generateBarcodeDataUrl } from '../utils/barcode';
 import { formatIQD, formatIQDLabel } from "../utils/currency";
@@ -199,8 +200,8 @@ export const Admin: React.FC = () => {
   };
 
   // Calendar Reports State
-  const [calendarYear, setCalendarYear] = useState<number>(() => new Date().getFullYear());
-  const [calendarMonth, setCalendarMonth] = useState<number>(() => new Date().getMonth() + 1); // 1-indexed
+  const [calendarYear, setCalendarYear] = useState<number>(() => shopDateParts().year);
+  const [calendarMonth, setCalendarMonth] = useState<number>(() => shopDateParts().month); // 1-indexed
   const [selectedCalendarDay, setSelectedCalendarDay] = useState<number | null>(null);
 
   useEffect(() => {
@@ -249,7 +250,7 @@ export const Admin: React.FC = () => {
     }
 
     const filteredOrders = orders.filter(order => {
-      const orderDateStr = order.date ? order.date.split('T')[0] : new Date().toISOString().split('T')[0];
+      const orderDateStr = order.date ? order.date.split('T')[0] : shopToday();
       const orderTime = new Date(orderDateStr + 'T12:00:00').getTime();
       if (startVal !== null && orderTime < startVal) return false;
       if (endVal !== null && orderTime > endVal) return false;
@@ -319,7 +320,7 @@ export const Admin: React.FC = () => {
     const usagesByDate: Record<string, { date: string; count: number; discount: number; sales: number }> = {};
     
     enrichedOrders.forEach(o => {
-      const dateStr = o.date ? o.date.split('T')[0] : new Date().toISOString().split('T')[0];
+      const dateStr = o.date ? o.date.split('T')[0] : shopToday();
       if (!usagesByDate[dateStr]) {
         usagesByDate[dateStr] = { date: dateStr, count: 0, discount: 0, sales: 0 };
       }
@@ -439,10 +440,8 @@ export const Admin: React.FC = () => {
   const [orderFilterPeriod, setOrderFilterPeriod] = useState<'today' | 'week' | 'month'>('today');
 
   const orderCounts = useMemo(() => {
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const sevenDaysAgoStr = sevenDaysAgoDate.toISOString().split('T')[0];
+    const todayStr = shopToday();
+    const sevenDaysAgoStr = shopDaysAgo(7);
     const currentMonthStr = todayStr.substring(0, 7);
 
     const filtered = orders.filter(o => {
@@ -490,7 +489,7 @@ export const Admin: React.FC = () => {
   }, [orders, orderFilterPeriod]);
 
   // Daily, Monthly, Yearly Reporting state & calculations
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = shopToday();
   const currentMonthStr = todayStr.substring(0, 7);
   const currentYearStr = todayStr.substring(0, 4);
 
@@ -1341,11 +1340,12 @@ export const Admin: React.FC = () => {
                 };
                 const hasOrders = dayData.count > 0;
                 
-                // Check if it is today
-                const today = new Date();
-                const isToday = today.getDate() === dayNum && 
-                                today.getMonth() + 1 === calendarMonth && 
-                                today.getFullYear() === calendarYear;
+                // "Today" is the shop's day, so the highlight matches the
+                // day the takings are actually being recorded against.
+                const shopNow = shopDateParts();
+                const isToday = shopNow.day === dayNum &&
+                                shopNow.month === calendarMonth &&
+                                shopNow.year === calendarYear;
 
                 const isSelected = selectedCalendarDay === dayNum;
 

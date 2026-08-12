@@ -15,6 +15,7 @@ import { useStore } from '../../store';
 import { Pagination } from '../Pagination';
 import { isCashierRole } from '../../utils/roles';
 import { OrderReturnBadge, OrderItemReturnNote } from '../OrderReturnBadge';
+import { shopToday, shopDaysAgo } from '../../utils/shopTime';
 
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
@@ -102,10 +103,8 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
 
   // Filtered POS sales
   const filteredSales = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const todayStr = shopToday();
+    const yesterdayStr = shopDaysAgo(1);
 
     const searchLower = searchTerm.trim().toLowerCase();
 
@@ -159,7 +158,7 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
     const avgTicket = totalCount > 0 ? totalAmount / totalCount : 0;
     
     // Today's POS sales
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = shopToday();
     const todaySales = posSales.filter(o => o.date && o.date.startsWith(todayStr));
     const todayAmount = todaySales.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
 

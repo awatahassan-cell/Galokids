@@ -5,11 +5,14 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { TrendingUp, DollarSign, Package, Percent, RefreshCcw, Users, Store, Globe } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
+import { shopToday, shopDaysAgo, shopMonthStart, shopYearStart } from '../utils/shopTime';
 
-const todayStr = () => new Date().toISOString().split('T')[0];
-const daysAgoStr = (n: number) => new Date(Date.now() - n * 86400000).toISOString().split('T')[0];
-const monthStartStr = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]; };
-const yearStartStr = () => { const d = new Date(); return new Date(d.getFullYear(), 0, 1).toISOString().split('T')[0]; };
+// Every preset is a day in the shop's timezone, so the range the admin picks
+// is the range the server reports on.
+const todayStr = shopToday;
+const daysAgoStr = shopDaysAgo;
+const monthStartStr = shopMonthStart;
+const yearStartStr = shopYearStart;
 
 export const AdminSalesReport: React.FC = () => {
   const { fetchSalesReport, fetchCashierReport } = useStore();

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import { shopToday, shopDate } from './utils/shopTime';
 import { Category, Product, CartItem, ProductVariation, Review, User, Order, Expense, PromoBanner, PaginationMeta, Coupon } from './types';
 import { useToast } from './components/ui/Feedback';
 import { API_BASE_URL } from './config/api';
@@ -152,7 +153,13 @@ function convertKeysToCamelCase(obj: any): any {
         newObj['author'] = val;
       }
       if (camelKey === 'createdAt' && val) {
-        newObj['date'] = String(val).split('T')[0];
+        // The API sends the instant in UTC ("…T22:30:00Z"), so slicing the
+        // string off the front gave the UTC day. For the three hours after
+        // midnight in the shop that is still yesterday — a sale rung up at
+        // 01:30 was filed under the previous day on every screen. Convert the
+        // instant to the shop's calendar day instead.
+        const at = new Date(String(val));
+        newObj['date'] = isNaN(at.getTime()) ? String(val).split('T')[0] : shopDate(at);
       }
       
       // Ensure specific fields have the correct JavaScript type expected by the React frontend
@@ -1544,7 +1551,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       ...reviewData,
       id: tempId,
       productId,
-      date: new Date().toISOString().split('T')[0]
+      date: shopToday()
     };
 
     setProducts(prev => 
@@ -1620,7 +1627,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const newExpense: Expense = {
       ...expenseData,
       id: tempId,
-      date: new Date().toISOString().split('T')[0]
+      date: shopToday()
     };
     
     setExpenses(prev => {
@@ -1655,7 +1662,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const newOrder: Order = {
       ...(orderData as Order),
       id: tempId,
-      date: new Date().toISOString().split('T')[0]
+      date: shopToday()
     };
 
     setOrders(prev => {
@@ -1940,7 +1947,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const newUser: User = {
       ...formattedData,
       id: tempId,
-      joinDate: new Date().toISOString().split('T')[0]
+      joinDate: shopToday()
     };
     setUsers(prev => {
       const updated = [...prev, newUser];
@@ -2084,7 +2091,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         name,
         email,
         role: 0,
-        joinDate: new Date().toISOString().split('T')[0]
+        joinDate: shopToday()
       };
       setUsers(prev => {
         const updated = [...prev, newUser];
@@ -2151,7 +2158,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             email: apiUser.email || undefined,
             role: finalRole,
             address: extraInfo?.address || apiUser.address,
-            joinDate: apiUser.joinDate || new Date().toISOString().split('T')[0]
+            joinDate: apiUser.joinDate || shopToday()
           };
           localStorage.setItem('kidskart_user', JSON.stringify(finalUser));
           setCurrentUser(finalUser);
@@ -2203,7 +2210,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           phone: cleanPhone,
           email: `${corePhone}@phone.user`,
           role: 0,
-          joinDate: new Date().toISOString().split('T')[0],
+          joinDate: shopToday(),
           address: matchingOrder.shippingAddress?.address,
         };
       }
@@ -2237,7 +2244,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       phone: cleanPhone,
       email: `${corePhone}@phone.user`,
       role: 0,
-      joinDate: new Date().toISOString().split('T')[0],
+      joinDate: shopToday(),
       address: addressInfo?.address,
     };
     setCurrentUser(newUser);

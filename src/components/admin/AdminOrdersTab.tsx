@@ -18,6 +18,7 @@ import { useBulkSelection } from './useBulkSelection';
 import { isAdminRole } from '../../utils/roles';
 import { orderItemName } from '../../utils/orderItems';
 import { OrderReturnBadge, OrderItemReturnNote } from '../OrderReturnBadge';
+import { shopToday, shopDaysAgo } from '../../utils/shopTime';
 
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
@@ -106,10 +107,8 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
   // Apply Search, Status, and Date filters
   const filteredOrders = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const todayStr = shopToday();
+    const yesterdayStr = shopDaysAgo(1);
 
     const searchLower = searchTerm.trim().toLowerCase();
 
