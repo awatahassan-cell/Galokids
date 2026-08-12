@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Calendar, ShoppingBag, Package, BarChart3, DollarSign, TrendingDown, TrendingUp, AlertTriangle, Store, Globe, Filter, ArrowUpRight, ArrowDownRight, CreditCard, Sparkles, CheckCircle2, UserPlus, Send, Plus, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { summariseOrders } from '../../utils/orderMoney';
 import { adminTr } from '../../i18n/adminDict';
 import { formatIQD, formatIQDLabel } from '../../utils/currency';
 import { Order, Product, Expense } from '../../types';
+import { useStore } from '../../store';
 import { BarChart, Bar, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
 export const isPosOrder = (order: any): boolean => {
@@ -83,6 +83,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
   expenses,
 }) => {
   const { language } = useLanguage();
+  const { fetchDailyReport } = useStore();
   const L = (key: string) => adminTr(key, language);
   const [selectedChannel, setSelectedChannel] = useState<'all' | 'pos' | 'online'>('all');
 
@@ -108,24 +109,58 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
     return out;
   }, [language]);
 
-  /** Everything that happened in one calendar month, ready to be totalled. */
-  const monthlyFigures = useMemo(() => recentMonths.map(({ key, label }) => {
-    const monthOrders = (orders || []).filter(o => String(o.date || '').startsWith(key));
-    const monthExpenses = (expenses || []).filter(e => String(e.date || '').startsWith(key));
+  /**
+   * Everything that happened in each of those months, counted by the server.
+   *
+   * This used to reduce over the orders the panel was holding, which only ever
+   * covered a full six months because the orders endpoint returned the whole
+   * table. Now that it pages, the chart would have drawn whatever fraction of
+   * each month happened to be loaded.
+   */
+  const [monthlyReport, setMonthlyReport] = useState<Record<string, any>>({});
 
-    const totals = summariseOrders(monthOrders, products);
-    const spent = monthExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const netProfit = totals.grossProfit - spent;
+  useEffect(() => {
+    if (!recentMonths.length) return;
+
+    const from = `${recentMonths[0].key}-01`;
+    const [lastYear, lastMonth] = recentMonths[recentMonths.length - 1].key.split('-').map(Number);
+    const lastDay = new Date(lastYear, lastMonth, 0).getDate();
+    const to = `${recentMonths[recentMonths.length - 1].key}-${String(lastDay).padStart(2, '0')}`;
+
+    let cancelled = false;
+    fetchDailyReport(from, to)
+      .then((data: any) => {
+        if (cancelled) return;
+
+        // Roll the days up into the months the chart draws.
+        const byMonth: Record<string, any> = {};
+        for (const day of (data?.days || [])) {
+          const month = String(day.day).slice(0, 7);
+          const bucket = byMonth[month] || (byMonth[month] = { revenue: 0, cogs: 0, expenses: 0 });
+          bucket.revenue += Number(day.revenue || 0);
+          bucket.cogs += Number(day.cogs || 0);
+          bucket.expenses += Number(day.expenses || 0);
+        }
+        setMonthlyReport(byMonth);
+      })
+      .catch(() => { /* keep the last chart rather than blanking it */ });
+
+    return () => { cancelled = true; };
+  }, [recentMonths, fetchDailyReport, orders, expenses]);
+
+  const monthlyFigures = useMemo(() => recentMonths.map(({ key, label }) => {
+    const m = monthlyReport[key] || { revenue: 0, cogs: 0, expenses: 0 };
+    const netProfit = m.revenue - m.cogs - m.expenses;
 
     return {
       key,
       month: label,
-      expenses: spent,
-      revenue: totals.revenue,
+      expenses: m.expenses,
+      revenue: m.revenue,
       netProfit,
-      margin: totals.revenue > 0 ? (netProfit / totals.revenue) * 100 : 0,
+      margin: m.revenue > 0 ? (netProfit / m.revenue) * 100 : 0,
     };
-  }), [recentMonths, orders, expenses, products]);
+  }), [recentMonths, monthlyReport]);
 
   // The expense chart shows the last five months of real spending.
   const barChartData = useMemo(

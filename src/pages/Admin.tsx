@@ -63,7 +63,8 @@ export const Admin: React.FC = () => {
     productsPagination, ordersPagination, expensesPagination, reviewsPagination, reviews,
     refreshProducts, fetchAllProducts, refreshOrders, refreshExpenses, refreshReviews, isProductsLoading, productsRevision,
     coupons, addCoupon, updateCoupon, deleteCoupon,
-    fetchStockMovements, fetchActivityLogs, bulkDelete, bulkOrderStatus
+    fetchStockMovements, fetchActivityLogs, bulkDelete, bulkOrderStatus,
+    fetchDailyReport, fetchCouponReport
   } = useStore();
 
   const isAdmin = useMemo(() => {
@@ -220,136 +221,62 @@ export const Admin: React.FC = () => {
   const [selectedPreviewProduct, setSelectedPreviewProduct] = useState<Product | null>(null);
 
 
-  const couponStats = useMemo(() => {
-    // Determine the date range
-    let startVal: number | null = null;
-    let endVal: number | null = null;
+  // The range the coupon screen is asking about, as the server understands it.
+  const couponRange = useMemo(() => {
+    const today = shopToday();
 
-    if (couponDatePreset === '7days') {
-      const d = new Date();
-      d.setDate(d.getDate() - 7);
-      d.setHours(0, 0, 0, 0);
-      startVal = d.getTime();
-    } else if (couponDatePreset === '30days') {
-      const d = new Date();
-      d.setDate(d.getDate() - 30);
-      d.setHours(0, 0, 0, 0);
-      startVal = d.getTime();
-    } else if (couponDatePreset === 'thisMonth') {
-      const d = new Date();
-      d.setDate(1);
-      d.setHours(0, 0, 0, 0);
-      startVal = d.getTime();
-    } else if (couponDatePreset === 'custom') {
-      if (couponStartDate) {
-        startVal = new Date(couponStartDate + 'T00:00:00').getTime();
-      }
-      if (couponEndDate) {
-        endVal = new Date(couponEndDate + 'T23:59:59').getTime();
-      }
+    if (couponDatePreset === '7days') return { from: shopDaysAgo(7), to: today };
+    if (couponDatePreset === '30days') return { from: shopDaysAgo(30), to: today };
+    if (couponDatePreset === 'thisMonth') return { from: `${today.slice(0, 7)}-01`, to: today };
+    if (couponDatePreset === 'custom') {
+      return { from: couponStartDate || undefined, to: couponEndDate || undefined };
     }
+    return { from: undefined, to: undefined };
+  }, [couponDatePreset, couponStartDate, couponEndDate]);
 
-    const filteredOrders = orders.filter(order => {
-      const orderDateStr = order.date ? order.date.split('T')[0] : shopToday();
-      const orderTime = new Date(orderDateStr + 'T12:00:00').getTime();
-      if (startVal !== null && orderTime < startVal) return false;
-      if (endVal !== null && orderTime > endVal) return false;
-      return true;
-    });
+  /**
+   * Coupon performance, counted by the server.
+   *
+   * This was worked out in the browser from the orders the panel held — the
+   * same arrangement as the calendar, and wrong for the same reason once the
+   * orders list started arriving a page at a time.
+   */
+  const [couponReport, setCouponReport] = useState<any>(null);
 
-    // Map existing orders to coupon code usages if they don't have one to show statistics
-    const enrichedOrders = filteredOrders.map((order, idx) => {
-      if ((order as any).couponCode) {
-        return {
-          ...order,
-          couponCode: (order as any).couponCode,
-          discountAmount: Number((order as any).discountAmount || 0),
-          originalAmount: Number(order.totalAmount) + Number((order as any).discountAmount || 0),
-        };
-      }
-      
-      
-      return {
-        ...order,
-        couponCode: undefined,
-        discountAmount: 0,
-        originalAmount: Number(order.totalAmount),
-      };
-    });
+  useEffect(() => {
+    let cancelled = false;
+    fetchCouponReport(couponRange.from, couponRange.to)
+      .then(data => { if (!cancelled) setCouponReport(data); })
+      .catch(() => { /* keep whatever is on screen */ });
+    return () => { cancelled = true; };
+  }, [couponRange, fetchCouponReport, orders, coupons]);
 
-    const performanceByCode: Record<string, { code: string; count: number; totalDiscount: number; totalSales: number; isActive: boolean }> = {};
-    
-    coupons.forEach(c => {
-      performanceByCode[c.code] = {
-        code: c.code,
-        count: 0,
-        totalDiscount: 0,
-        totalSales: 0,
-        isActive: c.isActive
-      };
-    });
+  const couponStats = useMemo(() => {
+    const performanceData = (couponReport?.performance || []).map((row: any) => ({
+      code: row.code,
+      count: Number(row.uses || 0),
+      totalDiscount: Number(row.totalDiscount || 0),
+      totalSales: Number(row.totalSales || 0),
+      isActive: Boolean(row.isActive),
+    })).sort((a: any, b: any) => b.totalDiscount - a.totalDiscount);
 
-    let totalDiscountGiven = 0;
-    let totalSalesWithCoupons = 0;
-    let totalCouponUses = 0;
-
-    enrichedOrders.forEach(o => {
-      if (o.couponCode) {
-        totalCouponUses++;
-        totalDiscountGiven += o.discountAmount;
-        totalSalesWithCoupons += o.totalAmount;
-
-        if (!performanceByCode[o.couponCode]) {
-          performanceByCode[o.couponCode] = {
-            code: o.couponCode,
-            count: 0,
-            totalDiscount: 0,
-            totalSales: 0,
-            isActive: false
-          };
-        }
-        
-        performanceByCode[o.couponCode].count++;
-        performanceByCode[o.couponCode].totalDiscount += o.discountAmount;
-        performanceByCode[o.couponCode].totalSales += o.totalAmount;
-      }
-    });
-
-    const performanceData = Object.values(performanceByCode).sort((a, b) => b.totalDiscount - a.totalDiscount);
-
-    const usagesByDate: Record<string, { date: string; count: number; discount: number; sales: number }> = {};
-    
-    enrichedOrders.forEach(o => {
-      const dateStr = o.date ? o.date.split('T')[0] : shopToday();
-      if (!usagesByDate[dateStr]) {
-        usagesByDate[dateStr] = { date: dateStr, count: 0, discount: 0, sales: 0 };
-      }
-      if (o.couponCode) {
-        usagesByDate[dateStr].count++;
-        usagesByDate[dateStr].discount += o.discountAmount;
-        usagesByDate[dateStr].sales += o.totalAmount;
-      }
-    });
-
-    const timelineData = Object.values(usagesByDate).sort((a, b) => a.date.localeCompare(b.date));
-
-    const totalOrderCount = filteredOrders.length;
-    const conversionRate = totalOrderCount > 0 ? (totalCouponUses / totalOrderCount) * 100 : 0;
-    const avgDiscountPercentage = totalCouponUses > 0 
-      ? (enrichedOrders.reduce((sum, o) => sum + (o.couponCode ? (o.discountAmount / o.originalAmount) * 100 : 0), 0) / totalCouponUses)
-      : 0;
+    const timelineData = (couponReport?.timeline || []).map((row: any) => ({
+      date: row.day,
+      count: Number(row.uses || 0),
+      discount: Number(row.discount || 0),
+      sales: Number(row.sales || 0),
+    }));
 
     return {
       performanceData,
       timelineData,
-      totalDiscountGiven,
-      totalSalesWithCoupons,
-      totalCouponUses,
-      conversionRate,
-      avgDiscountPercentage,
-      enrichedOrders
+      totalDiscountGiven: Number(couponReport?.totalDiscount || 0),
+      totalSalesWithCoupons: Number(couponReport?.totalSalesWithCoupons || 0),
+      totalCouponUses: Number(couponReport?.totalUses || 0),
+      conversionRate: Number(couponReport?.conversionRate || 0),
+      avgDiscountPercentage: Number(couponReport?.averageDiscountPercentage || 0),
     };
-  }, [orders, coupons, couponDatePreset, couponStartDate, couponEndDate]);
+  }, [couponReport]);
 
   const isPosOrder = (order: any): boolean => {
     if (!order) return false;
@@ -498,81 +425,76 @@ export const Admin: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(currentMonthStr);
   const [selectedYear, setSelectedYear] = useState(currentYearStr);
 
-  const reportData = useMemo(() => {
-    let filteredOrders = [...orders];
-    let filteredExpenses = [...expenses];
-
+  // The range the report period describes, as the server understands it.
+  const reportRange = useMemo(() => {
     if (reportPeriod === 'daily') {
-      filteredOrders = orders.filter(o => o.date === selectedDate);
-      filteredExpenses = expenses.filter(e => e.date === selectedDate);
-    } else if (reportPeriod === 'monthly') {
-      filteredOrders = orders.filter(o => o.date.startsWith(selectedMonth));
-      filteredExpenses = expenses.filter(e => e.date.startsWith(selectedMonth));
-    } else if (reportPeriod === 'yearly') {
-      filteredOrders = orders.filter(o => o.date.startsWith(selectedYear));
-      filteredExpenses = expenses.filter(e => e.date.startsWith(selectedYear));
+      return { from: selectedDate, to: selectedDate };
     }
+    if (reportPeriod === 'yearly') {
+      return { from: `${selectedYear}-01-01`, to: `${selectedYear}-12-31` };
+    }
+    // A month, from its first day to its last — computed rather than assumed,
+    // so February and the 31-day months are both right.
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return { from: `${selectedMonth}-01`, to: `${selectedMonth}-${String(lastDay).padStart(2, '0')}` };
+  }, [reportPeriod, selectedDate, selectedMonth, selectedYear]);
 
-    let totalRevenue = 0;
-    let totalCogs = 0;
-    const totalOrderCount = filteredOrders.filter(isCompletedSale).length;
+  /**
+   * The figures behind the dashboard, counted by the server.
+   *
+   * These used to be reduced over the orders the panel was holding. That gave
+   * the right answer only while the orders endpoint returned the whole table;
+   * now that it pages, the same code would have quietly reported one page of a
+   * month as the month.
+   */
+  const [periodTotals, setPeriodTotals] = useState<any>(null);
 
-    let posRevenue = 0;
-    let posOrderCount = 0;
-    let posCogs = 0;
+  useEffect(() => {
+    let cancelled = false;
+    fetchDailyReport(reportRange.from, reportRange.to)
+      .then(data => { if (!cancelled) setPeriodTotals(data?.totals ?? null); })
+      .catch(() => { /* keep the last figures rather than flashing zeroes */ });
+    return () => { cancelled = true; };
+  }, [reportRange, fetchDailyReport, orders, expenses]);
 
-    let webRevenue = 0;
-    let webOrderCount = 0;
-    let webCogs = 0;
-
-    filteredOrders.forEach(order => {
-      // A cancelled order is in no figure, and a refund is money that went back
-      // out — counting the full charge overstated every one of these.
-      if (!isCountableOrder(order)) return;
-
-      const rev = getOrderRevenue(order);
-      const cogs = getOrderCost(order, products);
-      totalRevenue += rev;
-      totalCogs += cogs;
-
-      if (isPosOrder(order)) {
-        posRevenue += rev;
-        if (isCompletedSale(order)) posOrderCount += 1;
-        posCogs += cogs;
-      } else {
-        webRevenue += rev;
-        if (isCompletedSale(order)) webOrderCount += 1;
-        webCogs += cogs;
-      }
-    });
-
-    const totalExpenseAmt = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const reportData = useMemo(() => {
+    const t = periodTotals || {};
+    const totalRevenue = Number(t.revenue || 0);
+    const totalCogs = Number(t.cogs || 0);
+    const totalExpenseAmt = Number(t.expenses || 0);
     const grossProfit = totalRevenue - totalCogs;
     const netProfit = grossProfit - totalExpenseAmt;
-    const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
-    const netMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+    const posRevenue = Number(t.posRevenue || 0);
+    const posCogs = Number(t.posCogs || 0);
+    const webRevenue = Number(t.onlineRevenue || 0);
+    const webCogs = Number(t.onlineCogs || 0);
 
     return {
-      filteredOrders,
-      filteredExpenses,
+      // The most recent page, for the "recent orders" list. That list wants the
+      // latest few, which is exactly what a first page is — the totals above it
+      // no longer come from here.
+      filteredOrders: orders,
+      filteredExpenses: expenses,
       totalRevenue,
       totalCogs,
       totalExpenseAmt,
       grossProfit,
       netProfit,
-      grossMargin,
-      netMargin,
-      totalOrderCount,
+      grossMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
+      netMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0,
+      totalOrderCount: Number(t.ordersCount || 0),
       posRevenue,
-      posOrderCount,
+      posOrderCount: Number(t.posOrders || 0),
       posCogs,
       posGrossProfit: posRevenue - posCogs,
       webRevenue,
-      webOrderCount,
+      webOrderCount: Number(t.onlineOrders || 0),
       webCogs,
       webGrossProfit: webRevenue - webCogs,
     };
-  }, [orders, expenses, reportPeriod, selectedDate, selectedMonth, selectedYear, products]);
+  }, [periodTotals, orders, expenses]);
 
   // Calendar memoized calculations
   const MONTH_NAMES = useMemo(() => [
@@ -580,22 +502,32 @@ export const Admin: React.FC = () => {
     'July', 'August', 'September', 'October', 'November', 'December'
   ], []);
 
-  const calendarOrders = useMemo(() => {
-    const monthStr = `${calendarYear}-${String(calendarMonth).padStart(2, '0')}`;
-    return orders.filter(o => o.date && o.date.startsWith(monthStr));
-  }, [orders, calendarYear, calendarMonth]);
+  /**
+   * The month the calendar is showing, counted by the server.
+   *
+   * This used to be built in the browser out of every order the panel held,
+   * day by day. It gave the right answer only while the orders endpoint
+   * returned the whole table; against a page it would draw a month out of
+   * whatever fraction of it happened to be loaded.
+   */
+  const [calendarReport, setCalendarReport] = useState<any>(null);
 
-  const calendarExpenses = useMemo(() => {
+  useEffect(() => {
     const monthStr = `${calendarYear}-${String(calendarMonth).padStart(2, '0')}`;
-    return expenses.filter(e => e.date && e.date.startsWith(monthStr));
-  }, [expenses, calendarYear, calendarMonth]);
+    const lastDay = new Date(calendarYear, calendarMonth, 0).getDate();
+
+    let cancelled = false;
+    fetchDailyReport(`${monthStr}-01`, `${monthStr}-${String(lastDay).padStart(2, '0')}`)
+      .then(data => { if (!cancelled) setCalendarReport(data); })
+      .catch(() => { /* keep the month on screen rather than blanking it */ });
+    return () => { cancelled = true; };
+  }, [calendarYear, calendarMonth, fetchDailyReport, orders, expenses]);
 
   const calendarDayStats = useMemo(() => {
     const stats: Record<number, {
       count: number;
       revenue: number;
       itemsSold: number;
-      ordersList: Order[];
       expenseAmt: number;
       cogs: number;
       posCount: number;
@@ -605,97 +537,51 @@ export const Admin: React.FC = () => {
       posCogs: number;
       websiteCogs: number;
     }> = {};
-    for (let d = 1; d <= 31; d++) {
-      stats[d] = {
-        count: 0,
-        revenue: 0,
-        itemsSold: 0,
-        ordersList: [],
-        expenseAmt: 0,
-        cogs: 0,
-        posCount: 0,
-        websiteCount: 0,
-        posRevenue: 0,
-        websiteRevenue: 0,
-        posCogs: 0,
-        websiteCogs: 0,
+
+    for (const day of (calendarReport?.days || [])) {
+      const dayNum = parseInt(String(day.day).slice(8, 10), 10);
+      if (!dayNum) continue;
+
+      stats[dayNum] = {
+        count: Number(day.ordersCount || 0),
+        revenue: Number(day.revenue || 0),
+        itemsSold: Number(day.itemsSold || 0),
+        expenseAmt: Number(day.expenses || 0),
+        cogs: Number(day.cogs || 0),
+        posCount: Number(day.posOrders || 0),
+        websiteCount: Number(day.onlineOrders || 0),
+        posRevenue: Number(day.posRevenue || 0),
+        websiteRevenue: Number(day.onlineRevenue || 0),
+        posCogs: Number(day.posCogs || 0),
+        websiteCogs: Number(day.onlineCogs || 0),
       };
     }
 
-    calendarOrders.forEach(order => {
-      const parts = order.date.split('T')[0].split('-');
-      if (parts.length >= 3) {
-        const day = parseInt(parts[2], 10);
-        if (!isNaN(day) && day >= 1 && day <= 31) {
-          if (!isCountableOrder(order)) return;
-          if (isCompletedSale(order)) stats[day].count += 1;
-
-          const orderRevenue = getOrderRevenue(order);
-          const orderCost = getOrderCost(order, products);
-          const pos = isPosOrder(order);
-
-          stats[day].revenue += orderRevenue;
-          stats[day].cogs += orderCost;
-          stats[day].ordersList.push(order);
-
-          // The money of a returned order still belongs to the day (the
-          // delivery fee was charged), but it is not an order the shop made,
-          // so the counts and the revenue part company here.
-          const counts = isCompletedSale(order) ? 1 : 0;
-
-          if (pos) {
-            stats[day].posCount += counts;
-            stats[day].posRevenue += orderRevenue;
-            stats[day].posCogs += orderCost;
-          } else {
-            stats[day].websiteCount += counts;
-            stats[day].websiteRevenue += orderRevenue;
-            stats[day].websiteCogs += orderCost;
-          }
-
-          stats[day].itemsSold += getOrderItemsSold(order);
-        }
-      }
-    });
-
-    calendarExpenses.forEach(exp => {
-      const parts = exp.date.split('T')[0].split('-');
-      if (parts.length >= 3) {
-        const day = parseInt(parts[2], 10);
-        if (!isNaN(day) && day >= 1 && day <= 31) {
-          stats[day].expenseAmt += Number(exp.amount || 0);
-        }
-      }
-    });
-
     return stats;
-  }, [calendarOrders, calendarExpenses, products]);
+  }, [calendarReport]);
 
   const calendarMonthlySummary = useMemo(() => {
-    const countable = calendarOrders.filter(isCountableOrder);
-    const posOrders = countable.filter(isPosOrder);
-    const websiteOrders = countable.filter(o => !isPosOrder(o));
-
-    const totals = summariseOrders(countable, products);
-    const totalExpenses = calendarExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const t = calendarReport?.totals || {};
+    const revenue = Number(t.revenue || 0);
+    const cogs = Number(t.cogs || 0);
+    const totalExpenses = Number(t.expenses || 0);
+    const ordersCount = Number(t.ordersCount || 0);
 
     return {
-      revenue: totals.revenue,
-      ordersCount: totals.orderCount,
-      posOrdersCount: posOrders.filter(isCompletedSale).length,
-      websiteOrdersCount: websiteOrders.filter(isCompletedSale).length,
-      posRevenue: summariseOrders(posOrders, products).revenue,
-      websiteRevenue: summariseOrders(websiteOrders, products).revenue,
-      itemsSold: totals.itemsSold,
-      avgOrderValue: totals.orderCount > 0 ? totals.revenue / totals.orderCount : 0,
+      revenue,
+      ordersCount,
+      posOrdersCount: Number(t.posOrders || 0),
+      websiteOrdersCount: Number(t.onlineOrders || 0),
+      posRevenue: Number(t.posRevenue || 0),
+      websiteRevenue: Number(t.onlineRevenue || 0),
+      itemsSold: Number(t.itemsSold || 0),
+      avgOrderValue: ordersCount > 0 ? revenue / ordersCount : 0,
       totalExpenses,
-      cogs: totals.cogs,
-      // Net profit is what is left after the goods AND the running costs. The
-      // cost of the goods was missing here entirely, so the calendar and the
-      // profit report disagreed about the very same month.
-      netProfit: totals.grossProfit - totalExpenses,
+      cogs,
+      // Net profit is what is left after the goods AND the running costs.
+      netProfit: revenue - cogs - totalExpenses,
     };
-  }, [calendarOrders, calendarExpenses, products]);
+  }, [calendarReport]);
 
   const daysInMonth = useMemo(() => getDaysInMonth(calendarYear, calendarMonth), [calendarYear, calendarMonth]);
   const firstDayOfWeek = useMemo(() => getFirstDayOfMonth(calendarYear, calendarMonth), [calendarYear, calendarMonth]);
@@ -1328,7 +1214,6 @@ export const Admin: React.FC = () => {
                   count: 0,
                   revenue: 0,
                   itemsSold: 0,
-                  ordersList: [],
                   expenseAmt: 0,
                   cogs: 0,
                   posCount: 0,

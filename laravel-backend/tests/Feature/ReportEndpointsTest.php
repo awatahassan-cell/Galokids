@@ -133,6 +133,16 @@ class ReportEndpointsTest extends TestCase
             (float) $day['revenue'],
             (float) $day['pos_revenue'] + (float) $day['online_revenue']
         );
+
+        // The profit screen splits the cost the same way, so the two halves
+        // have to reconcile to the whole there too.
+        $totals = $this->actingAs($this->admin())
+            ->getJson("/api/reports/daily?from=$today&to=$today")->assertOk()->json('totals');
+
+        $this->assertSame(
+            (float) $totals['cogs'],
+            (float) $totals['pos_cogs'] + (float) $totals['online_cogs']
+        );
     }
 
     public function test_a_day_with_only_an_expense_still_appears(): void

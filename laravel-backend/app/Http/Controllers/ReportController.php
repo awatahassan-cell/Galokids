@@ -321,6 +321,8 @@ class ReportController extends Controller
                 'online_orders' => (int) $days->sum('online_orders'),
                 'items_sold' => (int) $days->sum('items_sold'),
                 'cogs' => round((float) $days->sum('cogs')),
+                'pos_cogs' => round((float) $days->sum('pos_cogs')),
+                'online_cogs' => round((float) $days->sum('online_cogs')),
                 'expenses' => round((float) $days->sum('expenses')),
                 'net_profit' => round((float) $days->sum('net_profit')),
             ],
