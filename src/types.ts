@@ -46,9 +46,15 @@ export interface Order {
   customerPhone?: string;
   items: CartItem[];
   totalAmount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
   date: string;
   shippingAddress: string;
+  /** How many units of this order came back, summed over every refund on it. */
+  returnedQuantity?: number;
+  /** How many units the order was for, so a partial return can be described. */
+  totalQuantity?: number;
+  /** True when every unit came back — the whole receipt, not part of it. */
+  fullyReturned?: boolean;
 }
 
 export interface Expense {

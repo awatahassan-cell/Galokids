@@ -17,6 +17,7 @@ import { BulkCheckbox } from './BulkCheckbox';
 import { useBulkSelection } from './useBulkSelection';
 import { isAdminRole } from '../../utils/roles';
 import { orderItemName } from '../../utils/orderItems';
+import { OrderReturnBadge, OrderItemReturnNote } from '../OrderReturnBadge';
 
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
@@ -71,7 +72,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'returned'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'yesterday' | 'this_month' | 'custom'>('all');
   const [customDate, setCustomDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -323,6 +324,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             <option value="shipped">{L("Shipped")}</option>
             <option value="delivered">{L("Delivered")}</option>
             <option value="cancelled">{L("Cancelled")}</option>
+            <option value="returned">{L("Returned")}</option>
           </select>
         </div>
 
@@ -385,7 +387,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             <option value="" className="text-slate-900">
               {language === 'ku' ? 'گۆڕینی دۆخ…' : language === 'ar' ? 'تغيير الحالة…' : 'Change status…'}
             </option>
-            {['pending', 'processing', 'shipped', 'delivered', 'cancelled'].map(st => (
+            {['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'].map(st => (
               <option key={st} value={st} className="text-slate-900">{L(st.charAt(0).toUpperCase() + st.slice(1))}</option>
             ))}
           </select>
@@ -522,13 +524,19 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
                       {/* Status */}
                       <td className="px-4 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <span className={`px-3 py-1 inline-flex text-[11px] font-black rounded-full 
-                          ${order.status === 'delivered' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 
-                            order.status === 'processing' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 
-                            order.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 
-                            'bg-blue-50 text-blue-700 border border-blue-100'}`}>
-                          {order.status}
-                        </span>
+                        <div className="flex flex-col items-start gap-1">
+                          <span className={`px-3 py-1 inline-flex text-[11px] font-black rounded-full
+                            ${order.status === 'delivered' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                              order.status === 'processing' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                              order.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                              order.status === 'returned' ? 'bg-amber-50 text-amber-800 border border-amber-200' :
+                              'bg-blue-50 text-blue-700 border border-blue-100'}`}>
+                            {L(String(order.status || 'pending').charAt(0).toUpperCase() + String(order.status || 'pending').slice(1))}
+                          </span>
+                          {/* Cancelled and returned are different endings, and a
+                              return can be for part of the receipt only. */}
+                          <OrderReturnBadge order={order} />
+                        </div>
                       </td>
 
                       {/* Action */}
@@ -544,6 +552,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                             <option value="shipped">{L("Shipped")}</option>
                             <option value="delivered">{L("Delivered")}</option>
                             <option value="cancelled">{L("Cancelled")}</option>
+                            <option value="returned">{L("Returned")}</option>
                           </select>
 
                           <button
@@ -680,6 +689,9 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                                             <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-100 text-emerald-800 text-[11px] font-black">
                                               {language === 'ku' ? `بڕ: ${item.quantity || 1}` : `Qty: ${item.quantity || 1}`}
                                             </span>
+                                            {/* Which of the receipt's lines came back, so the shop
+                                                knows what to put back on the shelf. */}
+                                            <OrderItemReturnNote item={item} />
                                           </div>
                                         </div>
 
@@ -832,6 +844,9 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                         <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-black border border-emerald-100">
                           {language === 'ku' ? `بڕ: ${item.quantity || 1}` : `Qty: ${item.quantity || 1}`}
                         </span>
+                        {/* Which of the receipt's lines came back, so the shop
+                            knows what to put back on the shelf. */}
+                        <OrderItemReturnNote item={item} />
                       </div>
                     </div>
 

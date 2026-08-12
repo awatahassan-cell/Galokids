@@ -14,6 +14,7 @@ import { printReceiptIframe } from '../../utils/printHelper';
 import { useStore } from '../../store';
 import { Pagination } from '../Pagination';
 import { isCashierRole } from '../../utils/roles';
+import { OrderReturnBadge, OrderItemReturnNote } from '../OrderReturnBadge';
 
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
@@ -355,6 +356,9 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
                           </button>
                           <span className="font-extrabold text-slate-900">#{order.id}</span>
                         </div>
+                        {/* A receipt that came back, in whole or in part, must say
+                            so on the row — not only inside the detail modal. */}
+                        <OrderReturnBadge order={order} standalone className="mt-1.5 ms-8" />
                       </td>
 
                       {/* Cashier Name Badge */}
@@ -552,6 +556,9 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
                                         <span className="px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-indigo-800 text-[11px] font-black">
                                           {language === 'ku' ? `بڕ: ${item.quantity || 1}` : `Qty: ${item.quantity || 1}`}
                                         </span>
+                                        {/* Which of the receipt's lines came back, so the shop
+                                            knows what to put back on the shelf. */}
+                                        <OrderItemReturnNote item={item} />
                                       </div>
                                     </div>
 
@@ -727,6 +734,9 @@ export const AdminPosSalesTab: React.FC<AdminPosSalesTabProps> = ({
                         <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-800 text-[11px] font-black border border-indigo-100">
                           {language === 'ku' ? `بڕ: ${item.quantity || 1}` : `Qty: ${item.quantity || 1}`}
                         </span>
+                        {/* Which of the receipt's lines came back, so the shop
+                            knows what to put back on the shelf. */}
+                        <OrderItemReturnNote item={item} />
                       </div>
                     </div>
 

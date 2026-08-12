@@ -54,18 +54,8 @@ class OrderController extends Controller
             $order = Order::with('items')->lockForUpdate()->findOrFail($id);
 
             // --- what is coming back -------------------------------------
-            $alreadyReturned = [];
-            foreach (Refund::where('order_id', $order->id)->get() as $previous) {
-                foreach ((array) $previous->items as $line) {
-                    $itemId = $line['order_item_id'] ?? null;
-                    if ($itemId !== null) {
-                        $alreadyReturned[$itemId] = ($alreadyReturned[$itemId] ?? 0) + (int) ($line['quantity'] ?? 0);
-                    }
-                }
-            }
-
-            $subtotal = (float) $order->subtotal;
-            $paidRatio = $subtotal > 0 ? ((float) $order->total_amount - (float) $order->shipping_fee) / $subtotal : 1.0;
+            $alreadyReturned = $order->returnedQuantitiesByItem();
+            $paidRatio = $order->paidRatio();
 
             $returnedValue = 0.0;
             $snapshot = [];
@@ -158,10 +148,16 @@ class OrderController extends Controller
                 (float) $order->refunded_amount + $returnedValue,
                 (float) $order->total_amount
             );
-            if ($order->refunded_amount >= (float) $order->total_amount) {
-                $order->status = 'cancelled';
-            }
             $order->save();
+
+            // Same rule as a plain refund: counted in units, and recorded as a
+            // return rather than a cancellation. Every item on the original
+            // receipt went back over the counter — the replacements are their
+            // own sale below.
+            if ($order->isFullyReturned()) {
+                $order->status = Order::STATUS_RETURNED;
+                $order->save();
+            }
 
             // The replacement leg becomes its own small sale, linked by note.
             $replacement = Order::create([
@@ -252,7 +248,9 @@ class OrderController extends Controller
 
         if ($user->isPrivileged()) {
             return response()->json(
-                Order::with('items.product', 'items.variation')->orderBy('created_at', 'desc')->get()
+                Order::with('items.product', 'items.variation', 'refunds')
+                    ->orderBy('created_at', 'desc')->get()
+                    ->each->stampReturnedQuantitiesOnItems()
             );
         }
 
@@ -269,8 +267,11 @@ class OrderController extends Controller
                     $query->orWhereIn('customer_phone', $phoneVariants);
                 }
             })
-                ->with('items.product', 'items.variation')
+                // 'refunds' is loaded for the customer too: without it every row
+                // would look its own returns up one query at a time.
+                ->with('items.product', 'items.variation', 'refunds')
                 ->orderBy('created_at', 'desc')->get()
+                ->each->stampReturnedQuantitiesOnItems()
         );
     }
 
@@ -342,7 +343,7 @@ class OrderController extends Controller
 
     public function show(Request $request, $id)
     {
-        $order = Order::with('items.product', 'items.variation')->findOrFail($id);
+        $order = Order::with('items.product', 'items.variation', 'refunds')->findOrFail($id);
         $user = $this->requireAuth($request);
 
         if (!$user->isPrivileged()) {
@@ -355,7 +356,7 @@ class OrderController extends Controller
             }
         }
 
-        return response()->json($order);
+        return response()->json($order->stampReturnedQuantitiesOnItems());
     }
 
     /**
@@ -600,14 +601,18 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
 
         $validated = $request->validate([
-            'status' => 'sometimes|required|string|in:pending,processing,shipped,delivered,cancelled',
+            'status' => 'sometimes|required|string|in:pending,processing,shipped,delivered,cancelled,returned',
             'shipping_address' => 'sometimes|nullable|string|max:1000',
             'payment_method' => 'sometimes|nullable|string|max:255',
             'note' => 'sometimes|nullable|string|max:500',
         ]);
 
         $previousStatus = $order->status;
-        $order->update(collect($validated)->except('note')->all());
+
+        DB::transaction(function () use ($order, $validated, $user, $previousStatus) {
+            $order->update(collect($validated)->except('note')->all());
+            StockLedger::reconcileOrderStatus($order, $previousStatus, $order->status, $user->id);
+        });
 
         $newStatus = $order->status;
 
@@ -666,8 +671,10 @@ class OrderController extends Controller
         $label = $order->invoice_no ?: ('#' . $order->id);
 
         DB::transaction(function () use ($order, $actorId, $label) {
-            // Restock anything that was decremented, unless it was already cancelled.
-            if ($order->status !== 'cancelled') {
+            // Restock anything still owed. A cancelled order was already put
+            // back by the status change, and a returned one line by line by the
+            // refund, so neither is restocked again here.
+            if (!in_array($order->status, Order::STATUSES_WITHOUT_STOCK_HELD, true)) {
                 foreach ($order->items as $item) {
                     if ($item->product_variation_id) {
                         $variation = ProductVariation::lockForUpdate()->find($item->product_variation_id);
@@ -717,21 +724,14 @@ class OrderController extends Controller
             // How much of each line has already been given back. Without this
             // the same item could be refunded over and over: every call paid
             // out again and put the stock back again.
-            $alreadyRefunded = [];
-            foreach (Refund::where('order_id', $order->id)->get() as $previous) {
-                foreach ((array) $previous->items as $line) {
-                    $itemId = $line['order_item_id'] ?? null;
-                    if ($itemId !== null) {
-                        $alreadyRefunded[$itemId] = ($alreadyRefunded[$itemId] ?? 0) + (int) ($line['quantity'] ?? 0);
-                    }
-                }
-            }
+            $alreadyRefunded = $order->returnedQuantitiesByItem();
 
-            // A discounted order was never paid at list price, so refund the
-            // share of the line the customer actually paid. Refunding
-            // item->price on a 20%-off order handed back more than was taken.
-            $subtotal = (float) $order->subtotal;
-            $paidRatio = $subtotal > 0 ? ((float) $order->total_amount / $subtotal) : 1.0;
+            // The share of the ticket price the customer actually paid, with
+            // delivery excluded. This used to divide the total — which includes
+            // the delivery fee — by the goods subtotal, so the ratio came out
+            // above 1 and every refund handed the delivery fee back on top of
+            // the item.
+            $paidRatio = $order->paidRatio();
 
             $amount = 0;
             $snapshot = [];
@@ -786,11 +786,17 @@ class OrderController extends Controller
                 (float) $order->refunded_amount + round($amount),
                 (float) $order->total_amount
             );
-            // Mark fully refunded orders.
-            if ($order->refunded_amount >= (float) $order->total_amount) {
-                $order->status = 'cancelled';
-            }
+
+            // Counted in units, not money: an order charged for delivery can
+            // never refund up to its total, so the old money comparison never
+            // fired on an online sale. A fully returned order is also recorded
+            // as `returned` rather than `cancelled` — the shop needs to tell
+            // "the customer brought it back" from "it was called off".
             $order->save();
+            if ($order->isFullyReturned()) {
+                $order->status = Order::STATUS_RETURNED;
+                $order->save();
+            }
 
             ActivityLogger::log(
                 'order.refunded',

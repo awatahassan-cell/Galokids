@@ -11,6 +11,7 @@ use App\Models\Review;
 use App\Models\User;
 use App\Support\ActivityLogger;
 use App\Support\Roles;
+use App\Support\StockLedger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -232,20 +233,28 @@ class BulkActionController extends Controller
 
         $data = $request->validate([
             'ids'    => 'required|array|min:1|max:500',
-            'status' => 'required|string|in:pending,processing,shipped,delivered,cancelled',
+            'status' => 'required|string|in:pending,processing,shipped,delivered,cancelled,returned',
         ]);
 
-        $orders = Order::whereIn('id', $data['ids'])->get();
+        $actor = $request->user();
         $changed = 0;
 
-        foreach ($orders as $order) {
-            if ($order->status === $data['status']) {
-                continue;
+        DB::transaction(function () use ($data, $actor, &$changed) {
+            foreach (Order::whereIn('id', $data['ids'])->get() as $order) {
+                $previous = $order->status;
+                if ($previous === $data['status']) {
+                    continue;
+                }
+
+                $order->status = $data['status'];
+                $order->save();
+
+                // Cancelling in bulk has to put the stock back exactly as
+                // cancelling one at a time does.
+                StockLedger::reconcileOrderStatus($order, $previous, $data['status'], $actor->id);
+                $changed++;
             }
-            $order->status = $data['status'];
-            $order->save();
-            $changed++;
-        }
+        });
 
         if ($changed) {
             ActivityLogger::log(

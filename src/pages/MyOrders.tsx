@@ -4,11 +4,12 @@ import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getColorHex } from '../utils/colors';
 import { Navigate, Link } from 'react-router-dom';
-import { Package, Clock, CheckCircle, Truck, XCircle, RefreshCw, AlertCircle } from 'lucide-react';
+import { Package, Clock, CheckCircle, Truck, XCircle, RefreshCw, AlertCircle, RotateCcw } from 'lucide-react';
 
 import { isPosOrder } from '../components/admin/AdminOrdersTab';
 import { isSamePhone } from '../utils/phone';
 import { orderItemName, orderItemVariation } from '../utils/orderItems';
+import { OrderReturnBadge, OrderItemReturnNote } from '../components/OrderReturnBadge';
 
 export const MyOrders: React.FC = () => {
   const { orders, currentUser, refreshOrders, ordersError } = useStore();
@@ -57,6 +58,7 @@ export const MyOrders: React.FC = () => {
       case 'shipped': return <Truck className="w-3.5 h-3.5" />;
       case 'delivered': return <CheckCircle className="w-3.5 h-3.5" />;
       case 'cancelled': return <XCircle className="w-3.5 h-3.5" />;
+      case 'returned': return <RotateCcw className="w-3.5 h-3.5" />;
       default: return null;
     }
   };
@@ -70,6 +72,7 @@ export const MyOrders: React.FC = () => {
       case 'shipped': return 'bg-sunny-100 text-sunny-700';
       case 'delivered': return 'bg-mint-50 text-mint-700';
       case 'cancelled': return 'bg-red-100 text-red-700';
+      case 'returned': return 'bg-sunny-100 text-sunny-800';
       default: return 'bg-slate-100 text-slate-600';
     }
   };
@@ -138,7 +141,9 @@ export const MyOrders: React.FC = () => {
           {userOrders.map((order) => {
             const steps = ['pending', 'processing', 'shipped', 'delivered'];
             const reached = Math.max(0, steps.indexOf(order.status));
-            const cancelled = order.status === 'cancelled';
+            // Neither a cancelled nor a returned order is still on its way, so
+            // the delivery rail below would be misleading for both.
+            const cancelled = order.status === 'cancelled' || order.status === 'returned';
             const itemCount = (order.items || []).reduce((n, it) => n + (it.quantity || 0), 0);
             const placedOn = new Date(order.createdAt || order.date || Date.now());
             const stepLabels = language === 'ku'
@@ -154,10 +159,13 @@ export const MyOrders: React.FC = () => {
                   <span className="font-mono text-xs sm:text-sm font-black text-slate-500 tracking-wide">
                     {order.invoiceNo || `#${order.id}`}
                   </span>
-                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-black ${getStatusColor(order.status)}`}>
-                    {getStatusIcon(order.status)}
-                    {t(order.status)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <OrderReturnBadge order={order} />
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-black ${getStatusColor(order.status)}`}>
+                      {getStatusIcon(order.status)}
+                      {t(order.status)}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Four dots joined by a rail — where the parcel actually is. */}
@@ -209,6 +217,7 @@ export const MyOrders: React.FC = () => {
                           )}
                           {orderItemVariation(item)} × {item.quantity}
                         </p>
+                        <OrderItemReturnNote item={item} className="mt-1" />
                       </div>
                       <span className="font-mono text-sm font-black text-slate-800 shrink-0">
                         {formatIQDLabel(Number(item.price ?? item.product?.price ?? 0) * item.quantity)}
