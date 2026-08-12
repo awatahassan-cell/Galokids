@@ -10,6 +10,7 @@ import { ProductVariation, Expense, Order, Category, Product, User } from '../ty
 import { useLanguage } from '../i18n/LanguageContext';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie } from 'recharts';
 import { getColorHex } from '../utils/colors';
+import { getOrderRevenue, getOrderCost, getOrderItemsSold, isCountableOrder, isCompletedSale, summariseOrders } from '../utils/orderMoney';
 import { generateBarcodeDataUrl } from '../utils/barcode';
 import { formatIQD, formatIQDLabel } from "../utils/currency";
 import { CategoryIcon } from '../components/CategoryIcon';
@@ -361,19 +362,10 @@ export const Admin: React.FC = () => {
     return false;
   };
 
-  const getOrderEstimatedCost = (order: Order) => {
-    let orderCogs = 0;
-    if (order.items && order.items.length > 0) {
-      order.items.forEach(item => {
-        const actualProduct = products.find(p => p.id === item?.product?.id);
-        const itemCost = actualProduct?.cost ?? item.product?.cost ?? ((item.product?.price || 0) * 0.4);
-        orderCogs += Number(itemCost || 0) * Number(item.quantity || 0);
-      });
-    } else {
-      orderCogs = Number(order.totalAmount || 0) * 0.4;
-    }
-    return orderCogs;
-  };
+  // Cost of what actually left the shop. This used to fall back to "40% of the
+  // selling price" whenever a product had no cost recorded, which put a made-up
+  // number straight into the profit figure.
+  const getOrderEstimatedCost = (order: Order) => getOrderCost(order, products);
 
   /**
    * Products Management list.
@@ -524,7 +516,7 @@ export const Admin: React.FC = () => {
 
     let totalRevenue = 0;
     let totalCogs = 0;
-    const totalOrderCount = filteredOrders.length;
+    const totalOrderCount = filteredOrders.filter(isCompletedSale).length;
 
     let posRevenue = 0;
     let posOrderCount = 0;
@@ -535,18 +527,22 @@ export const Admin: React.FC = () => {
     let webCogs = 0;
 
     filteredOrders.forEach(order => {
-      const rev = Number(order.totalAmount || 0);
-      const cogs = getOrderEstimatedCost(order);
+      // A cancelled order is in no figure, and a refund is money that went back
+      // out — counting the full charge overstated every one of these.
+      if (!isCountableOrder(order)) return;
+
+      const rev = getOrderRevenue(order);
+      const cogs = getOrderCost(order, products);
       totalRevenue += rev;
       totalCogs += cogs;
 
       if (isPosOrder(order)) {
         posRevenue += rev;
-        posOrderCount += 1;
+        if (isCompletedSale(order)) posOrderCount += 1;
         posCogs += cogs;
       } else {
         webRevenue += rev;
-        webOrderCount += 1;
+        if (isCompletedSale(order)) webOrderCount += 1;
         webCogs += cogs;
       }
     });
@@ -632,29 +628,33 @@ export const Admin: React.FC = () => {
       if (parts.length >= 3) {
         const day = parseInt(parts[2], 10);
         if (!isNaN(day) && day >= 1 && day <= 31) {
-          stats[day].count += 1;
-          const orderRevenue = Number(order.totalAmount || 0);
-          const orderCost = getOrderEstimatedCost(order);
+          if (!isCountableOrder(order)) return;
+          if (isCompletedSale(order)) stats[day].count += 1;
+
+          const orderRevenue = getOrderRevenue(order);
+          const orderCost = getOrderCost(order, products);
           const pos = isPosOrder(order);
 
           stats[day].revenue += orderRevenue;
           stats[day].cogs += orderCost;
           stats[day].ordersList.push(order);
 
+          // The money of a returned order still belongs to the day (the
+          // delivery fee was charged), but it is not an order the shop made,
+          // so the counts and the revenue part company here.
+          const counts = isCompletedSale(order) ? 1 : 0;
+
           if (pos) {
-            stats[day].posCount += 1;
+            stats[day].posCount += counts;
             stats[day].posRevenue += orderRevenue;
             stats[day].posCogs += orderCost;
           } else {
-            stats[day].websiteCount += 1;
+            stats[day].websiteCount += counts;
             stats[day].websiteRevenue += orderRevenue;
             stats[day].websiteCogs += orderCost;
           }
 
-          if (order.items) {
-            const qty = order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-            stats[day].itemsSold += qty;
-          }
+          stats[day].itemsSold += getOrderItemsSold(order);
         }
       }
     });
@@ -673,31 +673,30 @@ export const Admin: React.FC = () => {
   }, [calendarOrders, calendarExpenses, products]);
 
   const calendarMonthlySummary = useMemo(() => {
-    const revenue = calendarOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-    const posOrders = calendarOrders.filter(isPosOrder);
-    const websiteOrders = calendarOrders.filter(o => !isPosOrder(o));
-    const posRevenue = posOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-    const websiteRevenue = websiteOrders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-    const itemsSold = calendarOrders.reduce((sum, o) => {
-      if (o.items) {
-        return sum + o.items.reduce((s, item) => s + (item.quantity || 0), 0);
-      }
-      return sum;
-    }, 0);
+    const countable = calendarOrders.filter(isCountableOrder);
+    const posOrders = countable.filter(isPosOrder);
+    const websiteOrders = countable.filter(o => !isPosOrder(o));
+
+    const totals = summariseOrders(countable, products);
     const totalExpenses = calendarExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
     return {
-      revenue,
-      ordersCount: calendarOrders.length,
-      posOrdersCount: posOrders.length,
-      websiteOrdersCount: websiteOrders.length,
-      posRevenue,
-      websiteRevenue,
-      itemsSold,
-      avgOrderValue: calendarOrders.length > 0 ? revenue / calendarOrders.length : 0,
+      revenue: totals.revenue,
+      ordersCount: totals.orderCount,
+      posOrdersCount: posOrders.filter(isCompletedSale).length,
+      websiteOrdersCount: websiteOrders.filter(isCompletedSale).length,
+      posRevenue: summariseOrders(posOrders, products).revenue,
+      websiteRevenue: summariseOrders(websiteOrders, products).revenue,
+      itemsSold: totals.itemsSold,
+      avgOrderValue: totals.orderCount > 0 ? totals.revenue / totals.orderCount : 0,
       totalExpenses,
-      netProfit: revenue - totalExpenses
+      cogs: totals.cogs,
+      // Net profit is what is left after the goods AND the running costs. The
+      // cost of the goods was missing here entirely, so the calendar and the
+      // profit report disagreed about the very same month.
+      netProfit: totals.grossProfit - totalExpenses,
     };
-  }, [calendarOrders, calendarExpenses]);
+  }, [calendarOrders, calendarExpenses, products]);
 
   const daysInMonth = useMemo(() => getDaysInMonth(calendarYear, calendarMonth), [calendarYear, calendarMonth]);
   const firstDayOfWeek = useMemo(() => getFirstDayOfMonth(calendarYear, calendarMonth), [calendarYear, calendarMonth]);

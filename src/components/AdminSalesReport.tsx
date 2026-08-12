@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { formatIQDLabel } from '../utils/currency';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
@@ -42,19 +42,12 @@ export const AdminSalesReport: React.FC = () => {
   // Reload automatically when a preset changes the dates.
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [from, to]);
 
-  const totalPosSales = useMemo(() => {
-    if (cashiers && Array.isArray(cashiers.cashiers)) {
-      return cashiers.cashiers.reduce((sum: number, c: any) => sum + Number(c.pos_total || 0), 0);
-    }
-    return Number(report?.pos_revenue || 0);
-  }, [cashiers, report]);
-
-  const totalOnlineSales = useMemo(() => {
-    if (cashiers && Array.isArray(cashiers.cashiers)) {
-      return cashiers.cashiers.reduce((sum: number, c: any) => sum + Number(c.online_total || 0), 0);
-    }
-    return Number(report?.online_revenue || 0);
-  }, [cashiers, report]);
+  // Both figures come from the same report as the revenue card above them, so
+  // the two channels always add up to it. They used to be summed from the
+  // per-cashier report instead, which counts the money differently and is
+  // admin-only — the cards disagreed with the revenue, and a cashier saw zero.
+  const totalPosSales = Number(report?.pos_revenue || 0);
+  const totalOnlineSales = Number(report?.online_revenue || 0);
 
   const stat = (label: string, value: string, Icon: any, color: string) => (
     <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-5 rounded-[2rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">

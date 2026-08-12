@@ -21,6 +21,7 @@ export const adminDict: Record<string, Pair> = {
   'Click on any product variation on the left to add items to order.': { ku: 'کلیک لەسەر هەر ڕەنگ یان سایزێکی بەرهەمەکە بکه بۆ زیاکردنی بۆ ناو سەبەتەکە.', ar: 'انقر على أي تنويع للمنتج على اليسار لإضافته إلى الطلب.' },
   'Refund': { ku: 'گەڕانەوە', ar: 'استرجاع' },
   'Returned': { ku: 'گەڕاوەتەوە', ar: 'مرتجع' },
+  'Net profit margin this month': { ku: 'ڕێژەی قازانجی پاک ئەم مانگە', ar: 'هامش الربح الصافي هذا الشهر' },
   'Quick Add Product': { ku: 'زیادکردنی خێرای بەرهەم', ar: 'إضافة منتج سريعة' },
   'Out of stock': { ku: 'نەماوە لە ستۆک', ar: 'نفد من المخزون' },
   'Select Size / Color:': { ku: 'سایز / ڕەنگ هەڵبژێرە:', ar: 'اختر المقاس / اللون:' },

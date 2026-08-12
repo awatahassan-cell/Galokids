@@ -98,24 +98,20 @@ class Order extends Model
         return $goodsPaid / $subtotal;
     }
 
-    /** How many units of each order line have already been given back. */
+    /**
+     * How many units of each order line have already been given back.
+     *
+     * Read off the line itself. It used to be summed out of every refund's JSON
+     * payload, which no report could do in SQL — so the reports did not do it
+     * at all and returned goods still counted as sold.
+     */
     public function returnedQuantitiesByItem(): array
     {
+        $items = $this->relationLoaded('items') ? $this->items : $this->items()->get();
+
         $returned = [];
-
-        // Use the loaded relation when the caller eager-loaded it; listing a
-        // page of orders would otherwise fire one query per row.
-        $refunds = $this->relationLoaded('refunds')
-            ? $this->refunds
-            : Refund::where('order_id', $this->id)->get();
-
-        foreach ($refunds as $refund) {
-            foreach ((array) $refund->items as $line) {
-                $itemId = $line['order_item_id'] ?? null;
-                if ($itemId !== null) {
-                    $returned[$itemId] = ($returned[$itemId] ?? 0) + (int) ($line['quantity'] ?? 0);
-                }
-            }
+        foreach ($items as $item) {
+            $returned[$item->id] = (int) $item->returned_quantity;
         }
 
         return $returned;
@@ -124,7 +120,11 @@ class Order extends Model
     /** Units returned across the whole order. */
     public function returnedQuantity(): int
     {
-        return array_sum($this->returnedQuantitiesByItem());
+        if ($this->relationLoaded('items')) {
+            return (int) $this->items->sum('returned_quantity');
+        }
+
+        return (int) $this->items()->sum('returned_quantity');
     }
 
     /** Units originally sold on this order. */
@@ -168,26 +168,4 @@ class Order extends Model
         return $total > 0 && $this->returnedQuantity() >= $total;
     }
 
-    /**
-     * Write each line's returned quantity onto the loaded item, so a receipt can
-     * show which rows came back and not merely that some of it did.
-     *
-     * The value rides along as a plain attribute rather than an accessor on
-     * OrderItem, because an accessor would have to look the refunds up itself —
-     * one query per line of every order on the page.
-     */
-    public function stampReturnedQuantitiesOnItems(): self
-    {
-        if (!$this->relationLoaded('items')) {
-            return $this;
-        }
-
-        $byItem = $this->returnedQuantitiesByItem();
-
-        foreach ($this->items as $item) {
-            $item->setAttribute('returned_quantity', (int) ($byItem[$item->id] ?? 0));
-        }
-
-        return $this;
-    }
 }

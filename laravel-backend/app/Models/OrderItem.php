@@ -20,8 +20,23 @@ class OrderItem extends Model
         'product_name_ar',
         'variation_label',
         'quantity',
+        // How many of this line the customer brought back. Kept here rather
+        // than only inside the refund record so reports can net it out in SQL.
+        'returned_quantity',
         'price'
     ];
+
+    protected $casts = [
+        'quantity' => 'integer',
+        'returned_quantity' => 'integer',
+        'price' => 'float',
+    ];
+
+    /** Pieces of this line the shop actually parted with. */
+    public function netQuantity(): int
+    {
+        return max(0, (int) $this->quantity - (int) $this->returned_quantity);
+    }
 
     public function order()
     {

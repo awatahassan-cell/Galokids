@@ -75,6 +75,10 @@ class OrderController extends Controller
                 $returnedValue += (float) $item->price * $qty * $paidRatio;
                 $snapshot[] = ['order_item_id' => $item->id, 'quantity' => $qty, 'price' => (float) $item->price];
 
+                // An exchange returns the original line just as a refund does.
+                $item->returned_quantity = (int) $item->returned_quantity + $qty;
+                $item->save();
+
                 if ($item->product_variation_id) {
                     $variation = ProductVariation::lockForUpdate()->find($item->product_variation_id);
                     if ($variation) {
@@ -248,9 +252,8 @@ class OrderController extends Controller
 
         if ($user->isPrivileged()) {
             return response()->json(
-                Order::with('items.product', 'items.variation', 'refunds')
+                Order::with('items.product', 'items.variation')
                     ->orderBy('created_at', 'desc')->get()
-                    ->each->stampReturnedQuantitiesOnItems()
             );
         }
 
@@ -267,11 +270,8 @@ class OrderController extends Controller
                     $query->orWhereIn('customer_phone', $phoneVariants);
                 }
             })
-                // 'refunds' is loaded for the customer too: without it every row
-                // would look its own returns up one query at a time.
-                ->with('items.product', 'items.variation', 'refunds')
+                ->with('items.product', 'items.variation')
                 ->orderBy('created_at', 'desc')->get()
-                ->each->stampReturnedQuantitiesOnItems()
         );
     }
 
@@ -343,7 +343,7 @@ class OrderController extends Controller
 
     public function show(Request $request, $id)
     {
-        $order = Order::with('items.product', 'items.variation', 'refunds')->findOrFail($id);
+        $order = Order::with('items.product', 'items.variation')->findOrFail($id);
         $user = $this->requireAuth($request);
 
         if (!$user->isPrivileged()) {
@@ -356,7 +356,7 @@ class OrderController extends Controller
             }
         }
 
-        return response()->json($order->stampReturnedQuantitiesOnItems());
+        return response()->json($order);
     }
 
     /**
@@ -748,6 +748,12 @@ class OrderController extends Controller
 
                 $amount += (float) $item->price * $qty * $paidRatio;
                 $snapshot[] = ['order_item_id' => $item->id, 'quantity' => $qty, 'price' => (float) $item->price];
+
+                // Record it on the line as well as in the refund. The reports
+                // net returned pieces out of what was sold, and they can only
+                // do that against a column.
+                $item->returned_quantity = (int) $item->returned_quantity + $qty;
+                $item->save();
 
                 // Return stock.
                 if ($item->product_variation_id) {

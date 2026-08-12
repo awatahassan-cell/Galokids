@@ -9,6 +9,7 @@ import { formatIQD, formatIQDLabel } from '../../utils/currency';
 import { getColorHex } from '../../utils/colors';
 import { Product, Category } from '../../types';
 import { LOW_STOCK_THRESHOLD } from '../../utils/inventory';
+import { getUnitPrice } from '../../utils/pricing';
 import { Pagination } from '../Pagination';
 import { downloadXlsx } from '../../utils/exportExcel';
 import { 
@@ -136,10 +137,23 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
       const variationsCount = variations.length;
       const stockPieces = variations.reduce((sum, v) => sum + (Number(v.stockQuantity) || 0), 0);
       const unitCost = Number(product.cost || 0);
-      const unitPrice = Number(product.discountPrice && product.discountPrice > 0 ? product.discountPrice : product.price);
-      
+
       const totalCostValue = stockPieces * unitCost;
-      const totalRetailValue = stockPieces * unitPrice;
+
+      // Value each variation at what it would actually ring up for. Taking one
+      // price for the whole product ignored a variation's price override, so a
+      // shelf priced per size was valued at the wrong figure — and the override
+      // is exactly what the till charges.
+      const totalRetailValue = variations.reduce(
+        (sum, v) => sum + getUnitPrice(product, v) * (Number(v.stockQuantity) || 0),
+        0
+      );
+
+      // Shown on the row as "the price", so it has to be the one most pieces
+      // carry rather than a number nothing is sold at.
+      const unitPrice = stockPieces > 0
+        ? totalRetailValue / stockPieces
+        : getUnitPrice(product, variations[0]);
       const expectedProfit = totalRetailValue - totalCostValue;
       const profitMargin = totalRetailValue > 0 ? Math.round((expectedProfit / totalRetailValue) * 100) : 0;
 

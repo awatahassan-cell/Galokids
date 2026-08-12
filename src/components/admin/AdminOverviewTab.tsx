@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar, ShoppingBag, Package, BarChart3, DollarSign, TrendingDown, TrendingUp, AlertTriangle, Store, Globe, Filter, ArrowUpRight, ArrowDownRight, CreditCard, Sparkles, CheckCircle2, UserPlus, Send, Plus, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { summariseOrders } from '../../utils/orderMoney';
 import { adminTr } from '../../i18n/adminDict';
 import { formatIQD, formatIQDLabel } from '../../utils/currency';
 import { Order, Product, Expense } from '../../types';
@@ -91,22 +92,55 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
     return reportData.filteredOrders;
   }, [reportData.filteredOrders, selectedChannel]);
 
-  const barChartData = useMemo(() => {
-    const months = ['MAY', 'JUN', 'JUL', 'AUG', 'SEP'];
-    return months.map((m, idx) => ({
-      month: L(m),
-      value: idx === 2 ? 45000 : (idx + 1) * 8000 + 12000,
-    }));
+  // The last few months, ending with this one. Both charts below used to be
+  // hardcoded — fixed month names, a made-up 45,000 bar and a "85%" headline —
+  // sitting on the dashboard looking like the shop's actual figures.
+  const recentMonths = useMemo(() => {
+    const out: { key: string; label: string }[] = [];
+    const now = new Date();
+    for (let back = 5; back >= 0; back--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
+      out.push({
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: d.toLocaleDateString(language === 'en' ? 'en-GB' : language === 'ar' ? 'ar' : 'en-GB', { month: 'short' }),
+      });
+    }
+    return out;
   }, [language]);
 
-  const lineHealthData = useMemo(() => [
-    { name: '1', val: 7.26 },
-    { name: '2', val: 12.4 },
-    { name: '3', val: 9.8 },
-    { name: '4', val: 16.75 },
-    { name: '5', val: 14.2 },
-    { name: '6', val: 18.9 },
-  ], []);
+  /** Everything that happened in one calendar month, ready to be totalled. */
+  const monthlyFigures = useMemo(() => recentMonths.map(({ key, label }) => {
+    const monthOrders = (orders || []).filter(o => String(o.date || '').startsWith(key));
+    const monthExpenses = (expenses || []).filter(e => String(e.date || '').startsWith(key));
+
+    const totals = summariseOrders(monthOrders, products);
+    const spent = monthExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const netProfit = totals.grossProfit - spent;
+
+    return {
+      key,
+      month: label,
+      expenses: spent,
+      revenue: totals.revenue,
+      netProfit,
+      margin: totals.revenue > 0 ? (netProfit / totals.revenue) * 100 : 0,
+    };
+  }), [recentMonths, orders, expenses, products]);
+
+  // The expense chart shows the last five months of real spending.
+  const barChartData = useMemo(
+    () => monthlyFigures.slice(-5).map(m => ({ month: m.month, value: m.expenses })),
+    [monthlyFigures]
+  );
+
+  const lineHealthData = useMemo(
+    () => monthlyFigures.map(m => ({ name: m.month, val: m.margin })),
+    [monthlyFigures]
+  );
+
+  // Net profit margin for the month in progress, which is what the big number
+  // on the card claims to be.
+  const currentMargin = monthlyFigures.length ? monthlyFigures[monthlyFigures.length - 1].margin : 0;
 
   return (
     <div className="space-y-6 font-arabic text-slate-800">
@@ -176,7 +210,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
                   {barChartData.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={index === 2 ? 'url(#barGradient)' : '#E2E8F0'} 
+                      fill={index === barChartData.length - 1 ? 'url(#barGradient)' : '#E2E8F0'} 
                     />
                   ))}
                 </Bar>
@@ -191,11 +225,11 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
           </div>
 
           <div className="flex items-center justify-between text-xs font-bold text-slate-400 px-4 mt-2">
-            <span>MAY</span>
-            <span>JUN</span>
-            <span className="text-blue-600 font-black">JUL</span>
-            <span>AUG</span>
-            <span>SEP</span>
+            {barChartData.map((m, i) => (
+              <span key={m.month} className={i === barChartData.length - 1 ? 'text-blue-600 font-black' : ''}>
+                {m.month}
+              </span>
+            ))}
           </div>
         </div>
 
@@ -209,8 +243,8 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
           </div>
 
           <div className="my-4 relative z-10">
-            <div className="text-4xl font-black">85%</div>
-            <p className="text-xs text-blue-200 mt-1 font-medium">{L("Net profit margin increase since last month")}</p>
+            <div className="text-4xl font-black font-sans">{Math.round(currentMargin)}%</div>
+            <p className="text-xs text-blue-200 mt-1 font-medium">{L("Net profit margin this month")}</p>
           </div>
 
           <div className="h-28 w-full relative z-10">
