@@ -6,6 +6,7 @@ import { ProductCardSkeleton } from '../components/ProductCardSkeleton';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { KidsIcon, KidsIconName } from '../components/KidsIcons';
 import { CountdownBanner } from '../components/CountdownBanner';
+import { MobileHome, MobileSearchBar } from '../components/MobileHome';
 import { useStore } from '../store';
 import { formatIQDLabel } from '../utils/currency';
 import { Link } from 'react-router-dom';
@@ -158,8 +159,27 @@ export const Home: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         <CountdownBanner />
         
-        {/* 1. Hero Section */}
+        {/* 1. Hero Section — search sits above it on a phone. */}
+        <MobileSearchBar language={language} />
         <Hero />
+
+        {/*
+          The phone layout: search, categories, deals, popular.
+
+          Everything below this point was laid out for a wide screen and then
+          allowed to stack — which on a phone meant scrolling past a full screen
+          of banner and a row of 200px cards before reaching a price. These
+          sections put the same things within a thumb's reach, and hide
+          themselves from lg: up where the original layout has the room it was
+          designed for.
+        */}
+        <MobileHome
+          categories={categories}
+          products={products}
+          isLoading={isProductsLoading || isLoading}
+          getCategoryName={getCategoryName}
+          language={language}
+        />
 
         {/* 2. Shop by Category Carousel Section */}
         {categories.length > 0 && (
@@ -168,7 +188,7 @@ export const Home: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.15 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16 font-arabic relative group/cat"
+            className="hidden lg:block px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16 font-arabic relative group/cat"
           >
             <div className="flex items-end justify-between mb-6 sm:mb-8">
               <div>
@@ -258,7 +278,7 @@ export const Home: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.15 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16 font-arabic relative group/promo"
+          className="hidden lg:block px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16 font-arabic relative group/promo"
         >
           <div className="flex items-end justify-between mb-6 sm:mb-8">
             <div>
@@ -384,7 +404,7 @@ export const Home: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.15 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="relative overflow-hidden bg-gradient-to-b from-bubble-50/50 via-candy-50/40 to-white py-10 sm:py-16 px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16 font-arabic rounded-3xl border border-candy-100/60 shadow-xs mx-2 sm:mx-6 lg:mx-8"
+          className="hidden lg:block relative overflow-hidden bg-gradient-to-b from-bubble-50/50 via-candy-50/40 to-white py-10 sm:py-16 px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16 font-arabic rounded-3xl border border-candy-100/60 shadow-xs mx-2 sm:mx-6 lg:mx-8"
         >
           <div className="absolute -top-20 -left-20 w-80 h-80 bg-candy-200/40 rounded-full blur-3xl pointer-events-none animate-pulse" />
           <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-sky-200/40 rounded-full blur-3xl pointer-events-none animate-pulse" />

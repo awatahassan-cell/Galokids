@@ -11,9 +11,19 @@ import { QuickViewModal } from './QuickViewModal';
 
 interface ProductCardProps {
   product: Product;
+  /**
+   * The short card a phone uses.
+   *
+   * The full card carries a colour row, a size row and a hover action bar. At
+   * two-up on a phone those are a few unreadable pixels each and they push the
+   * price off the screen, so a shopper scrolls a long way to compare two
+   * things. The compact card keeps what a phone is actually deciding on: the
+   * picture, the name and the price.
+   */
+  compact?: boolean;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, compact = false }) => {
   const { categories, wishlist, toggleWishlist, addToCart } = useStore();
   const { t, language } = useLanguage();
   const navigate = useNavigate();
@@ -96,7 +106,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     >
       
       {/* Vastraa Media Card Wrapper */}
-      <div className={`vk2-pc-media aspect-[4/5] ${mediaBg} overflow-hidden relative rounded-t-3xl border-b border-slate-100/50 flex items-center justify-center`}>
+      <div className={`vk2-pc-media ${compact ? 'aspect-square' : 'aspect-[4/5]'} ${mediaBg} overflow-hidden relative rounded-t-3xl border-b border-slate-100/50 flex items-center justify-center`}>
         
         {/* Product Image */}
         <Link to={`/product/${product?.id}`} className="w-full h-full block overflow-hidden">
@@ -109,7 +119,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </Link>
 
         {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1 items-start z-10 pointer-events-none">
+        {/* `start-3`, not `left-3`: the wishlist heart sits at `end-3`, so a
+            physical side put both in the same corner in Kurdish and Arabic and
+            the badge disappeared behind the button. */}
+        <div className="absolute top-3 start-3 flex flex-col gap-1 items-start z-10 pointer-events-none">
           {totalStock === 0 ? (
             <span className="vk2-pc-badge bg-slate-900 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full shadow-xs uppercase">
               {t('outOfStock')}
@@ -136,8 +149,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </button>
 
         {/* Action row. Hidden until hover on pointer devices; always shown on
-            touch, where there is no hover state to reveal it. */}
-        <div className="absolute bottom-2.5 inset-x-3 z-10 flex items-center gap-1.5 translate-y-[calc(100%+14px)] opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
+            touch, where there is no hover state to reveal it. The compact card
+            leaves it out — it covered most of a small picture, and tapping the
+            card opens the product anyway. */}
+        <div className={`absolute bottom-2.5 inset-x-3 z-10 items-center gap-1.5 translate-y-[calc(100%+14px)] opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100 ${compact ? 'hidden' : 'flex'}`}>
         <button
           onClick={handleQuickViewClick}
           className="w-9 h-9 shrink-0 rounded-xl bg-white text-slate-700 hover:bg-ink-900 hover:text-white flex items-center justify-center transition-all shadow-md active:scale-90 cursor-pointer"
@@ -208,7 +223,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       {quickViewOpen && <QuickViewModal product={product} onClose={() => setQuickViewOpen(false)} />}
 
       {/* Vastraa Body Info (vk2-pc-body - Padding Inside Body) */}
-      <div className="vk2-pc-body p-3.5 sm:p-4 flex flex-col flex-grow bg-white">
+      <div className={`vk2-pc-body ${compact ? 'p-2.5' : 'p-3.5 sm:p-4'} flex flex-col flex-grow bg-white`}>
         
         {/* Category & Rating (vk2-pc-meta) */}
         <div className="vk2-pc-meta flex items-center justify-between text-[11px] mb-1">
@@ -237,7 +252,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
           const uniqueColors = Array.from(new Set(rawColors.map(c => c.trim())));
 
-          if (uniqueColors.length === 0) return null;
+          if (compact || uniqueColors.length === 0) return null;
 
           return (
             <div className="vk2-pc-colors flex items-center gap-1.5 mb-2 overflow-x-auto scrollbar-hide py-0.5">
@@ -274,7 +289,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           const displaySizes = uniqueSizes.slice(0, 4);
 
           // If product data has zero sizes in DB, render NOTHING (zero fake sizes like 4Y 6Y 8Y)
-          if (displaySizes.length === 0) return null;
+          if (compact || displaySizes.length === 0) return null;
 
           // Determine active size badge
           const activeIndex = displaySizes.length > 1 ? Math.min(1, displaySizes.length - 1) : 0;

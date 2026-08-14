@@ -121,7 +121,94 @@ export const Hero: React.FC = () => {
   const discountText = slide.discountTag || '25% OFF';
 
   return (
-    <section className={`relative overflow-hidden bg-gradient-to-b from-bubble-50/60 via-candy-50/40 to-white py-8 sm:py-16 px-4 sm:px-6 lg:px-8 font-arabic ${radiusClass} border border-candy-100/60 shadow-sm mx-2 sm:mx-6 lg:mx-8 my-4 group/hero`}>
+    <>
+      {/*
+        The phone banner.
+
+        The full hero below is built for a wide screen: a headline column beside
+        a tall image, two buttons, floating badges. Squeezed into a phone it
+        stacked into 620px of banner before a single product was in view, which
+        is most of the screen spent on an advert. This is the same slide as one
+        short card — image behind, one line of promise, one button — so the
+        shopping starts straight away.
+      */}
+      <section className="lg:hidden px-3 pt-3 font-arabic">
+        <div className={`relative overflow-hidden ${radiusClass} shadow-sm border border-candy-100/60`}>
+          {/* The card keeps the height; the slides are stacked inside it, so a
+              crossfade never briefly shows two of them in a column. */}
+          <div className="relative h-[190px]">
+            {/* `wait` rather than a crossfade: two slides fading through each
+                other leaves both headlines legible at once, which reads as a
+                rendering fault rather than as a transition. */}
+            <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={slide.id || currentIndex}
+              initial={{ opacity: 0, x: isRTL ? -16 : 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: isRTL ? 16 : -16 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="absolute inset-0"
+            >
+              <img
+                src={imageUrl}
+                alt={storeSettings?.store_name || 'Galo Kids'}
+                className="absolute inset-0 w-full h-full object-cover"
+                loading="eager"
+              />
+              {/* The text sits over the picture, so it needs its own ground to
+                  stay readable whatever photo the shop uploads. */}
+              <div className="absolute inset-0 bg-gradient-to-r rtl:bg-gradient-to-l from-white via-white/85 to-white/10" />
+
+              <div className="relative h-full flex flex-col justify-center gap-1.5 px-4 max-w-[68%]">
+                <span className="text-[10px] font-black text-candy-700 uppercase tracking-wide">
+                  {badgeText}
+                </span>
+                <h1 className="text-[19px] leading-[1.2] font-black text-slate-900 line-clamp-2">
+                  {titleText.replace(/[🎈✨]/g, '').trim()}
+                </h1>
+                <p className="text-[11px] font-bold text-slate-500 line-clamp-2 leading-snug">
+                  {subtitleText}
+                </p>
+                <Link
+                  to={cta1Link}
+                  className="mt-1.5 inline-flex items-center gap-1.5 w-max px-4 py-2 rounded-full text-xs font-black text-white bg-gradient-to-r from-candy-500 to-grape-500 shadow-md shadow-candy-500/30 active:scale-95 transition-transform"
+                >
+                  <span>{cta1Text.replace(/[👧👦✨]/g, '').trim()}</span>
+                  <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
+                </Link>
+              </div>
+
+              {discountText && (
+                <span className="absolute top-3 end-3 px-2.5 py-1 rounded-full bg-sunny-500 text-white text-[10px] font-black shadow-md">
+                  {/* dir goes on the text, not on the positioned box: `end-3`
+                      is a logical side, so setting dir on the box itself made
+                      it resolve to the right in Kurdish too — straight on top
+                      of the headline. */}
+                  <span dir="ltr">{discountText}</span>
+                </span>
+              )}
+            </motion.div>
+            </AnimatePresence>
+          </div>
+
+          {slides.length > 1 && (
+            <div className="absolute bottom-2.5 inset-x-0 flex items-center justify-center gap-1.5">
+              {slides.map((s, idx) => (
+                <button
+                  key={s.id || idx}
+                  onClick={() => setCurrentIndex(idx)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    idx === currentIndex ? 'w-5 bg-candy-500' : 'w-1.5 bg-white/80 border border-candy-200'
+                  }`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+    <section className={`hidden lg:block relative overflow-hidden bg-gradient-to-b from-bubble-50/60 via-candy-50/40 to-white py-8 sm:py-16 px-4 sm:px-6 lg:px-8 font-arabic ${radiusClass} border border-candy-100/60 shadow-sm mx-2 sm:mx-6 lg:mx-8 my-4 group/hero`}>
       
       {/* Soft colour washes behind the hero. */}
       <div className="vk-blob w-96 h-96 bg-bubble-500 -top-24 -start-24" />
@@ -284,5 +371,6 @@ export const Hero: React.FC = () => {
 
       </div>
     </section>
+    </>
   );
 };
