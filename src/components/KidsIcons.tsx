@@ -1,168 +1,81 @@
 import React from 'react';
 import {
   House, Store, ShoppingBasket, Heart, User,
-  Shirt, Footprints, Crown, Backpack, Baby, Gift, ToyBrick, SwatchBook,
   Info, Mail, CircleHelp, Truck, Package, LogIn, LogOut, ShieldCheck, Sparkles,
-  Banknote, CreditCard, Undo2, Ruler, Flame, PartyPopper, Star, Zap, Smartphone,
-  Glasses, Watch, Blocks, Bike, GraduationCap, Sun, Snowflake, Umbrella,
-  type LucideIcon,
+  Banknote, CreditCard, Undo2, SwatchBook, Ruler, Flame, PartyPopper, Star, Zap, Smartphone,
 } from 'lucide-react';
+import {
+  PiTShirtBold as TShirt,
+  PiDressBold as Dress,
+  PiPantsBold as Pants,
+  PiHoodieBold as Hoodie,
+  PiCoatHangerBold as CoatHanger,
+  PiSockBold as Sock,
+  PiSneakerBold as Sneaker,
+  PiBootBold as BootIcon,
+  PiHandbagBold as Handbag,
+  PiBackpackBold as BackpackIcon,
+  PiBaseballCapBold as BaseballCap,
+  PiBeanieBold as Beanie,
+  PiButterflyBold as Butterfly,
+  PiSunglassesBold as Sunglasses,
+  PiWatchBold as WatchIcon,
+  PiRabbitBold as Rabbit,
+  PiLegoBold as Lego,
+  PiSoccerBallBold as SoccerBall,
+  PiBicycleBold as Bicycle,
+  PiPuzzlePieceBold as PuzzlePiece,
+  PiBabyBold as BabyIcon,
+  PiBabyCarriageBold as BabyCarriage,
+  PiGiftBold as GiftIcon,
+  PiGraduationCapBold as GraduationCap,
+  PiConfettiBold as Confetti,
+  PiSunBold as SunIcon,
+  PiSnowflakeBold as Snowflake,
+  PiUmbrellaBold as Umbrella,
+} from 'react-icons/pi';
 
 /**
- * The shop's icon set: Lucide, wearing the brand palette.
+ * The shop's icon set, wearing the brand palette.
  *
- * Lucide draws a single even stroke, which is what keeps a row of icons
- * looking like one family. Colour carries the meaning instead of weight: each
- * icon has a standing tint from the brand palette, and callers can override it
- * where a section has its own accent.
+ * Two libraries, split by what each is good at. Lucide draws the interface —
+ * post, delivery, sign in, a receipt — and Phosphor draws the merchandise: a
+ * dress, a pair of trousers, a sneaker, a pram. Lucide's whole clothing set is
+ * one shirt, so every garment category in a children's shop pointed at it and
+ * came out as the same picture; Phosphor draws each of them properly.
  *
- * Imported by name, one icon at a time — a namespace import here would defeat
- * tree-shaking and drag the whole package into the bundle.
+ * Nothing here is hand-drawn. An icon nobody at a shop will ever look twice at
+ * is not worth a bespoke SVG, and a bespoke SVG never quite sits in a row
+ * beside a real family's.
+ *
+ * Colour carries the meaning rather than weight: each icon has a standing tint
+ * from the brand palette, and callers can override it where a section has its
+ * own accent.
+ *
+ * Both sets are imported by name, one icon at a time. A namespace import —
+ * `import * as Icons` with a runtime key — defeats tree-shaking and drags the
+ * entire package into the bundle for the sake of thirty glyphs. Phosphor is
+ * taken through `react-icons` for the same reason: its own package ships all
+ * six weights of every icon in one file, ten times the weight of the one
+ * weight actually used.
  *
  * They are icons, not decoration, so they take a label from the caller: pass
  * `title` when the icon stands alone, and leave it off when a text label sits
  * beside it (as in the tab bar), so a screen reader is not told twice.
  */
 
-
-/**
- * The garments and playthings Lucide does not draw.
- *
- * Lucide's clothing set is one shirt. Everything else in a children's shop was
- * pointed at it, so a dress, a pair of trousers and a jacket all appeared as
- * the same shirt — three categories, one picture. These are drawn on Lucide's
- * own grid: 24×24, 2px stroke, round caps and joins, `currentColor`, no fill,
- * so a row mixing the two sets still reads as one family.
- */
-type Glyph = React.FC<{ className?: string; color?: string; [key: string]: any }>;
-
-const draw = (paths: React.ReactNode): Glyph => ({ className, color, ...rest }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke={color || 'currentColor'}
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...rest}
-  >
-    {paths}
-  </svg>
-);
-
-/** A-line dress: straps, bodice, flared skirt. */
-const DressGlyph = draw(
-  <>
-    <path d="M9.5 3 8 7h8L14.5 3" />
-    <path d="M8 7 5.5 20h13L16 7" />
-    <path d="M9.5 3a2.5 2.5 0 0 0 5 0" />
-  </>
-);
-
-/** Skirt: waistband over a flare, with one pleat. */
-const SkirtGlyph = draw(
-  <>
-    <path d="M6.5 8h11" />
-    <path d="M7 5h10v3H7z" />
-    <path d="M6.5 8 4 20h16L17.5 8" />
-    <path d="M12 8v12" />
-  </>
-);
-
-/** Trousers: waistband and two legs. */
-const TrousersGlyph = draw(
-  <>
-    <path d="M7 3h10v3H7z" />
-    <path d="M7 6l-.5 15h4l1.5-10 1.5 10h4L17 6" />
-    <path d="M12 6v5" />
-  </>
-);
-
-/** Jacket: collar, open front, two panels. */
-const JacketGlyph = draw(
-  <>
-    <path d="M9 3 4 5.5V21h16V5.5L15 3" />
-    <path d="M9 3l3 3 3-3" />
-    <path d="M12 6v15" />
-    <path d="M4 9h3M17 9h3" />
-  </>
-);
-
-/** Sock: a tube with a turned foot. */
-const SockGlyph = draw(
-  <>
-    <path d="M9 3h5v10l3.5 3.5a3.5 3.5 0 0 1-5 5L7 16V3z" />
-    <path d="M9 6h5" />
-  </>
-);
-
-/** Baseball cap: dome and peak. */
-const CapGlyph = draw(
-  <>
-    <path d="M4 15a8 8 0 0 1 16 0z" />
-    <path d="M20 15h1.5a2 2 0 0 1-2 2H4" />
-    <path d="M12 7v8" />
-  </>
-);
-
-/** Hair bow: two loops and a knot. */
-const BowGlyph = draw(
-  <>
-    <path d="M10.5 12 4 8v8z" />
-    <path d="M13.5 12 20 8v8z" />
-    <circle cx="12" cy="12" r="2" />
-  </>
-);
-
-/** Teddy bear: head and two ears. */
-const TeddyGlyph = draw(
-  <>
-    <circle cx="12" cy="14" r="6.5" />
-    <circle cx="5.5" cy="6.5" r="2.8" />
-    <circle cx="18.5" cy="6.5" r="2.8" />
-    <path d="M10 13h.01M14 13h.01" />
-    <path d="M10.5 16.5a2 2 0 0 0 3 0" />
-  </>
-);
-
-/**
- * Football: a centre panel with seams running to the edge.
- *
- * A circle crossed by an equator and two meridians is the globe icon every
- * site uses for language — drawn that way, the toy category looked like a
- * language switch.
- */
-const BallGlyph = draw(
-  <>
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 7.4l3.4 2.5-1.3 4h-4.2l-1.3-4z" />
-    <path d="M12 3v4.4M4.5 9.4l4.1 3M19.5 9.4l-4.1 3M7.6 19.7l2.3-3.8M16.4 19.7l-2.3-3.8" />
-  </>
-);
-
-/** Baby bottle: teat, collar and body. */
-const BottleGlyph = draw(
-  <>
-    <path d="M10 2h4v2.5h-4z" />
-    <path d="M8.5 4.5h7V7h-7z" />
-    <path d="M9 7h6l.8 3v9a2 2 0 0 1-2 2h-3.6a2 2 0 0 1-2-2v-9z" />
-    <path d="M9 13h6M9 16h6" />
-  </>
-);
-
 export type KidsIconName =
   | 'home' | 'shop' | 'basket' | 'heart' | 'user'
   // Clothing
-  | 'shirt' | 'dress' | 'skirt' | 'trousers' | 'jacket' | 'socks'
+  | 'shirt' | 'dress' | 'skirt' | 'trousers' | 'jacket' | 'clothes' | 'socks'
   // Footwear
-  | 'shoes'
+  | 'shoes' | 'boots'
   // Accessories
-  | 'hat' | 'cap' | 'bow' | 'bag' | 'glasses' | 'watch'
+  | 'hat' | 'cap' | 'bow' | 'bag' | 'backpack' | 'glasses' | 'watch'
   // Toys & play
-  | 'toy' | 'teddy' | 'ball' | 'blocks' | 'bike'
+  | 'toy' | 'teddy' | 'ball' | 'blocks' | 'puzzle' | 'bike'
   // Baby
-  | 'baby' | 'bottle'
+  | 'baby' | 'pram' | 'bottle'
   // Occasions & seasons
   | 'gift' | 'school' | 'party' | 'summer' | 'winter' | 'rain'
   | 'info' | 'mail' | 'help' | 'truck' | 'box' | 'login' | 'logout'
@@ -170,45 +83,56 @@ export type KidsIconName =
   | 'cash' | 'card' | 'return' | 'fabric' | 'ruler' | 'flame' | 'balloon'
   | 'star' | 'bolt' | 'phone';
 
-const GLYPHS: Record<KidsIconName, LucideIcon | Glyph> = {
+/**
+ * Loose on purpose: the two libraries type their components differently, and
+ * both accept the className, colour and ARIA attributes passed below.
+ */
+type AnyIcon = React.ComponentType<{ className?: string; color?: string; [key: string]: any }>;
+
+const GLYPHS: Record<KidsIconName, AnyIcon> = {
   home: House,
   shop: Store,
   basket: ShoppingBasket,
   heart: Heart,
   user: User,
 
-  // Clothing. Only the shirt comes from Lucide; the rest are drawn above,
-  // because pointing them all at the one shirt Lucide has meant a dress, a
-  // pair of trousers and a jacket were the same picture.
-  shirt: Shirt,
-  dress: DressGlyph,
-  skirt: SkirtGlyph,
-  trousers: TrousersGlyph,
-  jacket: JacketGlyph,
-  socks: SockGlyph,
+  shirt: TShirt,
+  dress: Dress,
+  // Phosphor draws no skirt. A dress is the closest garment, and this name is
+  // only still here so categories saved under the old picker keep resolving.
+  skirt: Dress,
+  trousers: Pants,
+  jacket: Hoodie,
+  clothes: CoatHanger,
+  socks: Sock,
 
-  shoes: Footprints,
+  shoes: Sneaker,
+  boots: BootIcon,
 
-  hat: Crown,
-  cap: CapGlyph,
-  bow: BowGlyph,
-  bag: Backpack,
-  glasses: Glasses,
-  watch: Watch,
+  hat: Beanie,
+  cap: BaseballCap,
+  bow: Butterfly,
+  bag: Handbag,
+  backpack: BackpackIcon,
+  glasses: Sunglasses,
+  watch: WatchIcon,
 
-  toy: ToyBrick,
-  teddy: TeddyGlyph,
-  ball: BallGlyph,
-  blocks: Blocks,
-  bike: Bike,
+  toy: Rabbit,
+  teddy: Rabbit,
+  ball: SoccerBall,
+  blocks: Lego,
+  puzzle: PuzzlePiece,
+  bike: Bicycle,
 
-  baby: Baby,
-  bottle: BottleGlyph,
+  baby: BabyIcon,
+  pram: BabyCarriage,
+  // As with the skirt: kept for categories saved before, nearest thing drawn.
+  bottle: BabyCarriage,
 
-  gift: Gift,
+  gift: GiftIcon,
   school: GraduationCap,
-  party: PartyPopper,
-  summer: Sun,
+  party: Confetti,
+  summer: SunIcon,
   winter: Snowflake,
   rain: Umbrella,
 
@@ -235,7 +159,7 @@ const GLYPHS: Record<KidsIconName, LucideIcon | Glyph> = {
   phone: Smartphone,
 };
 
-/** The brand palette, as the single colour each duotone glyph is drawn in. */
+/** The brand palette, as the single colour each glyph is drawn in. */
 const TINTS = {
   pink: '#C0506A',
   rose: '#E0607A',
@@ -253,10 +177,12 @@ export type KidsIconTint = keyof typeof TINTS;
 const DEFAULT_TINT: Record<KidsIconName, KidsIconTint> = {
   home: 'rose', shop: 'sky', basket: 'sun', heart: 'pink', user: 'grape',
   shirt: 'sky', dress: 'pink', skirt: 'rose', trousers: 'grape', jacket: 'sky',
-  socks: 'mint', shoes: 'sand',
-  hat: 'sun', cap: 'sky', bow: 'pink', bag: 'sand', glasses: 'ink', watch: 'grape',
-  toy: 'mint', teddy: 'sand', ball: 'rose', blocks: 'sky', bike: 'mint',
-  baby: 'pink', bottle: 'sky',
+  clothes: 'ink', socks: 'mint',
+  shoes: 'sand', boots: 'sand',
+  hat: 'sun', cap: 'sky', bow: 'pink', bag: 'sand', backpack: 'grape',
+  glasses: 'ink', watch: 'grape',
+  toy: 'mint', teddy: 'sand', ball: 'rose', blocks: 'sky', puzzle: 'grape', bike: 'mint',
+  baby: 'pink', pram: 'sky', bottle: 'sky',
   gift: 'rose', school: 'grape', party: 'pink', summer: 'sun', winter: 'sky', rain: 'mint',
   info: 'sky', mail: 'grape', help: 'sun', truck: 'mint', box: 'sand',
   login: 'mint', logout: 'rose', shield: 'grape', register: 'sky', sparkle: 'sun',
@@ -298,8 +224,8 @@ export const KidsIcon: React.FC<KidsIconProps> = ({
 
 /**
  * Best-effort mapping from a category's stored icon name (or its own name) to
- * one of the drawn icons. Anything unrecognised returns null so the caller can
- * fall back rather than showing the wrong garment.
+ * one of the icons. Anything unrecognised returns null so the caller can fall
+ * back rather than showing the wrong garment.
  */
 export function kidsIconForCategory(raw?: string): KidsIconName | null {
   if (!raw) return null;
@@ -314,30 +240,34 @@ export function kidsIconForCategory(raw?: string): KidsIconName | null {
     ['school', ['school', 'uniform', 'قوتابخانە', 'خوێندن', 'مدرسة', 'مدرسي', 'زي']],
     ['party', ['party', 'festive', 'eid', 'ئاهەنگ', 'جەژن', 'حفل', 'عيد', 'مناسب']],
 
-    ['bottle', ['bottle', 'feeding', 'شووشە', 'رضاعة', 'زجاجة']],
+    ['pram', ['pram', 'stroller', 'carriage', 'bottle', 'feeding', 'عربة', 'رضاعة', 'زجاجة', 'شووشە', 'عەرەبانە']],
     ['baby', ['baby', 'newborn', 'infant', 'toddler', 'طفل', 'رضيع', 'أطفال رضع', 'ساوا', 'نۆزاد', 'mndal']],
 
     ['socks', ['sock', 'tights', 'جورب', 'جوارب', 'گۆرەوی', 'gorawi']],
-    ['shoes', ['shoe', 'foot', 'sneaker', 'boot', 'sandal', 'slipper', 'حذاء', 'أحذية', 'صندل', 'پێڵاو', 'pilaw', 'سەندەل']],
+    ['boots', ['boot', 'wellington', 'بوت', 'جزمة', 'پۆتین']],
+    ['shoes', ['shoe', 'foot', 'sneaker', 'sandal', 'slipper', 'حذاء', 'أحذية', 'صندل', 'پێڵاو', 'pilaw', 'سەندەل']],
 
+    ['backpack', ['backpack', 'rucksack', 'حقيبة ظهر', 'جانتای پشت']],
     ['cap', ['cap', 'قبعة', 'كاب']],
     ['hat', ['hat', 'crown', 'beanie', 'قبعات', 'کڵاو', 'klaw', 'تاج']],
     ['bow', ['bow', 'hairband', 'hair', 'ribbon', 'clip', 'ربطة', 'شريطة', 'گوڵ', 'قژ', 'سەربەند']],
     ['glasses', ['glass', 'sunglass', 'نەزارە', 'نظار', 'شمسية']],
     ['watch', ['watch', 'کاتژمێر', 'ساعة', 'ساعات']],
-    ['bag', ['bag', 'backpack', 'purse', 'حقيبة', 'حقائب', 'جانتا', 'چانتە', 'chant']],
+    ['bag', ['bag', 'purse', 'حقيبة', 'حقائب', 'جانتا', 'چانتە', 'chant']],
 
     ['teddy', ['teddy', 'plush', 'bear', 'doll', 'دمية', 'دبدوب', 'ورچ', 'بووکەڵە']],
     ['ball', ['ball', 'sport', 'كرة', 'ریاضە', 'تۆپ']],
     ['bike', ['bike', 'cycle', 'scooter', 'دراجة', 'پاسکیل']],
-    ['blocks', ['block', 'brick', 'puzzle', 'lego', 'مكعبات', 'أحجية', 'یاریگە']],
+    ['puzzle', ['puzzle', 'أحجية', 'ماتەماتیک']],
+    ['blocks', ['block', 'brick', 'lego', 'مكعبات', 'یاریگە']],
     ['toy', ['toy', 'game', 'play', 'car', 'لعبة', 'ألعاب', 'یاری', 'بازی', 'yari']],
 
     ['jacket', ['jacket', 'coat', 'hoodie', 'sweater', 'cardigan', 'معطف', 'جاكيت', 'سترة', 'چاکەت', 'کۆت', 'chaket']],
     ['trousers', ['trouser', 'pant', 'jean', 'short', 'legging', 'بنطال', 'جينز', 'شورت', 'پانتۆڵ', 'جین']],
     ['skirt', ['skirt', 'تنورة', 'دامێن']],
     ['dress', ['dress', 'frock', 'gown', 'girl', 'فستان', 'فساتين', 'بنات', 'کراس', 'کچ', 'kras']],
-    ['shirt', ['shirt', 'tshirt', 't-shirt', 'polo', 'top', 'blouse', 'cloth', 'apparel', 'boy', 'قميص', 'ملابس', 'أولاد', 'تیشێرت', 'پۆشاک', 'جل', 'کوڕ']],
+    ['shirt', ['shirt', 'tshirt', 't-shirt', 'polo', 'top', 'blouse', 'boy', 'قميص', 'أولاد', 'تیشێرت', 'کوڕ']],
+    ['clothes', ['cloth', 'apparel', 'outfit', 'wear', 'ملابس', 'البسة', 'پۆشاک', 'جل']],
 
     ['gift', ['gift', 'accessor', 'هدية', 'إكسسوار', 'اكسسوار', 'دیاری', 'پێداویستی', 'ئەکسسوار']],
   ];
@@ -355,6 +285,11 @@ export function kidsIconForCategory(raw?: string): KidsIconName | null {
  * than sixteen — the shop owner is looking for "the dress one", not scanning.
  * The labels are here rather than in the modal so the list and its names
  * cannot drift apart.
+ *
+ * A few names in the union above are missing here on purpose. They are the
+ * ones kept only so categories saved under an older picker still resolve, and
+ * they now share a picture with an entry that is offered; showing both would
+ * put the same icon in the grid twice under two names.
  */
 export interface CategoryIconChoice {
   name: KidsIconName;
@@ -376,9 +311,9 @@ export const CATEGORY_ICON_GROUPS: CategoryIconGroup[] = [
     icons: [
       { name: 'shirt', ku: 'تیشێرت', ar: 'قميص', en: 'Shirt' },
       { name: 'dress', ku: 'کراس', ar: 'فستان', en: 'Dress' },
-      { name: 'skirt', ku: 'دامێن', ar: 'تنورة', en: 'Skirt' },
       { name: 'trousers', ku: 'پانتۆڵ', ar: 'بنطال', en: 'Trousers' },
       { name: 'jacket', ku: 'چاکەت', ar: 'جاكيت', en: 'Jacket' },
+      { name: 'clothes', ku: 'جل و بەرگ', ar: 'ملابس', en: 'Clothes' },
       { name: 'socks', ku: 'گۆرەوی', ar: 'جوارب', en: 'Socks' },
     ],
   },
@@ -386,12 +321,14 @@ export const CATEGORY_ICON_GROUPS: CategoryIconGroup[] = [
     ku: 'پێڵاو', ar: 'الأحذية', en: 'Footwear',
     icons: [
       { name: 'shoes', ku: 'پێڵاو', ar: 'حذاء', en: 'Shoes' },
+      { name: 'boots', ku: 'پۆتین', ar: 'جزمة', en: 'Boots' },
     ],
   },
   {
     ku: 'ئەکسسوارات', ar: 'إكسسوارات', en: 'Accessories',
     icons: [
       { name: 'bag', ku: 'جانتا', ar: 'حقيبة', en: 'Bag' },
+      { name: 'backpack', ku: 'جانتای پشت', ar: 'حقيبة ظهر', en: 'Backpack' },
       { name: 'hat', ku: 'کڵاو', ar: 'قبعة', en: 'Hat' },
       { name: 'cap', ku: 'کڵاوی وەرزشی', ar: 'كاب', en: 'Cap' },
       { name: 'bow', ku: 'گوڵی قژ', ar: 'ربطة شعر', en: 'Hair bow' },
@@ -402,18 +339,18 @@ export const CATEGORY_ICON_GROUPS: CategoryIconGroup[] = [
   {
     ku: 'یاری', ar: 'الألعاب', en: 'Toys',
     icons: [
-      { name: 'teddy', ku: 'ورچی یاری', ar: 'دبدوب', en: 'Teddy' },
+      { name: 'toy', ku: 'یاری', ar: 'لعبة', en: 'Toy' },
       { name: 'ball', ku: 'تۆپ', ar: 'كرة', en: 'Ball' },
       { name: 'blocks', ku: 'یاریگە', ar: 'مكعبات', en: 'Blocks' },
+      { name: 'puzzle', ku: 'پازڵ', ar: 'أحجية', en: 'Puzzle' },
       { name: 'bike', ku: 'پاسکیل', ar: 'دراجة', en: 'Bike' },
-      { name: 'toy', ku: 'یاری', ar: 'لعبة', en: 'Toy' },
     ],
   },
   {
     ku: 'شتی منداڵان', ar: 'مستلزمات الأطفال', en: 'Baby',
     icons: [
       { name: 'baby', ku: 'ساوا', ar: 'رضيع', en: 'Baby' },
-      { name: 'bottle', ku: 'شووشەی شیر', ar: 'رضاعة', en: 'Bottle' },
+      { name: 'pram', ku: 'عەرەبانە', ar: 'عربة أطفال', en: 'Pram' },
     ],
   },
   {
@@ -434,6 +371,9 @@ export const CATEGORY_ICON_GROUPS: CategoryIconGroup[] = [
 export const CATEGORY_ICON_NAMES: KidsIconName[] =
   CATEGORY_ICON_GROUPS.flatMap(group => group.icons.map(icon => icon.name));
 
-/** True when a stored value is one of the names the picker offers. */
+/**
+ * True when a stored value is one of the icon names, whether or not the picker
+ * still offers it — a category saved under an older picker keeps its choice.
+ */
 export const isCategoryIconName = (value?: string): value is KidsIconName =>
-  !!value && (CATEGORY_ICON_NAMES as string[]).includes(value);
+  !!value && Object.prototype.hasOwnProperty.call(GLYPHS, value);

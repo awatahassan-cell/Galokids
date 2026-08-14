@@ -22,11 +22,11 @@ const LEGACY_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   ShoppingBag, Tag, Palette, Heart, Backpack, Crown, Car, Gift,
 };
 
-/** Old Lucide names mapped onto their nearest drawn equivalent. */
+/** Old Lucide names mapped onto their nearest equivalent in the current set. */
 const LEGACY_TO_DRAWN: Record<string, KidsIconName> = {
   Shirt: 'shirt', Baby: 'baby', Sparkles: 'sparkle', Gamepad: 'toy',
   Footprints: 'shoes', CloudRain: 'rain', ShoppingBag: 'bag',
-  Heart: 'heart', Backpack: 'bag', Crown: 'hat', Car: 'toy', Gift: 'gift',
+  Heart: 'heart', Backpack: 'backpack', Crown: 'hat', Car: 'toy', Gift: 'gift',
 };
 
 interface CategoryIconProps {
