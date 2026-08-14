@@ -383,6 +383,8 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
           value: r => r.product.barcode || r.product.sku || '' },
         { header: L('پۆل', 'الفئة', 'Category'), width: 20, value: r => r.categoryName },
         { header: L('ژمارەی جۆرەکان', 'عدد الأنواع', 'Variations'), width: 12, value: r => r.variationsCount },
+        { header: L('تفاسیلی جۆرەکان (ڕەنگ / سایز / ستۆک / بارکۆد)', 'تفاصيل الأنواع (لون / مقاس / كمية)', 'Variations Breakdown (Color/Size/Stock/Barcode)'), width: 45, 
+          value: r => (r.product.variations || []).map(v => `${v.color || ''} ${v.size || ''}: ${v.stockQuantity ?? 0} دانە${v.barcode ? ` [${v.barcode}]` : ''}`).join(' | ') },
         { header: L('ڕەنگەکان', 'الألوان', 'Colors'), width: 22, value: r => r.uniqueColors.join(', ') },
         { header: L('پارچە لە کۆگا', 'القطع', 'Stock Pieces'), width: 14, value: r => r.stockPieces },
         { header: L('تێچووی یەکە', 'تكلفة الوحدة', 'Unit Cost'), width: 14, value: r => r.unitCost },
@@ -874,6 +876,37 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
                               {p.barcode && <span>{p.barcode}</span>}
                               {p.sku && <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{p.sku}</span>}
                             </p>
+
+                            {/* Detailed Per-Variation Quantity Badges */}
+                            {p.variations && p.variations.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {p.variations.map((v, vIdx) => (
+                                  <span
+                                    key={v.id || vIdx}
+                                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                                      (v.stockQuantity || 0) === 0
+                                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                        : (v.stockQuantity || 0) <= 3
+                                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                        : 'bg-slate-50 text-slate-700 border-slate-200'
+                                    }`}
+                                  >
+                                    <span
+                                      className="w-2.5 h-2.5 rounded-full border border-slate-300 shrink-0"
+                                      style={{ backgroundColor: getColorHex(v.color) }}
+                                      title={v.color}
+                                    />
+                                    <span>{v.size || 'N/A'}</span>
+                                    <span className="font-black text-indigo-700">({v.stockQuantity ?? 0} {L('دانە', 'قطع', 'pcs')})</span>
+                                    {(v.barcode || v.sku) && (
+                                      <span className="text-[9px] text-slate-400 font-mono border-r border-slate-200 pr-1 mr-0.5">
+                                        {v.barcode || v.sku}
+                                      </span>
+                                    )}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -903,17 +936,22 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
 
                       {/* Stock Quantity */}
                       <td className="px-3 py-3 text-center whitespace-nowrap">
-                        <span 
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black dir-ltr ${
-                            item.isOutOfStock 
-                              ? 'bg-rose-100 text-rose-700 border border-rose-200' 
-                              : item.isLowStock 
-                              ? 'bg-amber-100 text-amber-700 border border-amber-200' 
-                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          }`}
-                        >
-                          {item.stockPieces} {L('دانە', 'قطع', 'pcs')}
-                        </span>
+                        <div className="flex flex-col items-center">
+                          <span 
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black dir-ltr ${
+                              item.isOutOfStock 
+                                ? 'bg-rose-100 text-rose-700 border border-rose-200' 
+                                : item.isLowStock 
+                                ? 'bg-amber-100 text-amber-700 border border-amber-200' 
+                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}
+                          >
+                            {item.stockPieces} {L('دانە', 'قطع', 'pcs')}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-bold mt-0.5">
+                            {item.variationsCount} {language === 'ku' ? 'جۆر' : language === 'ar' ? 'نوع' : 'variations'}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Unit Cost */}
