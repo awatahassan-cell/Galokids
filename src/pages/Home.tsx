@@ -14,6 +14,7 @@ import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Product } from '../types';
 import { motion } from 'motion/react';
+import { fetchInstagramFeed, InstagramPost } from '../services/instagramService';
 
 const cardWidth = 'w-[220px] min-w-[220px] max-w-[220px] sm:w-[250px] sm:min-w-[250px] sm:max-w-[250px] flex-shrink-0 snap-start';
 
@@ -98,6 +99,18 @@ export const Home: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [bestSellers, setBestSellers] = useState<Product[]>([]);
   const [activeProductTab, setActiveProductTab] = useState<'featured' | 'trending' | 'new'>('featured');
+  const [instaPosts, setInstaPosts] = useState<InstagramPost[]>([]);
+
+  useEffect(() => {
+    const token = storeSettings?.instagram_access_token;
+    if (token) {
+      fetchInstagramFeed(token).then(posts => {
+        if (posts && posts.length > 0) {
+          setInstaPosts(posts);
+        }
+      });
+    }
+  }, [storeSettings?.instagram_access_token]);
 
   const featuredProducts = products.length > 0 ? [...products].reverse().slice(0, 10) : [];
   const activeProductsList = React.useMemo(() => {
@@ -632,13 +645,14 @@ export const Home: React.FC = () => {
           </section>
         )}
 
-        {/* 7. Instagram strip — shows real catalogue images and links to the
-               handle configured in store settings, instead of stock photos. */}
+        {/* 7. Instagram strip — shows real live API posts or catalogue fallback */}
         {(() => {
-          const gallery = (bestSellers.length > 0 ? bestSellers : products)
-            .filter(p => p?.imageUrl)
-            .slice(0, 6);
-          if (gallery.length === 0) return null;
+          const hasLivePosts = instaPosts.length > 0;
+          const gallery = hasLivePosts 
+            ? instaPosts.slice(0, 6) 
+            : (bestSellers.length > 0 ? bestSellers : products).filter(p => p?.imageUrl).slice(0, 6);
+
+          if (!hasLivePosts && gallery.length === 0) return null;
 
           return (
             <section className="px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16 font-arabic text-center relative">
@@ -648,33 +662,61 @@ export const Home: React.FC = () => {
                   {language === 'ku' ? 'بەدوامان بکەوە' : language === 'ar' ? 'تابعنا' : 'Follow the fun'}
                 </span>
                 <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight mb-2">
-                  {language === 'ku' ? <>لە <span className="vk-hi">ئینستاگرام</span></>
-                    : language === 'ar' ? <>على <span className="vk-hi">إنستغرام</span></>
-                    : <>We are on <span className="vk-hi">Instagram</span></>}
+                  {language === 'ku' ? <>پۆستەکانی <span className="vk-hi">ئینستاگرام</span></>
+                    : language === 'ar' ? <>منشورات <span className="vk-hi">إنستغرام</span></>
+                    : <>Live on <span className="vk-hi">Instagram</span></>}
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500 font-bold mb-6">
-                  {language === 'ku' ? 'تاگمان بکە' : language === 'ar' ? 'ضع وسمنا' : 'Tag us'}{' '}
-                  <b className="text-candy-700">{instagramHandle}</b>
+                  {language === 'ku' ? 'شوێنمان بکەوە لە' : language === 'ar' ? 'تابعنا على' : 'Follow us on'}{' '}
+                  <b className="text-candy-700">{instagramHandle || '@galokids.iq'}</b>
                 </p>
 
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                  {gallery.map(p => (
-                    <Link
-                      key={p.id}
-                      to={`/product/${p.id}`}
-                      className="group relative aspect-square rounded-2xl overflow-hidden border border-slate-100 shadow-2xs"
-                    >
-                      <img
-                        src={p.imageUrl}
-                        alt={(language === 'ku' && p.nameKu) || (language === 'ar' && p.nameAr) || p.name}
-                        loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      <span className="absolute inset-0 bg-ink-900/70 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center text-white text-[11px] font-black px-2 text-center">
-                        {(language === 'ku' && p.nameKu) || (language === 'ar' && p.nameAr) || p.name}
-                      </span>
-                    </Link>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                  {hasLivePosts ? (
+                    instaPosts.slice(0, 6).map((post) => (
+                      <a
+                        key={post.id}
+                        href={post.permalink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative aspect-square rounded-2xl overflow-hidden border border-slate-100 shadow-2xs bg-slate-900 block"
+                      >
+                        <img
+                          src={post.mediaUrl}
+                          alt={post.caption || 'Instagram Post'}
+                          loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-110 group-hover:opacity-80 transition-all duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2.5 text-right text-white">
+                          <p className="text-[10px] font-bold line-clamp-2 leading-tight mb-1 text-slate-200">
+                            {post.caption || 'Galokids Instagram'}
+                          </p>
+                          <span className="inline-flex items-center gap-1 text-[9px] font-black text-rose-300">
+                            <span>📸</span>
+                            <span>{language === 'ku' ? 'کردنەوە لە ئینستاگرام' : language === 'ar' ? 'عرض على انستغرام' : 'View on Instagram'}</span>
+                          </span>
+                        </div>
+                      </a>
+                    ))
+                  ) : (
+                    (gallery as Product[]).map(p => (
+                      <Link
+                        key={p.id}
+                        to={`/product/${p.id}`}
+                        className="group relative aspect-square rounded-2xl overflow-hidden border border-slate-100 shadow-2xs"
+                      >
+                        <img
+                          src={p.imageUrl}
+                          alt={(language === 'ku' && p.nameKu) || (language === 'ar' && p.nameAr) || p.name}
+                          loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                        <span className="absolute inset-0 bg-ink-900/70 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center text-white text-[11px] font-black px-2 text-center">
+                          {(language === 'ku' && p.nameKu) || (language === 'ar' && p.nameAr) || p.name}
+                        </span>
+                      </Link>
+                    ))
+                  )}
                 </div>
 
                 {instagramUrl && (
@@ -684,7 +726,7 @@ export const Home: React.FC = () => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 mt-6 px-6 py-3 rounded-full bg-gradient-to-r from-candy-500 to-grape-500 text-white font-black text-xs shadow-md hover:scale-105 transition-transform"
                   >
-                    {language === 'ku' ? 'شوێنمان بکەوە' : language === 'ar' ? 'تابعنا' : 'Follow us'} {instagramHandle}
+                    {language === 'ku' ? 'شوێنمان بکەوە لە' : language === 'ar' ? 'تابعنا على' : 'Follow us on'} {instagramHandle || '@galokids.iq'}
                   </a>
                 )}
               </div>

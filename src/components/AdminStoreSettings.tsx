@@ -26,6 +26,7 @@ export const AdminStoreSettings: React.FC = () => {
     whatsapp_number: '',
     facebook_url: '',
     instagram_url: '',
+    instagram_access_token: '',
     tiktok_url: '',
     snapchat_url: '',
   });
@@ -85,6 +86,7 @@ export const AdminStoreSettings: React.FC = () => {
       whatsapp_number: storeSettings.whatsapp_number ?? f.whatsapp_number,
       facebook_url: storeSettings.facebook_url ?? f.facebook_url,
       instagram_url: storeSettings.instagram_url ?? f.instagram_url,
+      instagram_access_token: storeSettings.instagram_access_token ?? f.instagram_access_token,
       tiktok_url: storeSettings.tiktok_url ?? f.tiktok_url,
       snapchat_url: storeSettings.snapchat_url ?? f.snapchat_url,
     }));
@@ -290,8 +292,17 @@ export const AdminStoreSettings: React.FC = () => {
           {field(
             'instagram_url',
             L('Instagram Link'),
-            'https://instagram.com/GaloKids',
+            'https://instagram.com/galokids.iq',
             <Instagram className="w-4 h-4 text-pink-600" />
+          )}
+          {field(
+            'instagram_access_token',
+            L('Instagram Access Token (Meta API)'),
+            'IGQJ...',
+            <Instagram className="w-4 h-4 text-purple-600" />,
+            language === 'ku' 
+              ? 'تۆکنی Meta Instagram Display API بنووسە بۆ نیشاندانی پۆستە ڕاستەقینەکانت لە هۆم پەیج'
+              : 'Paste Meta Instagram Display API access token to render live posts'
           )}
           {field(
             'tiktok_url',
