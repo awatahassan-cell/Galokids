@@ -619,22 +619,6 @@ export const ProductDetail: React.FC = () => {
             );
           })()}
 
-          {/* The four promises, as a grid under the buy controls. This is the
-              information a parent actually weighs before tapping buy. */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-5 bg-bubble-50 border border-bubble-200 rounded-2xl p-4">
-            {([
-              { icon: 'truck',  label: language === 'ku' ? 'گەیاندن بۆ هەموو پارێزگاکان' : language === 'ar' ? 'توصيل لكل المحافظات' : 'Delivery nationwide' },
-              { icon: 'cash',   label: language === 'ku' ? 'پارەدان لە کاتی وەرگرتن' : language === 'ar' ? 'الدفع عند الاستلام' : 'Cash on delivery' },
-              { icon: 'return', label: language === 'ku' ? 'گەڕاندنەوە تا ١٤ ڕۆژ' : language === 'ar' ? 'إرجاع خلال 14 يوم' : 'Returns within 14 days' },
-              { icon: 'fabric', label: language === 'ku' ? 'پارچەی سروشتی و پێستپارێز' : language === 'ar' ? 'أقمشة طبيعية آمنة' : 'Natural, skin-safe fabric' },
-            ] as { icon: KidsIconName; label: string }[]).map(({ icon, label }) => (
-              <div key={label} className="flex items-center gap-2.5 text-xs font-bold text-slate-700">
-                <KidsIcon name={icon} className="w-5 h-5 shrink-0" />
-                {label}
-              </div>
-            ))}
-          </div>
-
           {/* Action Section split into 2 distinct rows */}
           <div className="w-full my-6 space-y-3.5">
             
@@ -812,6 +796,24 @@ export const ProductDetail: React.FC = () => {
               )}
             </div>
 
+          </div>
+
+          {/* The four promises, last in the column — under the buy button and
+              the basket. They answer what a parent asks once they have already
+              decided ("how does it reach me, can I send it back"), so they sit
+              better after the controls than in front of them. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-bubble-50 border border-bubble-200 rounded-2xl p-4">
+            {([
+              { icon: 'truck',  label: language === 'ku' ? 'گەیاندن بۆ هەموو پارێزگاکان' : language === 'ar' ? 'توصيل لكل المحافظات' : 'Delivery nationwide' },
+              { icon: 'cash',   label: language === 'ku' ? 'پارەدان لە کاتی وەرگرتن' : language === 'ar' ? 'الدفع عند الاستلام' : 'Cash on delivery' },
+              { icon: 'return', label: language === 'ku' ? 'گەڕاندنەوە تا ١٤ ڕۆژ' : language === 'ar' ? 'إرجاع خلال 14 يوم' : 'Returns within 14 days' },
+              { icon: 'fabric', label: language === 'ku' ? 'پارچەی سروشتی و پێستپارێز' : language === 'ar' ? 'أقمشة طبيعية آمنة' : 'Natural, skin-safe fabric' },
+            ] as { icon: KidsIconName; label: string }[]).map(({ icon, label }) => (
+              <div key={label} className="flex items-center gap-2.5 text-xs font-bold text-slate-700">
+                <KidsIcon name={icon} className="w-5 h-5 shrink-0" />
+                {label}
+              </div>
+            ))}
           </div>
 
         </div>
