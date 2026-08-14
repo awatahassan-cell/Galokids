@@ -257,15 +257,15 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
         </div>
       )}
 
-      {/* Drag & Drop Upload Dropzone */}
+      {/* Drag & Drop Upload Dropzone - Compact & Elegant */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`relative border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 ${
+        className={`relative border border-dashed rounded-xl p-3 sm:p-4 text-center cursor-pointer transition-all duration-200 ${
           isDragging
-            ? 'border-indigo-600 bg-grape-50/70 scale-[1.01]'
+            ? 'border-indigo-600 bg-indigo-50/70 scale-[1.01]'
             : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-slate-50'
         }`}
       >
@@ -280,22 +280,23 @@ export const ProductImageEditor: React.FC<ProductImageEditorProps> = ({
         />
 
         {isUploading ? (
-          <div className="flex flex-col items-center justify-center py-3">
-            <Loader2 className="w-8 h-8 text-grape-700 animate-spin mb-2" />
-            <p className="text-sm font-bold text-slate-800">{L("Compressing & Uploading Images...")}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{L("Optimizing photo quality and file size")}</p>
+          <div className="flex items-center justify-center gap-3 py-1">
+            <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
+            <p className="text-xs font-bold text-slate-800">{L("Compressing & Uploading Images...")}</p>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-2">
-            <div className="w-12 h-12 rounded-full bg-grape-50 text-grape-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <Upload className="w-6 h-6" />
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 py-1">
+            <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <Upload className="w-4 h-4" />
             </div>
-            <p className="text-sm font-bold text-slate-800">
-              {L("Drag & drop product images here, or")} <span className="text-grape-700 underline">{L("browse files")}</span>
-            </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {L("Supports JPG, PNG, WEBP up to 10MB per file. High-res images are automatically compressed.")}
-            </p>
+            <div className="text-center sm:text-left font-arabic">
+              <p className="text-xs font-extrabold text-slate-800">
+                {L("Drag & drop product images here, or")} <span className="text-indigo-600 underline cursor-pointer">{L("browse files")}</span>
+              </p>
+              <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                {L("Supports JPG, PNG, WEBP up to 10MB per file.")}
+              </p>
+            </div>
           </div>
         )}
       </div>

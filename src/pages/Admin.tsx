@@ -1570,7 +1570,17 @@ export const Admin: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setIsAddingProduct(true)}
+                onClick={() => setEditingProduct({
+                  id: '',
+                  name: '',
+                  price: 0,
+                  cost: 0,
+                  categoryId: categories[0]?.id || '',
+                  description: '',
+                  imageUrl: '',
+                  images: [],
+                  variations: []
+                })}
                 className="bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold hover:bg-slate-800 transition-all flex items-center shadow-md text-xs shrink-0 cursor-pointer active:scale-95"
               >
                 <Plus className="w-4 h-4 mr-2" /> {L("Add Product")}
@@ -2964,239 +2974,7 @@ export const Admin: React.FC = () => {
         setEditingUser={setEditingUser}
       />
 
-      {isAddingProduct && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-3xl sm:max-w-4xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl relative border border-slate-100 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-6 border-b pb-4">
-              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                <Plus className="w-5 h-5 text-indigo-600" />
-                {L("Create New Product")}
-              </h2>
-              <button onClick={() => setIsAddingProduct(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={(e) => { handleAddProduct(e); setIsAddingProduct(false); }} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Product Name (EN)")} *</label>
-                  <input
-                    required
-                    type="text"
-                    value={productName}
-                    onChange={(e) => setProductName(e.target.value)}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Category")} *</label>
-                  <select
-                    required
-                    value={productCategory}
-                    onChange={(e) => setProductCategory(e.target.value)}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">{L("Select a category")}</option>
-                    {categories.map((c, index) => (
-                      <option key={c.id || index} value={c.id}>{getCategoryName(c)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Gender")}</label>
-                  <select
-                    value={productGender}
-                    onChange={(e) => setProductGender(Number(e.target.value) as 0 | 1 | 2)}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value={0}>{L("Both")}</option>
-                    <option value={1}>{L("Boy")}</option>
-                    <option value={2}>{L("Girl")}</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Product Name (KU)")}</label>
-                  <input
-                    type="text"
-                    value={productNameKu}
-                    onChange={(e) => setProductNameKu(e.target.value)}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    dir="rtl"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Product Name (AR)")}</label>
-                  <input
-                    type="text"
-                    value={productNameAr}
-                    onChange={(e) => setProductNameAr(e.target.value)}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    dir="rtl"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Description (EN)")}</label>
-                  <textarea
-                    value={productDesc}
-                    onChange={(e) => setProductDesc(e.target.value)}
-                    rows={3}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Description (KU)")}</label>
-                  <textarea
-                    value={productDescKu}
-                    onChange={(e) => setProductDescKu(e.target.value)}
-                    rows={3}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    dir="rtl"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Description (AR)")}</label>
-                  <textarea
-                    value={productDescAr}
-                    onChange={(e) => setProductDescAr(e.target.value)}
-                    rows={3}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    dir="rtl"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:col-span-2">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">{L("Price")} *</label>
-                    <input
-                      required
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={productPrice}
-                      onChange={(e) => setProductPrice(e.target.value)}
-                      className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">{L("Discount Price (Optional)")}</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={productDiscountPrice}
-                      onChange={(e) => setProductDiscountPrice(e.target.value)}
-                      className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">{L("Cost")} *</label>
-                    <input
-                      required
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={productCost}
-                      onChange={(e) => setProductCost(e.target.value)}
-                      className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
-                    />
-                  </div>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-1">{L("Barcode")}</label>
-                  <input
-                    type="text"
-                    value={productSku}
-                    onChange={(e) => setProductSku(e.target.value)}
-                    className="w-full border border-slate-300 rounded-xl py-2.5 px-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
-                  />
-                </div>
-                <div className="md:col-span-2 pt-2">
-                  <ProductImageEditor
-                    images={productImages}
-                    primaryImageUrl={productImages[0] || ''}
-                    onChange={(newImages) => {
-                      setProductImages(newImages);
-                    }}
-                  />
-                </div>
-              </div>
 
-              <div className="pt-6 border-t border-slate-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-md font-bold text-slate-900">{L("Variations (Color/Size/Stock)")}</h3>
-                  <button
-                    type="button"
-                    onClick={handleAddVariation}
-                    className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center bg-indigo-50 px-3.5 py-2 rounded-xl transition-all cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4 mr-1" /> {L("Add Variation")}
-                  </button>
-                </div>
-
-                {variations.length === 0 ? (
-                  <p className="text-sm text-slate-500 italic">{L("No variations added. Add variations to manage stock per color and size.")}</p>
-                ) : (
-                  <div className="space-y-3">
-                    {variations.map((v, index) => (
-                      <div key={index} className="flex gap-4 items-center bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                        <div className="flex-1">
-                          <select
-                            value={v.color || ""}
-                            onChange={(e) => updateVariation(index, 'color', e.target.value)}
-                            className="w-full border border-slate-300 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
-                          >
-                            <option value="">{L("Select Color")}</option>
-                            {STANDARD_COLORS.map(color => (
-                              <option key={color} value={color}>{color}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex-1">
-                          <select
-                            value={v.size || ""}
-                            onChange={(e) => updateVariation(index, 'size', e.target.value)}
-                            className="w-full border border-slate-300 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
-                          >
-                            <option value="">{L("Select Size")}</option>
-                            {STANDARD_SIZES.map(size => (
-                              <option key={size} value={size}>{size}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="w-32">
-                          <input
-                            type="number"
-                            placeholder={L("Stock")}
-                            value={v.stockQuantity ?? ""}
-                            onChange={(e) => updateVariation(index, 'stockQuantity', parseInt(e.target.value) || 0)}
-                            className="w-full border border-slate-300 rounded-xl py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setVariations(variations.filter((_, i) => i !== index))}
-                          className="text-red-500 hover:text-red-700 font-bold text-sm p-2 cursor-pointer"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-6 border-t border-slate-200 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsAddingProduct(false)} className="px-6 py-2.5 text-slate-700 font-bold border border-slate-300 rounded-xl hover:bg-slate-50 transition-all cursor-pointer">{L("Cancel")}</button>
-                <button
-                  type="submit"
-                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center shadow-md cursor-pointer"
-                >
-                  <Save className="w-5 h-5 mr-2" /> {L("Save Product")}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {previewImage && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setPreviewImage(null)}>
