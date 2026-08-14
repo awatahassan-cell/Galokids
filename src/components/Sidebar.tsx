@@ -237,9 +237,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         {/* Footer: language, then the way out. */}
         <div className="border-t border-slate-200/80 p-4 space-y-2 shrink-0">
-          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-2xl bg-slate-50 border border-slate-200/70">
+          {/* Laid out flat rather than behind a trigger. This drawer is the
+              only way to change language on a phone, and the row sits in a
+              footer pinned to the bottom of it — the panel opened downwards
+              into the screen edge, with nothing left to open into. */}
+          <div className="px-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/70">
             <span className="text-[13px] font-black text-slate-700">{t('language')}</span>
-            <LanguageDropdown />
+            <LanguageDropdown variant="inline" className="mt-2.5" />
           </div>
 
           {currentUser && (
