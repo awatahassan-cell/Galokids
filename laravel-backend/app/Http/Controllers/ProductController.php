@@ -50,17 +50,22 @@ class ProductController extends Controller
             });
         }
 
-        // Search filter (searches name, name_ku, name_ar, description, description_ku, description_ar, sku)
+        // Search filter (searches name, name_ku, name_ar, description, description_ku, description_ar, barcode, sku, AND variation barcode/sku)
         if ($request->has('search') && $request->search != '') {
-            $search = $request->search;
+            $search = trim($request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('name_ku', 'like', "%{$search}%")
                   ->orWhere('name_ar', 'like', "%{$search}%")
                   ->orWhere('sku', 'like', "%{$search}%")
+                  ->orWhere('barcode', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
                   ->orWhere('description_ku', 'like', "%{$search}%")
-                  ->orWhere('description_ar', 'like', "%{$search}%");
+                  ->orWhere('description_ar', 'like', "%{$search}%")
+                  ->orWhereHas('variations', function ($vq) use ($search) {
+                      $vq->where('barcode', 'like', "%{$search}%")
+                         ->orWhere('sku', 'like', "%{$search}%");
+                  });
             });
         }
 
@@ -286,15 +291,18 @@ class ProductController extends Controller
             $color = $v['color'] ?? null;
             $size = $v['size'] ?? null;
             $stock = (int) ($v['stock_quantity'] ?? $v['stockQuantity'] ?? 0);
+            $barcode = $v['barcode'] ?? $v['sku'] ?? null;
+            $sku = $v['sku'] ?? $v['barcode'] ?? null;
+
             // Skip empty rows.
-            if (($color === null || $color === '') && ($size === null || $size === '') && $stock === 0) continue;
+            if (($color === null || $color === '') && ($size === null || $size === '') && $stock === 0 && ($barcode === null || $barcode === '')) continue;
 
             $product->variations()->create([
                 'color' => $color,
                 'size' => $size,
                 'stock_quantity' => $stock,
-                'sku' => $v['sku'] ?? $v['barcode'] ?? null,
-                'barcode' => $v['barcode'] ?? $v['sku'] ?? null,
+                'sku' => $sku,
+                'barcode' => $barcode,
                 'price_override' => isset($v['price_override']) ? (float) $v['price_override'] : null,
             ]);
         }
