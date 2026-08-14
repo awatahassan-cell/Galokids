@@ -293,7 +293,8 @@ class ProductController extends Controller
                 'color' => $color,
                 'size' => $size,
                 'stock_quantity' => $stock,
-                'sku' => $v['sku'] ?? null,
+                'sku' => $v['sku'] ?? $v['barcode'] ?? null,
+                'barcode' => $v['barcode'] ?? $v['sku'] ?? null,
                 'price_override' => isset($v['price_override']) ? (float) $v['price_override'] : null,
             ]);
         }

@@ -15,6 +15,9 @@ export interface ProductVariation {
   stockQuantity: number;
   /** Per-variation price. When set it wins over the product price (and its discount). */
   priceOverride?: number | null;
+  /** Per-variation unique barcode / SKU for POS scanning */
+  barcode?: string;
+  sku?: string;
 }
 
 export interface Review {

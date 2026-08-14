@@ -15,6 +15,7 @@ class ProductVariation extends Model
         'size',
         'stock_quantity',
         'sku',
+        'barcode',
         'price_override',
     ];
 

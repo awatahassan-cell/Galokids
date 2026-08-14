@@ -43,13 +43,17 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
       list = list.filter(p => Number(p.gender) === selectedGender || Number(p.gender) === 3);
     }
     if (!search) return list;
-    const q = search.toLowerCase();
+    const q = search.toLowerCase().trim();
     return list.filter(p =>
       (p.name || '').toLowerCase().includes(q) ||
       (p.nameKu || '').toLowerCase().includes(q) ||
       (p.nameAr || '').toLowerCase().includes(q) ||
       (p.barcode || '').toLowerCase().includes(q) ||
-      (p.sku || '').toLowerCase().includes(q)
+      (p.sku || '').toLowerCase().includes(q) ||
+      (p.variations || []).some(v =>
+        (v.barcode || '').toLowerCase().includes(q) ||
+        (v.sku || '').toLowerCase().includes(q)
+      )
     );
   }, [products, search, selectedGender]);
 
@@ -63,7 +67,29 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
     const code = search.trim().toLowerCase();
     if (!code) return;
 
-    // Search by exact barcode or SKU match, or single filtered match
+    // 1. Check for exact variation barcode/SKU match across all products
+    for (const p of products) {
+      const matchingVar = (p.variations || []).find(v => 
+        (v.barcode && v.barcode.toLowerCase() === code) || 
+        (v.sku && v.sku.toLowerCase() === code)
+      );
+      if (matchingVar) {
+        if ((matchingVar.stockQuantity || 0) > 0) {
+          addToPosCart(p, matchingVar);
+          toast(
+            language === 'ku' 
+              ? `بەرهەمی "${getProductName(p)}" (${matchingVar.color}/${matchingVar.size}) زیادکرا بۆ سەبەتە 🛒`
+              : `Product "${getProductName(p)}" (${matchingVar.color}/${matchingVar.size}) added 🛒`
+          );
+          setSearch('');
+        } else {
+          toast(language === 'ku' ? 'ئەم جۆرە ستۆکی نەماوە!' : 'This variation is out of stock!', 'error');
+        }
+        return;
+      }
+    }
+
+    // 2. Search by main product barcode / SKU match
     const match = products.find(p => 
       (p.barcode || '').toLowerCase() === code || 
       (p.sku || '').toLowerCase() === code
@@ -76,7 +102,7 @@ export const POSProductGrid: React.FC<POSProductGridProps> = ({
         const singleVar = vars[0];
         if ((singleVar.stockQuantity || 0) > 0) {
           addToPosCart(match, singleVar);
-          toast(language === 'ku' ? `بەرهەمی "${getProductName(match)}" بە سەرکەوتوویی زیاکرا بۆ سەبەتە 🛒` : `Product added to cart 🛒`);
+          toast(language === 'ku' ? `بەرهەمی "${getProductName(match)}" بە سەرکەوتوویی زیادکرا بۆ سەبەتە 🛒` : `Product added to cart 🛒`);
           setSearch('');
         } else {
           toast(language === 'ku' ? 'ئەم بەرهەمە ستۆکی نەماوە!' : 'Product is out of stock!', 'error');

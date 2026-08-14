@@ -267,7 +267,7 @@ export const AdminEditModals: React.FC<Props> = ({
                             ))}
                           </select>
                         </div>
-                        <div className="w-24">
+                        <div className="w-20">
                           <input
                             type="number"
                             min="0"
@@ -278,7 +278,20 @@ export const AdminEditModals: React.FC<Props> = ({
                               newVars[index] = { ...newVars[index], stockQuantity: Number(e.target.value) };
                               setEditingProduct({...editingProduct, variations: newVars});
                             }}
-                            className="w-full border border-slate-300 rounded-md py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                            className="w-full border border-slate-300 rounded-md py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-[120px]">
+                          <input
+                            type="text"
+                            placeholder={L("Variation Barcode") || "بارکۆدی ڕەنگ/سایز"}
+                            value={v.barcode || v.sku || ""}
+                            onChange={(e) => {
+                              const newVars = [...(editingProduct.variations || [])];
+                              newVars[index] = { ...newVars[index], barcode: e.target.value, sku: e.target.value };
+                              setEditingProduct({...editingProduct, variations: newVars});
+                            }}
+                            className="w-full border border-slate-300 rounded-md py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                           />
                         </div>
                         <button

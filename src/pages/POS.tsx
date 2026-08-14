@@ -238,12 +238,17 @@ export const POS: React.FC = () => {
 
   const filteredProducts = useMemo(() => {
     if (!search) return products;
-    const q = search.toLowerCase();
+    const q = search.toLowerCase().trim();
     return products.filter(p => 
       (p.name || '').toLowerCase().includes(q) || 
       (p.nameKu || '').toLowerCase().includes(q) || 
       (p.nameAr || '').toLowerCase().includes(q) || 
-      (p.barcode || '').toLowerCase().includes(q)
+      (p.barcode || '').toLowerCase().includes(q) ||
+      (p.sku || '').toLowerCase().includes(q) ||
+      (p.variations || []).some(v => 
+        (v.barcode || '').toLowerCase().includes(q) || 
+        (v.sku || '').toLowerCase().includes(q)
+      )
     );
   }, [products, search]);
 
