@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { shopToday, shopDate } from './utils/shopTime';
-import { Category, Product, CartItem, ProductVariation, Review, User, Order, Expense, PromoBanner, PaginationMeta, Coupon, Purchase, PurchaseItem } from './types';
+import { Category, Product, CartItem, ProductVariation, Review, User, Order, Expense, PromoBanner, PaginationMeta, Coupon, Purchase, PurchaseItem, Supplier, SupplierPayment } from './types';
 import { useToast } from './components/ui/Feedback';
 import { API_BASE_URL } from './config/api';
 import { normalizePhone, isSamePhone, formatIraqiPhone } from './utils/phone';
@@ -54,6 +54,13 @@ interface StoreContextType {
   fetchPurchases: (filters?: Record<string, any>) => Promise<any>;
   addPurchase: (purchaseData: any) => Promise<{ success: boolean; purchase?: Purchase; message?: string }>;
   deletePurchase: (purchaseId: string | number) => Promise<{ success: boolean; message?: string }>;
+  suppliers: Supplier[];
+  isSuppliersLoading: boolean;
+  fetchSuppliers: (filters?: Record<string, any>) => Promise<Supplier[]>;
+  addSupplier: (supplierData: any) => Promise<{ success: boolean; supplier?: Supplier; message?: string }>;
+  updateSupplier: (id: string | number, supplierData: any) => Promise<{ success: boolean; supplier?: Supplier; message?: string }>;
+  deleteSupplier: (id: string | number) => Promise<{ success: boolean; message?: string }>;
+  recordSupplierPayment: (supplierId: string | number, paymentData: any) => Promise<{ success: boolean; message?: string }>;
   currentUser: User | null;
   
   promoBanner: PromoBanner;
@@ -313,6 +320,21 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       localStorage.setItem('kidskart_purchases_local', JSON.stringify(purchases));
     } catch {}
   }, [purchases]);
+
+  const [isSuppliersLoading, setIsSuppliersLoading] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
+    try {
+      const saved = localStorage.getItem('kidskart_suppliers_local');
+      if (saved) return JSON.parse(saved).filter(Boolean);
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kidskart_suppliers_local', JSON.stringify(suppliers));
+    } catch {}
+  }, [suppliers]);
 
   // Set when the last orders fetch failed, so pages can tell an empty
   // history apart from a request that never landed.
@@ -942,6 +964,118 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return { success: true };
     } catch {
       setPurchases(prev => prev.filter(p => String(p.id) !== String(purchaseId)));
+      return { success: true };
+    }
+  };
+
+  const fetchSuppliers = async (filters: Record<string, any> = {}): Promise<Supplier[]> => {
+    setIsSuppliersLoading(true);
+    try {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+      });
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/suppliers?${params.toString()}`);
+      if (!res.ok) throw new Error(`Suppliers fetch error: ${res.status}`);
+      const json = await res.json();
+      const data = convertKeysToCamelCase(json);
+      const list = Array.isArray(data) ? data : (data?.data || []);
+      setSuppliers(list);
+      return list;
+    } catch (e) {
+      console.warn('fetchSuppliers fallback to local:', e);
+      return suppliers;
+    } finally {
+      setIsSuppliersLoading(false);
+    }
+  };
+
+  const addSupplier = async (supplierData: any): Promise<{ success: boolean; supplier?: Supplier; message?: string }> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/suppliers`, {
+        method: 'POST',
+        body: JSON.stringify(convertKeysToSnakeCase(supplierData)),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, message: json?.message || 'Failed to create supplier' };
+      const saved = convertKeysToCamelCase(json);
+      setSuppliers(prev => [saved, ...prev.filter(s => s.id !== saved.id)]);
+      return { success: true, supplier: saved };
+    } catch {
+      const newSup: Supplier = {
+        id: `sup-${Date.now()}`,
+        name: supplierData.name,
+        company: supplierData.company,
+        contactPerson: supplierData.contactPerson,
+        phone: supplierData.phone,
+        email: supplierData.email,
+        address: supplierData.address,
+        openingBalance: Number(supplierData.openingBalance || 0),
+        notes: supplierData.notes,
+        purchasesCount: 0,
+        totalPurchases: 0,
+        totalPaid: 0,
+        debtBalance: Number(supplierData.openingBalance || 0),
+        createdAt: new Date().toISOString(),
+      };
+      setSuppliers(prev => [newSup, ...prev]);
+      return { success: true, supplier: newSup };
+    }
+  };
+
+  const updateSupplier = async (id: string | number, supplierData: any): Promise<{ success: boolean; supplier?: Supplier; message?: string }> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/suppliers/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(convertKeysToSnakeCase(supplierData)),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, message: json?.message || 'Failed to update supplier' };
+      const updated = convertKeysToCamelCase(json);
+      setSuppliers(prev => prev.map(s => String(s.id) === String(id) ? { ...s, ...updated } : s));
+      return { success: true, supplier: updated };
+    } catch {
+      setSuppliers(prev => prev.map(s => String(s.id) === String(id) ? { ...s, ...supplierData } : s));
+      return { success: true, supplier: { id, ...supplierData } };
+    }
+  };
+
+  const deleteSupplier = async (id: string | number): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/suppliers/${id}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, message: json?.message };
+      setSuppliers(prev => prev.filter(s => String(s.id) !== String(id)));
+      return { success: true };
+    } catch {
+      setSuppliers(prev => prev.filter(s => String(s.id) !== String(id)));
+      return { success: true };
+    }
+  };
+
+  const recordSupplierPayment = async (supplierId: string | number, paymentData: any): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/suppliers/${supplierId}/payments`, {
+        method: 'POST',
+        body: JSON.stringify(convertKeysToSnakeCase(paymentData)),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, message: json?.message || 'Failed to record payment' };
+      fetchSuppliers();
+      fetchPurchases();
+      return { success: true };
+    } catch {
+      const amt = Number(paymentData.amount || 0);
+      setSuppliers(prev => prev.map(s => {
+        if (String(s.id) === String(supplierId)) {
+          const newPaid = (s.totalPaid || 0) + amt;
+          const newDebt = Math.max(0, (s.debtBalance || 0) - amt);
+          return { ...s, totalPaid: newPaid, debtBalance: newDebt };
+        }
+        return s;
+      }));
       return { success: true };
     }
   };
@@ -2642,6 +2776,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       fetchBestSellers, recordRecentlyViewed, getRecentlyViewedIds, trackOrder, lookupCustomer,
       fetchShippingQuote, fetchStockMovements, adjustStock, fetchActivityLogs,
       fetchPurchases, addPurchase, deletePurchase,
+      suppliers, isSuppliersLoading, fetchSuppliers, addSupplier, updateSupplier, deleteSupplier, recordSupplierPayment,
       recordCashMovement, fetchCashMovements, exchangeOrder, fetchOrderHistory,
       storeSettings, saveSettings, getCurrentShift, openShift, getShiftReport, closeShift, getOrderById, refundOrder
     }}>

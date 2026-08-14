@@ -207,6 +207,7 @@ export interface PurchaseItem {
 export interface Purchase {
   id: string | number;
   invoiceNumber: string;
+  supplierId?: string | number;
   supplierName: string;
   supplierPhone?: string;
   purchaseDate: string; // YYYY-MM-DD
@@ -220,4 +221,38 @@ export interface Purchase {
   items: PurchaseItem[];
   createdAt?: string;
 }
+
+export interface SupplierPayment {
+  id: string | number;
+  supplierId: string | number;
+  purchaseId?: string | number;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: string;
+  referenceNumber?: string;
+  notes?: string;
+  userId?: string | number;
+  user?: { id: string | number; name: string };
+  createdAt?: string;
+}
+
+export interface Supplier {
+  id: string | number;
+  name: string;
+  company?: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  openingBalance?: number;
+  notes?: string;
+  purchasesCount?: number;
+  totalPurchases?: number;
+  totalPaid?: number;
+  debtBalance?: number;
+  purchases?: Purchase[];
+  payments?: SupplierPayment[];
+  createdAt?: string;
+}
+
 

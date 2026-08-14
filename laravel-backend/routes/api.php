@@ -123,6 +123,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Purchases & Restock (staff/admin)
     Route::apiResource('purchases', \App\Http\Controllers\PurchaseController::class);
 
+    // Suppliers & Accounts (staff/admin)
+    Route::apiResource('suppliers', \App\Http\Controllers\SupplierController::class);
+    Route::post('/suppliers/{id}/payments', [\App\Http\Controllers\SupplierController::class, 'recordPayment']);
+
     // Bulk deletes and bulk status changes. ADMIN ONLY — deliberately
     // stricter than the single-row deletes above, which staff may use.
     Route::post('/bulk/products', [\App\Http\Controllers\BulkActionController::class, 'products']);

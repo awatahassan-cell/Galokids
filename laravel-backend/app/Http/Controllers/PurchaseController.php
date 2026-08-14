@@ -67,6 +67,7 @@ class PurchaseController extends Controller
         $user = $this->requirePrivileged($request);
 
         $validated = $request->validate([
+            'supplier_id' => 'nullable|integer|exists:suppliers,id',
             'supplier_name' => 'required|string|max:255',
             'supplier_phone' => 'nullable|string|max:50',
             'purchase_date' => 'required|date',
@@ -93,8 +94,23 @@ class PurchaseController extends Controller
             $paidAmount = isset($validated['paid_amount']) ? (float)$validated['paid_amount'] : $totalAmount;
             $paymentStatus = $validated['payment_status'] ?? ($paidAmount >= $totalAmount ? 'paid' : ($paidAmount > 0 ? 'partial' : 'unpaid'));
 
+            $supplierId = $validated['supplier_id'] ?? null;
+            if (!$supplierId && !empty($validated['supplier_name'])) {
+                $existing = \App\Models\Supplier::where('name', $validated['supplier_name'])->first();
+                if ($existing) {
+                    $supplierId = $existing->id;
+                } else {
+                    $newSup = \App\Models\Supplier::create([
+                        'name' => $validated['supplier_name'],
+                        'phone' => $validated['supplier_phone'] ?? null,
+                    ]);
+                    $supplierId = $newSup->id;
+                }
+            }
+
             $purchase = Purchase::create([
                 'invoice_number' => $invoiceNumber,
+                'supplier_id' => $supplierId,
                 'supplier_name' => $validated['supplier_name'],
                 'supplier_phone' => $validated['supplier_phone'] ?? null,
                 'purchase_date' => $validated['purchase_date'],
