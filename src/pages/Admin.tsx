@@ -36,6 +36,7 @@ import { AdminStockLedgerTab } from "../components/admin/AdminStockLedgerTab";
 import { AdminActivityLogTab } from "../components/admin/AdminActivityLogTab";
 import { AdminLabelsTab } from "../components/admin/AdminLabelsTab";
 import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
+import { AdminPurchasesTab } from "../components/admin/AdminPurchasesTab";
 import { BulkStockModal } from "../components/admin/BulkStockModal";
 import { BulkActionBar } from "../components/admin/BulkActionBar";
 import { BulkCheckbox } from "../components/admin/BulkCheckbox";
@@ -110,7 +111,7 @@ export const Admin: React.FC = () => {
   
   const { tab: urlTab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
-  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'inventory', 'stock-ledger', 'categories', 'orders', 'pos-sales', 'users', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings', 'activity-log'], []);
+  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'purchases', 'inventory', 'stock-ledger', 'categories', 'orders', 'pos-sales', 'users', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings', 'activity-log'], []);
 
   const [activeTab, setActiveTabState] = useState<string>(() => {
     if (urlTab && validTabs.includes(urlTab)) return urlTab;
@@ -1370,6 +1371,10 @@ export const Admin: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === 'purchases' && (
+        <AdminPurchasesTab />
       )}
 
       {activeTab === 'inventory' && (

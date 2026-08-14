@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { shopToday, shopDate } from './utils/shopTime';
-import { Category, Product, CartItem, ProductVariation, Review, User, Order, Expense, PromoBanner, PaginationMeta, Coupon } from './types';
+import { Category, Product, CartItem, ProductVariation, Review, User, Order, Expense, PromoBanner, PaginationMeta, Coupon, Purchase, PurchaseItem } from './types';
 import { useToast } from './components/ui/Feedback';
 import { API_BASE_URL } from './config/api';
 import { normalizePhone, isSamePhone, formatIraqiPhone } from './utils/phone';
@@ -48,6 +48,12 @@ interface StoreContextType {
   users: User[];
   orders: Order[];
   expenses: Expense[];
+  purchases: Purchase[];
+  purchasesPagination: PaginationMeta;
+  isPurchasesLoading: boolean;
+  fetchPurchases: (filters?: Record<string, any>) => Promise<any>;
+  addPurchase: (purchaseData: any) => Promise<{ success: boolean; purchase?: Purchase; message?: string }>;
+  deletePurchase: (purchaseId: string | number) => Promise<{ success: boolean; message?: string }>;
   currentUser: User | null;
   
   promoBanner: PromoBanner;
@@ -290,8 +296,23 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [productsPagination, setProductsPagination] = useState<PaginationMeta>(defaultPagination);
   const [ordersPagination, setOrdersPagination] = useState<PaginationMeta>(defaultPagination);
   const [expensesPagination, setExpensesPagination] = useState<PaginationMeta>(defaultPagination);
+  const [purchasesPagination, setPurchasesPagination] = useState<PaginationMeta>(defaultPagination);
   const [reviewsPagination, setReviewsPagination] = useState<PaginationMeta>(defaultPagination);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [isPurchasesLoading, setIsPurchasesLoading] = useState(false);
+  const [purchases, setPurchases] = useState<Purchase[]>(() => {
+    try {
+      const saved = localStorage.getItem('kidskart_purchases_local');
+      if (saved) return JSON.parse(saved).filter(Boolean);
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('kidskart_purchases_local', JSON.stringify(purchases));
+    } catch {}
+  }, [purchases]);
 
   // Set when the last orders fetch failed, so pages can tell an empty
   // history apart from a request that never landed.
@@ -815,6 +836,113 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return { success: true };
     } catch {
       return { success: false, message: 'Could not reach the server.' };
+    }
+  };
+
+  const fetchPurchases = async (filters: Record<string, any> = {}) => {
+    setIsPurchasesLoading(true);
+    try {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+      });
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/purchases?${params.toString()}`);
+      if (!res.ok) throw new Error(`Purchases fetch error: ${res.status}`);
+      const json = await res.json();
+      const data = convertKeysToCamelCase(json);
+      if (Array.isArray(data)) {
+        setPurchases(data);
+        return data;
+      } else if (data && Array.isArray(data.data)) {
+        setPurchases(data.data);
+        setPurchasesPagination({
+          currentPage: data.currentPage || 1,
+          lastPage: data.lastPage || 1,
+          total: data.total || data.data.length,
+        });
+        return data.data;
+      }
+      return [];
+    } catch (e) {
+      console.warn('fetchPurchases fallback to local:', e);
+      return purchases;
+    } finally {
+      setIsPurchasesLoading(false);
+    }
+  };
+
+  const addPurchase = async (purchaseData: any): Promise<{ success: boolean; purchase?: Purchase; message?: string }> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/purchases`, {
+        method: 'POST',
+        body: JSON.stringify(convertKeysToSnakeCase(purchaseData)),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, message: json?.message || 'Failed to save purchase order' };
+      }
+      const savedPurchase = convertKeysToCamelCase(json);
+      setPurchases(prev => [savedPurchase, ...prev.filter(p => p.id !== savedPurchase.id)]);
+      refreshProducts();
+      bumpProductsRevision();
+      return { success: true, purchase: savedPurchase };
+    } catch (err: any) {
+      // Local Fallback if server offline
+      const newId = `pur-${Date.now()}`;
+      const invNo = `PUR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const newPur: Purchase = {
+        id: newId,
+        invoiceNumber: invNo,
+        supplierName: purchaseData.supplierName || 'Unknown Supplier',
+        supplierPhone: purchaseData.supplierPhone || '',
+        purchaseDate: purchaseData.purchaseDate || shopToday(),
+        totalAmount: Number(purchaseData.totalAmount || 0),
+        paidAmount: Number(purchaseData.paidAmount ?? purchaseData.totalAmount ?? 0),
+        paymentStatus: purchaseData.paymentStatus || 'paid',
+        paymentMethod: purchaseData.paymentMethod || 'cash',
+        notes: purchaseData.notes || '',
+        items: purchaseData.items || [],
+        createdAt: new Date().toISOString(),
+      };
+      setPurchases(prev => [newPur, ...prev]);
+      
+      // Update in-memory stock and prices locally
+      (purchaseData.items || []).forEach((it: any) => {
+        setProducts(prevProds => prevProds.map(p => {
+          if (String(p.id) === String(it.productId)) {
+            const updatedVars = (p.variations || []).map(v => {
+              if (String(v.id) === String(it.productVariationId)) {
+                return { ...v, stockQuantity: (v.stockQuantity || 0) + Number(it.quantity || 0) };
+              }
+              return v;
+            });
+            return {
+              ...p,
+              cost: it.costPrice ? Number(it.costPrice) : p.cost,
+              price: it.retailPrice ? Number(it.retailPrice) : p.price,
+              variations: updatedVars,
+            };
+          }
+          return p;
+        }));
+      });
+      bumpProductsRevision();
+      return { success: true, purchase: newPur };
+    }
+  };
+
+  const deletePurchase = async (purchaseId: string | number): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const res = await authedApiFetch(`${LARAVEL_API_BASE}/purchases/${purchaseId}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, message: json?.message };
+      setPurchases(prev => prev.filter(p => String(p.id) !== String(purchaseId)));
+      return { success: true };
+    } catch {
+      setPurchases(prev => prev.filter(p => String(p.id) !== String(purchaseId)));
+      return { success: true };
     }
   };
 
@@ -2503,7 +2631,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   return (
     <StoreContext.Provider value={{ 
-      categories, products, cart, wishlist, users, orders, expenses, currentUser, promoBanner, productsPagination, ordersPagination, expensesPagination, isProductsLoading, productsRevision,
+      categories, products, cart, wishlist, users, orders, expenses, purchases, purchasesPagination, isPurchasesLoading, currentUser, promoBanner, productsPagination, ordersPagination, expensesPagination, isProductsLoading, productsRevision,
       updatePromoBanner, addCategory, addProduct, refreshProducts, fetchAllProducts, refreshCategories, refreshOrders, ordersError, refreshUsers, bulkDelete, bulkOrderStatus, refreshExpenses, addToCart, removeFromCart, 
       updateCartItemQuantity, clearCart, toggleWishlist, addReview, updateOrderStatus, addExpense, addOrder,
       deleteProduct, deleteCategory, deleteExpense, deleteUser, deleteOrder, addUser,
@@ -2513,6 +2641,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       coupons, appliedCoupon, setAppliedCoupon, addCoupon, updateCoupon, deleteCoupon, applyCoupon, fetchSalesReport, fetchCashierReport, fetchDailyReport, fetchCouponReport, fetchOrderCounts,
       fetchBestSellers, recordRecentlyViewed, getRecentlyViewedIds, trackOrder, lookupCustomer,
       fetchShippingQuote, fetchStockMovements, adjustStock, fetchActivityLogs,
+      fetchPurchases, addPurchase, deletePurchase,
       recordCashMovement, fetchCashMovements, exchangeOrder, fetchOrderHistory,
       storeSettings, saveSettings, getCurrentShift, openShift, getShiftReport, closeShift, getOrderById, refundOrder
     }}>

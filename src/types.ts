@@ -188,3 +188,36 @@ export interface HeroSlide {
   floatingBadgeDescAr?: string;
   discountTag?: string;
 }
+
+export interface PurchaseItem {
+  id?: string;
+  purchaseId?: string;
+  productId: string | number;
+  productVariationId: string | number;
+  quantity: number;
+  previousCost?: number;
+  costPrice: number;
+  previousPrice?: number;
+  retailPrice?: number;
+  subtotal?: number;
+  product?: Product;
+  variation?: ProductVariation;
+}
+
+export interface Purchase {
+  id: string | number;
+  invoiceNumber: string;
+  supplierName: string;
+  supplierPhone?: string;
+  purchaseDate: string; // YYYY-MM-DD
+  totalAmount: number;
+  paidAmount: number;
+  paymentStatus: 'paid' | 'partial' | 'unpaid';
+  paymentMethod: 'cash' | 'bank' | 'debt' | string;
+  notes?: string;
+  userId?: string | number;
+  user?: { id: string | number; name: string };
+  items: PurchaseItem[];
+  createdAt?: string;
+}
+

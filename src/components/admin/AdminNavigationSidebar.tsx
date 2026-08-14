@@ -84,6 +84,7 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
         title: language === 'ku' ? 'کاتالۆگ' : language === 'ar' ? 'کتالوج' : 'CATALOG',
         items: [
           { id: 'products', label: t('products') || 'Products', icon: Package, adminOnly: false },
+          { id: 'purchases', label: language === 'ku' ? 'کڕین و دابینکردن' : language === 'ar' ? 'المشتريات والتوريد' : 'Purchases & Restock', icon: ShoppingBag, adminOnly: false },
           { id: 'inventory', label: language === 'ku' ? 'جەردی کۆگا' : language === 'ar' ? 'جرد المستودع' : 'Inventory Audit', icon: Boxes, adminOnly: false },
           { id: 'stock-ledger', label: language === 'ku' ? 'مێژووی ستۆک' : language === 'ar' ? 'سجل المخزون' : 'Stock Ledger', icon: History, adminOnly: false },
           { id: 'categories', label: t('allCategories') || 'Categories', icon: Tags, adminOnly: false },
