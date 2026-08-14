@@ -6,16 +6,23 @@ import {
   Package, ArrowRight, ArrowLeft, TrendingUp, RefreshCw, Layers,
   Phone, User as UserIcon, Check, FileSpreadsheet, Building2,
   Wallet, Receipt, ArrowUpRight, ArrowDownLeft, Edit2, Sparkles,
-  MapPin, Mail, Percent, BookOpen, Barcode
+  MapPin, Mail, Percent, BookOpen, Barcode, BarChart3, PieChart as PieChartIcon
 } from 'lucide-react';
+import { 
+  BarChart, Bar, LineChart, Line, AreaChart, Area, 
+  PieChart, Pie, XAxis, YAxis, CartesianGrid, 
+  Tooltip as RechartsTooltip, ResponsiveContainer, Legend, Cell 
+} from 'recharts';
 import { useStore } from '../../store';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
 import { formatIQDLabel, formatIQD } from '../../utils/currency';
 import { Product, ProductVariation, Purchase, PurchaseItem, Supplier } from '../../types';
 import { getColorHex } from '../../utils/colors';
-import { shopToday } from '../../utils/shopTime';
+import { shopToday, shopDaysAgo } from '../../utils/shopTime';
 import { downloadXlsx } from '../../utils/exportExcel';
+
+const CHART_COLORS = ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#3b82f6'];
 
 interface PurchaseDraftItem {
   productId: string | number;
@@ -56,8 +63,8 @@ export const AdminPurchasesTab: React.FC = () => {
   const L = (key: string) => adminTr(key, language);
   const isRTL = language === 'ar' || language === 'ku';
 
-  // Navigation View Mode: 'invoices' (list), 'suppliers' (accounts), or 'create' (standalone full page)
-  const [viewMode, setViewMode] = useState<'invoices' | 'suppliers' | 'create'>('invoices');
+  // Navigation View Mode: 'invoices' (list), 'suppliers' (accounts), 'reports' (analytics), or 'create' (standalone full page)
+  const [viewMode, setViewMode] = useState<'invoices' | 'suppliers' | 'reports' | 'create'>('invoices');
 
   // Filters State for Invoices
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,6 +83,13 @@ export const AdminPurchasesTab: React.FC = () => {
   const [paymentDate, setPaymentDate] = useState(shopToday());
   const [paymentNotes, setPaymentNotes] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // Filters State for Reports
+  const [reportPeriod, setReportPeriod] = useState<'all' | 'today' | '7d' | '30d' | 'this_month' | 'custom'>('this_month');
+  const [reportSupplierFilter, setReportSupplierFilter] = useState('all');
+  const [reportDebtOnly, setReportDebtOnly] = useState(false);
+  const [reportCustomStart, setReportCustomStart] = useState('');
+  const [reportCustomEnd, setReportCustomEnd] = useState('');
 
   // Supplier Form State (Add / Edit)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -208,6 +222,137 @@ export const AdminPurchasesTab: React.FC = () => {
     };
   }, [filteredPurchases, suppliers]);
 
+  // =========================================================
+  // REPORTS DATA & ANALYTICS CALCULATION
+  // =========================================================
+  const reportDateBounds = useMemo(() => {
+    const today = shopToday();
+    if (reportPeriod === 'today') return { start: today, end: today };
+    if (reportPeriod === '7d') return { start: shopDaysAgo(7), end: today };
+    if (reportPeriod === '30d') return { start: shopDaysAgo(30), end: today };
+    if (reportPeriod === 'this_month') {
+      const startOfMonth = today.slice(0, 8) + '01';
+      return { start: startOfMonth, end: today };
+    }
+    if (reportPeriod === 'custom') {
+      return { start: reportCustomStart || '2000-01-01', end: reportCustomEnd || '2099-12-31' };
+    }
+    return { start: '2000-01-01', end: '2099-12-31' };
+  }, [reportPeriod, reportCustomStart, reportCustomEnd]);
+
+  const reportPurchases = useMemo(() => {
+    return purchases.filter(p => {
+      if (p.purchaseDate < reportDateBounds.start || p.purchaseDate > reportDateBounds.end) {
+        return false;
+      }
+      if (reportSupplierFilter !== 'all') {
+        if (String(p.supplierId) !== String(reportSupplierFilter) && p.supplierName !== reportSupplierFilter) {
+          return false;
+        }
+      }
+      if (reportDebtOnly) {
+        const debt = Math.max(0, Number(p.totalAmount || 0) - Number(p.paidAmount || 0));
+        if (debt <= 0) return false;
+      }
+      return true;
+    });
+  }, [purchases, reportDateBounds, reportSupplierFilter, reportDebtOnly]);
+
+  const reportMetrics = useMemo(() => {
+    let volume = 0;
+    let paid = 0;
+    let debt = 0;
+    let pieces = 0;
+    let projectedRetailValue = 0;
+
+    reportPurchases.forEach(p => {
+      const tot = Number(p.totalAmount || 0);
+      const pd = Number(p.paidAmount || 0);
+      volume += tot;
+      paid += pd;
+      debt += Math.max(0, tot - pd);
+
+      (p.items || []).forEach(it => {
+        const qty = Number(it.quantity || 0);
+        pieces += qty;
+        projectedRetailValue += (qty * Number(it.retailPrice || it.product?.price || it.costPrice || 0));
+      });
+    });
+
+    const profitPotential = Math.max(0, projectedRetailValue - volume);
+    const profitMargin = projectedRetailValue > 0 ? Math.round((profitPotential / projectedRetailValue) * 100) : 0;
+
+    return {
+      volume,
+      paid,
+      debt,
+      pieces,
+      projectedRetailValue,
+      profitPotential,
+      profitMargin,
+      invoicesCount: reportPurchases.length,
+    };
+  }, [reportPurchases]);
+
+  // Timeline Trend Data for Chart
+  const trendChartData = useMemo(() => {
+    const map = new Map<string, { date: string; total: number; paid: number; debt: number }>();
+
+    reportPurchases.forEach(p => {
+      const d = p.purchaseDate || 'Unknown';
+      const prev = map.get(d) || { date: d, total: 0, paid: 0, debt: 0 };
+      const tot = Number(p.totalAmount || 0);
+      const pd = Number(p.paidAmount || 0);
+      map.set(d, {
+        date: d,
+        total: prev.total + tot,
+        paid: prev.paid + pd,
+        debt: prev.debt + Math.max(0, tot - pd),
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }, [reportPurchases]);
+
+  // Suppliers Debt Breakdown Chart Data
+  const supplierDebtChartData = useMemo(() => {
+    return suppliers
+      .filter(s => Number(s.debtBalance || 0) > 0)
+      .map(s => ({
+        name: s.name,
+        debt: Number(s.debtBalance || 0),
+        totalPurchases: Number(s.totalPurchases || 0),
+      }))
+      .sort((a, b) => b.debt - a.debt)
+      .slice(0, 8);
+  }, [suppliers]);
+
+  // Top Restocked Products
+  const topRestockedProducts = useMemo(() => {
+    const map = new Map<string, { id: string | number; name: string; pieces: number; cost: number; retail: number }>();
+
+    reportPurchases.forEach(p => {
+      (p.items || []).forEach(it => {
+        const id = String(it.productId);
+        const name = (it.product && (it.product.nameKu || it.product.name)) || 'Product';
+        const qty = Number(it.quantity || 0);
+        const cost = qty * Number(it.costPrice || 0);
+        const retail = qty * Number(it.retailPrice || it.product?.price || it.costPrice || 0);
+
+        const prev = map.get(id) || { id, name, pieces: 0, cost: 0, retail: 0 };
+        map.set(id, {
+          id,
+          name,
+          pieces: prev.pieces + qty,
+          cost: prev.cost + cost,
+          retail: prev.retail + retail,
+        });
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.pieces - a.pieces).slice(0, 10);
+  }, [reportPurchases]);
+
   // Search Results for Product Search Input
   const searchResults = useMemo(() => {
     if (!productSearch.trim()) return [];
@@ -307,7 +452,7 @@ export const AdminPurchasesTab: React.FC = () => {
         }
       }
 
-      // 3. If there is a single search result with 1 variation
+      // 3. If single search match with 1 variation
       if (searchResults.length === 1 && searchResults[0].variations && searchResults[0].variations.length === 1) {
         handleAddVariationToDraft(searchResults[0], searchResults[0].variations[0]);
       }
@@ -378,7 +523,6 @@ export const AdminPurchasesTab: React.FC = () => {
       setSupFormOpeningBalance('0');
       setSupFormNotes('');
 
-      // If created while on New Purchase page, auto-select this new supplier
       if (savedSup) {
         setSelectedSupplierId(String(savedSup.id));
         setSupplierName(savedSup.name);
@@ -493,6 +637,115 @@ export const AdminPurchasesTab: React.FC = () => {
       ],
       rows: filteredPurchases,
     });
+  };
+
+  // Export Supplier Debts Report to Excel
+  const handleExportDebtsExcel = () => {
+    downloadXlsx({
+      filename: `galokids-supplier-debts-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheetName: language === 'ku' ? 'قەرزی سەپلایەرەکان' : 'Supplier Debts',
+      title: [
+        language === 'ku' ? 'ڕاپۆرتی پوختەی قەرزی دابینکەران و سەپلایەرەکان' : 'Suppliers Debt & Statement Report',
+        `${suppliers.length} ${language === 'ku' ? 'سەپلایەر' : 'Suppliers'} · ${language === 'ku' ? 'کۆی قەرز:' : 'Total Debt:'} ${formatIQDLabel(metrics.totalSuppliersDebt)}`
+      ],
+      columns: [
+        { header: language === 'ku' ? 'ناوی سەپلایەر' : 'Supplier Name', width: 25, value: (r: any) => r.name },
+        { header: language === 'ku' ? 'کۆمپانیا' : 'Company', width: 22, value: (r: any) => r.company || '-' },
+        { header: language === 'ku' ? 'مۆبایل' : 'Phone', width: 16, value: (r: any) => r.phone || '-' },
+        { header: language === 'ku' ? 'کۆی کڕینەکان' : 'Total Volume', width: 18, value: (r: any) => r.totalPurchases || 0 },
+        { header: language === 'ku' ? 'کۆی پارەی دراو' : 'Total Paid', width: 18, value: (r: any) => r.totalPaid || 0 },
+        { header: language === 'ku' ? 'قەرزی سەرەتایی' : 'Opening Debt', width: 16, value: (r: any) => r.openingBalance || 0 },
+        { header: language === 'ku' ? 'قەرزی ماوەی ئێستا' : 'Current Debt Balance', width: 20, value: (r: any) => r.debtBalance || 0 },
+      ],
+      rows: suppliers,
+    });
+  };
+
+  // Print Supplier Statement
+  const handlePrintSupplierStatement = (sup: Supplier) => {
+    const supPurchases = purchases.filter(p => String(p.supplierId) === String(sup.id) || p.supplierName === sup.name);
+    const w = window.open('', '_blank', 'width=900,height=800');
+    if (!w) return;
+
+    const purchasesHtml = supPurchases.map((p, idx) => `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 8px; text-align: center;">${idx + 1}</td>
+        <td style="padding: 8px; font-family: monospace; font-weight: bold;">#${p.invoiceNumber}</td>
+        <td style="padding: 8px; text-align: center;">${p.purchaseDate}</td>
+        <td style="padding: 8px; text-align: right; font-family: monospace;">${formatIQDLabel(Number(p.totalAmount || 0))}</td>
+        <td style="padding: 8px; text-align: right; font-family: monospace; color: #15803d;">${formatIQDLabel(Number(p.paidAmount || 0))}</td>
+        <td style="padding: 8px; text-align: right; font-family: monospace; color: #b91c1c; font-weight: bold;">${formatIQDLabel(Math.max(0, Number(p.totalAmount || 0) - Number(p.paidAmount || 0)))}</td>
+      </tr>
+    `).join('');
+
+    w.document.write(`
+      <!doctype html>
+      <html dir="rtl" lang="ku">
+        <head>
+          <meta charset="utf-8" />
+          <title>کەشفی حیساب - ${sup.name}</title>
+          <style>
+            body { font-family: sans-serif; margin: 30px; direction: rtl; }
+            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 15px; margin-bottom: 20px; }
+            .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+            th { background: #0f172a; color: white; padding: 8px; }
+            .totals { float: left; width: 320px; margin-top: 15px; }
+            .total-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+            .grand-total { font-size: 16px; font-weight: bold; color: #b91c1c; border-bottom: 2px solid #b91c1c; }
+            @media print { body { margin: 0; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div style="font-size: 20px; font-weight: bold;">GALOKIDS - کەشفی حیساباتی دابینکەر</div>
+              <div style="color: #64748b; font-size: 12px; margin-top: 4px;">Supplier Statement of Account</div>
+            </div>
+            <div style="text-align: left;">
+              <div style="color: #64748b; font-size: 12px;">بەرواری دەرچوون: ${shopToday()}</div>
+            </div>
+          </div>
+
+          <div class="info-grid">
+            <div><strong>ناوی دابینکەر:</strong> ${sup.name}</div>
+            <div><strong>کۆمپانیا:</strong> ${sup.company || 'نادیارە'}</div>
+            <div><strong>مۆبایل:</strong> ${sup.phone || 'نادیارە'}</div>
+            <div><strong>ناونیشان:</strong> ${sup.address || 'نادیارە'}</div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th style="text-align: right;">ژمارەی پسوولە</th>
+                <th>بەروار</th>
+                <th style="text-align: right;">کۆی پسوولە</th>
+                <th style="text-align: right;">بڕی دراو</th>
+                <th style="text-align: right;">قەرزی ماوە</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${purchasesHtml || '<tr><td colspan="6" style="text-align: center; padding: 15px;">هیچ پسوولەیەک تۆمار نەکراوە</td></tr>'}
+            </tbody>
+          </table>
+
+          <div class="totals">
+            <div class="total-row"><span>کۆی گشتی کڕینەکان:</span> <span>${formatIQDLabel(Number(sup.totalPurchases || 0))}</span></div>
+            <div class="total-row"><span>کۆی پارەی دراو:</span> <span>${formatIQDLabel(Number(sup.totalPaid || 0))}</span></div>
+            <div class="total-row grand-total"><span>کۆی قەرزی ماوەی سەپلایەر:</span> <span>${formatIQDLabel(Number(sup.debtBalance || 0))}</span></div>
+          </div>
+
+          <div style="clear: both; margin-top: 60px; display: flex; justify-content: space-between;">
+            <div>واژۆی ژمێریاری: ________________</div>
+            <div>واژۆی سەپلایەر: ________________</div>
+          </div>
+        </body>
+      </html>
+    `);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 350);
   };
 
   // Print Invoice
@@ -1083,7 +1336,7 @@ export const AdminPurchasesTab: React.FC = () => {
         </div>
       ) : (
         /* ========================================================= */
-        /* VIEW 2 & 3: INVOICES DASHBOARD & SUPPLIERS DIRECTORY */
+        /* VIEW 2, 3 & 4: INVOICES, SUPPLIERS & REPORTS */
         /* ========================================================= */
         <div className="space-y-6">
           {/* Top Hero Banner */}
@@ -1100,8 +1353,8 @@ export const AdminPurchasesTab: React.FC = () => {
                 </h1>
                 <p className="text-slate-300 text-sm mt-1 max-w-2xl">
                   {language === 'ku'
-                    ? 'تۆمارکردنی پسوولەکانی کڕین، نوێکردنەوەی نرخی تێچوو و فرۆشتن، کۆنترۆڵی قەرزی دابینکەران و چاپکردنی پسوولەی فەرمی.'
-                    : 'Manage supplier restock invoices, update new cost/retail prices, and track supplier debt statements.'}
+                    ? 'تۆمارکردنی پسوولەکانی کڕین، نوێکردنەوەی نرخی تێچوو و فرۆشتن، شیکاری قەرز، و کەشفی حیساباتی دابینکەران.'
+                    : 'Manage supplier restock invoices, update new cost/retail prices, debt analytics, and supplier statements.'}
                 </p>
               </div>
 
@@ -1173,8 +1426,8 @@ export const AdminPurchasesTab: React.FC = () => {
             </div>
           </div>
 
-          {/* Sub-Navigation Switcher (Invoices vs Suppliers) */}
-          <div className="flex items-center gap-2 p-1.5 bg-slate-200/60 rounded-2xl w-fit">
+          {/* Sub-Navigation Switcher (Invoices vs Suppliers vs Reports) */}
+          <div className="flex items-center gap-2 p-1.5 bg-slate-200/60 rounded-2xl w-fit flex-wrap">
             <button
               onClick={() => setViewMode('invoices')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
@@ -1198,9 +1451,23 @@ export const AdminPurchasesTab: React.FC = () => {
               <Building2 className="w-4 h-4" />
               <span>{language === 'ku' ? 'هەژماری سەپلایەرەکان' : 'Suppliers Directory'} ({suppliers.length})</span>
             </button>
+
+            <button
+              onClick={() => setViewMode('reports')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                viewMode === 'reports'
+                  ? 'bg-white text-indigo-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 text-indigo-600" />
+              <span>{language === 'ku' ? 'ڕاپۆرت و شیکاری قەرز' : 'Reports & Debt Analytics'}</span>
+            </button>
           </div>
 
-          {/* Sub-Tab 1: Invoices */}
+          {/* ========================================================= */}
+          {/* SUB-TAB 1: INVOICES LIST */}
+          {/* ========================================================= */}
           {viewMode === 'invoices' && (
             <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-6 rounded-[2.5rem] shadow-sm space-y-6 animate-fadeIn">
               {/* Search & Filters */}
@@ -1460,7 +1727,9 @@ export const AdminPurchasesTab: React.FC = () => {
             </div>
           )}
 
-          {/* Sub-Tab 2: Suppliers Directory */}
+          {/* ========================================================= */}
+          {/* SUB-TAB 2: SUPPLIERS DIRECTORY */}
+          {/* ========================================================= */}
           {viewMode === 'suppliers' && (
             <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-6 rounded-[2.5rem] shadow-sm space-y-6 animate-fadeIn">
               {/* Header & Actions */}
@@ -1476,24 +1745,34 @@ export const AdminPurchasesTab: React.FC = () => {
                   />
                 </div>
 
-                <button
-                  onClick={() => {
-                    setEditingSupplier(null);
-                    setSupFormName('');
-                    setSupFormCompany('');
-                    setSupFormContact('');
-                    setSupFormPhone('');
-                    setSupFormEmail('');
-                    setSupFormAddress('');
-                    setSupFormOpeningBalance('0');
-                    setSupFormNotes('');
-                    setIsNewSupplierModalOpen(true);
-                  }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-md cursor-pointer transition-all active:scale-95"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>{language === 'ku' ? '+ دروستکردنی هەژماری سەپلایەر' : '+ New Supplier Account'}</span>
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleExportDebtsExcel}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md cursor-pointer transition-all active:scale-95"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>{language === 'ku' ? 'ئێکسڵی قەرزەکان' : 'Debts Excel'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setEditingSupplier(null);
+                      setSupFormName('');
+                      setSupFormCompany('');
+                      setSupFormContact('');
+                      setSupFormPhone('');
+                      setSupFormEmail('');
+                      setSupFormAddress('');
+                      setSupFormOpeningBalance('0');
+                      setSupFormNotes('');
+                      setIsNewSupplierModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-md cursor-pointer transition-all active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>{language === 'ku' ? '+ دروستکردنی هەژماری سەپلایەر' : '+ New Supplier Account'}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Suppliers Table */}
@@ -1599,6 +1878,14 @@ export const AdminPurchasesTab: React.FC = () => {
                                 </button>
 
                                 <button
+                                  onClick={() => handlePrintSupplierStatement(s)}
+                                  className="p-1.5 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors cursor-pointer"
+                                  title={language === 'ku' ? 'چاپکردنی کەشفی حیساب' : 'Print Statement'}
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                </button>
+
+                                <button
                                   onClick={() => handleOpenEditSupplier(s)}
                                   className="p-1.5 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors cursor-pointer"
                                   title={language === 'ku' ? 'دەستکاریکردن' : 'Edit'}
@@ -1625,6 +1912,231 @@ export const AdminPurchasesTab: React.FC = () => {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* SUB-TAB 3: PURCHASES & SUPPLIERS REPORTS & ANALYTICS */}
+          {/* ========================================================= */}
+          {viewMode === 'reports' && (
+            <div className="space-y-6 animate-fadeIn">
+              {/* Reports Filter Bar */}
+              <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-5 rounded-[2.5rem] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-slate-500 mr-1">{language === 'ku' ? 'ماوە:' : 'Period:'}</span>
+                  {[
+                    { id: 'today', label: language === 'ku' ? 'ئەمڕۆ' : 'Today' },
+                    { id: '7d', label: language === 'ku' ? '٧ ڕۆژ' : '7 Days' },
+                    { id: 'this_month', label: language === 'ku' ? 'ئەم مانگە' : 'This Month' },
+                    { id: '30d', label: language === 'ku' ? '٣٠ ڕۆژ' : '30 Days' },
+                    { id: 'all', label: language === 'ku' ? 'هەموو کات' : 'All Time' },
+                    { id: 'custom', label: language === 'ku' ? 'دیاریکراو' : 'Custom' },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setReportPeriod(tab.id as any)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        reportPeriod === tab.id
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {reportPeriod === 'custom' && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={reportCustomStart}
+                        onChange={(e) => setReportCustomStart(e.target.value)}
+                        className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
+                      />
+                      <span className="text-slate-400 text-xs">-</span>
+                      <input
+                        type="date"
+                        value={reportCustomEnd}
+                        onChange={(e) => setReportCustomEnd(e.target.value)}
+                        className="py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none"
+                      />
+                    </div>
+                  )}
+
+                  <select
+                    value={reportSupplierFilter}
+                    onChange={(e) => setReportSupplierFilter(e.target.value)}
+                    className="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                  >
+                    <option value="all">{language === 'ku' ? 'هەموو سەپلایەرەکان' : 'All Suppliers'}</option>
+                    {suppliers.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={reportDebtOnly}
+                      onChange={(e) => setReportDebtOnly(e.target.checked)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>{language === 'ku' ? 'تەنها قەرزەکان' : 'Debt Only'}</span>
+                  </label>
+
+                  <button
+                    onClick={handleExportDebtsExcel}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-xs transition-colors cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>{language === 'ku' ? 'ئێکسڵی گشتی' : 'Export Excel'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Reports Financial KPIs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-5 rounded-3xl shadow-sm">
+                  <span className="text-xs font-bold text-slate-500">{language === 'ku' ? 'کۆی کڕین لەم ماوەیەدا' : 'Purchases in Period'}</span>
+                  <h3 className="text-xl font-black text-slate-900 mt-1 font-mono">{formatIQDLabel(reportMetrics.volume)}</h3>
+                  <p className="text-[11px] text-slate-400 font-bold mt-1">{reportMetrics.invoicesCount} {language === 'ku' ? 'پسوولە' : 'invoices'}</p>
+                </div>
+
+                <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-5 rounded-3xl shadow-sm">
+                  <span className="text-xs font-bold text-slate-500">{language === 'ku' ? 'پارەی دراو بە سەپلایەر' : 'Paid in Period'}</span>
+                  <h3 className="text-xl font-black text-emerald-700 mt-1 font-mono">{formatIQDLabel(reportMetrics.paid)}</h3>
+                  <p className="text-[11px] text-emerald-600 font-bold mt-1">✓ {language === 'ku' ? 'دراوە' : 'Settled'}</p>
+                </div>
+
+                <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-5 rounded-3xl shadow-sm">
+                  <span className="text-xs font-bold text-slate-500">{language === 'ku' ? 'قەرزی ماوە لەسەر ئەم ماوەیە' : 'Remaining Debt in Period'}</span>
+                  <h3 className="text-xl font-black text-rose-700 mt-1 font-mono">{formatIQDLabel(reportMetrics.debt)}</h3>
+                  <p className="text-[11px] text-rose-600 font-bold mt-1">⚠️ {language === 'ku' ? 'قەرزی نەدراو' : 'Unpaid balance'}</p>
+                </div>
+
+                <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-5 rounded-3xl shadow-sm">
+                  <span className="text-xs font-bold text-slate-500">{language === 'ku' ? 'بەهای فرۆشتنی پێشبینیکراو' : 'Projected Retail Value'}</span>
+                  <h3 className="text-xl font-black text-indigo-950 mt-1 font-mono">{formatIQDLabel(reportMetrics.projectedRetailValue)}</h3>
+                  <p className="text-[11px] text-indigo-600 font-black mt-1">+{reportMetrics.profitMargin}% {language === 'ku' ? 'قازانجی خەمڵێنراو' : 'gross margin'}</p>
+                </div>
+              </div>
+
+              {/* Charts Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Purchases & Payments Trend Chart */}
+                <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-6 rounded-[2.5rem] shadow-sm space-y-4">
+                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-indigo-600" />
+                    <span>{language === 'ku' ? 'شیکاری کڕین و پارەدان بەپێی کات' : 'Purchases & Payments Timeline Trend'}</span>
+                  </h3>
+
+                  {trendChartData.length === 0 ? (
+                    <div className="h-64 flex items-center justify-center text-slate-400 text-xs font-bold">
+                      {language === 'ku' ? 'داتای کڕین بەردەست نییە بۆ ئەم ماوەیە' : 'No purchase trend data for this period'}
+                    </div>
+                  ) : (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={trendChartData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <RechartsTooltip formatter={(val: any) => formatIQDLabel(Number(val))} />
+                          <Area type="monotone" dataKey="total" name={language === 'ku' ? 'کۆی کڕین' : 'Total'} stroke="#6366f1" fill="#6366f1" fillOpacity={0.15} />
+                          <Area type="monotone" dataKey="paid" name={language === 'ku' ? 'پارەی دراو' : 'Paid'} stroke="#10b981" fill="#10b981" fillOpacity={0.2} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+
+                {/* Suppliers Debt Distribution */}
+                <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-6 rounded-[2.5rem] shadow-sm space-y-4">
+                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <PieChartIcon className="w-4 h-4 text-rose-600" />
+                    <span>{language === 'ku' ? 'دابەشبوونی قەرزی سەپلایەرەکان' : 'Suppliers Debt Distribution'}</span>
+                  </h3>
+
+                  {supplierDebtChartData.length === 0 ? (
+                    <div className="h-64 flex items-center justify-center text-emerald-600 text-xs font-bold">
+                      ✓ {language === 'ku' ? 'هەموو حیساباتی سەپلایەرەکان پاکتاوە و هیچ قەرزێک نییە!' : 'All supplier accounts are fully settled!'}
+                    </div>
+                  ) : (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={supplierDebtChartData} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                          <XAxis type="number" tick={{ fontSize: 10 }} />
+                          <YAxis dataKey="name" type="category" tick={{ fontSize: 11, fontWeight: 'bold' }} width={110} />
+                          <RechartsTooltip formatter={(val: any) => formatIQDLabel(Number(val))} />
+                          <Bar dataKey="debt" name={language === 'ku' ? 'قەرزی ماوە' : 'Debt'} fill="#f43f5e" radius={[0, 8, 8, 0]}>
+                            {supplierDebtChartData.map((_, idx) => (
+                              <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Detailed Tables: Top Restocked Items */}
+              <div className="bg-white/80 backdrop-blur-xl border border-slate-200/80 p-6 rounded-[2.5rem] shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <Package className="w-4 h-4 text-indigo-600" />
+                    <span>{language === 'ku' ? 'پڕکڕدراوترین بەرهەمەکانی ئەم ماوەیە (Top Restocked Items)' : 'Top Restocked Products'}</span>
+                  </h3>
+                  <span className="text-xs font-bold text-slate-400">{topRestockedProducts.length} {language === 'ku' ? 'بەرهەم' : 'products'}</span>
+                </div>
+
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="w-full text-right text-xs">
+                    <thead className="bg-slate-900 text-white text-[11px] font-bold">
+                      <tr>
+                        <th className="px-4 py-3 rounded-tr-xl">#</th>
+                        <th className="px-4 py-3">{language === 'ku' ? 'ناوی بەرهەم' : 'Product Name'}</th>
+                        <th className="px-3 py-3 text-center">{language === 'ku' ? 'دانەی کڕدراو' : 'Pieces Bought'}</th>
+                        <th className="px-3 py-3">{language === 'ku' ? 'کۆی تێچوو' : 'Total Cost Invested'}</th>
+                        <th className="px-3 py-3">{language === 'ku' ? 'بەهای فرۆشتن' : 'Retail Value'}</th>
+                        <th className="px-3 py-3 text-center rounded-tl-xl">{language === 'ku' ? 'قازانجی خەمڵێنراو' : 'Projected Profit'}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {topRestockedProducts.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="text-center py-8 text-slate-400 font-bold">
+                            {language === 'ku' ? 'هیچ داتایەک نەدۆزرایەوە' : 'No items data available'}
+                          </td>
+                        </tr>
+                      ) : (
+                        topRestockedProducts.map((p, idx) => {
+                          const profit = Math.max(0, p.retail - p.cost);
+                          const margin = p.retail > 0 ? Math.round((profit / p.retail) * 100) : 0;
+
+                          return (
+                            <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                              <td className="px-4 py-3 font-mono font-bold text-slate-400">{idx + 1}</td>
+                              <td className="px-4 py-3 font-black text-slate-900">{p.name}</td>
+                              <td className="px-3 py-3 text-center font-mono font-black text-indigo-700">{p.pieces} {language === 'ku' ? 'دانە' : 'pcs'}</td>
+                              <td className="px-3 py-3 font-mono font-bold text-slate-900">{formatIQDLabel(p.cost)}</td>
+                              <td className="px-3 py-3 font-mono font-bold text-emerald-700">{formatIQDLabel(p.retail)}</td>
+                              <td className="px-3 py-3 text-center">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+                                  +{formatIQD(profit)} ({margin}%)
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
