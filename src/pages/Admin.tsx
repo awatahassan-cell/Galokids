@@ -15,6 +15,7 @@ import { getOrderRevenue, getOrderCost, getOrderItemsSold, isCountableOrder, isC
 import { generateBarcodeDataUrl } from '../utils/barcode';
 import { formatIQD, formatIQDLabel } from "../utils/currency";
 import { CategoryIcon } from '../components/CategoryIcon';
+import { CategoryIconPicker } from '../components/CategoryIconPicker';
 import { AdminEditModals } from "../components/AdminEditModals";
 import { ProductImageEditor } from "../components/ProductImageEditor";
 import { Pagination } from "../components/Pagination";
@@ -591,7 +592,7 @@ export const Admin: React.FC = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryNameKu, setNewCategoryNameKu] = useState('');
   const [newCategoryNameAr, setNewCategoryNameAr] = useState('');
-  const [newCategoryIcon, setNewCategoryIcon] = useState('Shirt');
+  const [newCategoryIcon, setNewCategoryIcon] = useState('');
 
   // New Product State
   const [productName, setProductName] = useState('');
@@ -1457,26 +1458,12 @@ export const Admin: React.FC = () => {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-2">{L("Category Icon")}</label>
-                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-2xl max-h-48 overflow-y-auto">
-                      {[
-                        'Shirt', 'Baby', 'Sparkles', 'Gamepad', 'Footprints', 'Smile', 'CloudRain', 'Flame',
-                        'ShoppingBag', 'Tag', 'Palette', 'Heart', 'Backpack', 'Crown', 'Car', 'Gift'
-                      ].map((iconName) => (
-                        <button
-                          key={iconName}
-                          type="button"
-                          onClick={() => setNewCategoryIcon(iconName)}
-                          className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all cursor-pointer ${
-                            newCategoryIcon === iconName
-                              ? 'bg-indigo-50 border-indigo-500 text-indigo-600 scale-105 shadow-xs'
-                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                          }`}
-                          title={iconName}
-                        >
-                          <CategoryIcon name={iconName} className="w-5 h-5 mb-1" plain />
-                          <span className="text-[9px] font-bold truncate max-w-full">{iconName}</span>
-                        </button>
-                      ))}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                      <CategoryIconPicker
+                        value={newCategoryIcon}
+                        onChange={setNewCategoryIcon}
+                        maxHeight="max-h-80"
+                      />
                     </div>
                   </div>
 

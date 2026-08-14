@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../store';
 import { Category, Product, Expense, User } from '../types';
 import { CategoryIcon } from './CategoryIcon';
+import { CategoryIconPicker } from './CategoryIconPicker';
 import { Plus, Trash2, X } from 'lucide-react';
 import { STANDARD_COLORS, STANDARD_SIZES } from '../data';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -20,10 +21,7 @@ interface Props {
   setEditingUser: (u: User | null) => void;
 }
 
-const CATEGORY_ICONS = [
-  'Shirt', 'Baby', 'Sparkles', 'Gamepad', 'Footprints', 'Smile', 'CloudRain', 'Flame',
-  'ShoppingBag', 'Tag', 'Palette', 'Heart', 'Backpack', 'Crown', 'Car', 'Gift'
-];
+
 
 export const AdminEditModals: React.FC<Props> = ({
   editingCategory, setEditingCategory,
@@ -103,23 +101,11 @@ export const AdminEditModals: React.FC<Props> = ({
 
               <div>
                 <label className="block text-sm font-medium mb-2 text-slate-700">{L("Category Icon")}</label>
-                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                  {CATEGORY_ICONS.map((iconName) => (
-                    <button
-                      key={iconName}
-                      type="button"
-                      onClick={() => setEditingCategory({...editingCategory, icon: iconName})}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all ${
-                        editingCategory.icon === iconName
-                          ? 'bg-indigo-50 border-indigo-500 text-indigo-600 scale-105 shadow-sm'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                      }`}
-                      title={iconName}
-                    >
-                      <CategoryIcon name={iconName} className="w-5 h-5 mb-1" plain />
-                    </button>
-                  ))}
-                </div>
+                <CategoryIconPicker
+                  value={editingCategory.icon}
+                  onChange={icon => setEditingCategory({ ...editingCategory, icon })}
+                  maxHeight="max-h-64"
+                />
               </div>
 
               <div className="flex justify-end gap-3 mt-6">
