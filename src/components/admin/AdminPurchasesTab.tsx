@@ -1651,9 +1651,20 @@ export const AdminPurchasesTab: React.FC = () => {
                                   </button>
 
                                   <button
-                                    onClick={() => {
-                                      if (confirm(language === 'ku' ? 'دڵنیایت لە سڕینەوەی ئەم پسوولەیە؟' : 'Are you sure you want to delete this purchase order?')) {
-                                        deletePurchase(p.id);
+                                    onClick={async () => {
+                                      // Say what deleting does. It does not
+                                      // only remove a row: the pieces it put
+                                      // on the shelf come back off.
+                                      const warning = language === 'ku'
+                                        ? 'دڵنیایت لە سڕینەوەی ئەم پسوولەیە؟ ئەو بڕەی زیادی کردبوو لە کۆگا کەم دەکرێتەوە.'
+                                        : 'Delete this purchase order? The stock it added will be taken back off.';
+                                      if (!confirm(warning)) return;
+
+                                      const res = await deletePurchase(p.id);
+                                      if (res?.success) {
+                                        fetchSuppliers();
+                                      } else if (res?.message) {
+                                        alert(res.message);
                                       }
                                     }}
                                     className="p-1.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer"

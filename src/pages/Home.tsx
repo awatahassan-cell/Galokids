@@ -101,16 +101,17 @@ export const Home: React.FC = () => {
   const [activeProductTab, setActiveProductTab] = useState<'featured' | 'trending' | 'new'>('featured');
   const [instaPosts, setInstaPosts] = useState<InstagramPost[]>([]);
 
+  // The token itself never reaches the browser any more — the server holds it
+  // and fetches the feed. All the page is told is whether one is configured.
   useEffect(() => {
-    const token = storeSettings?.instagram_access_token;
-    if (token) {
-      fetchInstagramFeed(token).then(posts => {
-        if (posts && posts.length > 0) {
-          setInstaPosts(posts);
-        }
-      });
-    }
-  }, [storeSettings?.instagram_access_token]);
+    if (!storeSettings?.instagram_access_token_set) return;
+
+    fetchInstagramFeed().then(posts => {
+      if (posts && posts.length > 0) {
+        setInstaPosts(posts);
+      }
+    });
+  }, [storeSettings?.instagram_access_token_set]);
 
   const featuredProducts = products.length > 0 ? [...products].reverse().slice(0, 10) : [];
   const activeProductsList = React.useMemo(() => {

@@ -86,7 +86,9 @@ export const AdminStoreSettings: React.FC = () => {
       whatsapp_number: storeSettings.whatsapp_number ?? f.whatsapp_number,
       facebook_url: storeSettings.facebook_url ?? f.facebook_url,
       instagram_url: storeSettings.instagram_url ?? f.instagram_url,
-      instagram_access_token: storeSettings.instagram_access_token ?? f.instagram_access_token,
+      // The token is never sent back from the server, so there is nothing to
+      // prefill. Left blank it keeps whatever is stored; typing one replaces it.
+      instagram_access_token: f.instagram_access_token,
       tiktok_url: storeSettings.tiktok_url ?? f.tiktok_url,
       snapchat_url: storeSettings.snapchat_url ?? f.snapchat_url,
     }));
@@ -298,11 +300,20 @@ export const AdminStoreSettings: React.FC = () => {
           {field(
             'instagram_access_token',
             L('Instagram Access Token (Meta API)'),
-            'IGQJ...',
+            storeSettings.instagram_access_token_set
+              ? (language === 'ku' ? '•••••••• (تۆکنێک پاشەکەوتکراوە)' : '•••••••• (a token is saved)')
+              : 'IGQJ...',
             <Instagram className="w-4 h-4 text-purple-600" />,
-            language === 'ku' 
-              ? 'تۆکنی Meta Instagram Display API بنووسە بۆ نیشاندانی پۆستە ڕاستەقینەکانت لە هۆم پەیج'
-              : 'Paste Meta Instagram Display API access token to render live posts'
+            // The token is a credential, so it is stored but never read back —
+            // it used to be served to every visitor along with the shop's
+            // address and phone number.
+            storeSettings.instagram_access_token_set
+              ? (language === 'ku'
+                  ? 'تۆکنێک پاشەکەوتکراوە. بەتاڵی جێبهێڵە بۆ هێشتنەوەی، یان تۆکنێکی نوێ بنووسە بۆ گۆڕینی.'
+                  : 'A token is saved. Leave blank to keep it, or paste a new one to replace it.')
+              : (language === 'ku'
+                  ? 'تۆکنی Meta Instagram Display API بنووسە بۆ نیشاندانی پۆستە ڕاستەقینەکانت لە هۆم پەیج'
+                  : 'Paste Meta Instagram Display API access token to render live posts')
           )}
           {field(
             'tiktok_url',

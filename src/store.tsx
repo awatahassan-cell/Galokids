@@ -909,47 +909,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       bumpProductsRevision();
       return { success: true, purchase: savedPurchase };
     } catch (err: any) {
-      // Local Fallback if server offline
-      const newId = `pur-${Date.now()}`;
-      const invNo = `PUR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const newPur: Purchase = {
-        id: newId,
-        invoiceNumber: invNo,
-        supplierName: purchaseData.supplierName || 'Unknown Supplier',
-        supplierPhone: purchaseData.supplierPhone || '',
-        purchaseDate: purchaseData.purchaseDate || shopToday(),
-        totalAmount: Number(purchaseData.totalAmount || 0),
-        paidAmount: Number(purchaseData.paidAmount ?? purchaseData.totalAmount ?? 0),
-        paymentStatus: purchaseData.paymentStatus || 'paid',
-        paymentMethod: purchaseData.paymentMethod || 'cash',
-        notes: purchaseData.notes || '',
-        items: purchaseData.items || [],
-        createdAt: new Date().toISOString(),
+      // The server could not be reached.
+      //
+      // This used to invent an invoice in the browser, add the stock to the
+      // copy of the catalogue held in memory, and report success. Nothing had
+      // reached the server: the shelves looked restocked, the invoice appeared
+      // in the list, and both vanished the next time the real list loaded. A
+      // shop could enter an afternoon of buying and lose all of it.
+      //
+      // Stock and money have one home, and it is not this browser. Say so.
+      return {
+        success: false,
+        message: 'پەیوەندی بە سێرڤەرەوە نەکرا — پسوولەکە تۆمار نەکرا. تکایە ئینتەرنێت بپشکنە و دووبارە هەوڵ بدەرەوە.',
       };
-      setPurchases(prev => [newPur, ...prev]);
-      
-      // Update in-memory stock and prices locally
-      (purchaseData.items || []).forEach((it: any) => {
-        setProducts(prevProds => prevProds.map(p => {
-          if (String(p.id) === String(it.productId)) {
-            const updatedVars = (p.variations || []).map(v => {
-              if (String(v.id) === String(it.productVariationId)) {
-                return { ...v, stockQuantity: (v.stockQuantity || 0) + Number(it.quantity || 0) };
-              }
-              return v;
-            });
-            return {
-              ...p,
-              cost: it.costPrice ? Number(it.costPrice) : p.cost,
-              price: it.retailPrice ? Number(it.retailPrice) : p.price,
-              variations: updatedVars,
-            };
-          }
-          return p;
-        }));
-      });
-      bumpProductsRevision();
-      return { success: true, purchase: newPur };
     }
   };
 
@@ -961,10 +933,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const json = await res.json().catch(() => ({}));
       if (!res.ok) return { success: false, message: json?.message };
       setPurchases(prev => prev.filter(p => String(p.id) !== String(purchaseId)));
+      // Deleting a purchase takes its goods back off the shelf, so the
+      // catalogue in hand is now out of date about stock.
+      refreshProducts();
+      bumpProductsRevision();
       return { success: true };
     } catch {
-      setPurchases(prev => prev.filter(p => String(p.id) !== String(purchaseId)));
-      return { success: true };
+      // Taking the row off the screen while the server still has it — with the
+      // stock it added still on the shelf — makes the list lie about what was
+      // bought. It comes back on the next load anyway.
+      return {
+        success: false,
+        message: 'پەیوەندی بە سێرڤەرەوە نەکرا — پسوولەکە نەسڕدرایەوە.',
+      };
     }
   };
 
