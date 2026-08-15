@@ -2992,10 +2992,10 @@ export const Admin: React.FC = () => {
       {/* Product Detail Preview Modal */}
       {selectedPreviewProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative animate-in zoom-in-95 slide-in-from-bottom-2 duration-300 ease-out">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl relative animate-in zoom-in-95 slide-in-from-bottom-2 duration-300 ease-out font-arabic">
             <button 
               onClick={() => setSelectedPreviewProduct(null)}
-              className="absolute top-4 right-4 z-10 p-2.5 bg-white/80 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full shadow-sm transition-all focus:outline-none"
+              className="absolute top-4 right-4 z-10 p-2.5 bg-white/80 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full shadow-sm transition-all focus:outline-none cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -3003,23 +3003,27 @@ export const Admin: React.FC = () => {
               <div className="md:w-1/2 aspect-4/5 bg-slate-50">
                 <img 
                   src={selectedPreviewProduct.imageUrl} 
-                  alt={selectedPreviewProduct.name} 
+                  alt={(language === 'ku' && selectedPreviewProduct.nameKu) || (language === 'ar' && selectedPreviewProduct.nameAr) || selectedPreviewProduct.name} 
                   className="w-full h-full object-cover" 
                 />
               </div>
               <div className="p-6 md:w-1/2 flex flex-col justify-between">
                 <div>
                   <span className="text-xs bg-indigo-50 text-indigo-700 font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wider">
-                    {Number(selectedPreviewProduct.gender) === 1 ? 'Boy' : Number(selectedPreviewProduct.gender) === 2 ? 'Girl' : 'Both'}
+                    {Number(selectedPreviewProduct.gender) === 1
+                      ? (language === 'ku' ? 'کوڕان' : language === 'ar' ? 'ولادي' : 'Boy')
+                      : Number(selectedPreviewProduct.gender) === 2
+                      ? (language === 'ku' ? 'کچان' : language === 'ar' ? 'بناتي' : 'Girl')
+                      : (language === 'ku' ? 'هەردووکیان' : language === 'ar' ? 'للجنسين' : 'Both')}
                   </span>
                   <h3 className="text-2xl font-bold font-display text-slate-900 mt-4 mb-2 leading-tight">
-                    {selectedPreviewProduct.name}
+                    {(language === 'ku' && selectedPreviewProduct.nameKu) || (language === 'ar' && selectedPreviewProduct.nameAr) || selectedPreviewProduct.name}
                   </h3>
                   <p className="text-xs text-slate-400 font-bold font-mono">
-                    Barcode: {selectedPreviewProduct.barcode || 'N/A'}
+                    {L("Barcode")}: {selectedPreviewProduct.barcode || '—'}
                   </p>
                   <p className="text-sm text-slate-600 mt-4 leading-relaxed italic">
-                    {selectedPreviewProduct.description || 'No description provided.'}
+                    {(language === 'ku' && selectedPreviewProduct.descriptionKu) || (language === 'ar' && selectedPreviewProduct.descriptionAr) || selectedPreviewProduct.description || (language === 'ku' ? 'هیچ وەسفێک دانەنراوە.' : language === 'ar' ? 'لا يوجد وصف.' : 'No description provided.')}
                   </p>
                 </div>
 
