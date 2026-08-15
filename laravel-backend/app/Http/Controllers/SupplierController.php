@@ -17,6 +17,11 @@ class SupplierController extends Controller
         $query = Supplier::withCount('purchases')
             ->withSum('purchases', 'total_amount')
             ->withSum('purchases', 'paid_amount')
+            // Money handed over without naming an invoice. The debt used to be
+            // read off the invoices alone, so paying a supplier from the
+            // accounts screen — which never names one — left the balance
+            // exactly where it was.
+            ->withSum(['payments as direct_payments_sum' => fn ($q) => $q->whereNull('purchase_id')], 'amount')
             ->orderBy('name');
 
         if ($request->filled('search')) {
@@ -30,9 +35,11 @@ class SupplierController extends Controller
         }
 
         $suppliers = $query->get()->map(function ($s) {
-            $totalPurchases = (float)($s->purchases_sum_total_amount ?? 0);
-            $totalPaid = (float)($s->purchases_sum_paid_amount ?? 0);
-            $openingBalance = (float)($s->opening_balance ?? 0);
+            $totalPurchases = (float) ($s->purchases_sum_total_amount ?? 0);
+            $invoicePaid = (float) ($s->purchases_sum_paid_amount ?? 0);
+            $directPaid = (float) ($s->direct_payments_sum ?? 0);
+            $totalPaid = $invoicePaid + $directPaid;
+            $openingBalance = (float) ($s->opening_balance ?? 0);
             $debt = ($openingBalance + $totalPurchases) - $totalPaid;
 
             return [
@@ -48,7 +55,12 @@ class SupplierController extends Controller
                 'purchases_count' => $s->purchases_count,
                 'total_purchases' => $totalPurchases,
                 'total_paid' => $totalPaid,
-                'debt_balance' => max(0, $debt),
+                'invoice_paid' => $invoicePaid,
+                'direct_paid' => $directPaid,
+                // Kept signed. Clamping at zero hid overpayment, which is the
+                // one number a shop needs to see: it means either a mistake to
+                // undo or credit to spend on the next order.
+                'debt_balance' => round($debt, 2),
                 'created_at' => $s->created_at,
             ];
         });
@@ -69,7 +81,20 @@ class SupplierController extends Controller
             }
         ])->findOrFail($id);
 
-        return response()->json($supplier);
+        // The same figures the list shows, sent alongside the statement so the
+        // two screens cannot disagree about what is owed.
+        $totalPurchases = (float) $supplier->purchases->sum('total_amount');
+        $invoicePaid = (float) $supplier->purchases->sum('paid_amount');
+        $directPaid = (float) $supplier->payments->whereNull('purchase_id')->sum('amount');
+        $totalPaid = $invoicePaid + $directPaid;
+
+        return response()->json(array_merge($supplier->toArray(), [
+            'total_purchases' => $totalPurchases,
+            'total_paid' => $totalPaid,
+            'invoice_paid' => $invoicePaid,
+            'direct_paid' => $directPaid,
+            'debt_balance' => round(((float) $supplier->opening_balance + $totalPurchases) - $totalPaid, 2),
+        ]));
     }
 
     public function store(Request $request)
@@ -115,10 +140,27 @@ class SupplierController extends Controller
         return response()->json($supplier);
     }
 
+    /**
+     * Delete a supplier that has no history behind it.
+     *
+     * Deleting one with history quietly destroyed the account: the payments
+     * cascade away with it while the purchases stay, having only lost the
+     * name they were bought from — so the debt disappeared and the invoices
+     * it was owed against remained.
+     */
     public function destroy(Request $request, $id)
     {
         $this->requirePrivileged($request);
-        $supplier = Supplier::findOrFail($id);
+        $supplier = Supplier::withCount(['purchases', 'payments'])->findOrFail($id);
+
+        if ($supplier->purchases_count > 0 || $supplier->payments_count > 0) {
+            return response()->json([
+                'message' => 'ناتوانرێت ئەم سەپلایەرە بسڕدرێتەوە: کڕین یان پارەدانی تۆمارکراوی هەیە.',
+                'purchases_count' => $supplier->purchases_count,
+                'payments_count' => $supplier->payments_count,
+            ], 409);
+        }
+
         $supplier->delete();
 
         ActivityLogger::log('supplier.deleted', 'supplier', $id, "سڕینەوەی هەژماری سەپلایەر {$supplier->name}");
@@ -152,16 +194,23 @@ class SupplierController extends Controller
                 'user_id' => $user->id,
             ]);
 
-            // If linked to a specific purchase, update that purchase's paid_amount
+            // Named an invoice: settle it there, and the payment stops counting
+            // as money on account so it is not subtracted from the debt twice.
             if (!empty($validated['purchase_id'])) {
-                $purchase = \App\Models\Purchase::find($validated['purchase_id']);
+                $purchase = \App\Models\Purchase::where('supplier_id', $supplier->id)
+                    ->find($validated['purchase_id']);
+
                 if ($purchase) {
-                    $newPaid = $purchase->paid_amount + $validated['amount'];
+                    $newPaid = min((float) $purchase->paid_amount + (float) $validated['amount'], (float) $purchase->total_amount);
                     $newStatus = $newPaid >= $purchase->total_amount ? 'paid' : ($newPaid > 0 ? 'partial' : 'unpaid');
                     $purchase->update([
                         'paid_amount' => $newPaid,
                         'payment_status' => $newStatus,
                     ]);
+                } else {
+                    // The invoice is not this supplier's. Keep the money on the
+                    // account rather than posting it against someone else's.
+                    $p->update(['purchase_id' => null]);
                 }
             }
 

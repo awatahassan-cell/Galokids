@@ -47,6 +47,10 @@ Route::get('/orders/track', [OrderController::class, 'track'])->middleware('thro
 
 // Public store settings (name/logo/address for receipts, etc.)
 Route::get('/settings', [\App\Http\Controllers\SettingController::class, 'index']);
+
+// The shop's Instagram posts. Public, because the storefront shows them to
+// everyone — but fetched server-side so the access token stays here.
+Route::get('/instagram/feed', [\App\Http\Controllers\InstagramController::class, 'feed']);
 // Public: delivery charge for a governorate, so the basket can show the total.
 Route::get('/shipping/quote', [\App\Http\Controllers\SettingController::class, 'shippingQuote']);
 
@@ -120,8 +124,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/stock-movements', [\App\Http\Controllers\StockMovementController::class, 'index']);
     Route::post('/stock-movements', [\App\Http\Controllers\StockMovementController::class, 'store']);
 
-    // Purchases & Restock (staff/admin)
-    Route::apiResource('purchases', \App\Http\Controllers\PurchaseController::class);
+    // Purchases & Restock (staff/admin).
+    //
+    // No update route: editing a saved purchase means working out the stock
+    // difference between what it used to say and what it now says, and there
+    // is no screen asking for one. The full resource registered a PUT that
+    // reached a method the controller does not have.
+    Route::apiResource('purchases', \App\Http\Controllers\PurchaseController::class)
+        ->only(['index', 'show', 'store', 'destroy']);
 
     // Suppliers & Accounts (staff/admin)
     Route::apiResource('suppliers', \App\Http\Controllers\SupplierController::class);

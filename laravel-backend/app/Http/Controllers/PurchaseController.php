@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
+use App\Models\StockMovement;
 use App\Support\ActivityLogger;
 use App\Support\StockLedger;
 use Illuminate\Http\Request;
@@ -52,7 +53,11 @@ class PurchaseController extends Controller
             return response()->json($query->paginate($limit));
         }
 
-        return response()->json($query->get());
+        // No page asked for: still bounded. Every row here drags its items,
+        // their products and their variations along with it, so a shop with a
+        // few years of buying behind it would otherwise build the whole
+        // purchase history into one response.
+        return response()->json($query->limit(500)->get());
     }
 
     public function show(Request $request, $id)
@@ -91,8 +96,14 @@ class PurchaseController extends Controller
                 $totalAmount += ($item['quantity'] * $item['cost_price']);
             }
 
-            $paidAmount = isset($validated['paid_amount']) ? (float)$validated['paid_amount'] : $totalAmount;
-            $paymentStatus = $validated['payment_status'] ?? ($paidAmount >= $totalAmount ? 'paid' : ($paidAmount > 0 ? 'partial' : 'unpaid'));
+            // Paying more than the invoice is worth is a typo, not a purchase.
+            // Left through, it read back as the supplier owing the shop money.
+            $paidAmount = isset($validated['paid_amount']) ? (float) $validated['paid_amount'] : $totalAmount;
+            $paidAmount = min($paidAmount, $totalAmount);
+
+            // The status has to follow the money, whatever the form said. A
+            // form claiming "paid" against nothing paid left an invisible debt.
+            $paymentStatus = $paidAmount >= $totalAmount ? 'paid' : ($paidAmount > 0 ? 'partial' : 'unpaid');
 
             $supplierId = $validated['supplier_id'] ?? null;
             if (!$supplierId && !empty($validated['supplier_name'])) {
@@ -148,14 +159,17 @@ class PurchaseController extends Controller
                     'subtotal' => $subtotal,
                 ]);
 
-                // Increase Variation Stock
-                $variation->increment('stock_quantity', $itemData['quantity']);
-
-                // Record in Stock Movement Ledger
+                // Put the goods on the shelf. Once — through the ledger, which
+                // applies the change itself as well as recording it.
+                //
+                // This used to `increment()` first and then call the ledger,
+                // and `increment()` updates the model in memory as well as the
+                // row, so the ledger added the quantity a second time on top of
+                // the new level: buying ten pieces put twenty into stock.
                 StockLedger::move(
                     $variation,
-                    (int)$itemData['quantity'],
-                    'purchase',
+                    (int) $itemData['quantity'],
+                    StockMovement::TYPE_PURCHASE,
                     "کڕین لە {$purchase->supplier_name} (پسوولە: #{$purchase->invoice_number})",
                     null,
                     $user->id
@@ -182,11 +196,45 @@ class PurchaseController extends Controller
         return response()->json($purchase->load(['items.product', 'items.variation', 'user:id,name']), 201);
     }
 
+    /**
+     * Delete a purchase and take its goods back off the shelf.
+     *
+     * The row used to be deleted on its own. The stock it had added stayed
+     * behind with nothing left to explain it, so a mis-keyed invoice — the
+     * whole reason to delete one — left phantom pieces in the count for good.
+     */
     public function destroy(Request $request, $id)
     {
-        $this->requirePrivileged($request);
-        $purchase = Purchase::findOrFail($id);
-        $purchase->delete();
+        $user = $this->requirePrivileged($request);
+        $purchase = Purchase::with('items')->findOrFail($id);
+
+        DB::transaction(function () use ($purchase, $user) {
+            foreach ($purchase->items as $item) {
+                if (!$item->product_variation_id) {
+                    continue;
+                }
+
+                $variation = ProductVariation::lockForUpdate()->find($item->product_variation_id);
+                if (!$variation) {
+                    continue;
+                }
+
+                StockLedger::move(
+                    $variation,
+                    -1 * (int) $item->quantity,
+                    StockMovement::TYPE_PURCHASE,
+                    "سڕینەوەی پسوولەی کڕین #{$purchase->invoice_number}",
+                    null,
+                    $user->id
+                );
+            }
+
+            // The cost and selling price the purchase wrote onto the product
+            // are left alone on purpose: later purchases and hand edits may
+            // have moved them since, and rolling back to a stale figure would
+            // be a worse guess than leaving the current one.
+            $purchase->delete();
+        });
 
         ActivityLogger::log('purchase.deleted', 'purchase', $id, "سڕینەوەی پسوولەی کڕین #{$purchase->invoice_number}");
 

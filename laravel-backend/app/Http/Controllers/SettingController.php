@@ -9,7 +9,24 @@ use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
-    /** Public: return all settings as a key => value map (values JSON-decoded). */
+    /**
+     * Settings that are credentials, not preferences.
+     *
+     * This endpoint is public — the storefront reads the shop's name, logo and
+     * delivery rules from it before anyone signs in — so everything in it is
+     * readable by anyone who opens the site. An API token stored beside the
+     * shop's address was therefore handed to every visitor in plain text, and
+     * a `curl` against the settings URL was enough to walk off with it.
+     *
+     * They are still saved and still editable; they are simply never sent back
+     * out. The panel reports whether one is set, which is all it needs to show,
+     * and leaving its field blank keeps whatever is already stored.
+     */
+    private const SECRET_KEYS = [
+        'instagram_access_token',
+    ];
+
+    /** Public: return the settings map (values JSON-decoded), secrets withheld. */
     public function index()
     {
         $map = [];
@@ -20,6 +37,14 @@ class SettingController extends Controller
         }
 
         foreach ($settings as $s) {
+            if (in_array($s->key, self::SECRET_KEYS, true)) {
+                // Say that one exists without saying what it is, so the panel
+                // can show "configured" and the storefront can decide whether
+                // to ask the server for the feed.
+                $map[$s->key . '_set'] = filled($s->value);
+                continue;
+            }
+
             $val = $s->value;
             if ($val === 'true') {
                 $map[$s->key] = true;
@@ -68,6 +93,15 @@ class SettingController extends Controller
                 if (in_array($key, ['_token', '_method'])) {
                     continue;
                 }
+
+                // The panel never receives a secret back, so it submits the
+                // field empty unless someone typed a new one. Writing that
+                // blank through would erase the stored token every time any
+                // other setting was saved.
+                if (in_array($key, self::SECRET_KEYS, true) && blank($value)) {
+                    continue;
+                }
+
                 Setting::updateOrCreate(
                     ['key' => $key],
                     ['value' => is_array($value) || is_object($value) ? json_encode($value) : (is_bool($value) ? ($value ? 'true' : 'false') : (string)$value)]

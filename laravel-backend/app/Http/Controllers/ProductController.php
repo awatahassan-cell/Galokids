@@ -50,7 +50,15 @@ class ProductController extends Controller
             });
         }
 
-        // Search filter (searches name, name_ku, name_ar, description, description_ku, description_ar, barcode, sku, AND variation barcode/sku)
+        // Name, description, the product's own barcode, and the barcode of any
+        // one of its variations.
+        //
+        // A product's barcode is its `sku` column — `barcode` on the model is
+        // an accessor over it, and the panel writes the two together. There is
+        // no `products.barcode` column, so matching one asked the database for
+        // a field it does not have: on MySQL that is an error, and every
+        // search in the shop and the panel came back as a 500. SQLite quietly
+        // read it as the text "barcode" instead, which is why it looked fine.
         if ($request->has('search') && $request->search != '') {
             $search = trim($request->search);
             $query->where(function ($q) use ($search) {
@@ -58,7 +66,6 @@ class ProductController extends Controller
                   ->orWhere('name_ku', 'like', "%{$search}%")
                   ->orWhere('name_ar', 'like', "%{$search}%")
                   ->orWhere('sku', 'like', "%{$search}%")
-                  ->orWhere('barcode', 'like', "%{$search}%")
                   ->orWhere('description', 'like', "%{$search}%")
                   ->orWhere('description_ku', 'like', "%{$search}%")
                   ->orWhere('description_ar', 'like', "%{$search}%")
@@ -192,9 +199,13 @@ class ProductController extends Controller
             $data['discount_price'] = null;
         }
 
-        if (empty($data['sku']) && !empty($data['barcode'])) {
+        // The barcode is where the product's code actually lives; `sku` is the
+        // column holding it. Copying it only when `sku` was empty meant editing
+        // the barcode of a product that already had one changed nothing.
+        if (!empty($data['barcode'])) {
             $data['sku'] = $data['barcode'];
         }
+        unset($data['barcode']);
         if (isset($data['images']) && is_array($data['images']) && count($data['images']) > 0) {
             if (empty($data['image_url'])) {
                 $data['image_url'] = $data['images'][0];
