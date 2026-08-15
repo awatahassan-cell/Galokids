@@ -68,7 +68,7 @@ export const adminDict: Record<string, Pair> = {
   'Banner is Active': { ku: 'بانەر چالاکە', ar: 'اللافتة مفعّلة' },
   'Barcode': { ku: 'بارکۆد', ar: 'الباركود' },
   'Based on catalog costs': { ku: 'بەپێی تێچووی کاتالۆگ', ar: 'بناءً على تكاليف الكتالوج' },
-  'Both': { ku: 'هەردوو', ar: 'كلاهما' },
+  'Both': { ku: 'هەردوڕەگەز', ar: 'للجنسين' },
   'By Coupon Code': { ku: 'بەپێی کۆدی کۆپۆن', ar: 'حسب رمز الكوبون' },
   'Campaign / Code': { ku: 'کەمپەین / کۆد', ar: 'الحملة / الرمز' },
   'Campaign Impact Summary': { ku: 'پوختەی کاریگەری کەمپەین', ar: 'ملخص تأثير الحملة' },

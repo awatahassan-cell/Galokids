@@ -3014,7 +3014,7 @@ export const Admin: React.FC = () => {
                       ? (language === 'ku' ? 'کوڕان' : language === 'ar' ? 'ولادي' : 'Boy')
                       : Number(selectedPreviewProduct.gender) === 2
                       ? (language === 'ku' ? 'کچان' : language === 'ar' ? 'بناتي' : 'Girl')
-                      : (language === 'ku' ? 'هەردووکیان' : language === 'ar' ? 'للجنسين' : 'Both')}
+                      : (language === 'ku' ? 'هەردوڕەگەز' : language === 'ar' ? 'للجنسين' : 'Both')}
                   </span>
                   <h3 className="text-2xl font-bold font-display text-slate-900 mt-4 mb-2 leading-tight">
                     {(language === 'ku' && selectedPreviewProduct.nameKu) || (language === 'ar' && selectedPreviewProduct.nameAr) || selectedPreviewProduct.name}
