@@ -276,9 +276,9 @@ class OrderController extends Controller
 
         $query = Order::with('items.product', 'items.variation');
 
-        if (!$user->isPrivileged()) {
+        if (!$user->isPrivileged() || $request->boolean('mine')) {
             // A customer sees their own orders: the ones linked to their account
-            // and the guest/POS orders placed with the same phone number. The
+            // and the guest orders placed with the same phone number. The
             // phone is matched across every format it may have been stored in,
             // otherwise an order saved as "0750…" stays invisible to an account
             // saved as "964750…".

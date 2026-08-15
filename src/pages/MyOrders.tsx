@@ -27,13 +27,13 @@ export const MyOrders: React.FC = () => {
 
   React.useEffect(() => {
     if (!currentUser) return;
-    refreshOrders({ page, limit: 20 });
+    refreshOrders({ page, limit: 20, channel: 'online', mine: true });
   }, [currentUser?.id, refreshOrders, page]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refreshOrders({ page, limit: 20 });
+      await refreshOrders({ page, limit: 20, channel: 'online', mine: true });
     } finally {
       setIsRefreshing(false);
     }

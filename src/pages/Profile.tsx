@@ -5,6 +5,8 @@ import { Navigate } from 'react-router-dom';
 import { User, Mail, Phone, MapPin, Lock, Shield, Calendar, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import iraqLocations from '../data/iraq-locations.json';
 import { getRoleInfo } from '../utils/roles';
+import { isPosOrder } from '../components/admin/AdminOrdersTab';
+import { isSamePhone } from '../utils/phone';
 import {
   buildAddress, parseAddress, getDistricts, getSubdistricts,
   getGovernorateLabel, getDistrictLabel, getSubdistrictLabel,
@@ -119,12 +121,19 @@ const pTranslations = {
 };
 
 export const Profile: React.FC = () => {
-  const { currentUser, updateProfile, orders, wishlist } = useStore();
+  const { currentUser, updateProfile, orders, wishlist, refreshOrders } = useStore();
   const { language, dir } = useLanguage();
 
   // Safely default language
   const activeLang = language === 'ku' || language === 'ar' ? language : 'en';
   const localT = pTranslations[activeLang];
+
+  // Refresh customer's own online orders on mount
+  useEffect(() => {
+    if (currentUser) {
+      refreshOrders({ page: 1, limit: 20, channel: 'online', mine: true });
+    }
+  }, [currentUser?.id, refreshOrders]);
 
   // Form State
   const [name, setName] = useState(currentUser?.name || '');
@@ -172,6 +181,19 @@ export const Profile: React.FC = () => {
       }
     }
   }, [currentUser]);
+
+  // Compute strictly online website orders belonging to this user
+  const myOnlineOrders = useMemo(() => {
+    if (!currentUser) return [];
+    const userEmail = currentUser.email ? currentUser.email.toLowerCase().trim() : '';
+    return (orders || []).filter(o => {
+      if (isPosOrder(o)) return false;
+      if (String(o?.userId) === String(currentUser.id)) return true;
+      if (userEmail && o?.customerEmail && o.customerEmail.toLowerCase().trim() === userEmail) return true;
+      if (currentUser.phone && o?.customerPhone && isSamePhone(o.customerPhone, currentUser.phone)) return true;
+      return false;
+    });
+  }, [orders, currentUser]);
 
   if (!currentUser) {
     return <Navigate to="/login" replace />;
@@ -276,7 +298,7 @@ export const Profile: React.FC = () => {
       <div className="grid grid-cols-3 gap-3 mb-8">
         {[
           {
-            n: (orders || []).filter(o => String(o?.userId) === String(currentUser?.id)).length,
+            n: myOnlineOrders.length,
             label: language === 'ku' ? 'داواکاری' : language === 'ar' ? 'طلبات' : 'Orders',
           },
           {
@@ -284,7 +306,7 @@ export const Profile: React.FC = () => {
             label: language === 'ku' ? 'دڵخواز' : language === 'ar' ? 'مفضلة' : 'Wishlist',
           },
           {
-            n: (orders || []).filter(o => String(o?.userId) === String(currentUser?.id) && o?.status === 'delivered').length,
+            n: myOnlineOrders.filter(o => o?.status === 'delivered').length,
             label: language === 'ku' ? 'گەیشتوو' : language === 'ar' ? 'مكتملة' : 'Delivered',
           },
         ].map(box => (
