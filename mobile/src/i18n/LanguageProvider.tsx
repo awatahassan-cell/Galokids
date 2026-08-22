@@ -10,6 +10,14 @@ interface LanguageValue {
   language: Language;
   isRTL: boolean;
   ready: boolean;
+  /**
+   * Whether the customer has ever picked a language themselves.
+   *
+   * Distinct from `language`, which always has a value — the phone's own
+   * locale stands in until someone chooses. This is what tells the app it is
+   * a first launch and the welcome screen is owed.
+   */
+  hasChosen: boolean;
   setLanguage: (next: Language) => void;
   /** Translate a key, optionally filling `{placeholders}`. */
   t: (key: StringKey, vars?: Record<string, string | number>) => string;
@@ -35,6 +43,7 @@ function deviceLanguage(): Language {
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>('ku');
+  const [hasChosen, setHasChosen] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -44,8 +53,14 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (!alive) return;
         const known = LANGUAGES.some(l => l.code === saved);
         setLanguageState(known ? (saved as Language) : deviceLanguage());
+        setHasChosen(known);
       })
-      .catch(() => alive && setLanguageState(deviceLanguage()))
+      .catch(() => {
+        // Unreadable storage is treated as a first launch: showing the
+        // welcome screen once too often is a smaller cost than never showing
+        // it and leaving someone in a language they cannot read.
+        if (alive) setLanguageState(deviceLanguage());
+      })
       .finally(() => alive && setReady(true));
     return () => {
       alive = false;
@@ -70,8 +85,10 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const setLanguage = useCallback((next: Language) => {
     setLanguageState(next);
+    setHasChosen(true);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {
-      // A phone that cannot write preferences still works; it just forgets.
+      // A phone that cannot write preferences still works; it just forgets,
+      // and asks again next launch.
     });
   }, []);
 
@@ -99,8 +116,8 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 
   const value = useMemo(
-    () => ({ language, isRTL, ready, setLanguage, t, pick }),
-    [language, isRTL, ready, setLanguage, t, pick]
+    () => ({ language, isRTL, ready, hasChosen, setLanguage, t, pick }),
+    [language, isRTL, ready, hasChosen, setLanguage, t, pick]
   );
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;

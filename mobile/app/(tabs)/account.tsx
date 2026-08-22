@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '../../src/theme';
 import { useLanguage } from '../../src/i18n/LanguageProvider';
 import { LANGUAGES } from '../../src/i18n/strings';
+import { FLAG_FOR } from '../../src/components/Flags';
 import { useAuth } from '../../src/store/AuthProvider';
 import { useShop } from '../../src/store/ShopProvider';
 import { formatPhone } from '../../src/utils/phone';
@@ -154,6 +155,7 @@ export default function AccountScreen() {
           <Row gap={spacing.sm} style={{ marginTop: spacing.md }}>
             {LANGUAGES.map(option => {
               const active = option.code === language;
+              const Flag = FLAG_FOR[option.code];
               return (
                 <Pressable
                   key={option.code}
@@ -168,7 +170,7 @@ export default function AccountScreen() {
                     borderColor: active ? colors.candy[400] : colors.slate[200],
                   }}
                 >
-                  <T size="lg">{option.flag}</T>
+                  <Flag size={26} />
                   <T
                     size="xs"
                     weight="black"
