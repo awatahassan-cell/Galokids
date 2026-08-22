@@ -12,6 +12,9 @@ import { getToken, clearToken } from './tokenStore';
  */
 function resolveBaseUrl(): string {
   const configured =
+    // Set at build time, so one codebase can be pointed at staging or at a
+    // machine on the desk without editing app.json.
+    process.env.EXPO_PUBLIC_API_URL ??
     (Constants.expoConfig?.extra as Record<string, string> | undefined)?.apiUrl ??
     'https://galo.prodental.dev/API/api';
 
