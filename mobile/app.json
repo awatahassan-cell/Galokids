@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Galo Kids",
+    "slug": "galokids",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "galokids",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "backgroundColor": "#FFFFFF",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF6F9"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.galokids.shop",
+      "associatedDomains": [
+        "applinks:galokids.com",
+        "applinks:www.galokids.com"
+      ],
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false
+        }
+      }
+    },
+    "android": {
+      "package": "com.galokids.shop",
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": { "backgroundColor": "#FF8FAB" },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "galokids.com" },
+            { "scheme": "https", "host": "www.galokids.com" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-localization",
+      ["expo-splash-screen", { "backgroundColor": "#FFF6F9", "resizeMode": "contain" }]
+    ],
+    "experiments": { "typedRoutes": true },
+    "extra": {
+      "apiUrl": "https://galo.prodental.dev/API/api",
+      "webUrl": "https://galokids.com"
+    }
+  }
+}

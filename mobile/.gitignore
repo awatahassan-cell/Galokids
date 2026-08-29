@@ -1,0 +1,11 @@
+*.log
+.env
+.env.local
+.expo/
+android/
+dist-check/
+dist-web/
+dist/
+ios/
+node_modules/
+web-build/

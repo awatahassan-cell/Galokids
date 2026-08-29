@@ -605,6 +605,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             localStorage.setItem('store_settings', JSON.stringify(merged));
             return merged;
           });
+
+          // The banner the shop has set, wherever it was set from. Without
+          // this the panel wrote it to the server and then kept showing the
+          // copy in its own localStorage.
+          const banner = parsed.promo_banner;
+          if (banner && typeof banner === 'object') {
+            setPromoBanner(banner as PromoBanner);
+          }
         }
       })
       .catch(err => console.warn('Refresh settings note:', err));
@@ -2740,8 +2748,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return false;
   };
 
+  /**
+   * The promo banner, saved on the server rather than in this browser.
+   *
+   * It used to live only in localStorage, so the banner an admin set was
+   * visible to that admin, on that machine, and nowhere else — not to
+   * shoppers, and not to the phone app. `hero_slides` was already a setting;
+   * this now sits beside it.
+   */
   const updatePromoBanner = (banner: PromoBanner) => {
     setPromoBanner(banner);
+    saveSettings({ promo_banner: banner });
   };
 
   return (
