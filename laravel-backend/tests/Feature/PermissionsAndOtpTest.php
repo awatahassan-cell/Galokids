@@ -21,6 +21,16 @@ class PermissionsAndOtpTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // No SMS account in the test run, so the staging stand-in is what
+        // lets `send-otp` get as far as answering. `testing` is not
+        // production, which is the other half of the condition.
+        config(['services.otpiq.test_code' => '424242']);
+    }
+
     private function admin(): User
     {
         return User::factory()->create(['role' => Roles::ADMIN]);
@@ -55,6 +65,38 @@ class PermissionsAndOtpTest extends TestCase
     {
         $this->postJson('/api/send-otp', ['phone' => '07701234567'])->assertOk();
         $this->postJson('/api/send-otp', ['phone' => '07701234567'])->assertStatus(429);
+    }
+
+    public function test_a_fixed_code_only_works_when_one_is_configured(): void
+    {
+        // `123456` was accepted unconditionally: anyone could sign in as
+        // anyone, admin included, without ever asking for a code.
+        config(['services.otpiq.test_code' => '']);
+
+        $this->postJson('/api/verify-otp', ['phone' => '07701234567', 'code' => '123456'])
+            ->assertStatus(422);
+    }
+
+    public function test_the_staging_code_is_refused_in_production(): void
+    {
+        app()->detectEnvironment(fn () => 'production');
+
+        $this->postJson('/api/verify-otp', ['phone' => '07701234567', 'code' => '424242'])
+            ->assertStatus(422);
+    }
+
+    public function test_a_code_that_could_not_be_sent_is_reported_as_a_failure(): void
+    {
+        // Nothing configured at all: no gateway, no stand-in. Answering
+        // "sent" here is what made a missing API key look like a working shop.
+        config(['services.otpiq.test_code' => '', 'services.otpiq.key' => null]);
+
+        $this->postJson('/api/send-otp', ['phone' => '07705550000'])
+            ->assertStatus(503)
+            ->assertJson(['success' => false]);
+
+        // And no cooldown was left behind, so the next try works at once.
+        $this->postJson('/api/send-otp', ['phone' => '07705550000'])->assertStatus(503);
     }
 
     public function test_the_caller_cannot_choose_what_the_message_says(): void

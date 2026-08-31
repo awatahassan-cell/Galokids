@@ -49,7 +49,7 @@ class ContactMessageController extends Controller
      */
     public function index(Request $request)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'messages.view');
 
         $query = ContactMessage::orderBy('created_at', 'desc');
 
@@ -77,7 +77,7 @@ class ContactMessageController extends Controller
      */
     public function markRead(Request $request, $id)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'messages.view');
 
         $msg = ContactMessage::findOrFail($id);
         $status = $request->input('status', 'read');
@@ -99,7 +99,7 @@ class ContactMessageController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'messages.view');
 
         $msg = ContactMessage::findOrFail($id);
         $msg->delete();
@@ -115,7 +115,7 @@ class ContactMessageController extends Controller
      */
     public function unreadCount(Request $request)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'messages.view');
 
         $count = ContactMessage::where('status', 'unread')->count();
 

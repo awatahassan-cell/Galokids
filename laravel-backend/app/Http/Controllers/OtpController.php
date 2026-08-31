@@ -66,16 +66,6 @@ class OtpController extends Controller
 
         $code = (string) random_int(100000, 999999);
 
-        Cache::put("otp_{$phone}", [
-            'code'     => $code,
-            'attempts' => 0,
-        ], now()->addMinutes(self::CODE_TTL_MINUTES));
-
-        // Start the cooldown. Without this the check above never fires: a loop
-        // could ask for codes without limit, draining the shop's SMS credit
-        // and burying the real code under a hundred texts to the customer.
-        Cache::put($cooldownKey, true, now()->addSeconds(self::RESEND_COOLDOWN_SECONDS));
-
         // Only the two providers we actually support. Anything else is a typo
         // or someone probing, and either way it should not reach the API.
         $channel = $request->input('channel') === 'whatsapp' ? 'whatsapp' : 'sms';
@@ -88,6 +78,36 @@ class OtpController extends Controller
         $message = "کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ {$code} ]";
 
         $smsSent = $this->dispatchSms($phone, $message, $code, $channel);
+
+        // A code that was never sent is not a code the customer can enter.
+        //
+        // This used to answer "sent" whatever happened, so a missing API key
+        // looked exactly like a working shop: the screen asked for a code, and
+        // none was ever coming. Say so instead, and leave no cooldown behind,
+        // so the moment the gateway is configured the next attempt works.
+        //
+        // Outside production a configured test code stands in for the gateway,
+        // so a machine with no SMS account can still walk the whole checkout.
+        // In production there is no such allowance.
+        $stagingCodeAvailable = !app()->isProduction()
+            && (string) config('services.otpiq.test_code', '') !== '';
+
+        if (!$smsSent && !$stagingCodeAvailable) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ناتوانرێت کۆد بنێردرێت لە ئێستادا. تکایە دواتر هەوڵ بدەرەوە یان پەیوەندیمان پێوە بکە.',
+            ], 503);
+        }
+
+        Cache::put("otp_{$phone}", [
+            'code'     => $code,
+            'attempts' => 0,
+        ], now()->addMinutes(self::CODE_TTL_MINUTES));
+
+        // Start the cooldown. Without this the check above never fires: a loop
+        // could ask for codes without limit, draining the shop's SMS credit
+        // and burying the real code under a hundred texts to the customer.
+        Cache::put($cooldownKey, true, now()->addSeconds(self::RESEND_COOLDOWN_SECONDS));
 
         // The code is not in this response, and neither is a link containing
         // it. Returning it handed the code for any number to anyone who asked
@@ -122,9 +142,18 @@ class OtpController extends Controller
             ], 422);
         }
 
-        // Test bypass code for developer convenience & staging
-        $testCode = (string) (config('services.otpiq.test_code') ?: env('OTP_TEST_CODE', '123456'));
-        if ($submittedCode === '123456' || ($testCode !== '' && hash_equals($testCode, $submittedCode))) {
+        // A fixed code that always works, for staging only.
+        //
+        // Two conditions, both required. It has to be set in the environment —
+        // there is no default, because a default is a password everybody
+        // knows — and the application must not be in production. Hardcoding
+        // `123456` here let anyone sign in as anyone, including an admin,
+        // without ever asking for a code: exactly the takeover this endpoint
+        // exists to prevent, and guessable on the first try.
+        $testCode = (string) config('services.otpiq.test_code', '');
+        if ($testCode !== '' && !app()->isProduction() && hash_equals($testCode, $submittedCode)) {
+            Log::warning("OTP test code accepted for {$phone} — this must never happen in production.");
+
             return response()->json([
                 'success'            => true,
                 'verified'           => true,
@@ -221,8 +250,16 @@ class OtpController extends Controller
      */
     private function dispatchSms(string $phone, string $message, string $code, string $channel = 'sms'): bool
     {
-        $otpiqApiKey = config('services.otpiq.key') ?: env('OTPIQ_API_KEY', 'sk_dev_189dc6187a0fc78ea31dc39b86ec17584f2d5582');
-        $otpiqUrl = config('services.otpiq.url') ?: env('OTPIQ_API_URL', 'https://api.otpiq.com/api/sms');
+        // From config only, which reads .env — never a literal here, and never
+        // env() at this depth.
+        //
+        // A key was hardcoded as the fallback. This file is in git, so the key
+        // was published to anyone with the repository, and whoever has it can
+        // spend the shop's SMS credit. env() outside config also returns null
+        // once `php artisan config:cache` has run, which is the normal way to
+        // deploy — so the fallback would have been null in production anyway.
+        $otpiqApiKey = config('services.otpiq.key');
+        $otpiqUrl = config('services.otpiq.url');
 
         if (!$otpiqApiKey) {
             Log::warning('OTPIQ_API_KEY is not configured — OTP was generated but not sent.');
