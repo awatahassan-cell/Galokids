@@ -128,6 +128,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shifts/cash', [\App\Http\Controllers\ShiftController::class, 'cashMovement']);
     Route::get('/shifts/cash', [\App\Http\Controllers\ShiftController::class, 'cashMovements']);
 
+    // Browser push notifications for staff — a browser signing up to be
+    // told about new orders while the panel is closed.
+    Route::get('/push/config', [\App\Http\Controllers\PushSubscriptionController::class, 'config']);
+    Route::post('/push/subscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'store']);
+    Route::post('/push/unsubscribe', [\App\Http\Controllers\PushSubscriptionController::class, 'destroy']);
+    Route::post('/push/test', [\App\Http\Controllers\PushSubscriptionController::class, 'test']);
+
     // Stock ledger (staff/admin) and manual corrections.
     Route::get('/stock-movements', [\App\Http\Controllers\StockMovementController::class, 'index']);
     Route::post('/stock-movements', [\App\Http\Controllers\StockMovementController::class, 'store']);

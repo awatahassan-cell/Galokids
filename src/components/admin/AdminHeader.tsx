@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Globe, User, Key, LogOut, ChevronDown, ShoppingCart, Home, Bell, BellOff, Volume2 } from 'lucide-react';
+import { Menu, Globe, User, Key, LogOut, ChevronDown, ShoppingCart, Home, Bell, BellOff, BellRing, Loader2, Volume2 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
 import { useNavigate, Link } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { LanguageDropdown } from '../LanguageDropdown';
 import { getRoleInfo } from '../../utils/roles';
 import { StoreLogo } from '../StoreLogo';
 import { orderNotifier } from '../../utils/notifications';
+import * as webPush from '../../utils/webPush';
 
 export interface AdminHeaderProps {
   onOpenMobileMenu: () => void;
@@ -29,6 +30,73 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   const savedUserStr = localStorage.getItem('kidskart_user');
   const currentUser = propUser || storeUser || (savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch { return null; } })() : null) || { name: 'Admin User', role: 3 };
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+
+  /**
+   * Notifications that arrive with the panel closed.
+   *
+   * The state is read once on mount and never asks for anything: browsers
+   * only grant permission from a real click, and a prompt nobody invited is
+   * how a shop ends up with notifications permanently blocked.
+   */
+  const [pushState, setPushState] = useState<webPush.PushState>('off');
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    webPush.getState().then(state => alive && setPushState(state)).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const handlePushToggle = async () => {
+    if (pushBusy) return;
+
+    // Once blocked, only the person can undo it, from the browser's own site
+    // settings — so say that rather than asking again and appearing to fail.
+    if (pushState === 'denied') {
+      alert(language === 'ku'
+        ? 'ئاگادارکردنەوەکان لە ڕێکخستنەکانی وێبگەڕەکەت ڕێگریان لێکراوە. لەوێوە ڕێگەیان پێبدە.'
+        : 'Notifications are blocked in your browser settings. Allow them there first.');
+      return;
+    }
+
+    setPushBusy(true);
+    try {
+      if (pushState === 'on') {
+        setPushState(await webPush.disable());
+      } else {
+        const next = await webPush.enable();
+        setPushState(next);
+
+        // Prove the whole path works straight away, rather than leaving the
+        // shop to find out at the first real order that it does not.
+        if (next === 'on') {
+          await webPush.sendTest();
+        } else if (next === 'disabled') {
+          alert(language === 'ku'
+            ? 'ئاگادارکردنەوەکان لەسەر سێرڤەر ڕێکنەخراون (کلیلی VAPID نییە).'
+            : 'Push is not configured on the server (VAPID keys missing).');
+        }
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const pushTitle = (() => {
+    if (pushState === 'on') {
+      return language === 'ku' ? 'ئاگادارکردنەوە چالاکە — بۆ کوژاندنەوە دابگرە' : 'Notifications on — click to turn off';
+    }
+    if (pushState === 'denied') {
+      return language === 'ku' ? 'ڕێگری لێکراوە لە ڕێکخستنەکانی وێبگەڕ' : 'Blocked in browser settings';
+    }
+    if (pushState === 'unsupported') {
+      return language === 'ku' ? 'ئەم وێبگەڕە پشتگیری ناکات' : 'This browser does not support push';
+    }
+    if (pushState === 'disabled') {
+      return language === 'ku' ? 'لەسەر سێرڤەر ڕێکنەخراوە' : 'Not configured on the server';
+    }
+    return language === 'ku' ? 'ئاگادارکردنەوەی داواکاری نوێ چالاک بکە' : 'Turn on new-order notifications';
+  })();
 
   return (
     <header className="w-full relative z-50 bg-white/70 backdrop-blur-xl border border-white/80 shadow-xs rounded-[2.5rem] px-4 sm:px-6 py-3 font-arabic mb-6 shrink-0">
@@ -76,16 +144,28 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             <span className="hidden sm:inline">{L("POS Terminal")}</span>
           </button>
 
-          {/* Notification Permission & Audio Alert Test Button */}
+          {/* Notifications that arrive with the panel closed.
+              Off by default: the browser only grants permission from a real
+              click, and a shop that never asked should not be prompted. */}
           <button
-            onClick={async () => {
-              const perm = await orderNotifier.requestPermission();
-              orderNotifier.playOrderChime();
-            }}
-            className="p-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
-            title={language === 'ku' ? 'ئاگادارکردنەوەی براوسەر و دەنگی داواکاری نوێ' : 'Browser Order Notifications & Sound'}
+            onClick={handlePushToggle}
+            disabled={pushBusy || pushState === 'unsupported'}
+            className={`p-2 border rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
+              pushState === 'on'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                : 'bg-white/80 border-slate-200/80 text-slate-700 hover:bg-slate-900 hover:text-white'
+            }`}
+            title={pushTitle}
           >
-            <Bell className="w-4 h-4 text-amber-500" />
+            {pushBusy ? (
+              <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+            ) : pushState === 'on' ? (
+              <BellRing className="w-4 h-4 text-emerald-600" />
+            ) : pushState === 'denied' ? (
+              <BellOff className="w-4 h-4 text-rose-500" />
+            ) : (
+              <Bell className="w-4 h-4 text-amber-500" />
+            )}
           </button>
 
           {/* Home Link */}

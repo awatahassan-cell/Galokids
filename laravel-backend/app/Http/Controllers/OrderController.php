@@ -765,6 +765,20 @@ class OrderController extends Controller
             throw $e;
         }
 
+        // Tell the shop, if this came from the website.
+        //
+        // A till sale needs no announcement: the person who rang it up is
+        // standing at the counter. Sent after the transaction has committed,
+        // so nothing is announced that could still be rolled back, and it can
+        // never fail the order — PushNotifier swallows its own errors.
+        if (!$isStaff && $order->channel !== 'pos') {
+            app(\App\Services\PushNotifier::class)->newOrder([
+                'id' => $order->id,
+                'customer_name' => $order->customer_name,
+                'total_amount' => $order->total_amount,
+            ]);
+        }
+
         return response()->json($order->load('items.product', 'items.variation'), 201);
     }
 

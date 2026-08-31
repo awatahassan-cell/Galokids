@@ -48,4 +48,24 @@ return [
         'test_code' => env('OTP_TEST_CODE', ''),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Web Push — desktop notifications for staff
+    |--------------------------------------------------------------------------
+    |
+    | VAPID identifies this server to the browser vendors' push services. The
+    | key pair is generated once with `php artisan push:keys` and belongs in
+    | .env; the private half must never be committed.
+    |
+    | `subject` has to be a URL or a mailto: the push service can reach if it
+    | needs to complain about traffic from this server.
+    |
+    */
+
+    'webpush' => [
+        'subject' => env('VAPID_SUBJECT', env('APP_URL', 'https://galokids.com')),
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+    ],
+
 ];
