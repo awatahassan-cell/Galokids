@@ -187,6 +187,43 @@ class PushNotificationTest extends TestCase
         ])->assertCreated();
     }
 
+    public function test_a_speed_hint_from_the_library_does_not_abort_a_send(): void
+    {
+        // The push library raises an E_USER_NOTICE the first time it runs
+        // without GMP or BCMath. Laravel turns notices into exceptions, which
+        // aborted the whole send — so the first order after every deploy
+        // notified nobody, and the second worked, because the library only
+        // says it once per process.
+        $notifier = app(\App\Services\PushNotifier::class);
+
+        $result = $notifier->toleratingNotices(function (): int {
+            trigger_error('It is highly recommended to install the GMP extension', E_USER_NOTICE);
+
+            return 7;
+        });
+
+        $this->assertSame(7, $result, 'a notice must not stop the send it was raised during');
+    }
+
+    public function test_a_real_failure_during_a_send_is_still_caught(): void
+    {
+        // Tolerating notices must not turn into tolerating everything: a
+        // genuine error still has to be swallowed by dispatch and reported as
+        // "nothing delivered", never thrown at the order that triggered it.
+        $notifier = app(\App\Services\PushNotifier::class);
+
+        $threw = false;
+        try {
+            $notifier->toleratingNotices(function (): int {
+                throw new \RuntimeException('push service exploded');
+            });
+        } catch (\RuntimeException $e) {
+            $threw = true;
+        }
+
+        $this->assertTrue($threw, 'a real error must still surface to dispatch, which logs it');
+    }
+
     public function test_an_order_is_still_saved_when_the_push_service_is_unreachable(): void
     {
         // Keys present, so a send is genuinely attempted and genuinely fails.

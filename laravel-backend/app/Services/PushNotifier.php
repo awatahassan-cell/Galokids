@@ -100,61 +100,92 @@ class PushNotifier
      */
     private function dispatch(Collection $subscriptions, array $payload): int
     {
+        return $this->toleratingNotices(function () use ($subscriptions, $payload): int {
+            try {
+                $webPush = new WebPush([
+                    'VAPID' => [
+                        'subject'    => (string) config('services.webpush.subject'),
+                        'publicKey'  => (string) config('services.webpush.public_key'),
+                        'privateKey' => (string) config('services.webpush.private_key'),
+                    ],
+                ]);
+
+                // The push service holds a message for an offline browser. A day is
+                // long enough for a phone that was switched off overnight, and short
+                // enough that nobody is told about yesterday's order as if it were new.
+                $webPush->setDefaultOptions(['TTL' => 86400, 'urgency' => 'high']);
+
+                $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
+
+                foreach ($subscriptions as $subscription) {
+                    $webPush->queueNotification(
+                        Subscription::create([
+                            'endpoint'        => $subscription->endpoint,
+                            'publicKey'       => $subscription->public_key,
+                            'authToken'       => $subscription->auth_token,
+                            'contentEncoding' => $subscription->content_encoding ?: 'aesgcm',
+                        ]),
+                        $body
+                    );
+                }
+
+                $delivered = 0;
+
+                foreach ($webPush->flush() as $report) {
+                    if ($report->isSuccess()) {
+                        $delivered++;
+                        continue;
+                    }
+
+                    // 404 and 410 mean the browser threw the subscription away —
+                    // the user cleared site data, or uninstalled. Keeping it would
+                    // mean retrying a dead address forever.
+                    if ($report->isSubscriptionExpired()) {
+                        PushSubscription::where('endpoint_hash', PushSubscription::hashFor($report->getEndpoint()))
+                            ->delete();
+                        continue;
+                    }
+
+                    Log::warning('Web push rejected: ' . $report->getReason());
+                }
+
+                return $delivered;
+            } catch (\Throwable $e) {
+                // Never let a notification failure reach the caller: the order has
+                // already been saved and must be reported as saved.
+                Log::error('Web push failed: ' . $e->getMessage());
+
+                return 0;
+            }
+        });
+    }
+
+    /**
+     * Run a send with PHP notices allowed to pass.
+     *
+     * The push library raises an E_USER_NOTICE the first time it runs without
+     * the GMP or BCMath extension — a speed hint, not a fault. Laravel turns
+     * notices into exceptions, so that hint was caught as a failure and threw
+     * the whole send away: the first order after every deploy notified nobody,
+     * and the second worked, because the library only says it once per
+     * process.
+     *
+     * Only notices are swallowed, and only for the duration of the send;
+     * warnings and errors still reach Laravel's handler.
+     *
+     * @param callable():int $send
+     */
+    public function toleratingNotices(callable $send): int
+    {
+        set_error_handler(
+            static fn (): bool => true,
+            E_USER_NOTICE | E_USER_DEPRECATED | E_DEPRECATED | E_NOTICE
+        );
+
         try {
-            $webPush = new WebPush([
-                'VAPID' => [
-                    'subject'    => (string) config('services.webpush.subject'),
-                    'publicKey'  => (string) config('services.webpush.public_key'),
-                    'privateKey' => (string) config('services.webpush.private_key'),
-                ],
-            ]);
-
-            // The push service holds a message for an offline browser. A day is
-            // long enough for a phone that was switched off overnight, and short
-            // enough that nobody is told about yesterday's order as if it were new.
-            $webPush->setDefaultOptions(['TTL' => 86400, 'urgency' => 'high']);
-
-            $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
-
-            foreach ($subscriptions as $subscription) {
-                $webPush->queueNotification(
-                    Subscription::create([
-                        'endpoint'        => $subscription->endpoint,
-                        'publicKey'       => $subscription->public_key,
-                        'authToken'       => $subscription->auth_token,
-                        'contentEncoding' => $subscription->content_encoding ?: 'aesgcm',
-                    ]),
-                    $body
-                );
-            }
-
-            $delivered = 0;
-
-            foreach ($webPush->flush() as $report) {
-                if ($report->isSuccess()) {
-                    $delivered++;
-                    continue;
-                }
-
-                // 404 and 410 mean the browser threw the subscription away —
-                // the user cleared site data, or uninstalled. Keeping it would
-                // mean retrying a dead address forever.
-                if ($report->isSubscriptionExpired()) {
-                    PushSubscription::where('endpoint_hash', PushSubscription::hashFor($report->getEndpoint()))
-                        ->delete();
-                    continue;
-                }
-
-                Log::warning('Web push rejected: ' . $report->getReason());
-            }
-
-            return $delivered;
-        } catch (\Throwable $e) {
-            // Never let a notification failure reach the caller: the order has
-            // already been saved and must be reported as saved.
-            Log::error('Web push failed: ' . $e->getMessage());
-
-            return 0;
+            return $send();
+        } finally {
+            restore_error_handler();
         }
     }
 }
