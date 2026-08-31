@@ -66,10 +66,6 @@ class OtpController extends Controller
 
         $code = (string) random_int(100000, 999999);
 
-        // Only the two providers we actually support. Anything else is a typo
-        // or someone probing, and either way it should not reach the API.
-        $channel = $request->input('channel') === 'whatsapp' ? 'whatsapp' : 'sms';
-
         // The body is fixed here, not taken from the request.
         //
         // This endpoint is public and unauthenticated: it has to be, because a
@@ -77,7 +73,7 @@ class OtpController extends Controller
         // could send any text to any number on the shop's account.
         $message = "کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ {$code} ]";
 
-        $smsSent = $this->dispatchSms($phone, $message, $code, $channel);
+        $smsSent = $this->dispatchSms($phone, $message, $code);
 
         // A code that was never sent is not a code the customer can enter.
         //
@@ -248,7 +244,7 @@ class OtpController extends Controller
      * The API key comes from config/services.php (OTPIQ_API_KEY in .env) —
      * never hardcode it here, the file is committed to git.
      */
-    private function dispatchSms(string $phone, string $message, string $code, string $channel = 'sms'): bool
+    private function dispatchSms(string $phone, string $message, string $code): bool
     {
         // From config only, which reads .env — never a literal here, and never
         // env() at this depth.
@@ -267,7 +263,17 @@ class OtpController extends Controller
             return false;
         }
 
-        $provider = ($channel === 'whatsapp') ? 'whatsapp' : 'auto';
+        // Let the gateway choose how to deliver.
+        //
+        // The checkout screen offers "SMS or WhatsApp" and that choice used to
+        // be passed straight through as the provider. WhatsApp is a separate
+        // product that a shop has to be approved for, so on an account without
+        // it every message the customer asked to receive on WhatsApp came back
+        // Failed — and was still charged for. `auto` lets OTPIQ send by
+        // whatever the account can actually use.
+        //
+        // A shop that does have WhatsApp approved can set OTPIQ_PROVIDER.
+        $provider = config('services.otpiq.provider') ?: 'auto';
 
         try {
             // Always the provider's verification template.
@@ -275,7 +281,8 @@ class OtpController extends Controller
             // The free-text "notification" payload was only there to carry a
             // caller-supplied summary, and that is gone: a public endpoint
             // that sends arbitrary text to an arbitrary number is an open
-            // relay billed to the shop.
+            // relay billed to the shop. It also needs its own approval, so on
+            // most accounts it fails the same way WhatsApp does.
             $response = Http::timeout(15)->withHeaders([
                 'Authorization' => 'Bearer ' . $otpiqApiKey,
                 'Accept'        => 'application/json',
@@ -293,9 +300,16 @@ class OtpController extends Controller
                 return true;
             }
 
-            // Never log the body of a failed send at a level that keeps it:
-            // the request carried the code.
-            Log::error("OTPIQ API error for {$phone}: HTTP " . $response->status());
+            // The gateway's own reason for refusing. Safe to keep: the code
+            // travels in the request, never in the reply, and without this a
+            // failure is a number with no explanation attached.
+            Log::error(sprintf(
+                'OTPIQ refused the message for %s (provider: %s): HTTP %d %s',
+                $phone,
+                $provider,
+                $response->status(),
+                mb_substr(trim($response->body()), 0, 400)
+            ));
         } catch (\Exception $e) {
             Log::error("OTPIQ API exception for {$phone}: " . $e->getMessage());
         }

@@ -57,9 +57,10 @@ export const sendCheckoutOtp = async (
   rawPhone: string,
   channel: 'whatsapp' | 'sms' = 'sms',
   language: string = 'ku',
-  summary?: string
+  _summary?: string
 ): Promise<OtpResponse> => {
   const safeRawPhone = typeof rawPhone === 'string' ? rawPhone : String(rawPhone || '');
+  // Only used by the offline fallback below — the server picks the route itself.
   const safeChannel: 'whatsapp' | 'sms' = typeof channel === 'string' && channel === 'whatsapp' ? 'whatsapp' : 'sms';
   const safeLang = typeof language === 'string' ? language : 'ku';
 
@@ -76,11 +77,16 @@ export const sendCheckoutOtp = async (
     const res = await apiFetch('send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        phone: formattedPhone, 
-        channel: safeChannel, 
+      // Just the number.
+      //
+      // `channel` and `summary` used to travel with it. The server ignores both
+      // now: the message body is fixed server-side (a public endpoint that
+      // sends caller-supplied text to any number is an open relay billed to the
+      // shop), and asking for WhatsApp on an account that isn't approved for it
+      // made every send come back Failed — and still cost 25 IQD each.
+      body: JSON.stringify({
+        phone: formattedPhone,
         raw_phone: safeRawPhone,
-        summary: summary || undefined,
       }),
     });
 

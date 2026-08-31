@@ -40,12 +40,19 @@ return [
     | OTP_TEST_CODE is a staging-only escape hatch: when set, that fixed code is
     | accepted for any number. Leave it EMPTY in production.
     |
+    | OTPIQ_PROVIDER picks the delivery route. Leave it unset — the gateway then
+    | uses whatever the account is approved for. Only set it (to `whatsapp`) if
+    | OTPIQ has actually enabled WhatsApp on this account; asking for a product
+    | the account does not have makes every message fail, and each failure is
+    | still billed.
+    |
     */
 
     'otpiq' => [
         'key' => env('OTPIQ_API_KEY'),
         'url' => env('OTPIQ_API_URL', 'https://api.otpiq.com/api/sms'),
         'test_code' => env('OTP_TEST_CODE', ''),
+        'provider' => env('OTPIQ_PROVIDER'),
     ],
 
     /*

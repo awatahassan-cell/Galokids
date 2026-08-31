@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\Roles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -113,6 +114,32 @@ class PermissionsAndOtpTest extends TestCase
             ->json();
 
         $this->assertStringNotContainsString('XYZZY', json_encode($body, JSON_UNESCAPED_UNICODE));
+    }
+
+    public function test_the_caller_cannot_choose_the_delivery_route(): void
+    {
+        // Every message on the account was coming back Failed — and still
+        // costing 25 IQD — because the checkout's "SMS or WhatsApp" choice was
+        // passed through as the OTPIQ provider, and the account is not approved
+        // for WhatsApp. The gateway picks the route now.
+        Http::fake(['*' => Http::response(['smsId' => 'x'], 200)]);
+        config(['services.otpiq.key' => 'test-key', 'services.otpiq.provider' => null]);
+
+        $this->postJson('/api/send-otp', ['phone' => '07701234567', 'channel' => 'whatsapp'])
+            ->assertOk();
+
+        Http::assertSent(fn ($request) => $request['provider'] === 'auto'
+            && $request['smsType'] === 'verification');
+    }
+
+    public function test_a_shop_approved_for_whatsapp_can_configure_it(): void
+    {
+        Http::fake(['*' => Http::response(['smsId' => 'x'], 200)]);
+        config(['services.otpiq.key' => 'test-key', 'services.otpiq.provider' => 'whatsapp']);
+
+        $this->postJson('/api/send-otp', ['phone' => '07701234567'])->assertOk();
+
+        Http::assertSent(fn ($request) => $request['provider'] === 'whatsapp');
     }
 
     // ---- permissions are enforced by the server ------------------------
