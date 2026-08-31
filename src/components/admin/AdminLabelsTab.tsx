@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { FileText, Printer, Eye, Sliders, Check, LayoutGrid } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { FileText, Printer, Eye, Sliders, LayoutGrid, Search, X, Package, Barcode, Check } from 'lucide-react';
 import { Product } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
@@ -17,7 +17,11 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
   const L = (key: string) => adminTr(key, language);
   const toast = useToast();
 
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   const [copies, setCopies] = useState<number>(10);
 
   // Customization Options - Dimensions & Typography
@@ -27,21 +31,66 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
   const [barcodeHeight, setBarcodeHeight] = useState<number>(45); // in px
   const [columnsCount, setColumnsCount] = useState<number>(3);
 
-  // Element Visibility Toggles
+  // Element Visibility Toggles (SKU removed per user specification)
   const [showName, setShowName] = useState<boolean>(true);
   const [showPrice, setShowPrice] = useState<boolean>(true);
   const [showBarcodeImage, setShowBarcodeImage] = useState<boolean>(true);
   const [showBarcodeText, setShowBarcodeText] = useState<boolean>(true);
-  const [showSku, setShowSku] = useState<boolean>(true);
   const [showStoreLogo, setShowStoreLogo] = useState<boolean>(true);
 
+  // Auto-select first product if none selected
+  useEffect(() => {
+    if (!selectedProductId && products && products.length > 0) {
+      setSelectedProductId(String(products[0].id));
+    }
+  }, [products, selectedProductId]);
+
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const getProductName = (p: Product) => {
+    if (language === 'ku' && p.nameKu) return p.nameKu;
+    if (language === 'ar' && p.nameAr) return p.nameAr;
+    return p.name || '';
+  };
+
+  // Filter products by search query (name, Kurdish name, Arabic name, barcode, or ID)
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return products.slice(0, 30);
+
+    return products.filter((p) => {
+      const name = (p.name || '').toLowerCase();
+      const nameKu = (p.nameKu || '').toLowerCase();
+      const nameAr = (p.nameAr || '').toLowerCase();
+      const barcode = (p.barcode || '').toLowerCase();
+      const id = String(p.id || '').toLowerCase();
+
+      return (
+        name.includes(q) ||
+        nameKu.includes(q) ||
+        nameAr.includes(q) ||
+        barcode.includes(q) ||
+        id === q
+      );
+    }).slice(0, 50);
+  }, [products, searchQuery]);
+
   const selectedProduct = useMemo(() => {
-    return products.find(p => String(p.id) === String(selectedProductId)) || products[0] || null;
+    return products.find((p) => String(p.id) === String(selectedProductId)) || products[0] || null;
   }, [products, selectedProductId]);
 
   const barcodeValue = useMemo(() => {
     if (!selectedProduct) return '';
-    return selectedProduct.barcode || selectedProduct.sku || '123456789';
+    return selectedProduct.barcode || String(selectedProduct.id);
   }, [selectedProduct]);
 
   const barcodeDataUrl = useMemo(() => {
@@ -49,22 +98,29 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
     return generateBarcodeDataUrl(barcodeValue, { height: barcodeHeight });
   }, [barcodeValue, barcodeHeight]);
 
+  const handleSelectProduct = (product: Product) => {
+    setSelectedProductId(String(product.id));
+    setSearchQuery('');
+    setIsSearchOpen(false);
+  };
+
   const handlePrint = () => {
     if (!selectedProduct) {
-      toast('مبنعش بەرهەمێک هەڵبژێرە / Please select a product first.', 'error');
+      toast(language === 'ku' ? 'تکایە بەرهەمێک هەڵبژێرە بۆ چاپکردن.' : 'Please select a product first.', 'error');
       return;
     }
 
     if (showBarcodeImage && !barcodeDataUrl) {
-      toast('ئەم بەرهەمە کودێکی بارکۆدی نییە / Product has no barcode value.', 'error');
+      toast(language === 'ku' ? 'ئەم بەرهەمە کودێکی بارکۆدی نییە.' : 'Product has no barcode value.', 'error');
       return;
     }
+
+    const prodName = getProductName(selectedProduct);
 
     const labelCards = Array.from({ length: copies }).map(() => `
       <div class="label-card">
         ${showStoreLogo ? `<div class="store-name">Galo Kids 🎈</div>` : ''}
-        ${showName ? `<div class="prod-name" style="font-size: ${fontSizeName}px;">${escapeHtml(selectedProduct.name)}</div>` : ''}
-        ${showSku && (selectedProduct.sku || selectedProduct.barcode) ? `<div class="sku-code">SKU: ${escapeHtml(selectedProduct.sku || selectedProduct.barcode)}</div>` : ''}
+        ${showName ? `<div class="prod-name" style="font-size: ${fontSizeName}px;">${escapeHtml(prodName)}</div>` : ''}
         ${showPrice ? `<div class="prod-price" style="font-size: ${fontSizePrice}px;">${formatIQDLabel(Number(selectedProduct.price || 0))}</div>` : ''}
         ${showBarcodeImage && barcodeDataUrl ? `<img class="barcode-img" src="${barcodeDataUrl}" alt="${escapeHtml(barcodeValue)}" />` : ''}
         ${showBarcodeText && barcodeValue ? `<div class="barcode-val">${escapeHtml(barcodeValue)}</div>` : ''}
@@ -73,15 +129,15 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
 
     const printWin = window.open('', '_blank', 'width=900,height=700');
     if (!printWin) {
-      toast('تکایە شوێنی Pop-up بکەوە بۆ چاپکردن / Please allow pop-ups for printing.', 'error');
+      toast(language === 'ku' ? 'تکایە ڕێگە بە پەنجەرەی Pop-up بدە لە وێبگەڕەکەتدا.' : 'Please allow pop-ups for printing.', 'error');
       return;
     }
 
     printWin.document.write(`
       <!DOCTYPE html>
-      <html>
+      <html dir="${language === 'en' ? 'ltr' : 'rtl'}">
         <head>
-          <title>Product Labels - ${escapeHtml(selectedProduct.name)}</title>
+          <title>Product Labels - ${escapeHtml(prodName)}</title>
           <style>
             @page { margin: 8mm; }
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 12px; background: #fff; }
@@ -101,7 +157,6 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
             }
             .store-name { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
             .prod-name { font-weight: 800; color: #0f172a; margin-bottom: 4px; line-height: 1.2; word-break: break-word; }
-            .sku-code { font-size: 10px; color: #64748b; font-family: monospace; margin-bottom: 4px; }
             .prod-price { font-weight: 900; color: #4f46e5; margin: 4px 0; }
             .barcode-img { display: block; margin: 6px auto 2px; max-width: 100%; height: ${barcodeHeight}px; object-fit: contain; }
             .barcode-val { font-family: monospace; font-size: 10px; font-weight: bold; color: #334155; }
@@ -137,8 +192,10 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
           </h2>
           <p className="text-xs text-slate-300 mt-1 font-medium">
             {language === 'ku'
-              ? 'دەستکاری کردنی تەکامولی قەبارە، دەرکەوتنی ئایتمەکان و پێشاندانی زیندوی لەیبڵەکان'
-              : 'Customize label dimensions, element visibility, and live print preview'}
+              ? 'گەڕان بۆ بەرهەم، دەستکاریکردنی قەبارە و فۆنتەکان و چاپکردنی خێرای لەیبڵ بە بارکۆدەوە'
+              : language === 'ar'
+              ? 'البحث عن المنتجات وتخصيص الأحجام والخطوط وطباعة الملصقات مع الباركود'
+              : 'Search products, customize dimensions and typography, and generate printable barcode labels'}
           </p>
         </div>
 
@@ -154,45 +211,155 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Settings Control Panel */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Select Product & Copies Card */}
-          <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)] space-y-4">
+          {/* Search & Select Product Card */}
+          <div className="bg-white/90 backdrop-blur-xl border border-slate-200/80 p-6 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.3)] space-y-4">
             <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
               <Sliders className="w-4 h-4 text-indigo-600" />
-              {language === 'ku' ? 'دیاری کردنی بەرهەم و ژمارەی کۆپی' : 'Select Product & Print Copies'}
+              {language === 'ku' ? 'گەڕان و دیاریکردنی بەرهەم بۆ لەیبڵ' : language === 'ar' ? 'البحث واختيار المنتج' : 'Search & Select Product'}
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Product")}</label>
-                <select
-                  value={selectedProductId}
-                  onChange={(e) => setSelectedProductId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="">-- {L("Select product")} --</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({formatIQDLabel(Number(p.price || 0))})
-                    </option>
-                  ))}
-                </select>
+            {/* Live Search Input with Dropdown */}
+            <div ref={searchContainerRef} className="relative">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                {language === 'ku' ? 'گەڕان بەپێی ناو یان بارکۆد:' : language === 'ar' ? 'البحث بالاسم أو الباركود:' : 'Search by Name or Barcode:'}
+              </label>
+              
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute start-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onFocus={() => setIsSearchOpen(true)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setIsSearchOpen(true);
+                  }}
+                  placeholder={language === 'ku' ? 'ناوی بەرهەم یان کۆدی بارکۆد بنووسە یان سکان بکە...' : language === 'ar' ? 'ابحث بالاسم أو امسح الباركود...' : 'Type product name or scan barcode...'}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 ps-10 pe-10 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-xs transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setIsSearchOpen(false);
+                    }}
+                    className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Copies")}</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={1000}
-                  value={copies}
-                  onChange={(e) => setCopies(Math.max(1, Number(e.target.value || 1)))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-              </div>
+              {/* Instant Search Results Dropdown */}
+              {isSearchOpen && (
+                <div className="absolute z-50 start-0 end-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-2xl max-h-72 overflow-y-auto divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
+                  {filteredProducts.length > 0 ? (
+                    filteredProducts.map((p) => {
+                      const isSelected = String(p.id) === String(selectedProductId);
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => handleSelectProduct(p)}
+                          className={`p-3 flex items-center justify-between gap-3 hover:bg-indigo-50/60 cursor-pointer transition-colors ${
+                            isSelected ? 'bg-indigo-50 text-indigo-900' : 'text-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {p.images && p.images[0] ? (
+                              <img
+                                src={p.images[0]}
+                                alt=""
+                                className="w-10 h-10 rounded-xl object-cover border border-slate-200 bg-white shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 grid place-items-center text-slate-400 shrink-0">
+                                <Package className="w-5 h-5" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs font-black truncate">{getProductName(p)}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {p.barcode && (
+                                  <span className="inline-flex items-center gap-1 font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                                    <Barcode className="w-3 h-3 text-slate-400" />
+                                    {p.barcode}
+                                  </span>
+                                )}
+                                <span className="text-[11px] font-bold text-indigo-600">
+                                  {formatIQDLabel(Number(p.price || 0))}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {isSelected && (
+                            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white grid place-items-center shrink-0">
+                              <Check className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-4 text-center text-xs font-bold text-slate-400">
+                      {language === 'ku' ? 'هیچ بەرهەمێک نەدۆزرایەوە بەو ناوە یان بارکۆدە.' : 'No products found matching your search.'}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+
+            {/* Currently Selected Product Details & Copies */}
+            {selectedProduct && (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/70 to-slate-50 border border-indigo-100/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  {selectedProduct.images && selectedProduct.images[0] ? (
+                    <img
+                      src={selectedProduct.images[0]}
+                      alt=""
+                      className="w-12 h-12 rounded-xl object-cover border border-indigo-200 bg-white shrink-0 shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-white border border-indigo-200 grid place-items-center text-indigo-400 shrink-0">
+                      <Package className="w-6 h-6" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600">
+                      {language === 'ku' ? 'بەرهەمی دیاریکراو:' : 'Selected Product:'}
+                    </span>
+                    <h4 className="text-sm font-black text-slate-900 truncate">
+                      {getProductName(selectedProduct)}
+                    </h4>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs font-black text-indigo-700 font-mono">
+                        {formatIQDLabel(Number(selectedProduct.price || 0))}
+                      </span>
+                      {selectedProduct.barcode && (
+                        <span className="text-[10.5px] font-mono text-slate-500 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200">
+                          {selectedProduct.barcode}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="shrink-0 flex items-center gap-2">
+                  <label className="text-xs font-bold text-slate-700 whitespace-nowrap">{L("Copies")}:</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={copies}
+                    onChange={(e) => setCopies(Math.max(1, Number(e.target.value || 1)))}
+                    className="w-20 bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none text-center shadow-xs"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Visibility Toggles Card */}
+          {/* Visibility Toggles Card (SKU code removed) */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
               <Eye className="w-4 h-4 text-indigo-600" />
@@ -218,11 +385,6 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
               <label className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs font-bold cursor-pointer transition-all ${showBarcodeText ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
                 <input type="checkbox" checked={showBarcodeText} onChange={(e) => setShowBarcodeText(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
                 <span>{language === 'ku' ? 'کۆدی ژمارەیی بارکۆد' : 'Barcode Number'}</span>
-              </label>
-
-              <label className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs font-bold cursor-pointer transition-all ${showSku ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                <input type="checkbox" checked={showSku} onChange={(e) => setShowSku(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4" />
-                <span>{language === 'ku' ? 'کۆدی SKU' : 'SKU Code'}</span>
               </label>
 
               <label className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs font-bold cursor-pointer transition-all ${showStoreLogo ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
@@ -344,13 +506,7 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
                       style={{ fontSize: `${fontSizeName}px` }}
                       className="font-black text-slate-900 leading-tight"
                     >
-                      {selectedProduct.name}
-                    </div>
-                  )}
-
-                  {showSku && (selectedProduct.sku || selectedProduct.barcode) && (
-                    <div className="text-[10px] font-mono text-slate-500 font-bold">
-                      SKU: {selectedProduct.sku || selectedProduct.barcode}
+                      {getProductName(selectedProduct)}
                     </div>
                   )}
 
@@ -380,12 +536,12 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
                 </div>
 
                 <div className="mt-6 w-full pt-4 border-t border-slate-100 text-center">
-                  <p className="text-xs text-slate-500 mb-3">
-                    {language === 'ku' ? `تەخمینکراوە لەرۆڵدا: ${copies} کۆپی` : `Total print output: ${copies} copies`}
+                  <p className="text-xs text-slate-500 mb-3 font-medium">
+                    {language === 'ku' ? `کۆی لەیبڵەکانی چاپ: ${copies} دانە` : `Total print output: ${copies} copies`}
                   </p>
                   <button
                     onClick={handlePrint}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-95"
                   >
                     <Printer className="w-4 h-4" />
                     <span>{language === 'ku' ? 'چاپکردن ئێستا' : 'Print Now'}</span>

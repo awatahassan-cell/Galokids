@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
+import { hasPermission, TAB_PERMISSION_MAP } from '../../utils/permissions';
 
 export interface AdminNavigationSidebarProps {
   activeTab: string;
@@ -139,7 +140,13 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
         {/* Navigation Items */}
         <div className="flex-1 overflow-y-auto hide-scrollbar overflow-x-hidden w-full space-y-4 transition-all pr-0.5">
           {navGroups.map((group, gIdx) => {
-            const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin);
+            const visibleItems = group.items.filter(item => {
+              const permRequired = TAB_PERMISSION_MAP[item.id];
+              if (permRequired) {
+                return hasPermission(currentUser, permRequired);
+              }
+              return !item.adminOnly || isAdmin;
+            });
             if (visibleItems.length === 0) return null;
 
             return (
@@ -270,7 +277,13 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
 
               <div className="space-y-4 max-h-[calc(100vh-140px)] overflow-y-auto hide-scrollbar">
                 {navGroups.map((group, gIdx) => {
-                  const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin);
+                  const visibleItems = group.items.filter(item => {
+                    const permRequired = TAB_PERMISSION_MAP[item.id];
+                    if (permRequired) {
+                      return hasPermission(currentUser, permRequired);
+                    }
+                    return !item.adminOnly || isAdmin;
+                  });
                   if (visibleItems.length === 0) return null;
 
                   return (

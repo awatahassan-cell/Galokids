@@ -121,10 +121,11 @@ class AdminUserController extends Controller
             // normally only have a phone number.
             'email'    => 'nullable|required_without:phone|string|email|max:255|unique:users,email',
             'phone'    => 'nullable|required_without:email|string|max:255|unique:users,phone',
-            'role'     => ['required', 'integer', Rule::in([Roles::CUSTOMER, Roles::ADMIN, Roles::CASHIER, Roles::STAFF])],
+            'role'        => ['required', 'integer', Rule::in([Roles::CUSTOMER, Roles::ADMIN, Roles::CASHIER, Roles::STAFF])],
             // Only accounts that sign in with a password actually need one.
-            'password' => 'nullable|string|min:8',
-            'address'  => 'nullable|string',
+            'password'    => 'nullable|string|min:8',
+            'address'     => 'nullable|string',
+            'permissions' => 'nullable|array',
         ]);
 
         $this->guardPrivilegedRole($request, $request->input('role'));
@@ -139,12 +140,13 @@ class AdminUserController extends Controller
         }
 
         $user = User::create([
-            'name'     => $request->input('name'),
-            'email'    => $request->filled('email') ? strtolower(trim($request->input('email'))) : null,
-            'phone'    => $request->input('phone'),
-            'password' => Hash::make($request->filled('password') ? $request->input('password') : Str::random(24)),
-            'role'     => $role,
-            'address'  => $request->input('address'),
+            'name'        => $request->input('name'),
+            'email'       => $request->filled('email') ? strtolower(trim($request->input('email'))) : null,
+            'phone'       => $request->input('phone'),
+            'password'    => Hash::make($request->filled('password') ? $request->input('password') : Str::random(24)),
+            'role'        => $role,
+            'address'     => $request->input('address'),
+            'permissions' => $request->input('permissions'),
         ]);
 
         return response()->json($user, 201);
@@ -163,12 +165,13 @@ class AdminUserController extends Controller
         }
 
         $request->validate([
-            'name'     => 'sometimes|required|string|max:255',
-            'email'    => ['nullable', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone'    => ['nullable', 'string', 'max:255', Rule::unique('users', 'phone')->ignore($user->id)],
-            'role'     => ['sometimes', 'required', 'integer', Rule::in([Roles::CUSTOMER, Roles::ADMIN, Roles::CASHIER, Roles::STAFF])],
-            'address'  => 'nullable|string',
-            'password' => 'nullable|string|min:8',
+            'name'        => 'sometimes|required|string|max:255',
+            'email'       => ['nullable', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone'       => ['nullable', 'string', 'max:255', Rule::unique('users', 'phone')->ignore($user->id)],
+            'role'        => ['sometimes', 'required', 'integer', Rule::in([Roles::CUSTOMER, Roles::ADMIN, Roles::CASHIER, Roles::STAFF])],
+            'address'     => 'nullable|string',
+            'password'    => 'nullable|string|min:8',
+            'permissions' => 'nullable|array',
         ]);
 
         // Editing an existing admin/cashier/staff account, or promoting someone
@@ -193,6 +196,10 @@ class AdminUserController extends Controller
         // SECURITY: explicit whitelist instead of $request->all() to avoid
         // mass-assigning unexpected columns (e.g. a raw plaintext password).
         $user->fill($request->only(['name', 'role', 'address']));
+
+        if ($request->has('permissions')) {
+            $user->permissions = $request->input('permissions');
+        }
 
         if ($request->has('email')) {
             $user->email = $request->filled('email') ? strtolower(trim($request->input('email'))) : null;

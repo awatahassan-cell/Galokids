@@ -36,6 +36,7 @@ export interface User {
   name: string;
   email?: string;
   role: 0 | 1 | 2 | 3 | '0' | '1' | '2' | '3' | 'admin' | 'cashier' | 'staff' | 'customer';
+  permissions?: string[];
   joinDate: string;
   phone?: string;
   address?: string;

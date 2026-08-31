@@ -365,10 +365,22 @@ class OrderController extends Controller
 
         if ($request->filled('channel')) {
             if ($request->channel === 'pos') {
-                $query->where('channel', 'pos');
+                $query->where(function ($q) {
+                    $q->where('channel', 'pos')
+                        ->orWhere('source', 'pos')
+                        ->orWhere('customer_name', 'like', '%POS Cash Sale%')
+                        ->orWhere('customer_email', 'like', '%cashier@%');
+                });
             } else {
                 $query->where(function ($q) {
                     $q->where('channel', '!=', 'pos')->orWhereNull('channel');
+                })
+                ->where(function ($q) {
+                    $q->where('source', '!=', 'pos')->orWhereNull('source');
+                })
+                ->where('customer_name', 'not like', '%POS Cash Sale%')
+                ->where(function ($q) {
+                    $q->where('customer_email', 'not like', '%cashier@%')->orWhereNull('customer_email');
                 });
             }
         }

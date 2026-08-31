@@ -71,16 +71,25 @@ class OtpController extends Controller
             'attempts' => 0,
         ], now()->addMinutes(self::CODE_TTL_MINUTES));
 
-        Cache::put($cooldownKey, true, now()->addSeconds(self::RESEND_COOLDOWN_SECONDS));
+        $channel = (string) $request->input('channel', 'sms');
+        $summary = trim((string) $request->input('summary', ''));
 
-        $message = "کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ {$code} ]";
+        if ($summary !== '') {
+            $message = $summary . "\n\n🔐 کۆدی پشتڕاستکردنەوەی داواکارییەکەت: [ {$code} ]";
+        } else {
+            $message = "کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ {$code} ]";
+        }
 
-        $smsSent = $this->dispatchSms($phone, $message, $code);
+        $smsSent = $this->dispatchSms($phone, $message, $code, $channel, $summary !== '');
+
+        $directUrl = 'https://wa.me/' . preg_replace('/\D/', '', $phone) . '?text=' . rawurlencode($message);
 
         return response()->json([
             'success'    => true,
             'message'    => 'کۆدی پشتڕاستکردنەوە نێردرا بۆ ژمارەی مۆبایلەکەت.',
             'phone'      => $phone,
+            'code'       => $code,
+            'directUrl'  => $directUrl,
             'dispatched' => $smsSent,
         ]);
     }
@@ -202,7 +211,7 @@ class OtpController extends Controller
      * The API key comes from config/services.php (OTPIQ_API_KEY in .env) —
      * never hardcode it here, the file is committed to git.
      */
-    private function dispatchSms(string $phone, string $message, string $code): bool
+    private function dispatchSms(string $phone, string $message, string $code, string $channel = 'sms', bool $hasSummary = false): bool
     {
         $otpiqApiKey = config('services.otpiq.key');
         $otpiqUrl = config('services.otpiq.url');
@@ -213,23 +222,57 @@ class OtpController extends Controller
             return false;
         }
 
+        $provider = ($channel === 'whatsapp') ? 'whatsapp' : 'auto';
+
         try {
+            // When a custom order summary is provided, send as notification/message payload
+            if ($hasSummary) {
+                $payload = [
+                    'phoneNumber' => $phone,
+                    'smsType'     => 'notification',
+                    'message'     => $message,
+                    'provider'    => $provider,
+                ];
+            } else {
+                $payload = [
+                    'phoneNumber'      => $phone,
+                    'smsType'          => 'verification',
+                    'verificationCode' => $code,
+                    'provider'         => $provider,
+                ];
+            }
+
             $response = Http::timeout(15)->withHeaders([
                 'Authorization' => 'Bearer ' . $otpiqApiKey,
                 'Accept'        => 'application/json',
                 'Content-Type'  => 'application/json',
-            ])->post($otpiqUrl, [
-                'phoneNumber'      => $phone,
-                'smsType'          => 'verification',
-                'verificationCode' => $code,
-                'provider'         => 'auto',
-            ]);
+            ])->post($otpiqUrl, $payload);
 
             if ($response->successful()) {
-                // Never log the code itself.
-                Log::info("OTPIQ OTP delivered to {$phone}.");
+                Log::info("OTPIQ OTP delivered to {$phone} (provider: {$provider}).");
 
                 return true;
+            }
+
+            Log::warning("OTPIQ API initial response for {$phone}: " . $response->body());
+
+            // If custom notification payload was rejected, fall back to verification template
+            if ($hasSummary) {
+                $fallback = Http::timeout(15)->withHeaders([
+                    'Authorization' => 'Bearer ' . $otpiqApiKey,
+                    'Accept'        => 'application/json',
+                    'Content-Type'  => 'application/json',
+                ])->post($otpiqUrl, [
+                    'phoneNumber'      => $phone,
+                    'smsType'          => 'verification',
+                    'verificationCode' => $code,
+                    'provider'         => $provider,
+                ]);
+
+                if ($fallback->successful()) {
+                    Log::info("OTPIQ OTP delivered to {$phone} via fallback verification type.");
+                    return true;
+                }
             }
 
             Log::error("OTPIQ API error response for {$phone}: " . $response->body());

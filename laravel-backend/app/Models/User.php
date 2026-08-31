@@ -25,6 +25,7 @@ class User extends Authenticatable
         'role',
         'phone',
         'address',
+        'permissions',
     ];
 
     /**
@@ -45,6 +46,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'role' => 'integer',
+        'permissions' => 'array',
     ];
 
     /**
@@ -89,6 +91,30 @@ class User extends Authenticatable
     public function isCustomer(): bool
     {
         return $this->roleId() === Roles::CUSTOMER;
+    }
+
+    /** Check if user has a specific permission. Admins have all permissions unconditionally. */
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        $perms = $this->permissions;
+        if (is_array($perms)) {
+            return in_array($permission, $perms, true) || in_array('*', $perms, true) || in_array('all', $perms, true);
+        }
+
+        // Defaults for accounts where explicit permissions were not saved yet
+        if ($this->isCashier()) {
+            return in_array($permission, ['pos.access', 'pos.reports', 'orders.view', 'products.view', 'labels.print', 'customers.view'], true);
+        }
+
+        if ($this->isStaff()) {
+            return in_array($permission, ['orders.view', 'orders.manage', 'products.view', 'inventory.view', 'labels.print', 'customers.view'], true);
+        }
+
+        return false;
     }
 
     public function orders()

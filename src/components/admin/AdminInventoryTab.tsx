@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { 
   Boxes, Package, DollarSign, TrendingUp, AlertTriangle, Search, 
   Filter, ArrowUpDown, Edit3, FileSpreadsheet, Check, X, ShieldAlert, 
-  Sparkles, Layers, RefreshCw, BarChart2, PieChart as PieChartIcon
+  Sparkles, Layers, RefreshCw, BarChart2, PieChart as PieChartIcon,
+  CheckSquare, Square, Download, Settings2, EyeOff, Tag, ListFilter
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { formatIQD, formatIQDLabel } from '../../utils/currency';
@@ -37,6 +38,190 @@ interface InventoryRow {
   isLowStock: boolean;
   isOutOfStock: boolean;
 }
+
+interface ExportFieldConfig {
+  id: string;
+  group: 'info' | 'stock' | 'pricing';
+  labelKu: string;
+  labelAr: string;
+  labelEn: string;
+  descKu: string;
+  descAr: string;
+  descEn: string;
+  width: number;
+  getValue: (r: InventoryRow, lang: string, L: (ku: string, ar: string, en: string) => string) => any;
+}
+
+const EXPORT_FIELDS_LIST: ExportFieldConfig[] = [
+  {
+    id: 'name',
+    group: 'info',
+    labelKu: 'ناوی بەرهەم',
+    labelAr: 'اسم المنتج',
+    labelEn: 'Product Name',
+    descKu: 'ناوی کوردی یان عەرەبی یان ئینگلیزی',
+    descAr: 'اسم المنتج باللغة المحددة',
+    descEn: 'Localized product title',
+    width: 34,
+    getValue: (r, lang) => (lang === 'ku' ? r.product.nameKu || r.product.name : lang === 'ar' ? r.product.nameAr || r.product.name : r.product.name) || '',
+  },
+  {
+    id: 'barcode',
+    group: 'info',
+    labelKu: 'بارکۆد / SKU',
+    labelAr: 'الباركود / SKU',
+    labelEn: 'Barcode / SKU',
+    descKu: 'کۆدی بارکۆدی کاڵاکە',
+    descAr: 'كود الباركود',
+    descEn: 'Barcode or SKU identifier',
+    width: 18,
+    getValue: r => r.product.barcode || r.product.sku || '',
+  },
+  {
+    id: 'category',
+    group: 'info',
+    labelKu: 'پۆل / کاتیگۆری',
+    labelAr: 'الفئة / القسم',
+    labelEn: 'Category',
+    descKu: 'ناوی هاوپۆلی بەرهەمەکە',
+    descAr: 'فئة المنتج',
+    descEn: 'Category name',
+    width: 20,
+    getValue: r => r.categoryName,
+  },
+  {
+    id: 'colors',
+    group: 'info',
+    labelKu: 'ڕەنگەکان',
+    labelAr: 'الألوان',
+    labelEn: 'Colors',
+    descKu: 'لیستی هەموو ڕەنگە بەردەستەکان',
+    descAr: 'قائمة الألوان المتوفرة',
+    descEn: 'Available colors list',
+    width: 22,
+    getValue: r => r.uniqueColors.join(', '),
+  },
+  {
+    id: 'variationsCount',
+    group: 'stock',
+    labelKu: 'ژمارەی جۆرەکان',
+    labelAr: 'عدد الأنواع',
+    labelEn: 'Variations Count',
+    descKu: 'چەند جۆری جیاوازی هەیە',
+    descAr: 'عدد الخيارات والأنواع',
+    descEn: 'Total variation count',
+    width: 14,
+    getValue: r => r.variationsCount,
+  },
+  {
+    id: 'variationsBreakdown',
+    group: 'stock',
+    labelKu: 'تفاسیلی جۆرەکان (ڕەنگ/سایز/ستۆک/بارکۆد)',
+    labelAr: 'تفاصيل الخيارات (لون/مقاس/مخزون/باركود)',
+    labelEn: 'Variations Breakdown',
+    descKu: 'تفاسیلی تەواوی سایز، ڕەنگ، ستۆک و بارکۆد',
+    descAr: 'تفصيل كل مقاس ولون مع رصيدها والباركود',
+    descEn: 'Full breakdown with stock & barcodes',
+    width: 45,
+    getValue: r => (r.product.variations || []).map(v => `${v.color || ''} ${v.size || ''}: ${v.stockQuantity ?? 0} دانە${v.barcode ? ` [${v.barcode}]` : ''}`).join(' | '),
+  },
+  {
+    id: 'stockPieces',
+    group: 'stock',
+    labelKu: 'پارچە لە کۆگا (ستۆک)',
+    labelAr: 'القطع بالمخزن',
+    labelEn: 'Stock Pieces',
+    descKu: 'کۆی هەموو پارچە بەردەستەکان لە کۆگا',
+    descAr: 'إجمالي القطع المتوفرة',
+    descEn: 'Physical piece count',
+    width: 14,
+    getValue: r => r.stockPieces,
+  },
+  {
+    id: 'status',
+    group: 'stock',
+    labelKu: 'دۆخی کۆگا',
+    labelAr: 'حالة المخزون',
+    labelEn: 'Stock Status',
+    descKu: 'تەواوبووە، کەمە، یان باشە',
+    descAr: 'حالة التوفر (متوفر / منخفض / نفد)',
+    descEn: 'Out of stock, Low, or OK',
+    width: 16,
+    getValue: (r, _, L) => r.isOutOfStock ? L('تەواوبووە', 'نفد', 'Out of stock') : r.isLowStock ? L('کەمە', 'منخفض', 'Low stock') : L('باشە', 'جيد', 'OK'),
+  },
+  {
+    id: 'unitCost',
+    group: 'pricing',
+    labelKu: 'تێچووی یەکە (Unit Cost)',
+    labelAr: 'تكلفة الوحدة',
+    labelEn: 'Unit Cost',
+    descKu: 'تێچووی کڕینی یەک پارچە لە سەپلایەر',
+    descAr: 'سعر شراء القطعة الواحدة',
+    descEn: 'Purchase cost per unit',
+    width: 16,
+    getValue: r => r.unitCost,
+  },
+  {
+    id: 'unitPrice',
+    group: 'pricing',
+    labelKu: 'نرخی فرۆشتن (Retail Price)',
+    labelAr: 'سعر البيع',
+    labelEn: 'Retail Price',
+    descKu: 'نرخی فرۆشتنی یەک پارچە بە کڕیار',
+    descAr: 'سعر البيع للزبون',
+    descEn: 'Retail selling price',
+    width: 16,
+    getValue: r => r.unitPrice,
+  },
+  {
+    id: 'totalCost',
+    group: 'pricing',
+    labelKu: 'کۆی بەهای تێچوو (Total Cost)',
+    labelAr: 'إجمالي التكلفة',
+    labelEn: 'Total Cost Value',
+    descKu: 'کۆی سەرمایەی ئەم کاڵایە لە کۆگا',
+    descAr: 'إجمالي رأس المال في هذا الصنف',
+    descEn: 'Total capital invested',
+    width: 18,
+    getValue: r => r.totalCostValue,
+  },
+  {
+    id: 'totalRetail',
+    group: 'pricing',
+    labelKu: 'کۆی بەهای فرۆشتن (Total Retail)',
+    labelAr: 'إجمالي قيمة البيع',
+    labelEn: 'Total Retail Value',
+    descKu: 'کۆی فرۆشتنی چاوەڕوانکراو',
+    descAr: 'إجمالي قيمة المبيعات المتوقعة',
+    descEn: 'Total expected sales revenue',
+    width: 18,
+    getValue: r => r.totalRetailValue,
+  },
+  {
+    id: 'expectedProfit',
+    group: 'pricing',
+    labelKu: 'قازانجی پێشبینیکراو (Gross Profit)',
+    labelAr: 'الربح المتوقع',
+    labelEn: 'Expected Profit',
+    descKu: 'جیاوازی فرۆشتن و تێچوو',
+    descAr: 'فارق إجمالي البيع والتكلفة',
+    descEn: 'Projected gross profit',
+    width: 18,
+    getValue: r => r.expectedProfit,
+  },
+  {
+    id: 'profitMargin',
+    group: 'pricing',
+    labelKu: 'ڕێژەی قازانج % (Margin %)',
+    labelAr: 'هامش الربح %',
+    labelEn: 'Profit Margin %',
+    descKu: 'ڕێژەی سەدی قازانج لەسەر فرۆشتن',
+    descAr: 'النسبة المئوية لهامش الربح',
+    descEn: 'Gross margin percentage',
+    width: 14,
+    getValue: r => r.profitMargin,
+  },
+];
 
 interface AdminInventoryTabProps {
   /** Products already in the store — used only until the full list arrives. */
@@ -350,20 +535,81 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
     setEditingCostProduct(null);
   };
 
+  // Export to Excel Customization Modal State
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedExportFields, setSelectedExportFields] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('inventory_export_fields_pref');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [
+      'name', 'barcode', 'category', 'variationsCount', 'variationsBreakdown',
+      'colors', 'stockPieces', 'status', 'unitCost', 'unitPrice',
+      'totalCost', 'totalRetail', 'expectedProfit', 'profitMargin'
+    ];
+  });
+
+  const saveExportFieldsPref = (fields: string[]) => {
+    setSelectedExportFields(fields);
+    try {
+      localStorage.setItem('inventory_export_fields_pref', JSON.stringify(fields));
+    } catch {}
+  };
+
+  const handleToggleExportField = (fieldId: string) => {
+    const updated = selectedExportFields.includes(fieldId)
+      ? selectedExportFields.filter(id => id !== fieldId)
+      : [...selectedExportFields, fieldId];
+    saveExportFieldsPref(updated);
+  };
+
+  const handleSelectAllExportFields = () => {
+    const all = EXPORT_FIELDS_LIST.map(f => f.id);
+    saveExportFieldsPref(all);
+  };
+
+  const handleDeselectAllExportFields = () => {
+    saveExportFieldsPref([]);
+  };
+
+  const handleSelectWithoutCostPreset = () => {
+    const withoutCost = EXPORT_FIELDS_LIST
+      .filter(f => f.group !== 'pricing' || f.id === 'unitPrice' || f.id === 'totalRetail')
+      .map(f => f.id);
+    saveExportFieldsPref(withoutCost);
+  };
+
+  const handleSelectCatalogOnlyPreset = () => {
+    const catalog = ['name', 'barcode', 'category', 'colors', 'stockPieces', 'unitPrice', 'status'];
+    saveExportFieldsPref(catalog);
+  };
+
   /**
-   * Export the audit to Excel.
-   *
-   * Paging is a screen concern — the spreadsheet gets every row that matches
-   * the current filters, with the amounts as real numbers so Excel can total
-   * and sort them.
+   * Execute the Excel download with only the user-selected columns.
    */
-  const handleExportExcel = () => {
+  const handleExecuteExportExcel = () => {
     if (filteredProducts.length === 0) {
       toast(L('هیچ داتایەک نییە بۆ ناردنە دەرەوە', 'لا توجد بيانات للتصدير', 'Nothing to export'), 'error');
       return;
     }
 
+    if (selectedExportFields.length === 0) {
+      toast(L('تکایە لانی کەم یەک ستوون دیاریبکە بۆ هەناردەکردن', 'يرجى تحديد عمود واحد على الأقل للتصدير', 'Please select at least one column to export'), 'error');
+      return;
+    }
+
     const stamp = new Date().toISOString().slice(0, 10);
+
+    const chosenColumns = EXPORT_FIELDS_LIST
+      .filter(f => selectedExportFields.includes(f.id))
+      .map(f => ({
+        header: language === 'ku' ? f.labelKu : language === 'ar' ? f.labelAr : f.labelEn,
+        width: f.width,
+        value: (r: InventoryRow) => f.getValue(r, language, L),
+      }));
 
     downloadXlsx<InventoryRow>({
       filename: `galokids-inventory-${stamp}.xlsx`,
@@ -376,34 +622,12 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
           `${filteredProducts.length} products · ${filteredTotals.pieces} pieces · total cost ${filteredTotals.cost}`
         ),
       ],
-      columns: [
-        { header: L('پرۆدەکت', 'المنتج', 'Product'), width: 34,
-          value: r => (language === 'ku' ? r.product.nameKu || r.product.name : language === 'ar' ? r.product.nameAr || r.product.name : r.product.name) || '' },
-        { header: L('بارکۆد / SKU', 'الباركود', 'Barcode / SKU'), width: 18,
-          value: r => r.product.barcode || r.product.sku || '' },
-        { header: L('پۆل', 'الفئة', 'Category'), width: 20, value: r => r.categoryName },
-        { header: L('ژمارەی جۆرەکان', 'عدد الأنواع', 'Variations'), width: 12, value: r => r.variationsCount },
-        { header: L('تفاسیلی جۆرەکان (ڕەنگ / سایز / ستۆک / بارکۆد)', 'تفاصيل الأنواع (لون / مقاس / كمية)', 'Variations Breakdown (Color/Size/Stock/Barcode)'), width: 45, 
-          value: r => (r.product.variations || []).map(v => `${v.color || ''} ${v.size || ''}: ${v.stockQuantity ?? 0} دانە${v.barcode ? ` [${v.barcode}]` : ''}`).join(' | ') },
-        { header: L('ڕەنگەکان', 'الألوان', 'Colors'), width: 22, value: r => r.uniqueColors.join(', ') },
-        { header: L('پارچە لە کۆگا', 'القطع', 'Stock Pieces'), width: 14, value: r => r.stockPieces },
-        { header: L('تێچووی یەکە', 'تكلفة الوحدة', 'Unit Cost'), width: 14, value: r => r.unitCost },
-        { header: L('نرخی فرۆشتن', 'سعر البيع', 'Retail Price'), width: 14, value: r => r.unitPrice },
-        { header: L('کۆی تێچوو', 'إجمالي التكلفة', 'Total Cost'), width: 16, value: r => r.totalCostValue },
-        { header: L('کۆی فرۆشتن', 'إجمالي البيع', 'Total Retail'), width: 16, value: r => r.totalRetailValue },
-        { header: L('قازانجی پێشبینیکراو', 'الربح المتوقع', 'Expected Profit'), width: 16, value: r => r.expectedProfit },
-        { header: L('ڕێژەی قازانج %', 'هامش الربح %', 'Margin %'), width: 12, value: r => r.profitMargin },
-        { header: L('دۆخ', 'الحالة', 'Status'), width: 16,
-          value: r => r.isOutOfStock
-            ? L('تەواوبووە', 'نفد', 'Out of stock')
-            : r.isLowStock
-            ? L('کەمە', 'منخفض', 'Low stock')
-            : L('باشە', 'جيد', 'OK') },
-      ],
+      columns: chosenColumns,
       rows: filteredProducts,
     });
 
-    toast(L('فایلی ئێکسڵ دروستکرا ✅', 'تم إنشاء ملف Excel ✅', 'Excel file created ✅'), 'success');
+    setIsExportModalOpen(false);
+    toast(L('فایلی ئێکسڵ بە سەرکەوتوویی دروستکرا ✅', 'تم إنشاء ملف Excel بنجاح ✅', 'Excel file created successfully ✅'), 'success');
   };
 
   // Color Palette for Pie/Bar charts
@@ -804,10 +1028,10 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
               </select>
             </label>
 
-            {/* Exports every filtered row, not just the visible page. */}
+            {/* Opens column selection customization modal before exporting */}
             <button
               type="button"
-              onClick={handleExportExcel}
+              onClick={() => setIsExportModalOpen(true)}
               disabled={filteredProducts.length === 0}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-2xs transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-95"
             >
@@ -1098,6 +1322,237 @@ export const AdminInventoryTab: React.FC<AdminInventoryTabProps> = ({
                   className="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-2xl transition-all cursor-pointer"
                 >
                   {L('پاشگەزبوونەوە', 'إلغاء', 'Cancel')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export to Excel Customization Modal */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-100 font-arabic animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 pb-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center font-bold shadow-xs">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    {L('ناردنە دەرەوە بۆ فایلی ئێکسڵ (Excel)', 'تصدير إلى ملف إكسل', 'Export to Excel Spreadsheet')}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {L(
+                      'ئەو ستوون و زانیارییانە دیاریبکە کە دەتەوێت لە فایلی ئێکسڵەکەدا بنووسرێن',
+                      'حدد الأعمدة والمعلومات التي ترغب في تضمينها بملف الإكسل',
+                      'Select the specific columns and fields you want to include in the exported spreadsheet'
+                    )}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsExportModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body - Scrollable */}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1 hide-scrollbar">
+              {/* Quick Presets Bar */}
+              <div>
+                <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-2">
+                  {L('شێوازی خێرا / هەڵبژاردنەکان (Presets):', 'خيارات سريعة وجاهزة:', 'Quick Column Presets:')}
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSelectAllExportFields}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <CheckSquare className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{L('هەڵبژاردنی هەمووی', 'تحديد الكل', 'Select All')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSelectWithoutCostPreset}
+                    className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <EyeOff className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{L('بێ تێچوو و قازانج (بۆ ستاف/کڕیار)', 'بدون تكلفة وأرباح', 'Without Cost & Profit')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSelectCatalogOnlyPreset}
+                    className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200/80 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Tag className="w-3.5 h-3.5 text-blue-600" />
+                    <span>{L('تەنها کەتەلۆگ و ستۆک', 'الكتالوج والمخزون فقط', 'Catalog & Stock Only')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeselectAllExportFields}
+                    className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <Square className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{L('پاککردنەوە', 'إلغاء التحديد', 'Clear')}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Group 1: General Product Info */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-100">
+                  <Package className="w-4 h-4 text-indigo-600" />
+                  <h4 className="text-xs font-black text-slate-900">
+                    {L('زانیاری و ناسنامەی بەرهەم', 'معلومات وهوية المنتج', 'Product Identity & Details')}
+                  </h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {EXPORT_FIELDS_LIST.filter(f => f.group === 'info').map(field => {
+                    const isChecked = selectedExportFields.includes(field.id);
+                    const label = language === 'ku' ? field.labelKu : language === 'ar' ? field.labelAr : field.labelEn;
+                    const desc = language === 'ku' ? field.descKu : language === 'ar' ? field.descAr : field.descEn;
+                    return (
+                      <div
+                        key={field.id}
+                        onClick={() => handleToggleExportField(field.id)}
+                        className={`flex items-start gap-3 p-3 rounded-2xl border text-xs font-bold cursor-pointer transition-all ${
+                          isChecked
+                            ? 'bg-indigo-50/70 border-indigo-200 text-indigo-950 shadow-xs'
+                            : 'bg-slate-50 border-slate-200/70 text-slate-500 hover:bg-slate-100/60'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 shrink-0 pointer-events-none"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-bold leading-snug">{label}</p>
+                          <p className="text-[10.5px] text-slate-400 font-normal mt-0.5 truncate">{desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Group 2: Stock & Inventory Breakdown */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-100">
+                  <Boxes className="w-4 h-4 text-blue-600" />
+                  <h4 className="text-xs font-black text-slate-900">
+                    {L('ژمارەی پارچە و وردەکاری کۆگا', 'أعداد المخزون والخيارات', 'Stock & Variation Breakdown')}
+                  </h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {EXPORT_FIELDS_LIST.filter(f => f.group === 'stock').map(field => {
+                    const isChecked = selectedExportFields.includes(field.id);
+                    const label = language === 'ku' ? field.labelKu : language === 'ar' ? field.labelAr : field.labelEn;
+                    const desc = language === 'ku' ? field.descKu : language === 'ar' ? field.descAr : field.descEn;
+                    return (
+                      <div
+                        key={field.id}
+                        onClick={() => handleToggleExportField(field.id)}
+                        className={`flex items-start gap-3 p-3 rounded-2xl border text-xs font-bold cursor-pointer transition-all ${
+                          isChecked
+                            ? 'bg-blue-50/70 border-blue-200 text-blue-950 shadow-xs'
+                            : 'bg-slate-50 border-slate-200/70 text-slate-500 hover:bg-slate-100/60'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="mt-0.5 rounded text-blue-600 focus:ring-blue-500 w-4 h-4 shrink-0 pointer-events-none"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-bold leading-snug">{label}</p>
+                          <p className="text-[10.5px] text-slate-400 font-normal mt-0.5 truncate">{desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Group 3: Pricing, Costs & Valuation */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-100">
+                  <DollarSign className="w-4 h-4 text-emerald-600" />
+                  <h4 className="text-xs font-black text-slate-900">
+                    {L('نرخ، تێچوو، بەهای سەرمایە و قازانج', 'الأسعار، التكلفة، رأس المال والأرباح', 'Pricing, Cost Valuation & Profit')}
+                  </h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {EXPORT_FIELDS_LIST.filter(f => f.group === 'pricing').map(field => {
+                    const isChecked = selectedExportFields.includes(field.id);
+                    const label = language === 'ku' ? field.labelKu : language === 'ar' ? field.labelAr : field.labelEn;
+                    const desc = language === 'ku' ? field.descKu : language === 'ar' ? field.descAr : field.descEn;
+                    const isCostField = field.id.toLowerCase().includes('cost') || field.id.toLowerCase().includes('profit');
+                    return (
+                      <div
+                        key={field.id}
+                        onClick={() => handleToggleExportField(field.id)}
+                        className={`flex items-start gap-3 p-3 rounded-2xl border text-xs font-bold cursor-pointer transition-all ${
+                          isChecked
+                            ? isCostField 
+                              ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950 shadow-xs'
+                              : 'bg-teal-50/70 border-teal-200 text-teal-950 shadow-xs'
+                            : 'bg-slate-50 border-slate-200/70 text-slate-500 hover:bg-slate-100/60'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 shrink-0 pointer-events-none"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-bold leading-snug">{label}</p>
+                          <p className="text-[10.5px] text-slate-400 font-normal mt-0.5 truncate">{desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 pt-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+              <div className="text-xs font-bold text-slate-500">
+                <span>{L('کۆی ستوونە هەڵبژێردراوەکان:', 'الأعمدة المحددة:', 'Selected columns:')} </span>
+                <strong className="text-indigo-700 font-black font-mono text-sm">
+                  {selectedExportFields.length} / {EXPORT_FIELDS_LIST.length}
+                </strong>
+                <span className="text-slate-400 ms-2">
+                  ({filteredProducts.length} {L('پرۆدەکت لە فلتەردا', 'منتج بالفلتر', 'filtered products')})
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsExportModalOpen(false)}
+                  className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer shadow-2xs"
+                >
+                  {L('پاشگەزبوونەوە', 'إلغاء', 'Cancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteExportExcel}
+                  disabled={selectedExportFields.length === 0 || filteredProducts.length === 0}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>{L('داگرتنی فایلی ئێکسڵ', 'تحميل ملف Excel', 'Download Excel File')}</span>
                 </button>
               </div>
             </div>

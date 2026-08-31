@@ -78,6 +78,12 @@ export const OtpModal: React.FC<OtpModalProps> = ({
   const formattedPhone = formatIraqiPhone(mobileNumber);
   // Only used for the offline "send yourself the code" fallback link.
   const displayCode = generatedCode || '';
+  const otpPart = language === 'ku'
+    ? `🔐 کۆدی پشتڕاستکردنەوەی داواکارییەکەت: [ ${displayCode} ]`
+    : language === 'ar'
+    ? `🔐 رمز التحقق وتأكيد طلبك: [ ${displayCode} ]`
+    : `🔐 Your order verification code: [ ${displayCode} ]`;
+
   const messageText = language === 'ku'
     ? `کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت: [ ${displayCode} ]`
     : language === 'ar'

@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Trash2, Eye, ChevronDown, ChevronUp, Package, Phone, 
   MapPin, User, Calendar, Tag, ShoppingBag, X, MessageCircle,
-  Search, Filter, Clock, CheckCircle2, Truck, AlertCircle, RefreshCw
+  Search, Filter, Clock, CheckCircle2, Truck, AlertCircle, RefreshCw,
+  Copy, ExternalLink, Check, Send
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
@@ -19,6 +20,71 @@ import { isAdminRole } from '../../utils/roles';
 import { orderItemName } from '../../utils/orderItems';
 import { OrderReturnBadge, OrderItemReturnNote } from '../OrderReturnBadge';
 import { shopToday, shopDaysAgo } from '../../utils/shopTime';
+
+/**
+ * Builds a friendly, complete WhatsApp invoice / order confirmation message
+ * without any OTP code to send to the customer when the order is approved/processing.
+ */
+export const buildOrderWhatsAppMessage = (order: Order, language: string): string => {
+  const o = order as any;
+  const invoice = o.invoiceNo || o.invoice_no || (`#${order.id}`);
+  const items = (Array.isArray(order.items) ? order.items : (() => {
+    try { return JSON.parse(String(order.items || '[]')); } catch { return []; }
+  })()) as CartItem[];
+
+  const itemLines = items.map(it => {
+    const name = (language === 'ku' && it.product?.nameKu) ? it.product.nameKu : (language === 'ar' && it.product?.nameAr) ? it.product.nameAr : (it.product?.name || 'کالای گەلۆ');
+    const varText = [it.variation?.color, it.variation?.size].filter(Boolean).join(' - ');
+    const price = formatIQDLabel(Number(it.product?.discountPrice || it.product?.price || 0) * (it.quantity || 1));
+    return `• ${name}${varText ? ` (${varText})` : ''} × ${it.quantity || 1} = ${price}`;
+  });
+
+  const customerGreeting = language === 'ku'
+    ? `سڵاو بەڕێز ${order.customerName || 'کڕیاری خۆشەویست'}، سوپاس بۆ کڕینت لە گەلۆ کیدس (Galo Kids) 🎈`
+    : language === 'ar'
+    ? `مرحباً ${order.customerName || 'عميلنا العزيز'}، شكراً لتسوقك من قالو كيدز (Galo Kids) 🎈`
+    : `Hello ${order.customerName || 'Valued Customer'}, thank you for shopping at Galo Kids 🎈`;
+
+  const statusText = language === 'ku'
+    ? `✅ داواکارییەکەت ژمارە ${invoice} پەسەندکرا و ئێستا لە پرۆسەی ئامادەکردندایە.`
+    : language === 'ar'
+    ? `✅ تم تأكيد طلبك رقم ${invoice} وهو الآن قيد التجهيز.`
+    : `✅ Your order ${invoice} is confirmed and is now being processed.`;
+
+  const shippingCost = Number(o.shippingFee ?? o.delivery_fee ?? o.shipping_fee ?? 0);
+  const totalAmount = Number(order.totalAmount || 0);
+  const subtotal = o.subtotal ?? Math.max(0, totalAmount - shippingCost);
+
+  const subtotalLine = language === 'ku' ? `🏷️ کۆی کاڵاکان: ${formatIQDLabel(subtotal)}` : `🏷️ Items: ${formatIQDLabel(subtotal)}`;
+  const shippingLine = shippingCost > 0
+    ? (language === 'ku' ? `🚚 کرێی گەیاندن: ${formatIQDLabel(shippingCost)}` : `🚚 Delivery: ${formatIQDLabel(shippingCost)}`)
+    : (language === 'ku' ? `🚚 کرێی گەیاندن: بێ بەرامبەر (خۆڕایی)` : `🚚 Delivery: Free`);
+  const totalLine = language === 'ku' ? `💰 کۆی گشتی پارەدان: ${formatIQDLabel(totalAmount)}` : `💰 Total: ${formatIQDLabel(totalAmount)}`;
+
+  const addressLine = order.shippingAddress ? (language === 'ku' ? `📍 ناونیشان: ${order.shippingAddress}` : `📍 Address: ${order.shippingAddress}`) : '';
+
+  const closing = language === 'ku'
+    ? `سوپاس بۆ متمانەت بە گەلۆ کیدس! بۆ هەر پرسیارێک دەتوانیت وەڵامی ئەم نامەیە بدەیتەوە. 🛍️✨`
+    : language === 'ar'
+    ? `شكراً لثقتك بنا! إذا كان لديك أي استفسار يمكنك الرد على هذه الرسالة. 🛍️✨`
+    : `Thank you for your trust in Galo Kids! Feel free to reply if you have any questions. 🛍️✨`;
+
+  return [
+    customerGreeting,
+    '',
+    statusText,
+    '',
+    language === 'ku' ? '📦 کاڵاکانی داواکاری:' : '📦 Order items:',
+    ...itemLines,
+    '--------------------------',
+    subtotalLine,
+    shippingLine,
+    totalLine,
+    ...(addressLine ? [addressLine] : []),
+    '',
+    closing,
+  ].join('\n');
+};
 
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
@@ -70,6 +136,57 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedOrderForModal, setSelectedOrderForModal] = useState<Order | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Multi-Language & Editable WhatsApp Modal State
+  const [whatsappModalOrder, setWhatsappModalOrder] = useState<Order | null>(null);
+  const [whatsappModalLang, setWhatsappModalLang] = useState<'ku' | 'ar' | 'en'>((language === 'ar' ? 'ar' : language === 'en' ? 'en' : 'ku'));
+  const [whatsappCustomPhone, setWhatsappCustomPhone] = useState('');
+  const [whatsappCustomText, setWhatsappCustomText] = useState('');
+  const [hasCopiedWhatsApp, setHasCopiedWhatsApp] = useState(false);
+
+  const openWhatsAppModal = (order: Order, preferredLang?: 'ku' | 'ar' | 'en') => {
+    const lang = preferredLang || (language === 'ar' ? 'ar' : language === 'en' ? 'en' : 'ku');
+    setWhatsappModalOrder(order);
+    setWhatsappModalLang(lang);
+    setWhatsappCustomPhone(order.customerPhone || '');
+    setWhatsappCustomText(buildOrderWhatsAppMessage(order, lang));
+    setHasCopiedWhatsApp(false);
+  };
+
+  const handleLanguageSwitch = (newLang: 'ku' | 'ar' | 'en') => {
+    setWhatsappModalLang(newLang);
+    if (whatsappModalOrder) {
+      setWhatsappCustomText(buildOrderWhatsAppMessage(whatsappModalOrder, newLang));
+    }
+  };
+
+  const handleResetTemplate = () => {
+    if (whatsappModalOrder) {
+      setWhatsappCustomText(buildOrderWhatsAppMessage(whatsappModalOrder, whatsappModalLang));
+      toast(language === 'ku' ? 'دەقەکە گەڕێندرایەوە بۆ بنەڕەتی ↺' : 'Template reset ↺');
+    }
+  };
+
+  const handleSendWhatsAppNow = () => {
+    const cleanPhone = String(whatsappCustomPhone || '').replace(/[^0-9]/g, '');
+    if (!cleanPhone) {
+      toast(language === 'ku' ? 'تکایە ژمارەی مۆبایل بنووسە' : 'Please enter a valid phone number', 'warning');
+      return;
+    }
+    const formatted = cleanPhone.startsWith('0') ? '964' + cleanPhone.substring(1) : cleanPhone.startsWith('964') ? cleanPhone : '964' + cleanPhone;
+    window.open(`https://wa.me/${formatted}?text=${encodeURIComponent(whatsappCustomText)}`, '_blank');
+    setWhatsappModalOrder(null);
+  };
+
+  const handleStatusChange = (order: Order, newStatus: Order['status']) => {
+    const oldStatus = order.status;
+    updateOrderStatus(order.id, newStatus);
+
+    // When status changes from pending to processing and customer has a phone number, prompt multi-language WhatsApp modal
+    if (oldStatus === 'pending' && newStatus === 'processing' && order.customerPhone) {
+      openWhatsAppModal({ ...order, status: newStatus });
+    }
+  };
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -143,8 +260,8 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     }
   };
 
-  // The server already filtered and sorted this page.
-  const filteredOrders = orders;
+  // Strictly ensure only online website orders appear in this tab.
+  const filteredOrders = useMemo(() => orders.filter(o => !isPosOrder(o)), [orders]);
 
   // Reset page when filters change
   React.useEffect(() => {
@@ -517,11 +634,11 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
                       {/* Action */}
                       <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-1.5">
                           <select
                             value={order.status}
-                            onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
-                            className="bg-slate-100/90 border border-slate-200 rounded-xl text-xs py-1.5 px-2.5 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                            onChange={(e) => handleStatusChange(order, e.target.value as Order['status'])}
+                            className="bg-slate-100/90 border border-slate-200 rounded-xl text-xs py-1.5 px-2 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                           >
                             <option value="pending">{L("Pending")}</option>
                             <option value="processing">{L("Processing")}</option>
@@ -531,10 +648,21 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                             <option value="returned">{L("Returned")}</option>
                           </select>
 
+                          {order.customerPhone && (
+                            <button
+                              type="button"
+                              onClick={() => openWhatsAppModal(order)}
+                              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
+                              title={language === 'ku' ? 'ناردنی پسوولە بە وەتسەپ' : 'Send invoice via WhatsApp'}
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => setSelectedOrderForModal(order)}
-                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
+                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
                             title={language === 'ku' ? 'بینی زانیاری تەواو' : 'View Full Details'}
                           >
                             <Eye className="w-4 h-4" />
@@ -559,7 +687,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                                   toast(L('Order deleted and stock restored ✅'));
                                 }
                               }}
-                              className="text-slate-400 hover:text-rose-600 transition-colors p-2 rounded-xl hover:bg-rose-50 cursor-pointer"
+                              className="text-slate-400 hover:text-rose-600 transition-colors p-1.5 rounded-xl hover:bg-rose-50 cursor-pointer"
                               title={L("Delete Order")}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -836,9 +964,188 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               })}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between font-black text-slate-900">
-              <span className="text-sm">{language === 'ku' ? 'کۆی گشتی داواکاری:' : 'Total Amount:'}</span>
-              <span className="text-xl text-indigo-600">{formatIQDLabel(Number(selectedOrderForModal.totalAmount || 0))}</span>
+            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between font-black text-slate-900 flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                {selectedOrderForModal.customerPhone && (
+                  <button
+                    type="button"
+                    onClick={() => openWhatsAppModal(selectedOrderForModal)}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>{language === 'ku' ? 'ناردنی پسوولە بە وەتسەپ' : language === 'ar' ? 'إرسال الفاتورة عبر واتساب' : 'Send Invoice via WhatsApp'}</span>
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600">{language === 'ku' ? 'کۆی گشتی داواکاری:' : 'Total Amount:'}</span>
+                <span className="text-xl text-indigo-600">{formatIQDLabel(Number(selectedOrderForModal.totalAmount || 0))}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Multi-Language & Editable WhatsApp Order Invoice Modal */}
+      {whatsappModalOrder && (
+        <div 
+          onClick={() => setWhatsappModalOrder(null)}
+          className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto font-arabic"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-slate-100 relative animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[92vh] overflow-hidden"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shadow-xs border border-emerald-100">
+                  <MessageCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-base sm:text-lg">
+                    {language === 'ku' ? 'ناردنی پسوولەی داواکاری بە وەتسەپ' : language === 'ar' ? 'إرسال تفاصيل الطلب عبر واتساب' : 'Send Order Details via WhatsApp'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {language === 'ku' 
+                      ? `داواکاری #${whatsappModalOrder.id} • ${whatsappModalOrder.customerName || 'کڕیار'}` 
+                      : `Order #${whatsappModalOrder.id} • ${whatsappModalOrder.customerName || 'Customer'}`}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWhatsappModalOrder(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Language Switcher Bar */}
+            <div className="pt-4 pb-2 shrink-0">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-600">
+                  {language === 'ku' ? 'زمانی دەقی پسوولەکە:' : language === 'ar' ? 'لغة نص الفاتورة:' : 'Invoice Language:'}
+                </span>
+
+                <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200/80">
+                  <button
+                    type="button"
+                    onClick={() => handleLanguageSwitch('ku')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      whatsappModalLang === 'ku'
+                        ? 'bg-candy-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    }`}
+                  >
+                    ☀️ کوردی
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLanguageSwitch('ar')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      whatsappModalLang === 'ar'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    }`}
+                  >
+                    🌙 العربية
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLanguageSwitch('en')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                      whatsappModalLang === 'en'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    }`}
+                  >
+                    🌐 English
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Body (Phone & Editable Message Textarea) */}
+            <div className="py-2 overflow-y-auto space-y-3 flex-1 pr-0.5">
+              {/* Target Phone Input */}
+              <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1.5">
+                  {language === 'ku' ? 'ژمارەی مۆبایل / وەتسەپی کڕیار:' : language === 'ar' ? 'رقم هاتف / واتساب العميل:' : 'Customer WhatsApp Number:'}
+                </label>
+                <div className="relative flex items-center">
+                  <Phone className="w-4 h-4 text-emerald-600 absolute right-3 rtl:right-3 rtl:left-auto left-3 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={whatsappCustomPhone}
+                    onChange={(e) => setWhatsappCustomPhone(e.target.value)}
+                    dir="ltr"
+                    placeholder="0750XXXXXXX"
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2 px-9 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Editable Message Textarea */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    {language === 'ku' ? 'دەقی پەیام (دەتوانیت دەستکاری بکەیت):' : language === 'ar' ? 'نص الرسالة (قابل للتعديل):' : 'Message Text (Editable):'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleResetTemplate}
+                    className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>{language === 'ku' ? 'گەڕاندنەوە بۆ دەقی بنەڕەتی' : language === 'ar' ? 'استعادة النص الأصلي' : 'Reset Template'}</span>
+                  </button>
+                </div>
+
+                <textarea
+                  value={whatsappCustomText}
+                  onChange={(e) => setWhatsappCustomText(e.target.value)}
+                  dir={whatsappModalLang === 'en' ? 'ltr' : 'rtl'}
+                  rows={9}
+                  className="w-full p-3.5 bg-slate-50 hover:bg-white focus:bg-white rounded-2xl border border-slate-200 text-xs font-mono text-slate-800 leading-relaxed outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-y shadow-2xs"
+                />
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(whatsappCustomText);
+                  setHasCopiedWhatsApp(true);
+                  setTimeout(() => setHasCopiedWhatsApp(false), 2500);
+                  toast(language === 'ku' ? 'دەقەکە کۆپیکرا ✅' : 'Text copied ✅');
+                }}
+                className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {hasCopiedWhatsApp ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                <span>{hasCopiedWhatsApp ? (language === 'ku' ? 'کۆپیکرا' : 'Copied') : (language === 'ku' ? 'کۆپیکردنی دەق' : 'Copy Text')}</span>
+              </button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => setWhatsappModalOrder(null)}
+                  className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  {language === 'ku' ? 'داخستن' : language === 'ar' ? 'إلغاء' : 'Close'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendWhatsAppNow}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>{language === 'ku' ? 'ناردن لە وەتسەپ 💬' : language === 'ar' ? 'إرسال عبر واتساب 💬' : 'Send in WhatsApp 💬'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -56,7 +56,8 @@ export const takePhoneVerification = (rawPhone: string): string | undefined => {
 export const sendCheckoutOtp = async (
   rawPhone: string,
   channel: 'whatsapp' | 'sms' = 'sms',
-  language: string = 'ku'
+  language: string = 'ku',
+  summary?: string
 ): Promise<OtpResponse> => {
   const safeRawPhone = typeof rawPhone === 'string' ? rawPhone : String(rawPhone || '');
   const safeChannel: 'whatsapp' | 'sms' = typeof channel === 'string' && channel === 'whatsapp' ? 'whatsapp' : 'sms';
@@ -75,7 +76,12 @@ export const sendCheckoutOtp = async (
     const res = await apiFetch('send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: formattedPhone, channel: safeChannel, raw_phone: safeRawPhone }),
+      body: JSON.stringify({ 
+        phone: formattedPhone, 
+        channel: safeChannel, 
+        raw_phone: safeRawPhone,
+        summary: summary || undefined,
+      }),
     });
 
     const data = await res.json().catch(() => ({} as any));

@@ -32,7 +32,6 @@ import { Language } from './i18n/translations';
 import { isAdminRole, isStaffOrAdminRole, getRoleInfo } from './utils/roles';
 import { SearchBar } from './components/SearchBar';
 import { LanguageDropdown } from './components/LanguageDropdown';
-import { AnnouncementTicker } from './components/AnnouncementTicker';
 import { KidsIcon } from './components/KidsIcons';
 import { StoreLogo } from './components/StoreLogo';
 import { HeaderNav } from './components/HeaderNav';
@@ -127,8 +126,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
       {isAdminOrPos ? null : (
         <>
-          <AnnouncementTicker />
-
           {/* Main Vastraa-Style Header */}
           <header className="sticky top-0 z-[100] w-full bg-white border-b border-slate-200/80 shadow-sm">
             <div className="max-w-7xl mx-auto h-16 sm:h-20 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">

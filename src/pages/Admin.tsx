@@ -37,11 +37,13 @@ import { AdminActivityLogTab } from "../components/admin/AdminActivityLogTab";
 import { AdminLabelsTab } from "../components/admin/AdminLabelsTab";
 import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
 import { AdminPurchasesTab } from "../components/admin/AdminPurchasesTab";
+import { AdminUsersTab } from "../components/admin/AdminUsersTab";
 import { BulkStockModal } from "../components/admin/BulkStockModal";
 import { BulkActionBar } from "../components/admin/BulkActionBar";
 import { BulkCheckbox } from "../components/admin/BulkCheckbox";
 import { useBulkSelection } from "../components/admin/useBulkSelection";
 import { getRoleInfo, isAdminRole, isCashierRole } from "../utils/roles";
+import { hasPermission, TAB_PERMISSION_MAP } from "../utils/permissions";
 import { LOW_STOCK_THRESHOLD, getTotalStock } from "../utils/inventory";
 import { escapeHtml } from "../utils/printHelper";
 
@@ -68,6 +70,10 @@ export const Admin: React.FC = () => {
     fetchStockMovements, fetchActivityLogs, bulkDelete, bulkOrderStatus,
     fetchDailyReport, fetchCouponReport
   } = useStore();
+
+  const { language } = useLanguage();
+  const toast = useToast();
+  const confirmDialog = useConfirm();
 
   const isAdmin = useMemo(() => {
     if (!currentUser) return true;
@@ -113,6 +119,12 @@ export const Admin: React.FC = () => {
   const navigate = useNavigate();
   const validTabs = useMemo(() => ['overview', 'reports', 'products', 'purchases', 'inventory', 'stock-ledger', 'categories', 'orders', 'pos-sales', 'users', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings', 'activity-log'], []);
 
+  const isTabPermitted = useCallback((tab: string) => {
+    const requiredPerm = TAB_PERMISSION_MAP[tab];
+    if (!requiredPerm) return isAdmin;
+    return hasPermission(currentUser, requiredPerm);
+  }, [currentUser, isAdmin]);
+
   const [activeTab, setActiveTabState] = useState<string>(() => {
     if (urlTab && validTabs.includes(urlTab)) return urlTab;
     return isAdmin ? 'overview' : 'products';
@@ -124,10 +136,25 @@ export const Admin: React.FC = () => {
     }
   }, [urlTab, validTabs]);
 
+  // If the active tab is not permitted for current user, redirect to first allowed tab
+  useEffect(() => {
+    if (currentUser && !isAdmin && !isTabPermitted(activeTab)) {
+      const firstAllowed = validTabs.find(t => isTabPermitted(t));
+      if (firstAllowed) {
+        setActiveTabState(firstAllowed);
+        window.history.replaceState(null, '', `/admin/${firstAllowed}`);
+      }
+    }
+  }, [currentUser, isAdmin, activeTab, isTabPermitted, validTabs]);
+
   const setActiveTab = useCallback((newTab: string) => {
+    if (!isTabPermitted(newTab)) {
+      toast(language === 'ku' ? 'تۆ دەسەڵاتی بینینی ئەم بەشەت نییە' : 'You do not have permission to view this section', 'warning');
+      return;
+    }
     setActiveTabState(newTab);
     window.history.replaceState(null, '', `/admin/${newTab}`);
-  }, []);
+  }, [isTabPermitted, language, toast]);
 
   // Coupons State
   const [couponCode, setAdminCouponCode] = useState('');
@@ -213,10 +240,8 @@ export const Admin: React.FC = () => {
     }
   }, [isAdmin, activeTab, currentUser]);
 
-  const { t, language, updateTranslation, allTranslations, publishTranslations, resetTranslations, hasUnpublishedTranslations } = useLanguage();
+  const { t, updateTranslation, allTranslations, publishTranslations, resetTranslations, hasUnpublishedTranslations } = useLanguage();
   const L = (s: string) => adminTr(s, language);
-  const toast = useToast();
-  const confirmDialog = useConfirm();
   const [translationSearch, setTranslationSearch] = useState('');
   const [isPublishingTranslations, setIsPublishingTranslations] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState('');
@@ -1842,214 +1867,17 @@ export const Admin: React.FC = () => {
       )}
 
       {activeTab === 'users' && (
-        <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-6 md:p-8 rounded-[2.5rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)] overflow-x-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-black text-slate-900">{L("Users Management")}</h2>
-            <button
-              onClick={() => setIsAddingUser(true)}
-              className="bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold hover:bg-slate-800 transition-all flex items-center shadow-md text-xs cursor-pointer active:scale-95"
-            >
-              <Plus className="w-4 h-4 mr-2" /> {L("Add User")}
-            </button>
-          </div>
-
-          {isAddingUser && createPortal(
-            <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 sm:p-6 overflow-y-auto font-arabic animate-fadeIn">
-              <div className="bg-white rounded-3xl w-full max-w-lg p-6 sm:p-8 shadow-2xl border border-slate-100 relative my-auto animate-scaleUp">
-                <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
-                  <div>
-                    <h2 className="text-xl font-extrabold text-slate-900">{L("Create New User")}</h2>
-                    <p className="text-xs text-slate-500 mt-1">{L("Create New Admin or Staff User")}</p>
-                  </div>
-                  <button type="button" onClick={() => setIsAddingUser(false)} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <form onSubmit={(e) => { handleAddUser(e); setIsAddingUser(false); }} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Full Name")}</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder={language === 'ku' ? 'ئاوات حەسەن' : 'John Doe'}
-                        value={addUserName}
-                        onChange={(e) => setAddUserName(e.target.value)}
-                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                        {L("Email")}
-                        {![1, 2, 3].includes(Number(addUserRole)) && (
-                          <span className="text-slate-400 font-medium"> ({language === 'ku' ? 'ئارەزوومەندانە' : 'optional'})</span>
-                        )}
-                      </label>
-                      <input
-                        type="email"
-                        required={[1, 2, 3].includes(Number(addUserRole))}
-                        placeholder="john@example.com"
-                        value={addUserEmail}
-                        onChange={(e) => setAddUserEmail(e.target.value)}
-                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                        {language === 'ku' ? 'ژمارەی مۆبایل' : language === 'ar' ? 'رقم الهاتف' : 'Mobile number'}
-                      </label>
-                      <input
-                        type="tel"
-                        placeholder="07501234567"
-                        value={addUserPhone}
-                        onChange={(e) => setAddUserPhone(e.target.value)}
-                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                        {L("Password")}
-                        {![1, 2, 3].includes(Number(addUserRole)) && (
-                          <span className="text-slate-400 font-medium"> ({language === 'ku' ? 'ئارەزوومەندانە' : 'optional'})</span>
-                        )}
-                      </label>
-                      <input
-                        type="password"
-                        required={[1, 2, 3].includes(Number(addUserRole))}
-                        minLength={8}
-                        placeholder="••••••••"
-                        value={addUserPassword}
-                        onChange={(e) => setAddUserPassword(e.target.value)}
-                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">{L("Role")}</label>
-                      <select
-                        value={addUserRole}
-                        onChange={(e) => setAddUserRole(Number(e.target.value))}
-                        className="w-full text-sm border border-slate-300 rounded-xl py-2.5 px-3.5 focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-slate-50/50 font-bold"
-                      >
-                        <option value={1}>{language === 'ku' ? '1 - بەڕێوەبەر (Admin)' : '1 - Admin'}</option>
-                        <option value={2}>{language === 'ku' ? '2 - کاشێر (Cashier)' : '2 - Cashier'}</option>
-                        <option value={3}>{language === 'ku' ? '3 - کارمەند (Staff)' : '3 - Staff'}</option>
-                        <option value={0}>{language === 'ku' ? '0 - کڕیار (Customer)' : '0 - Customer'}</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-100">
-                    <button type="button" onClick={() => setIsAddingUser(false)} className="px-5 py-2.5 text-xs font-bold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">{L("Cancel")}</button>
-                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-md cursor-pointer active:scale-95">
-                      {L("Create User") || 'دروستکردنی بەکارهێنەر'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>,
-            document.body
-          )}
-
-          <BulkActionBar
-            count={userSelection.count}
-            totalVisible={userSelection.totalVisible}
-            onSelectAllVisible={userSelection.selectAllVisible}
-            onClear={userSelection.clear}
-            onDelete={async () => {
-              const res = await bulkDelete('users', userSelection.ids);
-              if (res.success) userSelection.clear();
-              return res;
-            }}
-            noun={{ ku: 'بەکارهێنەر', ar: 'مستخدم', en: 'users', enOne: 'user' }}
-            isAdmin={canBulkDelete}
-          />
-
-          <div className="overflow-x-auto mt-4">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 w-10">
-                  <BulkCheckbox
-                    checked={userSelection.allVisibleSelected}
-                    indeterminate={userSelection.count > 0 && !userSelection.allVisibleSelected}
-                    onChange={userSelection.toggleAllVisible}
-                    label={L("Select all")}
-                  />
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Name")}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Email")}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Role")}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Joined")}</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{L("Actions")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {users.map((user, index) => (
-                <tr key={user.id || index} className={user.id && userSelection.isSelected(user.id) ? 'bg-indigo-50/70' : undefined}>
-                  <td className="px-4 py-4">
-                    {user.id && (
-                      <BulkCheckbox
-                        checked={userSelection.isSelected(user.id)}
-                        onChange={() => userSelection.toggle(user.id!)}
-                        label={user.name}
-                      />
-                    )}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{user.name}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">{user.email && !user.email.includes('@phone.user') ? user.email : '-'}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
-                    {(() => {
-                      const roleInfo = getRoleInfo(user.role, language);
-                      return (
-                        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${roleInfo.badgeClass}`}>
-                          {roleInfo.label} ({roleInfo.id})
-                        </span>
-                      );
-                    })()}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">{user.joinDate}</td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500">
-                    {user.id && (
-                      <button
-                        type="button"
-                        onClick={() => setEditingUser(user)}
-                        className="text-slate-400 hover:text-indigo-500 transition-colors p-1 rounded hover:bg-indigo-50 mr-2"
-                        title={L("Edit User")}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    )}
-                    {user.id && currentUser && String(user.id) !== String(currentUser.id) && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (await confirmDialog({
-                            title: 'Delete user?',
-                            message: `“${user.name}” will be permanently deleted. This cannot be undone.`,
-                            confirmText: 'Delete', cancelText: 'Cancel', danger: true,
-                          })) {
-                            deleteUser(user.id);
-                            toast('User deleted');
-                          }
-                        }}
-                        className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-50"
-                        title={L("Delete User")}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </div>
+        <AdminUsersTab
+          users={users}
+          orders={orders}
+          currentUser={currentUser}
+          addUser={addUser}
+          updateUser={updateUser}
+          deleteUser={deleteUser}
+          bulkDelete={bulkDelete}
+          confirmDialog={confirmDialog}
+          toast={toast}
+        />
       )}
 
       {activeTab === 'expenses' && (

@@ -181,7 +181,7 @@ export const Checkout: React.FC = () => {
     setOtpError('');
 
     try {
-      const res = await sendCheckoutOtp(targetPhone, activeChannel, language);
+      const res = await sendCheckoutOtp(targetPhone, activeChannel, language, orderSummaryText);
       if (res.success) {
         if (res.code) {
           setGeneratedOtp(res.code);
@@ -294,6 +294,58 @@ export const Checkout: React.FC = () => {
     if (language === 'ar' && product.nameAr) return product.nameAr;
     return product.name;
   };
+
+  /** Formats a full order items breakdown & total for WhatsApp confirmation OTP */
+  const orderSummaryText = useMemo(() => {
+    if (!cart || cart.length === 0) return '';
+    const lines = cart.map(item => {
+      const pName = getProductName(item.product);
+      const varText = [item.variation.color, item.variation.size].filter(Boolean).join(' - ');
+      const linePrice = formatIQDLabel(getLineTotal(item.product, item.variation, item.quantity));
+      return `• ${pName}${varText ? ` (${varText})` : ''} × ${item.quantity} = ${linePrice}`;
+    });
+
+    const greeting = language === 'ku'
+      ? `سڵاو بەڕێز ${fullName || ''}، سوپاس بۆ کڕینت لە گەلۆ کیدس (Galo Kids) 🎈\n\n📦 پوختەی کاڵاکانی داواکارییەکەت:`
+      : language === 'ar'
+      ? `مرحباً ${fullName || ''}، شكراً لتسوقك من قالو كيدز (Galo Kids) 🎈\n\n📦 تفاصيل المنتجات في طلبك:`
+      : `Hello ${fullName || ''}, thank you for shopping at Galo Kids 🎈\n\n📦 Order items:`;
+
+    const subtotalLine = language === 'ku'
+      ? `🏷️ کۆی کاڵاکان: ${formatIQDLabel(goodsTotal)}`
+      : language === 'ar'
+      ? `🏷️ إجمالي المنتجات: ${formatIQDLabel(goodsTotal)}`
+      : `🏷️ Items Subtotal: ${formatIQDLabel(goodsTotal)}`;
+
+    const deliveryLine = shippingFee > 0
+      ? (language === 'ku' ? `🚚 کرێی گەیاندن: ${formatIQDLabel(shippingFee)}` : language === 'ar' ? `🚚 رسوم التوصيل: ${formatIQDLabel(shippingFee)}` : `🚚 Delivery: ${formatIQDLabel(shippingFee)}`)
+      : (language === 'ku' ? `🚚 گەیاندن: بێ بەرامبەر (خۆڕایی)` : language === 'ar' ? `🚚 التوصيل: مجاني` : `🚚 Delivery: Free`);
+
+    const totalLine = language === 'ku'
+      ? `💰 کۆی گشتی پارەدان: ${formatIQDLabel(totalAmount)}`
+      : language === 'ar'
+      ? `💰 المبلغ الإجمالي: ${formatIQDLabel(totalAmount)}`
+      : `💰 Total: ${formatIQDLabel(totalAmount)}`;
+
+    return [
+      greeting,
+      ...lines,
+      `--------------------------`,
+      subtotalLine,
+      deliveryLine,
+      totalLine,
+    ].join('\n');
+  }, [cart, language, fullName, goodsTotal, shippingFee, totalAmount]);
+
+  const otpModalItems = useMemo(() => {
+    return cart.map(item => ({
+      name: getProductName(item.product),
+      variation: [item.variation.color, item.variation.size].filter(Boolean).join(' - '),
+      quantity: item.quantity,
+      price: getLineTotal(item.product, item.variation, item.quantity),
+      imageUrl: item.product.imageUrl,
+    }));
+  }, [cart, language]);
 
   const addrLang: Lang = language === 'ku' || language === 'ar' ? language : 'en';
   const getGovernorateName = (gov: any) => getGovernorateLabel(gov, addrLang);
@@ -658,10 +710,10 @@ export const Checkout: React.FC = () => {
                         <UserCheck className="w-4 h-4 text-sunny-700 shrink-0" />
                         <span>
                           {language === 'ku'
-                            ? `ئەم ژمارەیە تۆمارکراوە بە ناوی (${existingUserForPhone.name})`
+                            ? 'ئەم ژمارەی مۆبایلە پێشتر هەژماری پێ دروستکراوە'
                             : language === 'ar'
-                            ? `هذا الرقم مسجل باسم (${existingUserForPhone.name})`
-                            : `This phone is registered under (${existingUserForPhone.name})`}
+                            ? 'هذا الرقم مسجل مسبقاً ولديه حساب'
+                            : 'This phone number already has a registered account'}
                         </span>
                       </div>
                       <button
