@@ -58,8 +58,16 @@ Route::get('/reviews', [ReviewController::class, 'index']);
 // SECURITY: throttle public review submission to limit spam.
 Route::post('/reviews', [ReviewController::class, 'store'])->middleware('throttle:20,1');
 
+// Public contact inquiry submission
+Route::post('/contact-messages', [\App\Http\Controllers\ContactMessageController::class, 'store'])->middleware('throttle:15,1');
+
 // Protected routes (Requires Sanctum token)
 Route::middleware('auth:sanctum')->group(function () {
+    // Contact Messages Management (staff/admin)
+    Route::get('/contact-messages', [\App\Http\Controllers\ContactMessageController::class, 'index']);
+    Route::put('/contact-messages/{id}/read', [\App\Http\Controllers\ContactMessageController::class, 'markRead']);
+    Route::delete('/contact-messages/{id}', [\App\Http\Controllers\ContactMessageController::class, 'destroy']);
+    Route::get('/contact-messages/unread-count', [\App\Http\Controllers\ContactMessageController::class, 'unreadCount']);
     // Auth actions
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);

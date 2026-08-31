@@ -184,6 +184,14 @@ export const ALL_PERMISSIONS: PermissionDefinition[] = [
     labelEn: 'Manage Staff & Permissions', 
     descriptionKu: 'زیادکردن و دەستکاریکردنی ستاف و پێدانی دەسەڵاتەکان' 
   },
+  { 
+    id: 'messages.view', 
+    category: 'users', 
+    labelKu: 'بینینی پەیامەکانی پەیوەندی', 
+    labelAr: 'عرض رسائل اتصل بنا', 
+    labelEn: 'View Contact Messages', 
+    descriptionKu: 'بینینی پەیام و پرسیارەکانی کڕیاران و وەڵامدانەوەیان' 
+  },
 
   // 7. System & Settings
   { 
@@ -289,6 +297,7 @@ export const TAB_PERMISSION_MAP: Record<string, string> = {
   'banner': 'settings.manage',
   'users': 'customers.view',
   'reviews': 'products.view',
+  'messages': 'messages.view',
   'settings': 'settings.manage',
   'translations': 'settings.manage',
   'activity-log': 'activity_log.view',

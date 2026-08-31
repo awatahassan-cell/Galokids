@@ -38,6 +38,8 @@ import { AdminLabelsTab } from "../components/admin/AdminLabelsTab";
 import { AdminBarcodeTab } from "../components/admin/AdminBarcodeTab";
 import { AdminPurchasesTab } from "../components/admin/AdminPurchasesTab";
 import { AdminUsersTab } from "../components/admin/AdminUsersTab";
+import { AdminMessagesTab } from "../components/admin/AdminMessagesTab";
+import { orderNotifier } from "../utils/notifications";
 import { BulkStockModal } from "../components/admin/BulkStockModal";
 import { BulkActionBar } from "../components/admin/BulkActionBar";
 import { BulkCheckbox } from "../components/admin/BulkCheckbox";
@@ -117,7 +119,7 @@ export const Admin: React.FC = () => {
   
   const { tab: urlTab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
-  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'purchases', 'inventory', 'stock-ledger', 'categories', 'orders', 'pos-sales', 'users', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings', 'activity-log'], []);
+  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'purchases', 'inventory', 'stock-ledger', 'categories', 'orders', 'pos-sales', 'users', 'messages', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings', 'activity-log'], []);
 
   const isTabPermitted = useCallback((tab: string) => {
     const requiredPerm = TAB_PERMISSION_MAP[tab];
@@ -129,6 +131,56 @@ export const Admin: React.FC = () => {
     if (urlTab && validTabs.includes(urlTab)) return urlTab;
     return isAdmin ? 'overview' : 'products';
   });
+
+  // Request browser notification permission once for admin
+  useEffect(() => {
+    if (currentUser) {
+      orderNotifier.requestPermission().catch(() => {});
+    }
+  }, [currentUser]);
+
+  // Background polling for new orders every 25 seconds so admin gets live notifications
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(() => {
+      refreshOrders(1, 20, false, true).catch(() => {});
+    }, 25000);
+    return () => clearInterval(interval);
+  }, [currentUser, refreshOrders]);
+
+  // Keep track of known orders and trigger alert for incoming ones
+  const previousLatestOrderIdRef = React.useRef<string | number | null>(null);
+  const isInitialOrdersLoadRef = React.useRef(true);
+
+  useEffect(() => {
+    if (!orders || orders.length === 0) return;
+    
+    // Find latest non-pos order
+    const latestOnlineOrder = orders.find(o => !isPosOrder(o));
+    if (!latestOnlineOrder) return;
+
+    if (isInitialOrdersLoadRef.current) {
+      isInitialOrdersLoadRef.current = false;
+      previousLatestOrderIdRef.current = latestOnlineOrder.id;
+      return;
+    }
+
+    if (previousLatestOrderIdRef.current && String(latestOnlineOrder.id) !== String(previousLatestOrderIdRef.current)) {
+      // A new order has arrived!
+      previousLatestOrderIdRef.current = latestOnlineOrder.id;
+      orderNotifier.notifyNewOrder({
+        id: latestOnlineOrder.id,
+        customerName: latestOnlineOrder.customerName,
+        totalAmount: latestOnlineOrder.totalAmount,
+      });
+      toast(
+        language === 'ku'
+          ? `🛍️ داواکارییەکی نوێ گەیشت لەلایەن ${latestOnlineOrder.customerName || 'کڕیار'}!`
+          : `🛍️ New order received from ${latestOnlineOrder.customerName || 'Customer'}!`,
+        'success'
+      );
+    }
+  }, [orders, language, toast]);
 
   useEffect(() => {
     if (urlTab && validTabs.includes(urlTab) && urlTab !== activeTab) {
@@ -1878,6 +1930,10 @@ export const Admin: React.FC = () => {
           confirmDialog={confirmDialog}
           toast={toast}
         />
+      )}
+
+      {activeTab === 'messages' && (
+        <AdminMessagesTab currentUser={currentUser} />
       )}
 
       {activeTab === 'expenses' && (

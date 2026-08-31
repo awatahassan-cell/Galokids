@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Trash2, Eye, ChevronDown, ChevronUp, Package, Phone, 
   MapPin, User, Calendar, Tag, ShoppingBag, X, MessageCircle,
@@ -835,10 +836,10 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
       />
 
       {/* Modal */}
-      {selectedOrderForModal && (
+      {selectedOrderForModal && createPortal(
         <div 
           onClick={() => setSelectedOrderForModal(null)}
-          className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
@@ -983,14 +984,15 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Multi-Language & Editable WhatsApp Order Invoice Modal */}
-      {whatsappModalOrder && (
+      {whatsappModalOrder && createPortal(
         <div 
           onClick={() => setWhatsappModalOrder(null)}
-          className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto font-arabic"
+          className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto font-arabic"
         >
           <div 
             onClick={(e) => e.stopPropagation()}
@@ -1148,7 +1150,8 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

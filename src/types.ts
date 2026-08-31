@@ -256,4 +256,16 @@ export interface Supplier {
   createdAt?: string;
 }
 
+export interface ContactMessage {
+  id: string | number;
+  name: string;
+  email?: string;
+  phone?: string;
+  message: string;
+  status: 'unread' | 'read' | 'replied';
+  ip_address?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
 

@@ -3,7 +3,7 @@ import {
   BarChart3, Calendar, TrendingUp, Package, Tags, ShoppingBag, 
   Users, DollarSign, Star, Ticket, Image as ImageIcon, Settings, 
   Languages, FileText, X, ChevronLeft, ChevronRight, Store, Boxes,
-  History, ShieldCheck
+  History, ShieldCheck, MessageSquare
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
@@ -104,9 +104,10 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
         ]
       },
       {
-        title: language === 'ku' ? 'بەکارهێنەران' : language === 'ar' ? 'مستخدمين' : 'USERS',
+        title: language === 'ku' ? 'بەکارهێنەران و پەیامەکان' : language === 'ar' ? 'المستخدمين والرسائل' : 'USERS & INQUIRIES',
         items: [
           { id: 'users', label: t('usersManagement') || 'Users Management', icon: Users, adminOnly: false },
+          { id: 'messages', label: language === 'ku' ? 'پەیامەکانی پەیوەندی' : language === 'ar' ? 'رسائل اتصل بنا' : 'Contact Inquiries', icon: MessageSquare, adminOnly: false },
           { id: 'reviews', label: t('customerReviews') || 'Customer Reviews', icon: Star, adminOnly: false },
         ]
       },

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Menu, Globe, User, Key, LogOut, ChevronDown, ShoppingCart, Home } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Menu, Globe, User, Key, LogOut, ChevronDown, ShoppingCart, Home, Bell, BellOff, Volume2 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
 import { useNavigate, Link } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useStore } from '../../store';
 import { LanguageDropdown } from '../LanguageDropdown';
 import { getRoleInfo } from '../../utils/roles';
 import { StoreLogo } from '../StoreLogo';
+import { orderNotifier } from '../../utils/notifications';
 
 export interface AdminHeaderProps {
   onOpenMobileMenu: () => void;
@@ -73,6 +74,18 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           >
             <ShoppingCart className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-indigo-400" />
             <span className="hidden sm:inline">{L("POS Terminal")}</span>
+          </button>
+
+          {/* Notification Permission & Audio Alert Test Button */}
+          <button
+            onClick={async () => {
+              const perm = await orderNotifier.requestPermission();
+              orderNotifier.playOrderChime();
+            }}
+            className="p-2 bg-white/80 hover:bg-slate-900 hover:text-white border border-slate-200/80 text-slate-700 rounded-2xl transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
+            title={language === 'ku' ? 'ئاگادارکردنەوەی براوسەر و دەنگی داواکاری نوێ' : 'Browser Order Notifications & Sound'}
+          >
+            <Bell className="w-4 h-4 text-amber-500" />
           </button>
 
           {/* Home Link */}
