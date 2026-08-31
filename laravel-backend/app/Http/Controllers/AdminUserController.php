@@ -146,7 +146,10 @@ class AdminUserController extends Controller
             'password'    => Hash::make($request->filled('password') ? $request->input('password') : Str::random(24)),
             'role'        => $role,
             'address'     => $request->input('address'),
-            'permissions' => $request->input('permissions'),
+            // A customer has no back-office permissions to hold. Creating one
+            // is something staff may do, so anything saved here would be a
+            // permission list minted by a non-admin.
+            'permissions' => Roles::isPrivileged($role) ? $request->input('permissions') : null,
         ]);
 
         return response()->json($user, 201);
@@ -197,8 +200,20 @@ class AdminUserController extends Controller
         // mass-assigning unexpected columns (e.g. a raw plaintext password).
         $user->fill($request->only(['name', 'role', 'address']));
 
+        // Only an admin decides what a back-office account may do, and only a
+        // back-office account can be given anything.
+        //
+        // Staff may edit customers, so without this a cashier could save a
+        // permission list onto a customer and then sign in as them. Roles are
+        // checked ahead of the list now, but a customer row carrying "*" is
+        // still a trap waiting for the next screen that reads it.
         if ($request->has('permissions')) {
-            $user->permissions = $request->input('permissions');
+            $this->checkAdmin($request);
+
+            $targetRole = $request->has('role') ? Roles::normalize($request->input('role')) : $user->roleId();
+            $user->permissions = Roles::isPrivileged($targetRole)
+                ? $request->input('permissions')
+                : null;
         }
 
         if ($request->has('email')) {

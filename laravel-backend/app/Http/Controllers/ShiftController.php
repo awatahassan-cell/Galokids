@@ -12,16 +12,14 @@ use Illuminate\Support\Facades\DB;
 
 class ShiftController extends Controller
 {
-    private function checkStaffOrAdmin(Request $request)
-    {
-        // 1 = admin, 2 = cashier, 3 = staff (see App\Support\Roles).
-        $this->requirePrivileged($request);
-    }
+    // Each method now names the permission it needs — running a till is
+    // `pos.access`, reading what it took is `pos.reports` — so there is no
+    // single guard left to share.
 
     /** The current open shift for the logged-in cashier (or null). */
     public function current(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'pos.access');
         try {
             $shift = Shift::where('user_id', $request->user()->id)->where('status', 'open')->first();
             return response()->json($shift);
@@ -32,7 +30,7 @@ class ShiftController extends Controller
 
     public function open(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'pos.access');
         $user = $request->user();
 
         try {
@@ -110,7 +108,7 @@ class ShiftController extends Controller
     /** Live preview of the current shift's Z-report (before closing). */
     public function report(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'pos.reports');
         $shift = Shift::where('user_id', $request->user()->id)->where('status', 'open')->first();
         if (!$shift) {
             return response()->json(['message' => 'No open shift.'], 404);
@@ -120,7 +118,7 @@ class ShiftController extends Controller
 
     public function close(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'pos.access');
         $request->validate([
             'counted_cash' => 'required|numeric|min:0',
             'note' => 'nullable|string|max:1000',
@@ -151,7 +149,7 @@ class ShiftController extends Controller
      */
     public function cashMovement(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'pos.access');
         $user = $request->user();
 
         $data = $request->validate([
@@ -190,7 +188,7 @@ class ShiftController extends Controller
     /** Cash movements for the cashier's open shift. */
     public function cashMovements(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'pos.access');
 
         $shift = Shift::where('user_id', $request->user()->id)->where('status', 'open')->first();
         if (!$shift) {

@@ -16,7 +16,7 @@ class PurchaseController extends Controller
 {
     public function index(Request $request)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'purchases.manage');
 
         $query = Purchase::with(['items.product', 'items.variation', 'user:id,name'])
             ->orderByDesc('purchase_date')
@@ -62,14 +62,14 @@ class PurchaseController extends Controller
 
     public function show(Request $request, $id)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'purchases.manage');
         $purchase = Purchase::with(['items.product', 'items.variation', 'user:id,name'])->findOrFail($id);
         return response()->json($purchase);
     }
 
     public function store(Request $request)
     {
-        $user = $this->requirePrivileged($request);
+        $user = $this->requirePermission($request, 'purchases.manage');
 
         $validated = $request->validate([
             'supplier_id' => 'nullable|integer|exists:suppliers,id',
@@ -205,7 +205,7 @@ class PurchaseController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $user = $this->requirePrivileged($request);
+        $user = $this->requirePermission($request, 'purchases.manage');
         $purchase = Purchase::with('items')->findOrFail($id);
 
         DB::transaction(function () use ($purchase, $user) {

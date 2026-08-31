@@ -34,7 +34,7 @@ class CouponController extends Controller
     {
         // SECURITY: the full coupon list (including inactive/secret codes) is for
         // staff/admin only. Customers apply a single code via validateCode().
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'coupons.manage');
         return response()->json(Coupon::all()->map(function($coupon) {
             return $this->formatCoupon($coupon);
         }));
@@ -86,7 +86,7 @@ class CouponController extends Controller
 
     public function store(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'coupons.manage');
         if ($request->has('startDate')) {
             $request->merge(['start_date' => $request->input('startDate')]);
         }
@@ -137,7 +137,7 @@ class CouponController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'coupons.manage');
         $coupon = Coupon::findOrFail($id);
 
         if ($request->has('startDate')) {
@@ -179,7 +179,7 @@ class CouponController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'coupons.manage');
         $coupon = Coupon::findOrFail($id);
         $coupon->delete();
         return response()->json(null, 204);

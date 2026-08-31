@@ -10,7 +10,7 @@ class ExpenseController extends Controller
     private function checkStaffOrAdmin(Request $request)
     {
         // 1 = admin, 2 = cashier, 3 = staff (see App\Support\Roles).
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'expenses.manage');
     }
 
     /**
@@ -22,7 +22,7 @@ class ExpenseController extends Controller
      */
     public function index(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'expenses.manage');
 
         $request->validate([
             'page' => 'nullable|integer|min:1',
@@ -55,7 +55,7 @@ class ExpenseController extends Controller
 
     public function store(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'expenses.manage');
         $request->validate([
             'amount' => 'required|numeric|min:0',
             'category' => 'required|string|max:255',
@@ -69,14 +69,14 @@ class ExpenseController extends Controller
 
     public function show(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'expenses.manage');
         $expense = Expense::findOrFail($id);
         return response()->json($expense);
     }
 
     public function update(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'expenses.manage');
         $expense = Expense::findOrFail($id);
 
         $request->validate([
@@ -91,7 +91,7 @@ class ExpenseController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'expenses.manage');
         $expense = Expense::findOrFail($id);
         $expense->delete();
         return response()->json(null, 204);

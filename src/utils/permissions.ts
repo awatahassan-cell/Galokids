@@ -243,6 +243,12 @@ export const hasPermission = (user: User | null | undefined, permissionId: strin
   // Admin role has all permissions unconditionally
   if (isAdminRole(user.role)) return true;
 
+  // The role is checked before the list, not after: back-office permissions
+  // belong to back-office roles. A customer carrying `["*"]` used to answer
+  // yes to everything, and staff may edit customers — so anyone who could
+  // edit a customer could mint one.
+  if (!isCashierRole(user.role) && !isStaffRole(user.role)) return false;
+
   // Explicit permissions array on the user
   if (Array.isArray(user.permissions)) {
     if (user.permissions.includes('*') || user.permissions.includes('all')) return true;

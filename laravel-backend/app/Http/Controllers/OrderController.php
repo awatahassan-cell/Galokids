@@ -314,7 +314,7 @@ class OrderController extends Controller
      */
     public function counts(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'orders.view');
 
         $request->validate([
             'channel' => 'nullable|string|in:pos,online',
@@ -363,26 +363,41 @@ class OrderController extends Controller
             $query->where('user_id', $request->user()->id);
         }
 
+        // Sales rung up at the till against orders placed on the website.
+        //
+        // The two sides must be exact complements: an order belongs to one
+        // list or the other, never to both and never to neither. That is why
+        // the same closure decides both, negated for the website side, rather
+        // than the two being written out separately and drifting.
+        //
+        // The older version tested `customer_name NOT LIKE '%POS Cash Sale%'`
+        // for the website side. In SQL a comparison against NULL is NULL, not
+        // true, so every website order saved without a name typed vanished
+        // from the list rather than appearing in it.
         if ($request->filled('channel')) {
-            if ($request->channel === 'pos') {
-                $query->where(function ($q) {
-                    $q->where('channel', 'pos')
-                        ->orWhere('source', 'pos')
-                        ->orWhere('customer_name', 'like', '%POS Cash Sale%')
-                        ->orWhere('customer_email', 'like', '%cashier@%');
-                });
-            } else {
-                $query->where(function ($q) {
-                    $q->where('channel', '!=', 'pos')->orWhereNull('channel');
-                })
-                ->where(function ($q) {
-                    $q->where('source', '!=', 'pos')->orWhereNull('source');
-                })
-                ->where('customer_name', 'not like', '%POS Cash Sale%')
-                ->where(function ($q) {
-                    $q->where('customer_email', 'not like', '%cashier@%')->orWhereNull('customer_email');
-                });
-            }
+            // Every column here is nullable, and in SQL a comparison against
+            // NULL is NULL — neither true nor false. So `name NOT LIKE '%x%'`
+            // does not match a row with no name; it discards it. COALESCE
+            // turns each NULL into an empty string first, which is what makes
+            // the two sides exact opposites instead of both dropping the same
+            // rows.
+            //
+            // The literals are constants, not request input, so there is
+            // nothing here to bind.
+            // `source` is deliberately not tested here. The panel sends one
+            // and the orders table has no such column, so naming it asked the
+            // database for a field it does not have: on MySQL that is an
+            // error and the whole list comes back as a 500. `channel` is the
+            // column that records this, and it is the one the till writes.
+            $tillSale = "("
+                . "COALESCE(orders.channel, '') = 'pos'"
+                // Older till sales, saved before the channel was recorded, are
+                // recognisable only by what the till wrote into them.
+                . " OR COALESCE(orders.customer_name, '') LIKE '%POS Cash Sale%'"
+                . " OR COALESCE(orders.customer_email, '') LIKE '%cashier@%'"
+                . ")";
+
+            $query->whereRaw($request->channel === 'pos' ? $tillSale : "NOT {$tillSale}");
         }
 
         if ($request->filled('status')) {
@@ -438,7 +453,7 @@ class OrderController extends Controller
      */
     public function customerLookup(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'customers.view');
         $request->validate(['phone' => 'required|string']);
 
         // Match on the local part (no country code / leading zero) so a cashier
@@ -803,7 +818,7 @@ class OrderController extends Controller
     /** Status changes for one order, newest first. */
     public function history(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'orders.view');
 
         return response()->json(
             OrderStatusHistory::with('user:id,name')
@@ -818,7 +833,7 @@ class OrderController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'orders.delete');
 
         $order = Order::with('items')->find($id);
         if (!$order) {
@@ -866,7 +881,7 @@ class OrderController extends Controller
      */
     public function refund(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'orders.manage');
         $user = $request->user();
 
         $data = $request->validate([

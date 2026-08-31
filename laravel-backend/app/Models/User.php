@@ -93,11 +93,25 @@ class User extends Authenticatable
         return $this->roleId() === Roles::CUSTOMER;
     }
 
-    /** Check if user has a specific permission. Admins have all permissions unconditionally. */
+    /**
+     * Whether this account may do something in the back office.
+     *
+     * The role is checked before the permission list, not after. A customer
+     * with `["*"]` saved against them used to answer yes to everything —
+     * and staff may edit customers, so anyone who could edit a customer could
+     * mint one. Back-office permissions belong to back-office roles; for
+     * anyone else the answer is no whatever the column says.
+     *
+     * Admins are unconditional.
+     */
     public function hasPermission(string $permission): bool
     {
         if ($this->isAdmin()) {
             return true;
+        }
+
+        if (!$this->isPrivileged()) {
+            return false;
         }
 
         $perms = $this->permissions;
@@ -115,6 +129,19 @@ class User extends Authenticatable
         }
 
         return false;
+    }
+
+    /**
+     * True when an admin has actually chosen this account's permissions.
+     *
+     * Accounts predating the permissions screen have nothing saved. They keep
+     * the access their role has always had, rather than being locked out of
+     * the panel by an upgrade; once an admin ticks the boxes, the list is
+     * what counts.
+     */
+    public function hasExplicitPermissions(): bool
+    {
+        return is_array($this->permissions);
     }
 
     public function orders()

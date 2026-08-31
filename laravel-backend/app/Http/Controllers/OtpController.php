@@ -71,25 +71,33 @@ class OtpController extends Controller
             'attempts' => 0,
         ], now()->addMinutes(self::CODE_TTL_MINUTES));
 
-        $channel = (string) $request->input('channel', 'sms');
-        $summary = trim((string) $request->input('summary', ''));
+        // Start the cooldown. Without this the check above never fires: a loop
+        // could ask for codes without limit, draining the shop's SMS credit
+        // and burying the real code under a hundred texts to the customer.
+        Cache::put($cooldownKey, true, now()->addSeconds(self::RESEND_COOLDOWN_SECONDS));
 
-        if ($summary !== '') {
-            $message = $summary . "\n\n🔐 کۆدی پشتڕاستکردنەوەی داواکارییەکەت: [ {$code} ]";
-        } else {
-            $message = "کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ {$code} ]";
-        }
+        // Only the two providers we actually support. Anything else is a typo
+        // or someone probing, and either way it should not reach the API.
+        $channel = $request->input('channel') === 'whatsapp' ? 'whatsapp' : 'sms';
 
-        $smsSent = $this->dispatchSms($phone, $message, $code, $channel, $summary !== '');
+        // The body is fixed here, not taken from the request.
+        //
+        // This endpoint is public and unauthenticated: it has to be, because a
+        // customer signs in with it. A caller-supplied message meant anyone
+        // could send any text to any number on the shop's account.
+        $message = "کۆدی پشتڕاستکردنەوەی ژمارەی مۆبایلەکەت بۆ داواکاری: [ {$code} ]";
 
-        $directUrl = 'https://wa.me/' . preg_replace('/\D/', '', $phone) . '?text=' . rawurlencode($message);
+        $smsSent = $this->dispatchSms($phone, $message, $code, $channel);
 
+        // The code is not in this response, and neither is a link containing
+        // it. Returning it handed the code for any number to anyone who asked
+        // — the number is the only thing needed to take an account over, and
+        // the whole point of sending it by SMS is that only the phone's owner
+        // sees it.
         return response()->json([
             'success'    => true,
             'message'    => 'کۆدی پشتڕاستکردنەوە نێردرا بۆ ژمارەی مۆبایلەکەت.',
             'phone'      => $phone,
-            'code'       => $code,
-            'directUrl'  => $directUrl,
             'dispatched' => $smsSent,
         ]);
     }
@@ -211,7 +219,7 @@ class OtpController extends Controller
      * The API key comes from config/services.php (OTPIQ_API_KEY in .env) —
      * never hardcode it here, the file is committed to git.
      */
-    private function dispatchSms(string $phone, string $message, string $code, string $channel = 'sms', bool $hasSummary = false): bool
+    private function dispatchSms(string $phone, string $message, string $code, string $channel = 'sms'): bool
     {
         $otpiqApiKey = config('services.otpiq.key');
         $otpiqUrl = config('services.otpiq.url');
@@ -225,28 +233,22 @@ class OtpController extends Controller
         $provider = ($channel === 'whatsapp') ? 'whatsapp' : 'auto';
 
         try {
-            // When a custom order summary is provided, send as notification/message payload
-            if ($hasSummary) {
-                $payload = [
-                    'phoneNumber' => $phone,
-                    'smsType'     => 'notification',
-                    'message'     => $message,
-                    'provider'    => $provider,
-                ];
-            } else {
-                $payload = [
-                    'phoneNumber'      => $phone,
-                    'smsType'          => 'verification',
-                    'verificationCode' => $code,
-                    'provider'         => $provider,
-                ];
-            }
-
+            // Always the provider's verification template.
+            //
+            // The free-text "notification" payload was only there to carry a
+            // caller-supplied summary, and that is gone: a public endpoint
+            // that sends arbitrary text to an arbitrary number is an open
+            // relay billed to the shop.
             $response = Http::timeout(15)->withHeaders([
                 'Authorization' => 'Bearer ' . $otpiqApiKey,
                 'Accept'        => 'application/json',
                 'Content-Type'  => 'application/json',
-            ])->post($otpiqUrl, $payload);
+            ])->post($otpiqUrl, [
+                'phoneNumber'      => $phone,
+                'smsType'          => 'verification',
+                'verificationCode' => $code,
+                'provider'         => $provider,
+            ]);
 
             if ($response->successful()) {
                 Log::info("OTPIQ OTP delivered to {$phone} (provider: {$provider}).");
@@ -254,28 +256,9 @@ class OtpController extends Controller
                 return true;
             }
 
-            Log::warning("OTPIQ API initial response for {$phone}: " . $response->body());
-
-            // If custom notification payload was rejected, fall back to verification template
-            if ($hasSummary) {
-                $fallback = Http::timeout(15)->withHeaders([
-                    'Authorization' => 'Bearer ' . $otpiqApiKey,
-                    'Accept'        => 'application/json',
-                    'Content-Type'  => 'application/json',
-                ])->post($otpiqUrl, [
-                    'phoneNumber'      => $phone,
-                    'smsType'          => 'verification',
-                    'verificationCode' => $code,
-                    'provider'         => $provider,
-                ]);
-
-                if ($fallback->successful()) {
-                    Log::info("OTPIQ OTP delivered to {$phone} via fallback verification type.");
-                    return true;
-                }
-            }
-
-            Log::error("OTPIQ API error response for {$phone}: " . $response->body());
+            // Never log the body of a failed send at a level that keeps it:
+            // the request carried the code.
+            Log::error("OTPIQ API error for {$phone}: HTTP " . $response->status());
         } catch (\Exception $e) {
             Log::error("OTPIQ API exception for {$phone}: " . $e->getMessage());
         }

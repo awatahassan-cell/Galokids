@@ -41,6 +41,32 @@ abstract class Controller
         return $user;
     }
 
+    /**
+     * Privileged, and allowed to do this particular thing.
+     *
+     * The permissions screen was enforced only in the panel, which hides
+     * buttons — it does not stop a request. A cashier whose account was
+     * ticked for the till alone could still create products or read the
+     * shop's takings by calling the API directly, which is all the panel does
+     * anyway.
+     *
+     * An account with no permissions saved keeps whatever its role could
+     * always do, so turning this on cannot lock existing staff out.
+     */
+    protected function requirePermission(Request $request, string $permission): User
+    {
+        $user = $this->requirePrivileged($request);
+
+        if ($user->hasExplicitPermissions() && !$user->hasPermission($permission)) {
+            abort(response()->json([
+                'message'    => 'ئەم کردارە لە دەسەڵاتی هەژمارەکەتدا نییە.',
+                'permission' => $permission,
+            ], 403));
+        }
+
+        return $user;
+    }
+
     /** Admin only (role 1). */
     protected function requireAdmin(Request $request): User
     {

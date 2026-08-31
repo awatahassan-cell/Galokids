@@ -12,7 +12,7 @@ class SupplierController extends Controller
 {
     public function index(Request $request)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'purchases.manage');
 
         $query = Supplier::withCount('purchases')
             ->withSum('purchases', 'total_amount')
@@ -70,7 +70,7 @@ class SupplierController extends Controller
 
     public function show(Request $request, $id)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'purchases.manage');
 
         $supplier = Supplier::with([
             'purchases' => function ($q) {
@@ -99,7 +99,7 @@ class SupplierController extends Controller
 
     public function store(Request $request)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'purchases.manage');
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -120,7 +120,7 @@ class SupplierController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'purchases.manage');
         $supplier = Supplier::findOrFail($id);
 
         $validated = $request->validate([
@@ -150,7 +150,7 @@ class SupplierController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'purchases.manage');
         $supplier = Supplier::withCount(['purchases', 'payments'])->findOrFail($id);
 
         if ($supplier->purchases_count > 0 || $supplier->payments_count > 0) {
@@ -170,7 +170,7 @@ class SupplierController extends Controller
 
     public function recordPayment(Request $request, $id)
     {
-        $user = $this->requirePrivileged($request);
+        $user = $this->requirePermission($request, 'purchases.manage');
         $supplier = Supplier::findOrFail($id);
 
         $validated = $request->validate([

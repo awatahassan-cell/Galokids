@@ -29,7 +29,7 @@ class CategoryController extends Controller
 
     public function store(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'categories.manage');
         $request->validate([
             'name' => 'required|string|max:255',
             'name_ku' => 'nullable|string|max:255',
@@ -45,7 +45,7 @@ class CategoryController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'categories.manage');
         $category = Category::findOrFail($id);
 
         $request->validate([
@@ -63,7 +63,7 @@ class CategoryController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'categories.manage');
         Category::findOrFail($id)->delete();
         return response()->json(null, 204);
     }

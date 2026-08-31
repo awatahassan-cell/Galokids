@@ -223,7 +223,7 @@ class ProductController extends Controller
      */
     public function uploadImages(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'products.manage');
 
         $request->validate([
             'images' => 'required|array|max:10',
@@ -321,7 +321,7 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'products.manage');
         $product = Product::create($this->validateProduct($request));
         $this->syncVariations($product, $request->input('variations', []));
 
@@ -332,7 +332,7 @@ class ProductController extends Controller
 
     public function update(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'products.manage');
         $product = Product::findOrFail($id);
 
         $before = $product->only(['name', 'price', 'discount_price', 'cost', 'category_id']);
@@ -359,7 +359,7 @@ class ProductController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'products.delete');
         $product = Product::findOrFail($id);
         $name = $product->name;
         $product->delete();

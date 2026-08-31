@@ -14,7 +14,7 @@ class ReportController extends Controller
     private function checkStaffOrAdmin(Request $request)
     {
         // 1 = admin, 2 = cashier, 3 = staff (see App\Support\Roles).
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'reports.view');
     }
 
     /**
@@ -68,7 +68,7 @@ class ReportController extends Controller
      */
     public function sales(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'reports.view');
 
         $request->validate([
             'from' => 'nullable|date',
@@ -226,7 +226,7 @@ class ReportController extends Controller
      */
     public function daily(Request $request)
     {
-        $this->checkStaffOrAdmin($request);
+        $this->requirePermission($request, 'reports.view');
 
         $request->validate([
             'from' => 'nullable|date',

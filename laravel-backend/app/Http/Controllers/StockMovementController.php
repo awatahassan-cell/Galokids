@@ -14,7 +14,7 @@ class StockMovementController extends Controller
     /** The stock ledger, newest first, filterable by product or type. */
     public function index(Request $request)
     {
-        $this->requirePrivileged($request);
+        $this->requirePermission($request, 'inventory.view');
 
         $request->validate([
             'product_id' => 'nullable|integer',
@@ -54,7 +54,7 @@ class StockMovementController extends Controller
      */
     public function store(Request $request)
     {
-        $user = $this->requirePrivileged($request);
+        $user = $this->requirePermission($request, 'inventory.manage');
 
         $data = $request->validate([
             'product_variation_id' => 'required|integer|exists:product_variations,id',
