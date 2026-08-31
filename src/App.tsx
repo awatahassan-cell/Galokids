@@ -438,8 +438,14 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/shipping-returns" element={<PageTransition key={routeKey}><ShippingReturns /></PageTransition>} />
         <Route path="/track" element={<PageTransition key={routeKey}><TrackOrder /></PageTransition>} />
         <Route path="/size-guide" element={<PageTransition key={routeKey}><SizeGuide /></PageTransition>} />
-        <Route path="/admin" element={<ProtectedRoute adminOnly><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
-        <Route path="/admin/:tab" element={<ProtectedRoute adminOnly><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
+        {/* Staff and cashiers belong here too, and the panel already knows it:
+            it picks their first permitted tab, hides the rest, and every
+            endpoint behind those tabs checks the permission server-side. The
+            route was admin-only, so they were bounced to the home page and
+            the whole permissions screen governed nobody — nor could they be
+            told when an order came in. */}
+        <Route path="/admin" element={<ProtectedRoute><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
+        <Route path="/admin/:tab" element={<ProtectedRoute><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
         <Route path="/pos" element={<ProtectedRoute><PageTransition key={routeKey}><POS /></PageTransition></ProtectedRoute>} />
         <Route path="/login" element={<PageTransition key={routeKey}><Login /></PageTransition>} />
         <Route path="/register" element={<PageTransition key={routeKey}><Register /></PageTransition>} />

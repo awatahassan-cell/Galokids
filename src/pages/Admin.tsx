@@ -139,48 +139,79 @@ export const Admin: React.FC = () => {
     }
   }, [currentUser]);
 
-  // Background polling for new orders every 25 seconds so admin gets live notifications
-  useEffect(() => {
-    if (!currentUser) return;
-    const interval = setInterval(() => {
-      refreshOrders(1, 20, false, true).catch(() => {});
-    }, 25000);
-    return () => clearInterval(interval);
-  }, [currentUser, refreshOrders]);
-
-  // Keep track of known orders and trigger alert for incoming ones
+  /**
+   * Watch for orders coming in from the website.
+   *
+   * This asks the server on its own rather than calling `refreshOrders`, which
+   * replaces the shared order list and resets it to page one. That was running
+   * every twenty-five seconds, so an admin reading page three, or filtering by
+   * "cancelled", was yanked back to the top of an unfiltered list while they
+   * were working.
+   *
+   * It also means the alert does not depend on what the Orders tab happens to
+   * be showing: someone on the Products tab is told about a new order just the
+   * same.
+   *
+   * Only for accounts allowed to see orders at all — there is no point telling
+   * someone about something they cannot open.
+   */
   const previousLatestOrderIdRef = React.useRef<string | number | null>(null);
-  const isInitialOrdersLoadRef = React.useRef(true);
+  const canSeeOrders = hasPermission(currentUser, 'orders.view');
 
   useEffect(() => {
-    if (!orders || orders.length === 0) return;
-    
-    // Find latest non-pos order
-    const latestOnlineOrder = orders.find(o => !isPosOrder(o));
-    if (!latestOnlineOrder) return;
+    if (!currentUser || !canSeeOrders) return;
 
-    if (isInitialOrdersLoadRef.current) {
-      isInitialOrdersLoadRef.current = false;
-      previousLatestOrderIdRef.current = latestOnlineOrder.id;
-      return;
-    }
+    let stopped = false;
 
-    if (previousLatestOrderIdRef.current && String(latestOnlineOrder.id) !== String(previousLatestOrderIdRef.current)) {
-      // A new order has arrived!
-      previousLatestOrderIdRef.current = latestOnlineOrder.id;
-      orderNotifier.notifyNewOrder({
-        id: latestOnlineOrder.id,
-        customerName: latestOnlineOrder.customerName,
-        totalAmount: latestOnlineOrder.totalAmount,
-      });
-      toast(
-        language === 'ku'
-          ? `🛍️ داواکارییەکی نوێ گەیشت لەلایەن ${latestOnlineOrder.customerName || 'کڕیار'}!`
-          : `🛍️ New order received from ${latestOnlineOrder.customerName || 'Customer'}!`,
-        'success'
-      );
-    }
-  }, [orders, language, toast]);
+    const check = async () => {
+      try {
+        const token = localStorage.getItem('kidskart_auth_token');
+        if (!token) return;
+
+        const res = await fetch(`${API_BASE_URL}/orders?channel=online&page=1&limit=1`, {
+          headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || stopped) return;
+
+        // Read straight off the API's own shape; only three fields are needed
+        // and the store's converter is private to it.
+        const body = await res.json();
+        const latest = Array.isArray(body) ? body[0] : body?.data?.[0];
+        if (!latest?.id) return;
+
+        const customerName = latest.customer_name ?? latest.customerName;
+        const totalAmount = latest.total_amount ?? latest.totalAmount;
+
+        // The first pass only records where we are, so opening the panel does
+        // not announce the order that was already there.
+        if (previousLatestOrderIdRef.current === null) {
+          previousLatestOrderIdRef.current = latest.id;
+          return;
+        }
+
+        if (String(latest.id) === String(previousLatestOrderIdRef.current)) return;
+
+        previousLatestOrderIdRef.current = latest.id;
+        orderNotifier.notifyNewOrder({ id: latest.id, customerName, totalAmount });
+        toast(
+          language === 'ku'
+            ? `🛍️ داواکارییەکی نوێ گەیشت لەلایەن ${customerName || 'کڕیار'}!`
+            : `🛍️ New order received from ${customerName || 'Customer'}!`,
+          'success'
+        );
+      } catch {
+        // A dropped request is not news; the next tick tries again.
+      }
+    };
+
+    check();
+    const interval = setInterval(check, 25000);
+
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+    };
+  }, [currentUser, canSeeOrders, language, toast]);
 
   useEffect(() => {
     if (urlTab && validTabs.includes(urlTab) && urlTab !== activeTab) {
