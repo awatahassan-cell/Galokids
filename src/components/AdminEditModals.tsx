@@ -4,7 +4,8 @@ import { useStore } from '../store';
 import { Category, Product, Expense, User } from '../types';
 import { CategoryIcon } from './CategoryIcon';
 import { CategoryIconPicker } from './CategoryIconPicker';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X, Wand2 } from 'lucide-react';
+import { collectTakenBarcodes, nextBarcode } from '../utils/barcode';
 import { STANDARD_COLORS, STANDARD_SIZES } from '../data';
 import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
@@ -29,9 +30,27 @@ export const AdminEditModals: React.FC<Props> = ({
   editingExpense, setEditingExpense,
   editingUser, setEditingUser
 }) => {
-  const { updateCategory, addProduct, updateProduct, updateExpense, updateUser, categories } = useStore();
+  const { updateCategory, addProduct, updateProduct, updateExpense, updateUser, categories, products } = useStore();
   const { language } = useLanguage();
   const L = (s: string) => adminTr(s, language);
+
+  /**
+   * A free GALO code, counting the product being edited as well as the saved
+   * catalogue — otherwise two variations added in the same sitting would both
+   * be handed the same number, and the scanner could not tell them apart.
+   */
+  const makeBarcode = (draft: Product | null): string => {
+    const taken = collectTakenBarcodes(products || []);
+    const add = (value?: string | null) => {
+      const code = String(value ?? '').trim().toUpperCase();
+      if (code) taken.add(code);
+    };
+    add(draft?.barcode);
+    add(draft?.sku);
+    (draft?.variations || []).forEach(v => { add(v?.barcode); add(v?.sku); });
+
+    return nextBarcode(taken);
+  };
 
   const normalizeGender = (value: any): 0 | 1 | 2 => {
     if (value === 'boy' || value === 1 || value === '1') return 1;
@@ -232,7 +251,21 @@ export const AdminEditModals: React.FC<Props> = ({
                         bubble on a Kurdish right-to-left form. Pressing "create
                         product" simply did nothing. It also made every product
                         without a barcode impossible to edit at all. */}
-                    <input type="text" value={editingProduct.barcode || editingProduct.sku || ""} onChange={e => setEditingProduct({...editingProduct, barcode: e.target.value, sku: e.target.value})} className="w-full border border-slate-300 rounded-xl py-2.5 px-3 text-xs font-bold focus:ring-2 focus:ring-indigo-500 bg-white" placeholder="869000123456" />
+                    <div className="flex items-stretch gap-1.5">
+                      <input type="text" value={editingProduct.barcode || editingProduct.sku || ""} onChange={e => setEditingProduct({...editingProduct, barcode: e.target.value, sku: e.target.value})} className="flex-1 min-w-0 border border-slate-300 rounded-xl py-2.5 px-3 text-xs font-bold focus:ring-2 focus:ring-indigo-500 bg-white" placeholder="GALO000001" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const code = makeBarcode(editingProduct);
+                          setEditingProduct({ ...editingProduct, barcode: code, sku: code });
+                        }}
+                        title={language === 'ku' ? 'دروستکردنی بارکۆدێکی نوێ' : 'Generate a barcode'}
+                        className="shrink-0 flex items-center gap-1 px-2.5 rounded-xl bg-indigo-600 text-white text-[11px] font-black hover:bg-indigo-700 transition-colors cursor-pointer"
+                      >
+                        <Wand2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{language === 'ku' ? 'دروستکردن' : 'Generate'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -363,17 +396,32 @@ export const AdminEditModals: React.FC<Props> = ({
                         {/* Variation Barcode */}
                         <div>
                           <label className="block sm:hidden text-[10px] font-bold text-slate-500 mb-1">{language === 'ku' ? 'بارکۆدی جۆرەکە' : 'Variation Barcode'}</label>
-                          <input
-                            type="text"
-                            placeholder={language === 'ku' ? 'بارکۆدی ڕەنگ/سایز' : 'Variation Barcode'}
-                            value={v.barcode || v.sku || ""}
-                            onChange={(e) => {
-                              const newVars = [...(editingProduct.variations || [])];
-                              newVars[index] = { ...newVars[index], barcode: e.target.value, sku: e.target.value };
-                              setEditingProduct({...editingProduct, variations: newVars});
-                            }}
-                            className="w-full border border-slate-300 rounded-lg py-2 px-2.5 text-xs font-bold focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
-                          />
+                          <div className="flex items-stretch gap-1">
+                            <input
+                              type="text"
+                              placeholder={language === 'ku' ? 'بارکۆدی ڕەنگ/سایز' : 'Variation Barcode'}
+                              value={v.barcode || v.sku || ""}
+                              onChange={(e) => {
+                                const newVars = [...(editingProduct.variations || [])];
+                                newVars[index] = { ...newVars[index], barcode: e.target.value, sku: e.target.value };
+                                setEditingProduct({...editingProduct, variations: newVars});
+                              }}
+                              className="flex-1 min-w-0 border border-slate-300 rounded-lg py-2 px-2.5 text-xs font-bold focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const code = makeBarcode(editingProduct);
+                                const newVars = [...(editingProduct.variations || [])];
+                                newVars[index] = { ...newVars[index], barcode: code, sku: code };
+                                setEditingProduct({...editingProduct, variations: newVars});
+                              }}
+                              title={language === 'ku' ? 'دروستکردنی بارکۆدێکی نوێ' : 'Generate a barcode'}
+                              className="shrink-0 px-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors cursor-pointer"
+                            >
+                              <Wand2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
 
                         {/* Remove */}
