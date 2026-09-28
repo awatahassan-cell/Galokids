@@ -19,6 +19,10 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!-- A throwaway key for the test run only, so a fresh clone with no
+             .env can still run the suite. It encrypts nothing that outlives
+             the run and is not the key any deployment uses. -->
+        <env name="APP_KEY" value="base64:Z2Fsb2tpZHMtdGVzdGluZy1rZXktZ2Fsb2tpZHMtdGU="/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>

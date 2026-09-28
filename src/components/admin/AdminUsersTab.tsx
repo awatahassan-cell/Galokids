@@ -128,7 +128,13 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
     setFormName('');
     setFormEmail('');
     setFormPhone('');
-    const initialRole: number = defaultRoleType === 'staff' ? 1 : 0;
+    // "Add staff" opens on Staff (3), not Admin (1).
+    //
+    // It opened on Admin with every box already ticked, so filling in a name
+    // and a password and pressing save — which is the whole of the form —
+    // created a second full administrator of the shop. Nothing on screen said
+    // so unless you happened to read the role dropdown.
+    const initialRole: number = defaultRoleType === 'staff' ? 3 : 0;
     setFormRole(initialRole);
     setFormPassword('');
     setFormPermissions(initialRole === 1 ? ROLE_PERMISSION_PRESETS.admin : initialRole === 2 ? ROLE_PERMISSION_PRESETS.cashier : initialRole === 3 ? ROLE_PERMISSION_PRESETS.warehouse : []);

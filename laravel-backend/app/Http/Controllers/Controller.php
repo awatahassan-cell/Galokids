@@ -51,13 +51,21 @@ abstract class Controller
      * anyway.
      *
      * An account with no permissions saved keeps whatever its role could
-     * always do, so turning this on cannot lock existing staff out.
+     * always do — `hasPermission()` answers from the role's defaults — so
+     * turning this on cannot lock existing staff out.
+     *
+     * The answer used to be skipped entirely for such an account: the check
+     * ran only once an admin had ticked the boxes. Until then every account in
+     * the back office passed everything, so a cashier hired for the till could
+     * delete the shop's products, and ticking a single box was what first took
+     * access away rather than granting it. The defaults are the point — ask
+     * for them.
      */
     protected function requirePermission(Request $request, string $permission): User
     {
         $user = $this->requirePrivileged($request);
 
-        if ($user->hasExplicitPermissions() && !$user->hasPermission($permission)) {
+        if (!$user->hasPermission($permission)) {
             abort(response()->json([
                 'message'    => 'ئەم کردارە لە دەسەڵاتی هەژمارەکەتدا نییە.',
                 'permission' => $permission,

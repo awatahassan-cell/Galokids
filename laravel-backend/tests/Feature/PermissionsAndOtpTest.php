@@ -214,14 +214,32 @@ class PermissionsAndOtpTest extends TestCase
     {
         $customer = User::factory()->create(['role' => Roles::CUSTOMER]);
 
+        // The edit itself goes through — renaming a customer is a cashier's
+        // job, and the panel's user form always sends a permissions field, so
+        // refusing the whole request meant a cashier could not correct a
+        // customer's name at all. What must not happen is the list being
+        // stored: a customer carrying "*" is a back door waiting for the next
+        // screen that reads it.
         $this->actingAs($this->cashier(['customers.view']))
             ->putJson("/api/users/{$customer->id}", [
-                'name' => $customer->name,
+                'name' => 'Renamed at the counter',
                 'permissions' => ['*'],
             ])
-            ->assertForbidden();
+            ->assertOk();
 
         $this->assertNull($customer->fresh()->permissions);
+        $this->assertSame('Renamed at the counter', $customer->fresh()->name);
+    }
+
+    public function test_a_cashier_still_cannot_give_a_colleague_permissions(): void
+    {
+        $colleague = $this->staff(['orders.view']);
+
+        $this->actingAs($this->cashier(['customers.view']))
+            ->putJson("/api/users/{$colleague->id}", ['permissions' => ['*']])
+            ->assertForbidden();
+
+        $this->assertSame(['orders.view'], $colleague->fresh()->permissions);
     }
 
     public function test_an_admin_saving_permissions_onto_a_customer_stores_none(): void

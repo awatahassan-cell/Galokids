@@ -120,7 +120,7 @@ interface StoreContextType {
 
   updatePromoBanner: (banner: PromoBanner) => void;
   addCategory: (category: Category) => void;
-  addProduct: (product: Product) => void;
+  addProduct: (product: Product) => Promise<void>;
   isProductsLoading: boolean;
   /** Increments after any product create/update/delete. */
   productsRevision: number;
@@ -152,11 +152,11 @@ interface StoreContextType {
   deleteExpense: (expenseId: string) => void;
   deleteUser: (userId: string) => void;
   deleteOrder: (orderId: string) => void;
-  updateProduct: (product: Product) => void;
+  updateProduct: (product: Product) => Promise<void>;
   updateCategory: (category: Category) => void;
   updateExpense: (expense: Expense) => void;
-  updateUser: (user: User) => void;
-  addUser: (userData: any) => void;
+  updateUser: (user: User) => Promise<void>;
+  addUser: (userData: any) => Promise<void>;
   /** Local-only guess. Prefer the async `checkPhoneRegistered` — see below. */
   isPhoneRegistered: (phone: string) => boolean;
   /**
@@ -1363,6 +1363,30 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
 
+  /**
+   * Turn a rejected API response into something a shopkeeper can act on.
+   *
+   * Laravel answers a refused save with `message`, and a failed validation
+   * with `errors` keyed by field. Both were being thrown away in favour of
+   * "API Error: 422 {...}", which told the person at the till nothing about
+   * which box was wrong.
+   */
+  const describeApiError = async (res: Response): Promise<string> => {
+    if (res.status === 401) {
+      return 'چوونەژوورەوەکەت بەسەرچووە. تکایە دووبارە بچۆرە ژوورەوە.';
+    }
+    if (res.status === 403) {
+      return 'ئەم کردارە لە دەسەڵاتی هەژمارەکەتدا نییە.';
+    }
+
+    const body = await res.json().catch(() => null as any);
+    const firstFieldError = body?.errors
+      ? (Object.values(body.errors as Record<string, string[]>)[0] || [])[0]
+      : undefined;
+
+    return firstFieldError || body?.message || `هەڵەی سێرڤەر (${res.status})`;
+  };
+
   const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem('kidskart_auth_token');
     const headers: Record<string, string> = {
@@ -1803,8 +1827,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     setProducts(prev => [preparedProd, ...prev]);
-    
-    authedApiFetch(`${LARAVEL_API_BASE}/products`, {
+
+    return authedApiFetch(`${LARAVEL_API_BASE}/products`, {
       method: 'POST',
       body: JSON.stringify(convertKeysToSnakeCase((() => { 
         const p = { ...preparedProd };
@@ -1823,11 +1847,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       })())),
     }).then(async res => {
       if (!res.ok) {
-        const err = await res.text();
-        if (res.status === 401) {
-          toast('Unauthenticated. Please log in as Admin/Staff.', 'error');
-        }
-        throw new Error(`API Error: ${res.status} ${err}`);
+        throw new Error(await describeApiError(res));
       }
       return res.json();
     })
@@ -1853,8 +1873,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         bumpProductsRevision();
       })
       .catch(err => {
-        console.warn('Failed to save product to API:', err);
+        // Drop the optimistic row and say so.
+        //
+        // The failure used to go to console.warn alone while the screen kept
+        // the product and the form announced "added successfully". The product
+        // was never in the database, so it vanished on the next reload with no
+        // hint that anything had gone wrong — or why.
+        setProducts(prev => prev.filter(p => String(p?.id) !== String(preparedProd.id)));
         bumpProductsRevision();
+        toast(err?.message || 'پاشەکەوتکردنی بەرهەم سەرکەوتوو نەبوو', 'error');
+        throw err;
       });
   };
 
@@ -2199,9 +2227,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         : (product.imageUrl ? [product.imageUrl] : [])
     };
 
+    const previousProd = products.find(p => String(p?.id) === String(product.id));
     setProducts(prev => prev.map(p => String(p?.id) === String(product.id) ? updatedProd : p));
 
-    authedApiFetch(`${LARAVEL_API_BASE}/products/${product.id}`, {
+    return authedApiFetch(`${LARAVEL_API_BASE}/products/${product.id}`, {
       method: 'PUT',
       body: JSON.stringify(convertKeysToSnakeCase((() => { 
         const p = { ...updatedProd };
@@ -2221,11 +2250,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     })
       .then(async res => {
         if (!res.ok) {
-          const err = await res.text();
-          if (res.status === 401) {
-            toast('Unauthenticated. Please log in as Admin/Staff.', 'error');
-          }
-          throw new Error(`API Error: ${res.status} ${err}`);
+          throw new Error(await describeApiError(res));
         }
         return res.json();
       })
@@ -2245,8 +2270,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         bumpProductsRevision();
       })
       .catch(err => {
-        console.warn('Product update note:', err);
+        // Put the product back as it was: the edit did not reach the database,
+        // and leaving the new values on screen made a rejected save look done.
+        if (previousProd) {
+          setProducts(prev => prev.map(p => String(p?.id) === String(product.id) ? previousProd : p));
+        }
         bumpProductsRevision();
+        toast(err?.message || 'نوێکردنەوەی بەرهەم سەرکەوتوو نەبوو', 'error');
+        throw err;
       });
   };
 
@@ -2272,7 +2303,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const previousUser = users.find(u => u?.id === user.id);
     const updatedUserObj: User = { ...user, role: normalizeRole(user.role) };
     setUsers(prev => prev.map(u => u?.id === user.id ? updatedUserObj : u));
-    authedApiFetch(`${LARAVEL_API_BASE}/users/${user.id}`, {
+    return authedApiFetch(`${LARAVEL_API_BASE}/users/${user.id}`, {
       method: 'PUT',
       body: JSON.stringify(convertKeysToSnakeCase(updatedUserObj)),
     })
@@ -2293,6 +2324,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           setUsers(prev => prev.map(u => u?.id === user.id ? previousUser : u));
         }
         toast(err?.message || 'نوێکردنەوەی بەکارهێنەر سەرکەوتوو نەبوو', 'error');
+        // Rethrow so the form that awaited this does not then announce success.
+        throw err;
       });
   };
 
@@ -2310,7 +2343,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return updated;
     });
 
-    authedApiFetch(`${LARAVEL_API_BASE}/users`, {
+    return authedApiFetch(`${LARAVEL_API_BASE}/users`, {
       method: 'POST',
       body: JSON.stringify(convertKeysToSnakeCase(formattedData))
     })
@@ -2338,6 +2371,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           return updated;
         });
         toast(err?.message || 'دروستکردنی بەکارهێنەر سەرکەوتوو نەبوو', 'error');
+        // Rethrow so the form that awaited this does not then announce success.
+        throw err;
       });
   };
 

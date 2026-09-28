@@ -314,7 +314,10 @@ class OrderListPagingTest extends TestCase
 
     public function test_the_sales_report_can_be_narrowed_to_one_cashier(): void
     {
+        // This is about the narrowing, not about who may ask: the sales report
+        // needs reports.view, which a cashier is not given by default.
         $me = $this->cashier();
+        $me->forceFill(['permissions' => ['pos.access', 'reports.view']])->save();
         $this->makeOrders(3, ['user_id' => $me->id]);
         $this->makeOrders(5, ['user_id' => $this->cashier()->id]);
 

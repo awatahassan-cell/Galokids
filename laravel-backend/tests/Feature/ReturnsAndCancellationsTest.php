@@ -178,7 +178,11 @@ class ReturnsAndCancellationsTest extends TestCase
 
     public function test_deleting_a_cancelled_order_does_not_restock_a_second_time(): void
     {
+        // About the stock arithmetic, not about who may delete: removing an
+        // order from the database needs orders.delete, which no cashier holds
+        // by default.
         $cashier = $this->cashier();
+        $cashier->forceFill(['permissions' => ['pos.access', 'orders.view', 'orders.manage', 'orders.delete']])->save();
         $variation = $this->variation($this->product(), 10);
 
         $order = $this->actingAs($cashier)->postJson('/api/orders', [

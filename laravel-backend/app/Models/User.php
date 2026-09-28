@@ -119,16 +119,50 @@ class User extends Authenticatable
             return in_array($permission, $perms, true) || in_array('*', $perms, true) || in_array('all', $perms, true);
         }
 
-        // Defaults for accounts where explicit permissions were not saved yet
-        if ($this->isCashier()) {
-            return in_array($permission, ['pos.access', 'pos.reports', 'orders.view', 'products.view', 'labels.print', 'customers.view'], true);
+        return in_array($permission, self::defaultsFor($this->roleId()), true);
+    }
+
+    /**
+     * What a role may do when nobody has ticked its boxes yet.
+     *
+     * These two lists must stay identical to ROLE_PERMISSION_PRESETS in
+     * `src/utils/permissions.ts`; the panel decides which buttons to draw from
+     * that copy and the API decides who may press them from this one. They had
+     * drifted — the panel offered a warehouse account the products screen the
+     * API would then refuse — so a staff member saw a form that could not save.
+     *
+     * @return list<string>
+     */
+    public static function defaultsFor(int $role): array
+    {
+        if ($role === Roles::CASHIER) {
+            return [
+                'pos.access',
+                'pos.reports',
+                'orders.view',
+                'orders.manage',
+                'products.view',
+                'labels.print',
+                'customers.view',
+            ];
         }
 
-        if ($this->isStaff()) {
-            return in_array($permission, ['orders.view', 'orders.manage', 'products.view', 'inventory.view', 'labels.print', 'customers.view'], true);
+        if ($role === Roles::STAFF) {
+            // The panel's `warehouse` and `sales_agent` presets together.
+            return [
+                'products.view',
+                'products.manage',
+                'inventory.view',
+                'inventory.manage',
+                'purchases.manage',
+                'labels.print',
+                'orders.view',
+                'orders.manage',
+                'customers.view',
+            ];
         }
 
-        return false;
+        return [];
     }
 
     /**

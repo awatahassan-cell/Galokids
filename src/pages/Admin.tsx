@@ -879,37 +879,48 @@ export const Admin: React.FC = () => {
     setVariations(newVars);
   };
 
-  const handleAddProduct = (e: React.FormEvent) => {
+  const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!productName || !productCategory || !productPrice || !productCost) {
       toast('Please fill required fields (Name, Category, Price, Cost)', 'error');
       return;
     }
-    
+
     const newProductId = `p${Date.now()}`;
-    addProduct({
-      id: newProductId,
-      categoryId: productCategory,
-      name: productName,
-      nameKu: productNameKu,
-      nameAr: productNameAr,
-      description: productDesc,
-      descriptionKu: productDescKu,
-      descriptionAr: productDescAr,
-      barcode: productSku,
-      sku: productSku,
-      imageUrl: productImages[0] || 'https://images.unsplash.com/photo-1560243563-062bfc001d68?auto=format&fit=crop&q=80&w=800',
-      images: productImages,
-      price: parseFloat(productPrice),
-      discountPrice: productDiscountPrice ? parseFloat(productDiscountPrice) : undefined,
-      cost: parseFloat(productCost),
-      gender: productGender,
-      variations: variations.map((v, i) => ({
-        ...v,
-        id: `v${Date.now()}-${i}`,
-        productId: newProductId
-      }))
-    });
+    // Wait for the server before clearing the form or claiming success. The
+    // form used to announce "added successfully" and empty itself the instant
+    // the button was pressed, so a rejected save left the shopkeeper believing
+    // the product existed and with nothing left on screen to try again with.
+    try {
+      await addProduct({
+        id: newProductId,
+        categoryId: productCategory,
+        name: productName,
+        nameKu: productNameKu,
+        nameAr: productNameAr,
+        description: productDesc,
+        descriptionKu: productDescKu,
+        descriptionAr: productDescAr,
+        barcode: productSku,
+        sku: productSku,
+        imageUrl: productImages[0] || 'https://images.unsplash.com/photo-1560243563-062bfc001d68?auto=format&fit=crop&q=80&w=800',
+        images: productImages,
+        price: parseFloat(productPrice),
+        discountPrice: productDiscountPrice ? parseFloat(productDiscountPrice) : undefined,
+        cost: parseFloat(productCost),
+        gender: productGender,
+        variations: variations.map((v, i) => ({
+          ...v,
+          id: `v${Date.now()}-${i}`,
+          productId: newProductId
+        }))
+      });
+    } catch {
+      // addProduct already showed the server's reason and removed the row it
+      // had added optimistically. Keep the form filled in so the shopkeeper can
+      // correct whatever it named and press save again.
+      return;
+    }
 
     // Reset
     setProductName('');

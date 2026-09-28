@@ -167,7 +167,7 @@ class ProductController extends Controller
         $this->requirePrivileged($request);
     }
 
-    private function validateProduct(Request $request, bool $partial = false)
+    private function validateProduct(Request $request, bool $partial = false, ?Product $existing = null)
     {
         $req = $partial ? 'sometimes|required' : 'required';
         $data = $request->validate([
@@ -178,9 +178,14 @@ class ProductController extends Controller
             'description_ku' => 'nullable|string',
             'description_ar' => 'nullable|string',
             'price' => $req . '|numeric|min:0',
-            // A discount above the normal price would charge the customer MORE
-            // than the price shown struck through next to it.
-            'discount_price' => 'nullable|numeric|min:0|lte:price',
+            // Compared against the price by hand below, not with `lte:price`.
+            //
+            // `lte` resolves the other field from the request alone, so editing
+            // only the discount of an existing product — the request then
+            // carries no `price` — made the rule compare against nothing and
+            // fail every time: "discount must be less than or equal to price"
+            // for a 100 discount on a 5,000 product.
+            'discount_price' => 'nullable|numeric|min:0',
             'cost' => 'nullable|numeric|min:0',
             'image_url' => 'nullable|string',
             'images' => 'nullable|array',
@@ -197,6 +202,34 @@ class ProductController extends Controller
         if (array_key_exists('discount_price', $data)
             && ($data['discount_price'] === '' || $data['discount_price'] === null || (float) $data['discount_price'] <= 0)) {
             $data['discount_price'] = null;
+        }
+
+        // A discount above the normal price would charge the customer MORE than
+        // the price shown struck through next to it. The price to compare
+        // against is the one being saved, or — when this edit does not touch
+        // the price — the one the product already has.
+        if (!empty($data['discount_price'])) {
+            $priceToBeat = $data['price'] ?? $existing?->price;
+
+            if ($priceToBeat !== null && (float) $data['discount_price'] > (float) $priceToBeat) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'discount_price' => ['نرخی داشکاندن نابێت لە نرخی ئاسایی زیاتر بێت.'],
+                ]);
+            }
+        }
+
+        // `gender` and `cost` are NOT NULL in the database, with a default.
+        //
+        // A default only applies when the column is left out of the INSERT, and
+        // Laravel includes every key it was handed. An empty box in the panel
+        // arrives as "", which the framework turns into null before validation,
+        // so `nullable` waved it through and the insert then broke the column's
+        // NOT NULL — a 500, on a form the shop had filled in correctly. The
+        // panel showed "saved" and the product was nowhere.
+        foreach (['gender' => 0, 'cost' => 0] as $column => $fallback) {
+            if (array_key_exists($column, $data) && $data[$column] === null) {
+                $data[$column] = $fallback;
+            }
         }
 
         // The barcode is where the product's code actually lives; `sku` is the
@@ -336,7 +369,7 @@ class ProductController extends Controller
         $product = Product::findOrFail($id);
 
         $before = $product->only(['name', 'price', 'discount_price', 'cost', 'category_id']);
-        $product->update($this->validateProduct($request, true));
+        $product->update($this->validateProduct($request, true, $product));
 
         // Only touch variations when the client actually sent them.
         if ($request->has('variations')) {

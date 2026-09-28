@@ -207,13 +207,22 @@ class AdminUserController extends Controller
         // permission list onto a customer and then sign in as them. Roles are
         // checked ahead of the list now, but a customer row carrying "*" is
         // still a trap waiting for the next screen that reads it.
+        //
+        // Admin is demanded only when a list would actually be stored. The
+        // panel's user form always sends `permissions` — an empty array for a
+        // customer — so demanding it unconditionally meant a staff member
+        // renaming a customer, which they are allowed to do, was answered with
+        // "Admin role required" and the edit was lost. For a customer there is
+        // nothing to decide: the column is cleared either way.
         if ($request->has('permissions')) {
-            $this->checkAdmin($request);
-
             $targetRole = $request->has('role') ? Roles::normalize($request->input('role')) : $user->roleId();
-            $user->permissions = Roles::isPrivileged($targetRole)
-                ? $request->input('permissions')
-                : null;
+
+            if (Roles::isPrivileged($targetRole)) {
+                $this->checkAdmin($request);
+                $user->permissions = $request->input('permissions');
+            } else {
+                $user->permissions = null;
+            }
         }
 
         if ($request->has('email')) {

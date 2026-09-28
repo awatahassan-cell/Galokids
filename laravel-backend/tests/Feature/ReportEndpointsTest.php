@@ -165,12 +165,19 @@ class ReportEndpointsTest extends TestCase
         $this->assertSame(-15000.0, (float) $day['net_profit'], 'a day of spending and no sales is a loss');
     }
 
-    public function test_a_cashier_may_read_the_daily_report(): void
+    public function test_the_daily_report_is_open_to_anyone_granted_reports(): void
     {
-        // The overview and calendar are part of a cashier's day, and the report
-        // they read must not be admin-only the way the per-cashier one is.
+        // Not admin-only: a cashier the shop has trusted with reports.view can
+        // read it. But it is not part of the till by default — the report shows
+        // cost and profit, and the panel's own cashier preset leaves it out, so
+        // a cashier nobody has granted it is refused rather than shown margins.
+        $this->actingAs(User::factory()->create([
+            'role' => Roles::CASHIER,
+            'permissions' => ['pos.access', 'reports.view'],
+        ]))->getJson('/api/reports/daily')->assertOk();
+
         $this->actingAs(User::factory()->create(['role' => Roles::CASHIER]))
-            ->getJson('/api/reports/daily')->assertOk();
+            ->getJson('/api/reports/daily')->assertForbidden();
 
         $this->actingAs(User::factory()->create(['role' => Roles::CUSTOMER]))
             ->getJson('/api/reports/daily')->assertForbidden();
