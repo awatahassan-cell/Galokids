@@ -796,42 +796,18 @@ export const Admin: React.FC = () => {
         }
       }
 
-      let token = localStorage.getItem('kidskart_auth_token');
-      
-      let res = await apiFetch('/products/upload-images', {
+      // apiFetch attaches the token itself.
+      //
+      // A 401 here used to be answered by reading the account's PASSWORD out of
+      // localStorage and signing in again with it. Nothing writes a password
+      // there any more — that was removed on purpose, because anything able to
+      // run script in this page could read it — so the branch could only ever
+      // fail, while inviting the password back. An expired session sends the
+      // user to the login screen like everywhere else.
+      const res = await apiFetch('/products/upload-images', {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
-
-      if (res.status === 401) {
-        try {
-          const savedUserStr = localStorage.getItem('kidskart_user');
-          const savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
-          if (savedUser?.email && savedUser?.password) {
-            const loginRes = await apiFetch('/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-              body: JSON.stringify({ email: savedUser.email, password: savedUser.password })
-            });
-            if (loginRes.ok) {
-              const loginData = await loginRes.json();
-              const newToken = loginData.access_token || loginData.accessToken;
-              if (newToken) {
-                localStorage.setItem('kidskart_auth_token', newToken);
-                token = newToken;
-                res = await apiFetch('/products/upload-images', {
-                  method: 'POST',
-                  headers: { Authorization: `Bearer ${token}` },
-                  body: formData,
-                });
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Image upload re-auth attempt failed:', e);
-        }
-      }
 
       if (!res.ok) {
         let msg = `Upload failed (${res.status})`;

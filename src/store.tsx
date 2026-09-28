@@ -1659,6 +1659,25 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
     })();
 
+    // Nobody signed in has no orders to fetch.
+    //
+    // This ran on every page of the storefront regardless, so each visitor's
+    // first view spent a request being told 401 and left a red error in the
+    // console — on the home page, the shop, even the login screen. `orders` is
+    // already empty for a guest; leave it that way.
+    const hasSession = (() => {
+      try {
+        return !!localStorage.getItem('kidskart_auth_token');
+      } catch {
+        return false;
+      }
+    })();
+
+    if (!hasSession) {
+      setOrdersError(null);
+      return Promise.resolve();
+    }
+
     return fetch(`${LARAVEL_API_BASE}/orders?${params.toString()}`, { headers: getAuthHeaders() })
       .then(res => {
         // A rejected request is not "no orders". Reporting an expired session
