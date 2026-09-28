@@ -165,11 +165,11 @@ interface StoreContextType {
    * where browser storage is empty.
    */
   checkPhoneRegistered: (phone: string) => Promise<boolean>;
-  login: (email: string, password?: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   loginWithPhone: (phone: string, name?: string, addressInfo?: any) => Promise<User | null>;
   registerWithPhone: (phone: string, name: string, addressInfo?: any) => Promise<User | null>;
   logout: () => void;
-  register: (name: string, email: string, password?: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
   updateProfile: (name: string, email: string, phone?: string, address?: string, password?: string, passwordConfirmation?: string) => Promise<{ success: boolean; message: string }>;
 }
 
@@ -2376,7 +2376,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       });
   };
 
-  const login = async (loginInput: string, password = 'password') => {
+  // No default password. `register(name, email)` used to create an account
+  // whose password was the literal string `password123`, and `login(input)`
+  // would try `password` — a known credential on any account made by a call
+  // that forgot the argument. The compiler asks for one now.
+  const login = async (loginInput: string, password: string) => {
     const cleanInput = loginInput.trim();
     const formattedPhone = formatIraqiPhone(cleanInput);
     try {
@@ -2447,7 +2451,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setCurrentUser(null);
   };
 
-  const register = async (name: string, email: string, password = 'password123') => {
+  const register = async (name: string, email: string, password: string) => {
     try {
       const res = await fetch(`${LARAVEL_API_BASE}/register`, {
         method: 'POST',
