@@ -29,7 +29,7 @@ export const AdminEditModals: React.FC<Props> = ({
   editingExpense, setEditingExpense,
   editingUser, setEditingUser
 }) => {
-  const { updateCategory, updateProduct, updateExpense, updateUser, categories } = useStore();
+  const { updateCategory, addProduct, updateProduct, updateExpense, updateUser, categories } = useStore();
   const { language } = useLanguage();
   const L = (s: string) => adminTr(s, language);
 
@@ -138,10 +138,24 @@ export const AdminEditModals: React.FC<Props> = ({
               </button>
             </div>
 
-            <form onSubmit={(e) => {
+            {/* This modal both creates and edits — its own heading says which.
+                Submitting always called updateProduct, so "create new product"
+                sent PUT /api/products/undefined: no product was ever created,
+                the failure was swallowed, and the modal closed as if it had
+                worked. Create when there is no id yet, update when there is. */}
+            <form onSubmit={async (e) => {
               e.preventDefault();
-              updateProduct(editingProduct);
-              setEditingProduct(null);
+              try {
+                if (editingProduct.id) {
+                  await updateProduct(editingProduct);
+                } else {
+                  await addProduct({ ...editingProduct, id: `p${Date.now()}` });
+                }
+                setEditingProduct(null);
+              } catch {
+                // The store has already shown the server's reason. Leave the
+                // modal open with everything still typed in it.
+              }
             }} className="space-y-6">
               
               {/* Category & Gender */}
@@ -209,8 +223,16 @@ export const AdminEditModals: React.FC<Props> = ({
                     <input type="number" step="0.01" value={editingProduct.cost ?? 0} onChange={e => setEditingProduct({...editingProduct, cost: Number(e.target.value)})} className="w-full border border-slate-300 rounded-xl py-2.5 px-3 text-xs font-bold focus:ring-2 focus:ring-indigo-500 bg-white" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold mb-1.5 text-slate-700">{L("Barcode")}</label>
-                    <input type="text" required value={editingProduct.barcode || editingProduct.sku || ""} onChange={e => setEditingProduct({...editingProduct, barcode: e.target.value, sku: e.target.value})} className="w-full border border-slate-300 rounded-xl py-2.5 px-3 text-xs font-bold focus:ring-2 focus:ring-indigo-500 bg-white" placeholder="869000123456" />
+                    <label className="block text-xs font-bold mb-1.5 text-slate-700">
+                      {L("Barcode")} <span className="text-slate-400 font-normal">({language === 'ku' ? 'ئارەزوومەندانە' : 'optional'})</span>
+                    </label>
+                    {/* Not `required`. Nothing else asks for a barcode — not the
+                        form's own check, not the API — but the browser refused
+                        to submit without one and said so in English, in a small
+                        bubble on a Kurdish right-to-left form. Pressing "create
+                        product" simply did nothing. It also made every product
+                        without a barcode impossible to edit at all. */}
+                    <input type="text" value={editingProduct.barcode || editingProduct.sku || ""} onChange={e => setEditingProduct({...editingProduct, barcode: e.target.value, sku: e.target.value})} className="w-full border border-slate-300 rounded-xl py-2.5 px-3 text-xs font-bold focus:ring-2 focus:ring-indigo-500 bg-white" placeholder="869000123456" />
                   </div>
                 </div>
               </div>
@@ -220,8 +242,13 @@ export const AdminEditModals: React.FC<Props> = ({
                 <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">{language === 'ku' ? 'وەسفی بەرهەم' : 'Descriptions'}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold mb-1.5 text-slate-700">{L("Description (EN)")}</label>
-                    <textarea required value={editingProduct.description || ""} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full border border-slate-300 rounded-xl py-2 px-3 text-xs font-medium focus:ring-2 focus:ring-indigo-500 bg-white" rows={2} />
+                    <label className="block text-xs font-bold mb-1.5 text-slate-700">
+                      {L("Description (EN)")} <span className="text-slate-400 font-normal">({language === 'ku' ? 'ئارەزوومەندانە' : 'optional'})</span>
+                    </label>
+                    {/* Also not `required`, for the same reason as the barcode:
+                        a shop writing only the Kurdish description was stopped
+                        by the English one, with no visible explanation. */}
+                    <textarea value={editingProduct.description || ""} onChange={e => setEditingProduct({...editingProduct, description: e.target.value})} className="w-full border border-slate-300 rounded-xl py-2 px-3 text-xs font-medium focus:ring-2 focus:ring-indigo-500 bg-white" rows={2} />
                   </div>
                   <div>
                     <label className="block text-xs font-bold mb-1.5 text-slate-700">{L("Description (KU)")}</label>
