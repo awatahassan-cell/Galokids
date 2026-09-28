@@ -48,7 +48,8 @@ class ReportController extends Controller
                 // the raw charge here made the per-channel cards add up to more
                 // than the revenue figure printed above them.
                 DB::raw("SUM(CASE WHEN orders.channel = 'pos' THEN orders.total_amount - COALESCE(orders.refunded_amount, 0) ELSE 0 END) as pos_total"),
-                DB::raw("SUM(CASE WHEN orders.channel = 'online' THEN orders.total_amount - COALESCE(orders.refunded_amount, 0) ELSE 0 END) as online_total")
+                DB::raw("SUM(CASE WHEN orders.channel = 'online' THEN orders.total_amount - COALESCE(orders.refunded_amount, 0) ELSE 0 END) as online_total"),
+                DB::raw("SUM(CASE WHEN orders.channel = 'social' THEN orders.total_amount - COALESCE(orders.refunded_amount, 0) ELSE 0 END) as social_total")
             )
             ->groupBy('orders.user_id', 'users.name')
             ->orderByDesc('total')
@@ -73,7 +74,7 @@ class ReportController extends Controller
         $request->validate([
             'from' => 'nullable|date',
             'to' => 'nullable|date',
-            'channel' => 'nullable|string|in:online,pos',
+            'channel' => 'nullable|string|in:online,pos,social',
             'mine' => 'nullable|boolean',
         ]);
 
@@ -105,12 +106,11 @@ class ReportController extends Controller
         $grossRevenue = (float) ($totals->revenue ?? 0);
         $refunded = (float) ($totals->refunded ?? 0);
 
-        // The same money split by where the sale happened. The screen used to
-        // take this from the per-cashier report, which is admin-only — a
-        // cashier opening the page saw both channels as zero.
+        // The same money split by where the sale happened.
         $byChannel = (clone $ordersQuery)
             ->selectRaw("COALESCE(SUM(CASE WHEN channel = 'pos' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as pos")
             ->selectRaw("COALESCE(SUM(CASE WHEN channel = 'online' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as online")
+            ->selectRaw("COALESCE(SUM(CASE WHEN channel = 'social' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as social")
             ->first();
 
         // Money actually kept: refunds were handed back to the customer, so the
@@ -185,6 +185,7 @@ class ReportController extends Controller
             'revenue' => round($revenue),
             'pos_revenue' => round((float) ($byChannel->pos ?? 0)),
             'online_revenue' => round((float) ($byChannel->online ?? 0)),
+            'social_revenue' => round((float) ($byChannel->social ?? 0)),
             'refunded' => round($refunded),
             'cogs' => round($cogs),
             'gross_profit' => round($grossProfit),
@@ -246,10 +247,12 @@ class ReportController extends Controller
                 DB::raw('DATE(created_at) as day'),
                 DB::raw('COALESCE(SUM(total_amount - COALESCE(refunded_amount, 0)), 0) as revenue'),
                 DB::raw("COALESCE(SUM(CASE WHEN channel = 'pos' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as pos_revenue"),
-                DB::raw("COALESCE(SUM(CASE WHEN channel = 'pos' THEN 0 ELSE total_amount - COALESCE(refunded_amount, 0) END), 0) as online_revenue"),
+                DB::raw("COALESCE(SUM(CASE WHEN channel = 'online' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as online_revenue"),
+                DB::raw("COALESCE(SUM(CASE WHEN channel = 'social' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as social_revenue"),
                 DB::raw("SUM(CASE WHEN status = '$returned' THEN 0 ELSE 1 END) as orders_count"),
                 DB::raw("SUM(CASE WHEN channel = 'pos' AND status != '$returned' THEN 1 ELSE 0 END) as pos_orders"),
-                DB::raw("SUM(CASE WHEN channel != 'pos' AND status != '$returned' THEN 1 ELSE 0 END) as online_orders")
+                DB::raw("SUM(CASE WHEN channel = 'online' AND status != '$returned' THEN 1 ELSE 0 END) as online_orders"),
+                DB::raw("SUM(CASE WHEN channel = 'social' AND status != '$returned' THEN 1 ELSE 0 END) as social_orders")
             )
             ->groupBy('day')
             ->get()
@@ -296,9 +299,11 @@ class ReportController extends Controller
                     'revenue' => round($revenue),
                     'pos_revenue' => round((float) ($m->pos_revenue ?? 0)),
                     'online_revenue' => round((float) ($m->online_revenue ?? 0)),
+                    'social_revenue' => round((float) ($m->social_revenue ?? 0)),
                     'orders_count' => (int) ($m->orders_count ?? 0),
                     'pos_orders' => (int) ($m->pos_orders ?? 0),
                     'online_orders' => (int) ($m->online_orders ?? 0),
+                    'social_orders' => (int) ($m->social_orders ?? 0),
                     'items_sold' => (int) ($g->items_sold ?? 0),
                     'cogs' => round($cogs),
                     'pos_cogs' => round((float) ($g->pos_cogs ?? 0)),
@@ -316,9 +321,11 @@ class ReportController extends Controller
                 'revenue' => round((float) $days->sum('revenue')),
                 'pos_revenue' => round((float) $days->sum('pos_revenue')),
                 'online_revenue' => round((float) $days->sum('online_revenue')),
+                'social_revenue' => round((float) $days->sum('social_revenue')),
                 'orders_count' => (int) $days->sum('orders_count'),
                 'pos_orders' => (int) $days->sum('pos_orders'),
                 'online_orders' => (int) $days->sum('online_orders'),
+                'social_orders' => (int) $days->sum('social_orders'),
                 'items_sold' => (int) $days->sum('items_sold'),
                 'cogs' => round((float) $days->sum('cogs')),
                 'pos_cogs' => round((float) $days->sum('pos_cogs')),

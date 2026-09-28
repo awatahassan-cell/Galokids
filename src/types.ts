@@ -52,6 +52,7 @@ export interface Order {
   totalAmount: number;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
   date: string;
+  createdAt?: string;
   shippingAddress: string;
   /** How many units of this order came back, summed over every refund on it. */
   returnedQuantity?: number;
@@ -59,6 +60,9 @@ export interface Order {
   totalQuantity?: number;
   /** True when every unit came back — the whole receipt, not part of it. */
   fullyReturned?: boolean;
+  channel?: 'pos' | 'online' | 'social' | string;
+  source?: string;
+  shippingFee?: number;
 }
 
 export interface Expense {

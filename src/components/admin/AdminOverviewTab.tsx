@@ -58,6 +58,8 @@ export interface AdminOverviewTabProps {
     webOrderCount?: number;
     webCogs?: number;
     webGrossProfit?: number;
+    socialRevenue?: number;
+    socialOrderCount?: number;
   };
   products: Product[];
   orders: Order[];
@@ -85,11 +87,12 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
   const { language } = useLanguage();
   const { fetchDailyReport } = useStore();
   const L = (key: string) => adminTr(key, language);
-  const [selectedChannel, setSelectedChannel] = useState<'all' | 'pos' | 'online'>('all');
+  const [selectedChannel, setSelectedChannel] = useState<'all' | 'pos' | 'online' | 'social'>('all');
 
   const displayOrders = useMemo(() => {
     if (selectedChannel === 'pos') return reportData.filteredOrders.filter(isPosOrder);
-    if (selectedChannel === 'online') return reportData.filteredOrders.filter(o => !isPosOrder(o));
+    if (selectedChannel === 'social') return reportData.filteredOrders.filter(o => o.channel === 'social' || (o as any).source === 'social');
+    if (selectedChannel === 'online') return reportData.filteredOrders.filter(o => !isPosOrder(o) && o.channel !== 'social' && (o as any).source !== 'social');
     return reportData.filteredOrders;
   }, [reportData.filteredOrders, selectedChannel]);
 
@@ -192,34 +195,46 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
           </div>
 
           {/* Connected Glowing Pods */}
-          <div className="flex items-center gap-2 md:gap-4 overflow-x-auto py-2">
-            <div className="bg-white border border-slate-100 p-4 px-6 rounded-3xl shadow-xs flex flex-col items-center min-w-[130px]">
+          <div className="flex items-center gap-2 md:gap-3 overflow-x-auto py-2">
+            <div className="bg-white border border-slate-100 p-3.5 px-5 rounded-3xl shadow-xs flex flex-col items-center min-w-[120px]">
               <span className="text-[11px] font-extrabold text-slate-900">{formatIQD(reportData.posRevenue || 0)}</span>
               <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{L("POS Sales")}</span>
             </div>
 
-            <div className="bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-500 text-white p-5 px-8 rounded-3xl shadow-xl shadow-purple-500/25 flex flex-col items-center min-w-[150px] scale-105">
-              <span className="text-xl font-black">{formatIQD(reportData.webRevenue || 0)}</span>
+            <div className="bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-500 text-white p-4 px-6 rounded-3xl shadow-lg shadow-purple-500/20 flex flex-col items-center min-w-[130px]">
+              <span className="text-lg font-black">{formatIQD(reportData.webRevenue || 0)}</span>
               <span className="text-[10px] text-purple-200 font-extrabold uppercase mt-0.5">{L("Website Sales")}</span>
             </div>
 
-            <div className="bg-white border border-slate-100 p-4 px-6 rounded-3xl shadow-xs flex flex-col items-center min-w-[130px]">
+            <div className="bg-gradient-to-tr from-pink-500 via-rose-500 to-pink-600 text-white p-4 px-6 rounded-3xl shadow-lg shadow-pink-500/20 flex flex-col items-center min-w-[130px]">
+              <span className="text-lg font-black">{formatIQD(reportData.socialRevenue || 0)}</span>
+              <span className="text-[10px] text-pink-100 font-extrabold uppercase mt-0.5">{language === 'ku' ? 'فرۆشتنی پەیج' : language === 'ar' ? 'مبيعات البيجات' : 'Page Sales'}</span>
+            </div>
+
+            <div className="bg-white border border-slate-100 p-3.5 px-5 rounded-3xl shadow-xs flex flex-col items-center min-w-[120px]">
               <span className="text-[11px] font-extrabold text-slate-900">{formatIQD(reportData.netProfit)}</span>
               <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{L("Net Profit")}</span>
             </div>
           </div>
 
           {/* Right Action Buttons */}
-          <div className="flex items-center gap-3 self-end xl:self-auto">
+          <div className="flex items-center gap-2 flex-wrap self-end xl:self-auto">
+            <button
+              onClick={() => setActiveTab('social-orders')}
+              className="px-4 py-2.5 bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-bold rounded-full transition-all cursor-pointer border border-pink-200 flex items-center gap-1.5"
+            >
+              <span>📱</span>
+              <span>{language === 'ku' ? 'فرۆشتنەکانى پەیج' : 'Page Sales'}</span>
+            </button>
             <button
               onClick={() => setActiveTab('orders')}
-              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-full transition-all cursor-pointer"
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-full transition-all cursor-pointer"
             >
               {L("Manage Orders")}
             </button>
             <button
               onClick={() => setActiveTab('products')}
-              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-full shadow-md transition-all cursor-pointer active:scale-95"
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-full shadow-md transition-all cursor-pointer active:scale-95"
             >
               {L("+ Add Product")}
             </button>
@@ -320,9 +335,16 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
                     🛍️
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-slate-900">
-                      {order.customerName ? L(order.customerName) : L('Guest Customer')}
-                    </h4>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="text-xs font-bold text-slate-900">
+                        {order.customerName ? order.customerName : L('Guest Customer')}
+                      </h4>
+                      {order.channel === 'social' || (order as any).source === 'social' ? (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-pink-50 text-pink-700 border border-pink-200">
+                          📱 {language === 'ku' ? 'پەیج' : 'Page'}
+                        </span>
+                      ) : null}
+                    </div>
                     <span className="text-[10px] text-slate-400">{L("Order")} #{order.id}</span>
                   </div>
                 </div>

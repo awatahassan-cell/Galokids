@@ -33,7 +33,7 @@ export interface SalesReportQuery {
 export interface OrderQuery {
   page?: number;
   limit?: number;
-  channel?: 'pos' | 'online';
+  channel?: 'pos' | 'online' | 'social';
   status?: string;
   from?: string;
   to?: string;
@@ -155,7 +155,7 @@ interface StoreContextType {
   updateProduct: (product: Product) => Promise<void>;
   updateCategory: (category: Category) => void;
   updateExpense: (expense: Expense) => void;
-  updateUser: (user: User) => Promise<void>;
+  updateUser: (userOrId: User | string | number, userData?: any) => Promise<any>;
   addUser: (userData: any) => Promise<void>;
   /** Local-only guess. Prefer the async `checkPhoneRegistered` — see below. */
   isPhoneRegistered: (phone: string) => boolean;
@@ -2104,6 +2104,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // The governorate decides the delivery charge. The server recalculates the
     // fee from it, so sending it is what makes the customer's total match.
     if ((orderData as any).governorate) payload.governorate = (orderData as any).governorate;
+    if ((orderData as any).shippingFee !== undefined) payload.shipping_fee = Number((orderData as any).shippingFee);
+    else if ((orderData as any).shipping_fee !== undefined) payload.shipping_fee = Number((orderData as any).shipping_fee);
     if (orderData.couponCode) payload.coupon_code = orderData.couponCode;
     if (orderData.discountAmount !== undefined) payload.discount_amount = orderData.discountAmount;
     if (orderData.amountPaid !== undefined) payload.amount_paid = orderData.amountPaid;
@@ -2316,15 +2318,46 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }).catch(err => console.warn('Expense update note:', err));
   };
 
-  const updateUser = (user: User) => {
-    // Staff (3) used to be collapsed into Cashier (2) here, so the role picked
-    // in the dashboard was not the role that got saved.
-    const previousUser = users.find(u => u?.id === user.id);
-    const updatedUserObj: User = { ...user, role: normalizeRole(user.role) };
-    setUsers(prev => prev.map(u => u?.id === user.id ? updatedUserObj : u));
-    return authedApiFetch(`${LARAVEL_API_BASE}/users/${user.id}`, {
+  const updateUser = (userOrId: User | string | number, possibleData?: any) => {
+    let targetId: string;
+    let payloadData: any;
+
+    if (typeof userOrId === 'string' || typeof userOrId === 'number') {
+      targetId = String(userOrId);
+      payloadData = possibleData || {};
+    } else if (userOrId && typeof userOrId === 'object') {
+      targetId = String((userOrId as any).id);
+      payloadData = possibleData ? { ...userOrId, ...possibleData } : userOrId;
+    } else {
+      const err = new Error('Invalid user or ID provided');
+      toast(err.message, 'error');
+      return Promise.reject(err);
+    }
+
+    if (!targetId || targetId === 'undefined' || targetId === 'null') {
+      const err = new Error('User ID is invalid or missing');
+      toast(err.message, 'error');
+      return Promise.reject(err);
+    }
+
+    const previousUser = users.find(u => String(u?.id) === targetId);
+    const updatedUserObj: User = {
+      ...(previousUser || {}),
+      ...payloadData,
+      id: targetId,
+      role: normalizeRole(payloadData.role !== undefined ? payloadData.role : previousUser?.role),
+    };
+
+    setUsers(prev => prev.map(u => String(u?.id) === targetId ? updatedUserObj : u));
+
+    const cleanPayload = convertKeysToSnakeCase(payloadData);
+    if (cleanPayload && typeof cleanPayload === 'object') {
+      delete cleanPayload.id;
+    }
+
+    return authedApiFetch(`${LARAVEL_API_BASE}/users/${targetId}`, {
       method: 'PUT',
-      body: JSON.stringify(convertKeysToSnakeCase(updatedUserObj)),
+      body: JSON.stringify(cleanPayload),
     })
       .then(async res => {
         if (!res.ok) {
@@ -2335,12 +2368,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       })
       .then(saved => {
         const camelUser = convertKeysToCamelCase(saved);
-        setUsers(prev => prev.map(u => u?.id === user.id ? { ...u, ...camelUser } : u));
+        setUsers(prev => {
+          const updated = prev.map(u => String(u?.id) === targetId ? { ...u, ...camelUser } : u);
+          try {
+            localStorage.setItem('kidskart_users_local', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+        return camelUser;
       })
       .catch(err => {
         // Roll back so the table never shows a change the server rejected.
         if (previousUser) {
-          setUsers(prev => prev.map(u => u?.id === user.id ? previousUser : u));
+          setUsers(prev => prev.map(u => String(u?.id) === targetId ? previousUser : u));
         }
         toast(err?.message || 'نوێکردنەوەی بەکارهێنەر سەرکەوتوو نەبوو', 'error');
         // Rethrow so the form that awaited this does not then announce success.

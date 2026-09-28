@@ -29,6 +29,10 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}): Pro
     ...(options.headers as Record<string, string> | undefined),
   };
 
+  if (typeof options.body === 'string' && !headers['Content-Type'] && !headers['content-type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   if (!headers.Authorization) {
     let token: string | null = null;
     try {

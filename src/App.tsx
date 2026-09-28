@@ -7,6 +7,7 @@ import { Products } from './pages/Products';
 // The admin dashboard (with recharts) and POS are the biggest wins here.
 const Admin = lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
 const POS = lazy(() => import('./pages/POS').then(m => ({ default: m.POS })));
+const PageOrders = lazy(() => import('./pages/PageOrders').then(m => ({ default: m.PageOrders })));
 const ProductDetail = lazy(() => import('./pages/ProductDetail').then(m => ({ default: m.ProductDetail })));
 const Cart = lazy(() => import('./pages/Cart').then(m => ({ default: m.Cart })));
 const Checkout = lazy(() => import('./pages/Checkout').then(m => ({ default: m.Checkout })));
@@ -102,6 +103,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       '/track': 'Track Your Order — Galo Kids',
       '/wishlist': 'Wishlist — Galo Kids',
       '/checkout': 'Checkout — Galo Kids',
+      '/page-orders': 'Social Orders — Galo Kids',
     };
     document.title = map[location.pathname] || 'Galo Kids';
   }, [location.pathname]);
@@ -113,7 +115,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const isPos = location.pathname.startsWith('/pos');
   const isAdmin = location.pathname.startsWith('/admin');
-  const isAdminOrPos = isAdmin || isPos;
+  const isPageOrders = location.pathname.startsWith('/page-orders');
+  const isAdminOrPos = isAdmin || isPos || isPageOrders;
 
   return (
     <div className={`min-h-screen bg-gradient-to-b from-bubble-50/50 via-candy-50/30 via-amber-50/10 to-slate-50/80 flex flex-col ${language === 'ar' || language === 'ku' ? 'font-arabic' : 'font-sans'} selection:bg-candy-200 selection:text-candy-800 relative`}>
@@ -447,6 +450,7 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/admin" element={<ProtectedRoute><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
         <Route path="/admin/:tab" element={<ProtectedRoute><PageTransition key={routeKey}><Admin /></PageTransition></ProtectedRoute>} />
         <Route path="/pos" element={<ProtectedRoute><PageTransition key={routeKey}><POS /></PageTransition></ProtectedRoute>} />
+        <Route path="/page-orders" element={<ProtectedRoute><PageTransition key={routeKey}><PageOrders /></PageTransition></ProtectedRoute>} />
         <Route path="/login" element={<PageTransition key={routeKey}><Login /></PageTransition>} />
         <Route path="/register" element={<PageTransition key={routeKey}><Register /></PageTransition>} />
         <Route path="/my-orders" element={<PageTransition key={routeKey}><MyOrders /></PageTransition>} />

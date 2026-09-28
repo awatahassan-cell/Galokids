@@ -90,7 +90,7 @@ export const buildOrderWhatsAppMessage = (order: Order, language: string): strin
 export const isPosOrder = (order: any): boolean => {
   if (!order) return false;
   if (order.channel === 'pos' || order.source === 'pos' || order.isPos === true) return true;
-  if (order.channel === 'online' || order.source === 'online' || order.channel === 'web') return false;
+  if (order.channel === 'online' || order.source === 'online' || order.channel === 'web' || order.channel === 'social' || order.source === 'social') return false;
   const addr = String(order.shippingAddress || '').toLowerCase();
   const email = String(order.customerEmail || '').toLowerCase();
   const name = String(order.customerName || '').toLowerCase();
@@ -98,6 +98,23 @@ export const isPosOrder = (order: any): boolean => {
   if (email.includes('cashier') || email === 'cashier@galokids.com') return true;
   if (name.includes('pos cash sale')) return true;
   return false;
+};
+
+export const isPageOrder = (order: any): boolean => {
+  if (!order) return false;
+  if (order.channel === 'social' || order.source === 'social') return true;
+  const email = String(order.customerEmail || '').toLowerCase();
+  if (email.includes('@galokids.orders') || email.includes('social@')) return true;
+  const addr = String(order.shippingAddress || '').toLowerCase();
+  if (addr.includes('source: social') || addr.includes('source:') || addr.includes('پەیج')) return true;
+  return false;
+};
+
+export const isWebsiteOrder = (order: any): boolean => {
+  if (!order) return false;
+  if (isPosOrder(order)) return false;
+  if (isPageOrder(order)) return false;
+  return true;
 };
 
 export interface AdminOrdersTabProps {
@@ -117,6 +134,8 @@ export interface AdminOrdersTabProps {
   refreshOrders?: (page?: number, limit?: number) => void;
   confirmDialog?: (options: any) => Promise<boolean>;
   toast?: (msg: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
+  defaultChannel?: 'all' | 'online' | 'social';
+  tabTitle?: string;
 }
 
 export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
@@ -125,6 +144,8 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   deleteOrder,
   confirmDialog: propConfirmDialog,
   toast: propToast,
+  defaultChannel,
+  tabTitle,
 }) => {
   const { language } = useLanguage();
   const { refreshOrders, bulkDelete, bulkOrderStatus, currentUser, fetchOrderCounts, ordersPagination } = useStore();
@@ -133,6 +154,14 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   const hookToast = useToast();
   const confirmDialog = propConfirmDialog || hookConfirm;
   const toast = propToast || hookToast;
+
+  const [channelFilter, setChannelFilter] = useState<'all' | 'online' | 'social'>(defaultChannel || 'all');
+
+  useEffect(() => {
+    if (defaultChannel) {
+      setChannelFilter(defaultChannel);
+    }
+  }, [defaultChannel]);
 
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [selectedOrderForModal, setSelectedOrderForModal] = useState<Order | null>(null);
@@ -211,7 +240,11 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   // it as the whole shop.
   const query = useMemo(() => {
     const today = shopToday();
-    const q: OrderQuery = { channel: 'online', page: currentPage, limit: itemsPerPage };
+    const q: OrderQuery = { page: currentPage, limit: itemsPerPage };
+
+    if (channelFilter !== 'all') {
+      q.channel = channelFilter;
+    }
 
     if (statusFilter !== 'all') q.status = statusFilter;
     if (debouncedSearch) q.search = debouncedSearch;
@@ -228,7 +261,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     }
 
     return q;
-  }, [currentPage, statusFilter, dateFilter, customDate, debouncedSearch, itemsPerPage]);
+  }, [currentPage, channelFilter, statusFilter, dateFilter, customDate, debouncedSearch, itemsPerPage]);
 
   useEffect(() => {
     if (refreshOrders) refreshOrders(query);
@@ -242,11 +275,69 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    fetchOrderCounts({ channel: 'online', from: query.from, to: query.to, search: query.search })
-      .then(data => { if (!cancelled) setCounts(prev => ({ ...prev, ...data })); })
-      .catch(() => { /* keep the last known figures rather than flashing zeroes */ });
+    const countQuery: OrderQuery = {
+      from: query.from,
+      to: query.to,
+      search: query.search
+    };
+    if (channelFilter !== 'all') {
+      countQuery.channel = channelFilter;
+    }
+
+    fetchOrderCounts(countQuery)
+      .then(data => {
+        if (cancelled) return;
+        if (channelFilter === 'social') {
+          // Strictly count from page orders so website orders never bleed into page orders counts
+          const socialOrders = orders.filter(isPageOrder);
+          setCounts({
+            total: socialOrders.length,
+            pending: socialOrders.filter(o => o.status === 'pending' || !o.status).length,
+            processing: socialOrders.filter(o => o.status === 'processing').length,
+            shipped: socialOrders.filter(o => o.status === 'shipped').length,
+            delivered: socialOrders.filter(o => o.status === 'delivered').length,
+            cancelled: socialOrders.filter(o => o.status === 'cancelled').length,
+            returned: socialOrders.filter(o => o.status === 'returned').length,
+            newAndPending: socialOrders.filter(o => o.status === 'pending' || !o.status).length,
+          });
+        } else if (channelFilter === 'online') {
+          const socialCount = orders.filter(isPageOrder).length;
+          if (socialCount > 0 && data.total) {
+            const webOrders = orders.filter(isWebsiteOrder);
+            setCounts({
+              total: webOrders.length,
+              pending: webOrders.filter(o => o.status === 'pending' || !o.status).length,
+              processing: webOrders.filter(o => o.status === 'processing').length,
+              shipped: webOrders.filter(o => o.status === 'shipped').length,
+              delivered: webOrders.filter(o => o.status === 'delivered').length,
+              cancelled: webOrders.filter(o => o.status === 'cancelled').length,
+              returned: webOrders.filter(o => o.status === 'returned').length,
+              newAndPending: webOrders.filter(o => o.status === 'pending' || !o.status).length,
+            });
+          } else {
+            setCounts(prev => ({ ...prev, ...data }));
+          }
+        } else {
+          setCounts(prev => ({ ...prev, ...data }));
+        }
+      })
+      .catch(() => {
+        if (channelFilter === 'social') {
+          const socialOrders = orders.filter(isPageOrder);
+          setCounts({
+            total: socialOrders.length,
+            pending: socialOrders.filter(o => o.status === 'pending' || !o.status).length,
+            processing: socialOrders.filter(o => o.status === 'processing').length,
+            shipped: socialOrders.filter(o => o.status === 'shipped').length,
+            delivered: socialOrders.filter(o => o.status === 'delivered').length,
+            cancelled: socialOrders.filter(o => o.status === 'cancelled').length,
+            returned: socialOrders.filter(o => o.status === 'returned').length,
+            newAndPending: socialOrders.filter(o => o.status === 'pending' || !o.status).length,
+          });
+        }
+      });
     return () => { cancelled = true; };
-  }, [query.from, query.to, query.search, fetchOrderCounts, orders]);
+  }, [query.from, query.to, query.search, channelFilter, fetchOrderCounts, orders]);
 
   const handleManualRefresh = async () => {
     if (isRefreshing || !refreshOrders) return;
@@ -261,13 +352,20 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
     }
   };
 
-  // Strictly ensure only online website orders appear in this tab.
-  const filteredOrders = useMemo(() => orders.filter(o => !isPosOrder(o)), [orders]);
+  // Strictly ensure only non-pos orders appear in this tab, matching channel filter.
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => {
+      if (isPosOrder(o)) return false;
+      if (channelFilter === 'social') return isPageOrder(o);
+      if (channelFilter === 'online') return isWebsiteOrder(o);
+      return true;
+    });
+  }, [orders, channelFilter]);
 
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, dateFilter, customDate]);
+  }, [searchTerm, statusFilter, dateFilter, customDate, channelFilter]);
 
   // Paging is the server's answer too, so a page is never a slice of a slice.
   const totalPages = ordersPagination?.lastPage || 1;
@@ -334,17 +432,36 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100/80">
         <div>
-          <h2 className="text-xl font-black text-slate-900 flex items-center gap-3">
+          <h2 className="text-xl font-black text-slate-900 flex items-center gap-2.5">
             <ShoppingBag className="w-6 h-6 text-indigo-600" />
-            <span>{language === 'ku' ? 'داواکارییەکانی وێبسایت' : language === 'ar' ? 'طلبات الموقع الإلكتروني' : 'Website Orders'}</span>
-            <span className="px-3 py-1 text-xs font-black bg-indigo-600 text-white rounded-full shadow-xs">
-              {counts.total} {language === 'ku' ? 'داواکاری' : 'Orders'}
+            <span>
+              {tabTitle || (
+                channelFilter === 'social'
+                  ? (language === 'ku' ? 'فرۆشتنەکانى پەیج' : language === 'ar' ? 'مبيعات البيجات' : 'Page Sales')
+                  : channelFilter === 'online'
+                  ? (language === 'ku' ? 'داواکارییەکانی وێبسایت' : language === 'ar' ? 'طلبات الموقع الإلكتروني' : 'Website Orders')
+                  : (language === 'ku' ? 'داواکارییەکان' : language === 'ar' ? 'الطلبات' : 'Orders')
+              )}
             </span>
+            {counts.pending > 0 ? (
+              <span className="px-3 py-1 text-xs font-black bg-amber-500 text-white rounded-full shadow-xs animate-pulse">
+                {counts.pending} {language === 'ku' ? 'داواکاری چاوەڕوان' : language === 'ar' ? 'طلب معلق' : 'Pending'}
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 text-xs font-bold bg-slate-100 text-slate-500 rounded-full border border-slate-200">
+                0 {language === 'ku' ? 'چاوەڕوان' : language === 'ar' ? 'معلق' : 'Pending'}
+              </span>
+            )}
           </h2>
+
           <p className="text-xs text-slate-500 mt-1 font-medium">
-            {language === 'ku'
-              ? 'بینین، گەڕان و نوێکردنەوەی داواکارییە ئۆنلاینەکانی کڕیارانی وێبسایت بە زانیاری ئایتمەکان'
-              : 'Filter, search and update online website customer orders'}
+            {channelFilter === 'social'
+              ? (language === 'ku'
+                ? 'بینین، گەڕان و بەڕێوەبردنی فرۆشتنەکانی پەیج و دۆخی ناردنیان'
+                : 'Filter, search and manage orders placed through social media pages and their shipping status')
+              : (language === 'ku'
+                ? 'بینین، گەڕان و نوێکردنەوەی داواکارییە ئۆنلاینەکانی کڕیارانی وێبسایت بە زانیاری ئایتمەکان'
+                : 'Filter, search and update online website customer orders')}
           </p>
         </div>
 
@@ -516,7 +633,7 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             {paginatedOrders.length === 0 ? (
               <tr>
                 <td colSpan={8} className="text-center py-10 text-slate-400 font-medium">
-                  {language === 'ku' ? 'هیچ داواکارییەکی وێبسایت بەم فلتەرانە نەدۆزرایەوە' : 'No website orders found with current filters'}
+                  {language === 'ku' ? 'هیچ داواکارییەک بەم فلتەرانە نەدۆزرایەوە' : 'No orders found with current filters'}
                 </td>
               </tr>
             ) : (
@@ -553,7 +670,18 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                           >
                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                           </button>
-                          <span className="font-extrabold text-slate-900">#{order.id}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-extrabold text-slate-900">#{order.id}</span>
+                            {order.channel === 'social' || (order as any).source === 'social' ? (
+                              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-pink-50 text-pink-700 border border-pink-200 inline-flex items-center gap-1 shadow-2xs">
+                                📱 {language === 'ku' ? 'پەیج' : language === 'ar' ? 'بيج' : 'Page'}
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1 shadow-2xs">
+                                🌐 {language === 'ku' ? 'وێبسایت' : language === 'ar' ? 'موقع' : 'Web'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
 
@@ -851,9 +979,20 @@ export const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                   <ShoppingBag className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 text-lg">
-                    {language === 'ku' ? 'زانیاری داواکاری' : 'Order Details'} #{selectedOrderForModal.id}
-                  </h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-black text-slate-900 text-lg">
+                      {language === 'ku' ? 'زانیاری داواکاری' : 'Order Details'} #{selectedOrderForModal.id}
+                    </h3>
+                    {selectedOrderForModal.channel === 'social' || (selectedOrderForModal as any).source === 'social' ? (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-pink-100 text-pink-700 border border-pink-200 inline-flex items-center gap-1">
+                        📱 {language === 'ku' ? 'ئۆردەری پەیج' : language === 'ar' ? 'طلب بيج' : 'Page Order'}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-blue-100 text-blue-700 border border-blue-200 inline-flex items-center gap-1">
+                        🌐 {language === 'ku' ? 'وێبسایت' : language === 'ar' ? 'الموقع' : 'Website'}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 font-medium">{selectedOrderForModal.date}</p>
                 </div>
               </div>

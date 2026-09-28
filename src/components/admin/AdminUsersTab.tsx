@@ -26,7 +26,7 @@ export interface AdminUsersTabProps {
   orders: Order[];
   currentUser: User | null;
   addUser: (userData: any) => Promise<any> | void;
-  updateUser: (id: string, userData: any) => Promise<any> | void;
+  updateUser: (userOrId: User | string | number, userData?: any) => Promise<any> | void;
   deleteUser: (id: string) => Promise<any> | void;
   bulkDelete: (type: 'users', ids: string[]) => Promise<{ success: boolean; deleted?: number; message?: string }>;
   confirmDialog: (options: any) => Promise<boolean>;
@@ -228,7 +228,7 @@ export const AdminUsersTab: React.FC<AdminUsersTabProps> = ({
         setIsAddModalOpen(false);
       }
     } catch (err: any) {
-      toast(err?.message || 'Error saving user', 'error');
+      console.error('Error saving user:', err);
     } finally {
       setIsSubmitting(false);
     }

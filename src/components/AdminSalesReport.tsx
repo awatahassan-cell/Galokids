@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { formatIQDLabel } from '../utils/currency';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, DollarSign, Package, Percent, RefreshCcw, Users, Store, Globe } from 'lucide-react';
+import { TrendingUp, DollarSign, Package, Percent, RefreshCcw, Users, Store, Globe, Smartphone } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
 import { shopToday, shopDaysAgo, shopMonthStart, shopYearStart } from '../utils/shopTime';
@@ -51,6 +51,7 @@ export const AdminSalesReport: React.FC = () => {
   // admin-only — the cards disagreed with the revenue, and a cashier saw zero.
   const totalPosSales = Number(report?.pos_revenue || 0);
   const totalOnlineSales = Number(report?.online_revenue || 0);
+  const totalSocialSales = Number(report?.social_revenue || 0);
 
   const stat = (label: string, value: string, Icon: any, color: string) => (
     <div className="bg-white/80 backdrop-blur-xl border border-white/80 p-5 rounded-[2rem] shadow-[0_10px_30px_-5px_rgba(180,195,215,0.4)]">
@@ -78,6 +79,7 @@ export const AdminSalesReport: React.FC = () => {
           <select value={channel} onChange={e => setChannel(e.target.value)} className="bg-slate-100/80 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
             <option value="">{L("All")}</option>
             <option value="online">{L("Online (Website)")}</option>
+            <option value="social">{language === 'ku' ? 'فرۆشتنەکانى پەیج' : language === 'ar' ? 'مبيعات البيجات' : 'Page Sales'}</option>
             <option value="pos">{L("In-store (POS)")}</option>
           </select>
         </div>
@@ -105,9 +107,9 @@ export const AdminSalesReport: React.FC = () => {
             {stat(L('Orders'), String(report.order_count), Package, 'bg-amber-50 text-amber-600')}
           </div>
 
-          {/* POS vs Website Breakdown Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+          {/* POS vs Website vs Social Page Breakdown Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 p-5 rounded-2xl flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-200">
                   <Store className="w-6 h-6" />
@@ -125,7 +127,7 @@ export const AdminSalesReport: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 p-5 rounded-2xl flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200">
                   <Globe className="w-6 h-6" />
@@ -139,6 +141,24 @@ export const AdminSalesReport: React.FC = () => {
                 <p className="text-xl font-black text-emerald-900">{formatIQDLabel(totalOnlineSales)}</p>
                 <span className="inline-block mt-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                   Web ({L("Online")})
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-100 p-5 rounded-2xl flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-pink-600 text-white flex items-center justify-center font-bold shadow-md shadow-pink-200">
+                  <Smartphone className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-base">{language === 'ku' ? 'فرۆشتنەکانى پەیج' : language === 'ar' ? 'مبيعات البيجات' : 'Page Sales'}</h4>
+                  <p className="text-xs text-slate-500">{language === 'ku' ? 'داواکارییەکانی پەیج' : 'Social page orders'}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-black text-pink-900">{formatIQDLabel(totalSocialSales)}</p>
+                <span className="inline-block mt-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-800">
+                  {language === 'ku' ? 'پەیجەکان' : language === 'ar' ? 'البيجات' : 'Social'}
                 </span>
               </div>
             </div>

@@ -291,6 +291,8 @@ export const TAB_PERMISSION_MAP: Record<string, string> = {
   'labels': 'labels.print',
   'barcode-stickers': 'labels.print',
   'orders': 'orders.view',
+  'social-orders': 'orders.view',
+  'page-orders': 'orders.manage',
   'pos-sales': 'pos.reports',
   'expenses': 'expenses.manage',
   'coupons': 'coupons.manage',

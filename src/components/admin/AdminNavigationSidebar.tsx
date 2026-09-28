@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   BarChart3, Calendar, TrendingUp, Package, Tags, ShoppingBag, 
   Users, DollarSign, Star, Ticket, Image as ImageIcon, Settings, 
   Languages, FileText, X, ChevronLeft, ChevronRight, Store, Boxes,
-  History, ShieldCheck, MessageSquare
+  History, ShieldCheck, MessageSquare, Truck, Smartphone, PlusCircle
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { adminTr } from '../../i18n/adminDict';
@@ -16,6 +17,7 @@ export interface AdminNavigationSidebarProps {
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (open: boolean) => void;
   newAndPendingOrdersCount: number;
+  newAndPendingSocialOrdersCount?: number;
   currentUser?: any;
 }
 
@@ -27,11 +29,22 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
     isMobileMenuOpen,
     setIsMobileMenuOpen,
     newAndPendingOrdersCount,
+    newAndPendingSocialOrdersCount = 0,
     currentUser,
   }) => {
+    const navigate = useNavigate();
     const { t, language } = useLanguage();
     const L = (key: string) => adminTr(key, language);
     const isRTL = language === 'ar' || language === 'ku';
+
+    const handleItemClick = useCallback((item: any) => {
+      if (item.path) {
+        navigate(item.path);
+        setIsMobileMenuOpen(false);
+      } else {
+        setActiveTab(item.id);
+      }
+    }, [navigate, setActiveTab, setIsMobileMenuOpen]);
 
     // Floating Portal Tooltip State
     const [activeTooltip, setActiveTooltip] = useState<{ label: string; top: number; right?: number; left?: number } | null>(null);
@@ -97,7 +110,9 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
         title: language === 'ku' ? 'فرۆشتن' : language === 'ar' ? 'مبيعات' : 'SALES',
         items: [
           { id: 'orders', label: language === 'ku' ? 'داواکارییەکانی وێبسایت' : language === 'ar' ? 'طلبات الموقع' : 'Website Orders', icon: ShoppingBag, adminOnly: false, badge: newAndPendingOrdersCount },
+          { id: 'social-orders', label: language === 'ku' ? 'فرۆشتنەکانى پەیج' : language === 'ar' ? 'مبيعات البيجات' : 'Page Sales', icon: Smartphone, adminOnly: false, badge: newAndPendingSocialOrdersCount },
           { id: 'pos-sales', label: language === 'ku' ? 'فرۆشتنەکانی POS' : language === 'ar' ? 'مبيعات POS' : 'POS Sales', icon: Store, adminOnly: false },
+          { id: 'page-orders', label: language === 'ku' ? 'تۆمارکردنی داواکاری پەیج' : language === 'ar' ? 'تسجيل طلبات البيجات' : 'New Page Order', icon: PlusCircle, adminOnly: false, path: '/page-orders' },
           { id: 'expenses', label: t('manageExpenses') || 'Expenses', icon: DollarSign, adminOnly: false },
           { id: 'coupons', label: L("Coupons"), icon: Ticket, adminOnly: false },
           { id: 'banner', label: L("Banner"), icon: ImageIcon, adminOnly: false },
@@ -167,7 +182,7 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
                       return (
                         <div key={`collapsed-${item.id}`} className="relative flex items-center justify-center">
                           <button
-                            onClick={() => setActiveTab(item.id)}
+                            onClick={() => handleItemClick(item)}
                             onMouseEnter={(e) => handleMouseEnter(e, item.label)}
                             onMouseLeave={handleMouseLeave}
                             className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer relative ${
@@ -191,7 +206,7 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
                     return (
                       <button
                         key={`expanded-${item.id}`}
-                        onClick={() => setActiveTab(item.id)}
+                        onClick={() => handleItemClick(item)}
                         className={`group w-full flex items-center justify-between py-2.5 px-3.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                           isActive
                             ? 'bg-slate-900 text-white shadow-md shadow-slate-900/10'
@@ -300,10 +315,7 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
                           return (
                             <button
                               key={`mob-item-${item.id}`}
-                              onClick={() => {
-                                setActiveTab(item.id);
-                                setIsMobileMenuOpen(false);
-                              }}
+                              onClick={() => handleItemClick(item)}
                               className={`w-full flex items-center justify-between py-3 px-4 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                                 isActive
                                   ? 'bg-slate-900 text-white shadow-md'
@@ -344,6 +356,7 @@ export const AdminNavigationSidebar = React.memo<AdminNavigationSidebarProps>(
     prevProps.isAdmin === nextProps.isAdmin &&
     prevProps.isMobileMenuOpen === nextProps.isMobileMenuOpen &&
     prevProps.newAndPendingOrdersCount === nextProps.newAndPendingOrdersCount &&
+    prevProps.newAndPendingSocialOrdersCount === nextProps.newAndPendingSocialOrdersCount &&
     prevProps.currentUser === nextProps.currentUser
   );
 });

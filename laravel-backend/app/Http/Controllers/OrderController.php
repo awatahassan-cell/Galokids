@@ -266,7 +266,7 @@ class OrderController extends Controller
         $request->validate([
             'page' => 'nullable|integer|min:1',
             'limit' => 'nullable|integer|min:1',
-            'channel' => 'nullable|string|in:pos,online',
+            'channel' => 'nullable|string|in:pos,online,social',
             'status' => 'nullable|string|in:pending,processing,shipped,delivered,cancelled,returned',
             'from' => 'nullable|date',
             'to' => 'nullable|date',
@@ -317,7 +317,7 @@ class OrderController extends Controller
         $this->requirePermission($request, 'orders.view');
 
         $request->validate([
-            'channel' => 'nullable|string|in:pos,online',
+            'channel' => 'nullable|string|in:pos,online,social',
             'from' => 'nullable|date',
             'to' => 'nullable|date',
             'search' => 'nullable|string|max:255',
@@ -397,7 +397,29 @@ class OrderController extends Controller
                 . " OR COALESCE(orders.customer_email, '') LIKE '%cashier@%'"
                 . ")";
 
-            $query->whereRaw($request->channel === 'pos' ? $tillSale : "NOT {$tillSale}");
+            $socialSale = "("
+                . "COALESCE(orders.channel, '') = 'social'"
+                . " OR COALESCE(orders.customer_email, '') LIKE '%@galokids.orders%'"
+                . " OR COALESCE(orders.customer_email, '') LIKE '%social@%'"
+                . " OR COALESCE(orders.shipping_address, '') LIKE '%source: social%'"
+                . " OR COALESCE(orders.shipping_address, '') LIKE '%پەیج%'"
+                . ")";
+
+            if ($request->channel === 'pos') {
+                $query->whereRaw($tillSale);
+            } elseif ($request->channel === 'social') {
+                $query->whereRaw($socialSale);
+            } elseif ($request->channel === 'online') {
+                $query->where(function ($q) use ($tillSale, $socialSale) {
+                    $q->where(function ($sub) {
+                        $sub->where('orders.channel', 'online')
+                            ->orWhereNull('orders.channel')
+                            ->orWhere('orders.channel', '');
+                    })
+                    ->whereRaw("NOT {$tillSale}")
+                    ->whereRaw("NOT {$socialSale}");
+                });
+            }
         }
 
         if ($request->filled('status')) {
@@ -555,6 +577,8 @@ class OrderController extends Controller
             'status' => 'nullable|string|in:pending,processing,shipped,delivered,cancelled',
             'shipping_address' => 'nullable|string|max:1000',
             'governorate' => 'nullable|string|max:120',
+            'shipping_fee' => 'nullable|numeric|min:0',
+            'channel' => 'nullable|string|max:50',
             'payment_method' => 'nullable|string|max:255',
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:255',
@@ -679,11 +703,21 @@ class OrderController extends Controller
                 $discount = min(round($discount), $subtotal);
                 $goodsTotal = max(0, $subtotal - $discount);
 
-                // Delivery is charged on web orders only — a walk-in customer
-                // carries the bag home.
-                $shippingFee = $isStaff
-                    ? 0.0
-                    : Shipping::feeFor($validated['governorate'] ?? null, $goodsTotal);
+                // Channel: staff can submit POS sale, online order, or social media page order.
+                // Regular customer checkout is always 'online'.
+                $requestedChannel = $validated['channel'] ?? $request->input('channel');
+                $channel = $isStaff ? ($requestedChannel ?: 'pos') : 'online';
+                $isPosSale = ($channel === 'pos');
+
+                // Delivery is charged on online / social / delivery orders.
+                // In-store POS walk-in carries the bag home.
+                if (isset($validated['shipping_fee'])) {
+                    $shippingFee = round((float) $validated['shipping_fee']);
+                } elseif ($isPosSale) {
+                    $shippingFee = 0.0;
+                } else {
+                    $shippingFee = Shipping::feeFor($validated['governorate'] ?? null, $goodsTotal);
+                }
 
                 $total = $goodsTotal + $shippingFee;
 
@@ -697,9 +731,9 @@ class OrderController extends Controller
                     ? (float) $validated['amount_paid'] : null;
                 $changeDue = $amountPaid !== null ? max(0, $amountPaid - $total) : null;
 
-                // Attach the cashier's open shift (POS) and a friendly invoice no.
+                // Attach the cashier's open shift only for POS in-store sales.
                 $shiftId = null;
-                if ($isStaff) {
+                if ($isStaff && $isPosSale) {
                     $shift = Shift::where('user_id', $user->id)->where('status', 'open')->first();
                     $shiftId = $shift?->id;
                 }
@@ -713,7 +747,7 @@ class OrderController extends Controller
                         $validated['customer_phone'] ?? ($user->phone ?? null)
                     ),
                     'customer_email' => $validated['customer_email'] ?? ($user->email ?? null),
-                    'status' => $isStaff ? ($validated['status'] ?? 'pending') : 'pending',
+                    'status' => $validated['status'] ?? ($isPosSale ? 'delivered' : 'pending'),
                     'subtotal' => $subtotal,
                     'discount_amount' => $discount,
                     'shipping_fee' => $shippingFee,
@@ -724,7 +758,7 @@ class OrderController extends Controller
                     'change_due' => $changeDue,
                     'shipping_address' => $validated['shipping_address'] ?? null,
                     'payment_method' => $validated['payment_method'] ?? null,
-                    'channel' => $isStaff ? 'pos' : 'online',
+                    'channel' => $channel,
                 ]);
 
                 foreach ($lineItems as $li) {
@@ -732,10 +766,7 @@ class OrderController extends Controller
                 }
 
                 // Invoice number is derived from the order id, which the
-                // database has already made unique. The old version counted
-                // today's orders and added one, so two cashiers checking out at
-                // the same moment produced the SAME invoice number — and the
-                // count was an unindexed full scan on every single sale.
+                // database has already made unique.
                 $order->invoice_no = 'INV-' . $order->created_at->format('Ymd') . '-' . str_pad((string) $order->id, 4, '0', STR_PAD_LEFT);
                 $order->save();
 
@@ -751,12 +782,16 @@ class OrderController extends Controller
                     );
                 }
 
+                $statusNote = $isPosSale 
+                    ? 'POS sale' 
+                    : ($channel === 'social' ? 'Social media / Page order' : 'Placed online');
+
                 OrderStatusHistory::create([
                     'order_id' => $order->id,
                     'from_status' => null,
                     'to_status' => $order->status,
                     'user_id' => $user->id ?? null,
-                    'note' => $isStaff ? 'POS sale' : 'Placed online',
+                    'note' => $statusNote,
                 ]);
 
                 return $order;

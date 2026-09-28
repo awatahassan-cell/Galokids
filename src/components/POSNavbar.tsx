@@ -15,7 +15,8 @@ import {
   Lock,
   CheckCircle2,
   History,
-  Wallet
+  Wallet,
+  Truck
 } from 'lucide-react';
 import { useStore } from '../store';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -203,6 +204,16 @@ export const POSNavbar: React.FC<POSNavbarProps> = ({
                 <Printer className="w-4 h-4 text-indigo-600" />
               </button>
             )}
+
+            {/* Page Orders Switcher */}
+            <Link
+              to="/page-orders"
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white rounded-2xl text-[11px] sm:text-xs font-black transition-all shadow-xs active:scale-95 flex items-center gap-1.5 cursor-pointer shrink-0"
+              title={language === 'ku' ? 'داواکاری پەیجەکان و دلیڤەری' : 'Social Media & Delivery Orders'}
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span className="whitespace-nowrap">{language === 'ku' ? 'داواکاری پەیجەکان' : language === 'ar' ? 'طلبات الصفحات' : 'Page Orders'}</span>
+            </Link>
 
             {/* Control Panel Switcher (Admin Only) */}
             {isAdminOnly && (

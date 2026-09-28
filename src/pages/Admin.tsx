@@ -29,7 +29,7 @@ import { adminTr } from "../i18n/adminDict";
 import { AdminHeader } from "../components/admin/AdminHeader";
 import { AdminNavigationSidebar } from "../components/admin/AdminNavigationSidebar";
 import { AdminOverviewTab } from "../components/admin/AdminOverviewTab";
-import { AdminOrdersTab } from "../components/admin/AdminOrdersTab";
+import { AdminOrdersTab, isWebsiteOrder, isPageOrder } from "../components/admin/AdminOrdersTab";
 import { AdminPosSalesTab } from "../components/admin/AdminPosSalesTab";
 import { AdminInventoryTab } from "../components/admin/AdminInventoryTab";
 import { AdminStockLedgerTab } from "../components/admin/AdminStockLedgerTab";
@@ -119,7 +119,7 @@ export const Admin: React.FC = () => {
   
   const { tab: urlTab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
-  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'purchases', 'inventory', 'stock-ledger', 'categories', 'orders', 'pos-sales', 'users', 'messages', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings', 'activity-log'], []);
+  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'purchases', 'inventory', 'stock-ledger', 'categories', 'orders', 'social-orders', 'pos-sales', 'users', 'messages', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings', 'activity-log'], []);
 
   const isTabPermitted = useCallback((tab: string) => {
     const requiredPerm = TAB_PERMISSION_MAP[tab];
@@ -476,12 +476,12 @@ export const Admin: React.FC = () => {
 
   const [orderFilterPeriod, setOrderFilterPeriod] = useState<'today' | 'week' | 'month'>('today');
 
-  const orderCounts = useMemo(() => {
+  const calcOrderCountsForList = useCallback((orderList: Order[]) => {
     const todayStr = shopToday();
     const sevenDaysAgoStr = shopDaysAgo(7);
     const currentMonthStr = todayStr.substring(0, 7);
 
-    const filtered = orders.filter(o => {
+    const filtered = orderList.filter(o => {
       const rawDate = o.date || o.createdAt || '';
       const dateStr = String(rawDate).split('T')[0];
       if (!dateStr || dateStr.length < 10) return true;
@@ -523,7 +523,36 @@ export const Admin: React.FC = () => {
       cancelled,
       newAndPending: pending + processing
     };
-  }, [orders, orderFilterPeriod]);
+  }, [orderFilterPeriod]);
+
+  // Overall counts for AdminOverviewTab
+  const orderCounts = useMemo(() => calcOrderCountsForList(orders), [orders, calcOrderCountsForList]);
+
+  // Specific counts for Website Orders tab
+  const webOrderCounts = useMemo(() => {
+    return calcOrderCountsForList(orders.filter(isWebsiteOrder));
+  }, [orders, calcOrderCountsForList]);
+
+  // Specific counts for Page Sales tab
+  const socialOrderCounts = useMemo(() => {
+    return calcOrderCountsForList(orders.filter(isPageOrder));
+  }, [orders, calcOrderCountsForList]);
+
+  // Notification badges: count all pending and processing orders across all time
+  // so unfulfilled orders are never hidden from the badges
+  const pendingWebOrdersCount = useMemo(() => {
+    return orders.filter(isWebsiteOrder).filter(o => {
+      const s = String(o.status || '').toLowerCase();
+      return s === 'pending' || s === 'new' || s === 'processing' || !s;
+    }).length;
+  }, [orders]);
+
+  const pendingSocialOrdersCount = useMemo(() => {
+    return orders.filter(isPageOrder).filter(o => {
+      const s = String(o.status || '').toLowerCase();
+      return s === 'pending' || s === 'new' || s === 'processing' || !s;
+    }).length;
+  }, [orders]);
 
   // Daily, Monthly, Yearly Reporting state & calculations
   const todayStr = shopToday();
@@ -580,6 +609,7 @@ export const Admin: React.FC = () => {
     const posCogs = Number(t.posCogs || 0);
     const webRevenue = Number(t.onlineRevenue || 0);
     const webCogs = Number(t.onlineCogs || 0);
+    const socialRevenue = Number(t.socialRevenue || 0);
 
     return {
       // The most recent page, for the "recent orders" list. That list wants the
@@ -603,6 +633,8 @@ export const Admin: React.FC = () => {
       webOrderCount: Number(t.onlineOrders || 0),
       webCogs,
       webGrossProfit: webRevenue - webCogs,
+      socialRevenue,
+      socialOrderCount: Number(t.socialOrders || 0),
     };
   }, [periodTotals, orders, expenses]);
 
@@ -1120,7 +1152,8 @@ export const Admin: React.FC = () => {
           isAdmin={isAdmin}
           isMobileMenuOpen={isMobileMenuOpen}
           setIsMobileMenuOpen={setIsMobileMenuOpen}
-          newAndPendingOrdersCount={orderCounts.newAndPending}
+          newAndPendingOrdersCount={pendingWebOrdersCount}
+          newAndPendingSocialOrdersCount={pendingSocialOrdersCount}
           currentUser={currentUser}
         />
 
@@ -1915,8 +1948,26 @@ export const Admin: React.FC = () => {
 
       {activeTab === 'orders' && (
         <AdminOrdersTab
+          key="orders-online"
+          defaultChannel="online"
           orders={orders}
-          orderCounts={orderCounts}
+          orderCounts={webOrderCounts}
+          updateOrderStatus={updateOrderStatus}
+          deleteOrder={deleteOrder}
+          ordersPagination={ordersPagination}
+          refreshOrders={refreshOrders}
+          confirmDialog={confirmDialog}
+          toast={toast}
+        />
+      )}
+
+      {activeTab === 'social-orders' && (
+        <AdminOrdersTab
+          key="orders-social"
+          defaultChannel="social"
+          tabTitle={language === 'ku' ? 'فرۆشتنەکانى پەیج' : language === 'ar' ? 'مبيعات البيجات' : 'Page Sales'}
+          orders={orders}
+          orderCounts={socialOrderCounts}
           updateOrderStatus={updateOrderStatus}
           deleteOrder={deleteOrder}
           ordersPagination={ordersPagination}
