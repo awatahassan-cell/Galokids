@@ -4,7 +4,7 @@ import { createServer as createViteServer } from 'vite';
 import cors from 'cors';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 const TARGET_API_BASE = 'https://galo.prodental.dev/API/api';
 
 app.use(cors());
