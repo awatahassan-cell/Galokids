@@ -23,7 +23,7 @@ function generate1000Products(): Product[] {
 
   const categories = ['c1', 'c2', 'c3', 'c4'];
   const colors = ['Blue', 'Pink', 'Green', 'Red', 'Yellow', 'Black', 'White', 'Navy'];
-  const sizes = ['S', 'M', 'L', 'XL', '2T', '3T', '4T'];
+  const sizes = ['1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '8-9'];
 
   const productTemplates = [
     { en: 'Casual Kids Tee', ku: 'تیشێرتی کواڵێتی منداڵان', ar: 'تيشيرت أطفال كاجوال' },
@@ -126,4 +126,4 @@ export const MOCK_EXPENSES: Expense[] = [
 ];
 
 export const STANDARD_COLORS = ['Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Pink', 'Purple', 'Orange', 'Gray', 'Brown', 'Navy', 'Beige'];
-export const STANDARD_SIZES = ['Newborn', '0-3M', '3-6M', '6-12M', '12-18M', '18-24M', '2T', '3T', '4T', '5T', 'XS', 'S', 'M', 'L', 'XL'];
+export const STANDARD_SIZES = ['1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '8-9'];

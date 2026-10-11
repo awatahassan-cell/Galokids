@@ -3,12 +3,13 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Ruler } from 'lucide-react';
 
 const rows = [
-  { size: 'S', age: '0–6 m', height: '56–68 cm', weight: '3–8 kg' },
-  { size: 'M', age: '6–12 m', height: '68–80 cm', weight: '8–11 kg' },
-  { size: 'L', age: '1–2 y', height: '80–92 cm', weight: '11–14 kg' },
-  { size: 'XL', age: '3–4 y', height: '92–104 cm', weight: '14–17 kg' },
-  { size: '2XL', age: '5–6 y', height: '104–116 cm', weight: '17–21 kg' },
-  { size: '3XL', age: '7–8 y', height: '116–128 cm', weight: '21–26 kg' },
+  { size: '1-2', age: '1–2 y', height: '80–92 cm', weight: '10–13 kg' },
+  { size: '2-3', age: '2–3 y', height: '92–98 cm', weight: '13–15 kg' },
+  { size: '3-4', age: '3–4 y', height: '98–104 cm', weight: '15–17 kg' },
+  { size: '4-5', age: '4–5 y', height: '104–110 cm', weight: '17–19 kg' },
+  { size: '5-6', age: '5–6 y', height: '110–116 cm', weight: '19–22 kg' },
+  { size: '6-7', age: '6–7 y', height: '116–122 cm', weight: '22–25 kg' },
+  { size: '8-9', age: '8–9 y', height: '128–134 cm', weight: '28–32 kg' },
 ];
 
 export const SizeGuide: React.FC = () => {

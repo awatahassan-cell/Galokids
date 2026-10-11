@@ -34,7 +34,7 @@ class ProductSeeder extends Seeder
         }
 
         $colors = ['Blue', 'Pink', 'Green', 'Red', 'Yellow', 'Black', 'White', 'Navy'];
-        $sizes = ['S', 'M', 'L', 'XL', '2T', '3T', '4T'];
+        $sizes = ['1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '8-9'];
 
         $productTemplates = [
             ['en' => 'Casual Kids Tee', 'ku' => 'تیشێرتی کواڵێتی منداڵان', 'ar' => 'تيشيرت أطفال كاجوال'],
