@@ -77,18 +77,21 @@ export const nextBarcode = (taken: Set<string> = new Set()): string => {
  * separate documents created via document.write, so images must be
  * pre-rendered to data URLs rather than React-rendered canvases).
  */
-export const generateBarcodeDataUrl = (value: string, options?: { height?: number; width?: number }): string | null => {
+export const generateBarcodeDataUrl = (
+  value: string,
+  options?: { height?: number; width?: number; displayValue?: boolean; fontSize?: number; margin?: number }
+): string | null => {
   if (!value) return null;
   const canvas = document.createElement('canvas');
   try {
     JsBarcode(canvas, value, {
       format: 'CODE128',
-      displayValue: true,
+      displayValue: options?.displayValue ?? true,
       width: options?.width ?? 2,
       height: options?.height ?? 60,
-      margin: 8,
+      margin: options?.margin ?? 8,
       font: 'monospace',
-      fontSize: 14,
+      fontSize: options?.fontSize ?? 14,
     });
     return canvas.toDataURL('image/png');
   } catch {
