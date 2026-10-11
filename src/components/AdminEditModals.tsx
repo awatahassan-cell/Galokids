@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../store';
 import { Category, Product, Expense, User } from '../types';
 import { CategoryIcon } from './CategoryIcon';
 import { CategoryIconPicker } from './CategoryIconPicker';
-import { Plus, Trash2, X, Wand2 } from 'lucide-react';
+import { Plus, Trash2, X, Wand2, Package, Printer, CheckCircle2 } from 'lucide-react';
 import { collectTakenBarcodes, nextBarcode } from '../utils/barcode';
 import { STANDARD_COLORS, STANDARD_SIZES } from '../data';
 import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
 import { ProductImageEditor } from './ProductImageEditor';
+import { useToast } from './ui/Feedback';
+import { ProductLabelPrinter } from './admin/ProductLabelPrinter';
 
 interface Props {
   editingCategory: Category | null;
@@ -33,6 +35,18 @@ export const AdminEditModals: React.FC<Props> = ({
   const { updateCategory, addProduct, updateProduct, updateExpense, updateUser, categories, products } = useStore();
   const { language } = useLanguage();
   const L = (s: string) => adminTr(s, language);
+  const toast = useToast();
+
+  const [justCreatedProduct, setJustCreatedProduct] = useState<Product | null>(null);
+  const [activeProductTab, setActiveProductTab] = useState<'form' | 'labels'>('form');
+
+  // Reset print state when modal is closed or switched
+  useEffect(() => {
+    if (!editingProduct) {
+      setJustCreatedProduct(null);
+      setActiveProductTab('form');
+    }
+  }, [editingProduct]);
 
   /**
    * A free GALO code, counting the product being edited as well as the saved
@@ -139,9 +153,10 @@ export const AdminEditModals: React.FC<Props> = ({
         {/* Product Edit / Create Modal */}
         {editingProduct && (
           <div className="font-arabic">
-            <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-200/80">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-200/80">
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+                  <Package className="w-6 h-6 text-indigo-600" />
                   {editingProduct.id ? (language === 'ku' ? 'دەستکاریکردنی بەرهەم' : language === 'ar' ? 'تعديل المنتج' : 'Edit Product') : (language === 'ku' ? 'دروستکردنی بەرهەمی نوێ' : language === 'ar' ? 'إضافة منتج جديد' : 'Create New Product')}
                 </h2>
                 <p className="text-xs text-slate-500 font-bold mt-1">
@@ -150,32 +165,110 @@ export const AdminEditModals: React.FC<Props> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setEditingProduct(null)}
+                onClick={() => {
+                  setEditingProduct(null);
+                  setJustCreatedProduct(null);
+                  setActiveProductTab('form');
+                }}
                 className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* This modal both creates and edits — its own heading says which.
-                Submitting always called updateProduct, so "create new product"
-                sent PUT /api/products/undefined: no product was ever created,
-                the failure was swallowed, and the modal closed as if it had
-                worked. Create when there is no id yet, update when there is. */}
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              try {
-                if (editingProduct.id) {
-                  await updateProduct(editingProduct);
-                } else {
-                  await addProduct({ ...editingProduct, id: `p${Date.now()}` });
+            {/* Tab navigation between Form and Label Printing */}
+            <div className="flex items-center gap-2 mb-5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 w-fit">
+              <button
+                type="button"
+                onClick={() => setActiveProductTab('form')}
+                className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                  activeProductTab === 'form'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Package className="w-4 h-4 text-indigo-600" />
+                <span>{language === 'ku' ? 'زانیاری بەرهەم' : 'Product Details'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveProductTab('labels')}
+                className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer relative ${
+                  activeProductTab === 'labels'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Printer className={`w-4 h-4 ${activeProductTab === 'labels' ? 'text-white' : 'text-indigo-600'}`} />
+                <span>{language === 'ku' ? 'چاپکردنی لەیبڵ' : 'Print Labels'}</span>
+                {justCreatedProduct && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white ms-1 animate-pulse" />
+                )}
+              </button>
+            </div>
+
+            {activeProductTab === 'labels' ? (
+              <ProductLabelPrinter
+                product={justCreatedProduct || editingProduct}
+                isInsideModal={true}
+                onClose={() => {
+                  setEditingProduct(null);
+                  setJustCreatedProduct(null);
+                  setActiveProductTab('form');
+                }}
+                onAddAnother={() => {
+                  setJustCreatedProduct(null);
+                  setActiveProductTab('form');
+                  setEditingProduct({
+                    id: '',
+                    name: '',
+                    price: 0,
+                    cost: 0,
+                    categoryId: categories[0]?.id || '',
+                    description: '',
+                    imageUrl: '',
+                    images: [],
+                    variations: []
+                  });
+                }}
+              />
+            ) : (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  if (editingProduct.id) {
+                    await updateProduct(editingProduct);
+                    setEditingProduct(null);
+                  } else {
+                    const newId = `p${Date.now()}`;
+                    const createdProduct = { ...editingProduct, id: newId };
+                    await addProduct(createdProduct);
+                    setJustCreatedProduct(createdProduct);
+                    setActiveProductTab('labels');
+                    toast(language === 'ku' ? 'بەرهەمەکە بە سەرکەوتوویی زیادکرا! تابی چاپکردنی لەیبڵ کرایەوە 🖨️' : 'Product created! Print labels tab opened 🖨️');
+                  }
+                } catch {
+                  // Leave modal open with error
                 }
-                setEditingProduct(null);
-              } catch {
-                // The store has already shown the server's reason. Leave the
-                // modal open with everything still typed in it.
-              }
-            }} className="space-y-6">
+              }} className="space-y-6">
+
+                {justCreatedProduct && (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-950 font-bold mb-4">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{language === 'ku' ? 'ئەم بەرهەمە زیادکراوە! دەتوانی لەیبڵەکەی چاپ بکەیت:' : 'This product was added! You can print labels:'}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveProductTab('labels')}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span>{language === 'ku' ? 'چاپکردنی لەیبڵ' : 'Print Labels'}</span>
+                    </button>
+                  </div>
+                )}
               
               {/* Category & Gender */}
               <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/70 space-y-4">
@@ -447,15 +540,58 @@ export const AdminEditModals: React.FC<Props> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-200 sticky bottom-0 bg-white py-3 z-10">
-                <button type="button" onClick={() => setEditingProduct(null)} className="px-5 py-2.5 text-xs font-extrabold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">{L("Cancel")}</button>
-                <button type="submit" className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer active:scale-95">
-                  {editingProduct.id ? (language === 'ku' ? 'پاشەکەوتکردنی بەرهەم' : 'Save Product') : (language === 'ku' ? 'دروستکردنی بەرهەم' : 'Create Product')}
-                </button>
+              <div className="flex items-center justify-between gap-3 pt-6 border-t border-slate-200 sticky bottom-0 bg-white py-3 z-10">
+                <div>
+                  {justCreatedProduct ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setJustCreatedProduct(null);
+                        setEditingProduct({
+                          id: '',
+                          name: '',
+                          price: 0,
+                          cost: 0,
+                          categoryId: categories[0]?.id || '',
+                          description: '',
+                          imageUrl: '',
+                          images: [],
+                          variations: []
+                        });
+                      }}
+                      className="px-4 py-2.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-black hover:bg-emerald-100 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>{language === 'ku' ? 'زیادکردنی بەرهەمی تر' : 'Add Another'}</span>
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setEditingProduct(null);
+                      setJustCreatedProduct(null);
+                      setActiveProductTab('form');
+                    }} 
+                    className="px-5 py-2.5 text-xs font-extrabold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                  >
+                    {justCreatedProduct ? (language === 'ku' ? 'تەواو / داخستن' : 'Done') : L("Cancel")}
+                  </button>
+
+                  <button 
+                    type="submit" 
+                    className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black transition-all shadow-md cursor-pointer active:scale-95"
+                  >
+                    {editingProduct.id ? (language === 'ku' ? 'پاشەکەوتکردنی بەرهەم' : 'Save Product') : (language === 'ku' ? 'دروستکردنی بەرهەم' : 'Create Product')}
+                  </button>
+                </div>
               </div>
             </form>
-          </div>
-        )}
+          )}
+        </div>
+      )}
 
         {/* Expense Edit */}
         {editingExpense && (
