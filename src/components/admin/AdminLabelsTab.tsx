@@ -10,7 +10,7 @@ import { formatIQDLabel } from '../../utils/currency';
 import { escapeHtml } from '../../utils/printHelper';
 import { generateBarcodeDataUrl } from '../../utils/barcode';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../../utils/colors';
-import { STANDARD_COLORS, STANDARD_SIZES } from '../../data';
+import { STANDARD_COLORS, STANDARD_SIZES, CLOTHING_SIZES, SHOE_SIZES } from '../../data';
 import { useToast } from '../ui/Feedback';
 
 export interface AdminLabelsTabProps {
@@ -45,6 +45,15 @@ const THERMAL_PRESETS: ThermalPreset[] = [
     width: 50,
     height: 25,
     badgeKu: 'کۆمپەکت',
+  },
+  {
+    id: '44x24',
+    nameKu: '44 × 24 mm',
+    nameAr: '44 × 24 مم',
+    nameEn: '44 × 24 mm',
+    width: 44,
+    height: 24,
+    badgeKu: 'ستیکەری باو',
   },
   {
     id: '40x30',
@@ -959,27 +968,27 @@ export const AdminLabelsTab: React.FC<AdminLabelsTabProps> = ({ products }) => {
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       {language === 'ku' ? 'سایز / قەبارە (Size):' : 'Size:'}
                     </label>
-                    <div className="flex gap-2">
-                      <select
-                        value={customSize}
-                        onChange={(e) => setCustomSize(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="">{language === 'ku' ? '-- هەڵبژاردنی سایز --' : '-- Select Size --'}</option>
-                        {STANDARD_SIZES.map((s) => (
-                          <option key={s} value={s}>
-                            {getLocalizedSizeName(s, language)} ({s})
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        placeholder={language === 'ku' ? 'یان بنووسە...' : 'or type...'}
-                        value={customSize}
-                        onChange={(e) => setCustomSize(e.target.value)}
-                        className="w-1/2 bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      list="admin-labels-size-datalist"
+                      placeholder={language === 'ku' ? 'سایز هەڵبژێرە یان بنووسە (ئۆپشناڵ)...' : 'Select or type size (Optional)...'}
+                      value={customSize}
+                      onChange={(e) => setCustomSize(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                      autoComplete="off"
+                    />
+                    <datalist id="admin-labels-size-datalist">
+                      {CLOTHING_SIZES.map((s) => (
+                        <option key={`c-${s}`} value={s} label={language === 'ku' ? `جلوبەرگ: ${s}` : `Clothing: ${s}`}>
+                          {language === 'ku' ? `جلوبەرگ: ${s}` : `Clothing: ${s}`}
+                        </option>
+                      ))}
+                      {SHOE_SIZES.map((s) => (
+                        <option key={`s-${s}`} value={s} label={language === 'ku' ? `پێڵاو: ${s}` : `Shoe: ${s}`}>
+                          {language === 'ku' ? `پێڵاو: ${s}` : `Shoe: ${s}`}
+                        </option>
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               )}

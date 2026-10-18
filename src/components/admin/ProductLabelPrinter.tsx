@@ -9,7 +9,7 @@ import { formatIQDLabel } from '../../utils/currency';
 import { escapeHtml } from '../../utils/printHelper';
 import { generateBarcodeDataUrl } from '../../utils/barcode';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../../utils/colors';
-import { STANDARD_COLORS, STANDARD_SIZES } from '../../data';
+import { STANDARD_COLORS, STANDARD_SIZES, CLOTHING_SIZES, SHOE_SIZES } from '../../data';
 import { useToast } from '../ui/Feedback';
 
 export interface ThermalPreset {
@@ -40,6 +40,15 @@ export const THERMAL_PRESETS: ThermalPreset[] = [
     width: 50,
     height: 25,
     badgeKu: 'کۆمپەکت',
+  },
+  {
+    id: '44x24',
+    nameKu: '44 × 24 mm',
+    nameAr: '44 × 24 مم',
+    nameEn: '44 × 24 mm',
+    width: 44,
+    height: 24,
+    badgeKu: 'ستیکەری باو',
   },
   {
     id: '40x30',
@@ -784,18 +793,27 @@ export const ProductLabelPrinter: React.FC<ProductLabelPrinterProps> = ({
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
                       {language === 'ku' ? 'سایز (Size):' : 'Size:'}
                     </label>
-                    <select
+                    <input
+                      type="text"
+                      list="printer-sizes-datalist"
+                      placeholder={language === 'ku' ? 'سایز هەڵبژێرە یان بنووسە...' : 'Select or type size...'}
                       value={customSize}
                       onChange={(e) => setCustomSize(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="">{language === 'ku' ? '-- هەڵبژاردنی سایز --' : '-- Size --'}</option>
-                      {STANDARD_SIZES.map((s) => (
-                        <option key={s} value={s}>
-                          {getLocalizedSizeName(s, language)} ({s})
+                      autoComplete="off"
+                    />
+                    <datalist id="printer-sizes-datalist">
+                      {CLOTHING_SIZES.map((s) => (
+                        <option key={`c-${s}`} value={s} label={language === 'ku' ? `جلوبەرگ: ${s}` : `Clothing: ${s}`}>
+                          {language === 'ku' ? `جلوبەرگ: ${s}` : `Clothing: ${s}`}
                         </option>
                       ))}
-                    </select>
+                      {SHOE_SIZES.map((s) => (
+                        <option key={`s-${s}`} value={s} label={language === 'ku' ? `پێڵاو: ${s}` : `Shoe: ${s}`}>
+                          {language === 'ku' ? `پێڵاو: ${s}` : `Shoe: ${s}`}
+                        </option>
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               )}

@@ -6,7 +6,7 @@ import { CategoryIcon } from './CategoryIcon';
 import { CategoryIconPicker } from './CategoryIconPicker';
 import { Plus, Trash2, X, Wand2, Package, Printer, CheckCircle2 } from 'lucide-react';
 import { collectTakenBarcodes, nextBarcode } from '../utils/barcode';
-import { STANDARD_COLORS, STANDARD_SIZES } from '../data';
+import { STANDARD_COLORS, STANDARD_SIZES, CLOTHING_SIZES, SHOE_SIZES } from '../data';
 import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
 import { ProductImageEditor } from './ProductImageEditor';
@@ -450,10 +450,13 @@ export const AdminEditModals: React.FC<Props> = ({
                           </select>
                         </div>
 
-                        {/* Size */}
+                        {/* Size (Optional Datalist) */}
                         <div>
                           <label className="block sm:hidden text-[10px] font-bold text-slate-500 mb-1">{L("Size")}</label>
-                          <select
+                          <input
+                            type="text"
+                            list="product-sizes-datalist"
+                            placeholder={language === 'ku' ? 'سایز (ئۆپشناڵ / هەڵبژێرە)' : language === 'ar' ? 'المقاس (اختياري)' : 'Size (Optional)'}
                             value={v.size || ""}
                             onChange={(e) => {
                               const newVars = [...(editingProduct.variations || [])];
@@ -461,12 +464,8 @@ export const AdminEditModals: React.FC<Props> = ({
                               setEditingProduct({...editingProduct, variations: newVars});
                             }}
                             className="w-full border border-slate-300 rounded-lg py-2 px-2.5 text-xs font-bold focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
-                          >
-                            <option value="">{L("Select Size")}</option>
-                            {STANDARD_SIZES.map(size => (
-                              <option key={size} value={size}>{size}</option>
-                            ))}
-                          </select>
+                            autoComplete="off"
+                          />
                         </div>
 
                         {/* Stock Quantity */}
@@ -537,6 +536,20 @@ export const AdminEditModals: React.FC<Props> = ({
                     ))}
                   </div>
                 )}
+
+                {/* Datalist for sizes */}
+                <datalist id="product-sizes-datalist">
+                  {CLOTHING_SIZES.map(size => (
+                    <option key={`c-${size}`} value={size} label={language === 'ku' ? `جلوبەرگ: ${size}` : language === 'ar' ? `ملابس: ${size}` : `Clothing: ${size}`}>
+                      {language === 'ku' ? `جلوبەرگ: ${size}` : language === 'ar' ? `ملابس: ${size}` : `Clothing: ${size}`}
+                    </option>
+                  ))}
+                  {SHOE_SIZES.map(size => (
+                    <option key={`s-${size}`} value={size} label={language === 'ku' ? `پێڵاو: ${size}` : language === 'ar' ? `حذاء: ${size}` : `Shoe: ${size}`}>
+                      {language === 'ku' ? `پێڵاو: ${size}` : language === 'ar' ? `حذاء: ${size}` : `Shoe: ${size}`}
+                    </option>
+                  ))}
+                </datalist>
               </div>
 
               {/* Action Buttons */}
