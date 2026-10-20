@@ -729,6 +729,32 @@ export const Admin: React.FC = () => {
   const firstDayOfWeek = useMemo(() => getFirstDayOfMonth(calendarYear, calendarMonth), [calendarYear, calendarMonth]);
   const daysInPrevMonth = useMemo(() => getDaysInMonth(calendarYear, calendarMonth - 1 === 0 ? 12 : calendarMonth - 1), [calendarYear, calendarMonth]);
 
+  // Dynamically generate available years from current date, actual orders, expenses, and selected calendarYear
+  const availableCalendarYears = useMemo(() => {
+    const currentYear = shopDateParts().year;
+    const yearSet = new Set<number>();
+    for (let y = currentYear - 5; y <= currentYear + 5; y++) {
+      yearSet.add(y);
+    }
+    if (calendarYear) {
+      yearSet.add(calendarYear);
+    }
+    (orders || []).forEach(o => {
+      const d = o.date || o.createdAt;
+      if (d) {
+        const y = parseInt(String(d).slice(0, 4), 10);
+        if (Number.isFinite(y) && y > 2000 && y < 2100) yearSet.add(y);
+      }
+    });
+    (expenses || []).forEach(e => {
+      if (e.date) {
+        const y = parseInt(String(e.date).slice(0, 4), 10);
+        if (Number.isFinite(y) && y > 2000 && y < 2100) yearSet.add(y);
+      }
+    });
+    return Array.from(yearSet).sort((a, b) => a - b);
+  }, [orders, expenses, calendarYear]);
+
   // New Category State
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryNameKu, setNewCategoryNameKu] = useState('');
@@ -1253,7 +1279,7 @@ export const Admin: React.FC = () => {
                 }}
                 className="border border-slate-200 rounded-lg py-1.5 px-3 text-sm bg-white font-medium text-slate-700 shadow-sm outline-none focus:border-indigo-500"
               >
-                {Array.from({ length: 5 }, (_, i) => 2023 + i).map(year => (
+                {availableCalendarYears.map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
               </select>
