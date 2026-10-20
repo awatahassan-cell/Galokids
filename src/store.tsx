@@ -2090,6 +2090,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return line;
     });
 
+    const isPos = (orderData as any).channel === 'pos' || (orderData as any).source === 'pos' || orderData.shippingAddress === 'In-Store POS Sale';
+    const defaultChannel = isPos ? 'pos' : 'online';
+
     const payload: any = {
       items,
       status: orderData.status,
@@ -2098,14 +2101,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       customer_phone: (orderData as any).customerPhone,
       customer_email: orderData.customerEmail,
       payment_method: orderData.paymentMethod,
-      channel: (orderData as any).channel || (orderData as any).source || 'online',
-      source: (orderData as any).source || (orderData as any).channel || 'online',
+      channel: (orderData as any).channel || (orderData as any).source || defaultChannel,
+      source: (orderData as any).source || (orderData as any).channel || defaultChannel,
     };
     // The governorate decides the delivery charge. The server recalculates the
     // fee from it, so sending it is what makes the customer's total match.
     if ((orderData as any).governorate) payload.governorate = (orderData as any).governorate;
     if ((orderData as any).shippingFee !== undefined) payload.shipping_fee = Number((orderData as any).shippingFee);
     else if ((orderData as any).shipping_fee !== undefined) payload.shipping_fee = Number((orderData as any).shipping_fee);
+    else if (isPos) payload.shipping_fee = 0;
     if (orderData.couponCode) payload.coupon_code = orderData.couponCode;
     if (orderData.discountAmount !== undefined) payload.discount_amount = orderData.discountAmount;
     if (orderData.amountPaid !== undefined) payload.amount_paid = orderData.amountPaid;

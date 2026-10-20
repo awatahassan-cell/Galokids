@@ -575,6 +575,10 @@ export const POS: React.FC = () => {
       paymentMethod,
       discountAmount: discountVal,
       amountPaid: paymentMethod === 'cash' ? cashVal : total,
+      channel: 'pos',
+      source: 'pos',
+      shippingFee: 0,
+      shipping_fee: 0,
     } as any);
 
     const invoiceNo = saved?.invoiceNo;
@@ -1348,8 +1352,9 @@ export const POS: React.FC = () => {
                     quantity: Number(it.quantity || 1)
                   }));
 
+                  const itemsSum = printableItems.reduce((acc: number, it: any) => acc + (Number(it.product?.price ?? it.price ?? 0) * Number(it.quantity || 1)), 0);
                   const printableTotals = {
-                    subtotal: totalAmount,
+                    subtotal: itemsSum || totalAmount,
                     discount: Number(ord.discountAmount || 0),
                     total: totalAmount,
                     paid: totalAmount,

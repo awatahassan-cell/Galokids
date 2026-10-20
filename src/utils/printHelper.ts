@@ -40,7 +40,7 @@ export const printReceiptIframe = (
   const rows = orderItems.map(it => {
     const p = it.product || {};
     const name = p.nameKu || p.name || it.name || 'Product';
-    const price = Number(p.price || it.price || 0);
+    const price = Number(it.price ?? it.unit_price ?? p.price ?? 0);
     const qty = Number(it.quantity || 1);
     const line = price * qty;
     const variation = it.variation || {};
