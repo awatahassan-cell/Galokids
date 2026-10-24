@@ -5,7 +5,7 @@ import {
   Search, Plus, Minus, Trash2, Printer, 
   RotateCcw, Send, CheckCircle2, MessageCircle, MapPin, 
   Phone, User, Tag, ShoppingBag, X, Sparkles, Check, Truck, 
-  ExternalLink, FileText, AlertCircle, RefreshCw, Layers
+  ExternalLink, FileText, AlertCircle, RefreshCw, Layers, ScanBarcode
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../utils/colors';
@@ -217,7 +217,8 @@ export const PageOrders: React.FC = () => {
     }
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase().trim();
-    return list.filter(p => {
+
+    const matched = list.filter(p => {
       const name = (p.name || '').toLowerCase();
       const nameKu = (p.nameKu || '').toLowerCase();
       const nameAr = (p.nameAr || '').toLowerCase();
@@ -245,18 +246,48 @@ export const PageOrders: React.FC = () => {
       );
 
       return (
+        barcode.includes(q) || 
+        sku.includes(q) || 
+        matchVar ||
         name.includes(q) || 
         nameKu.includes(q) || 
         nameAr.includes(q) || 
-        barcode.includes(q) || 
-        sku.includes(q) ||
         id === q ||
         desc.includes(q) ||
         descKu.includes(q) ||
         descAr.includes(q) ||
-        matchVar ||
         matchCat
       );
+    });
+
+    // BARCODE PRIORITY SORTING:
+    // When searching by barcode (or anything), put exact barcode matches first, then prefix barcode matches, then others!
+    return matched.sort((a, b) => {
+      const getScore = (p: Product) => {
+        const itemCode = (p.barcode || p.sku || '').toLowerCase();
+        // 1. Exact item barcode
+        if (itemCode === q) return 100;
+        // 2. Exact variation barcode
+        if ((p.variations || []).some(v => (v.barcode || '').toLowerCase() === q || (v.sku || '').toLowerCase() === q)) {
+          return 90;
+        }
+        // 3. Item barcode starts with search query
+        if (itemCode.startsWith(q)) return 80;
+        // 4. Variation barcode starts with search query
+        if ((p.variations || []).some(v => (v.barcode || '').toLowerCase().startsWith(q) || (v.sku || '').toLowerCase().startsWith(q))) {
+          return 70;
+        }
+        // 5. Variation or item barcode contains search query
+        if (itemCode.includes(q) || (p.variations || []).some(v => (v.barcode || '').toLowerCase().includes(q) || (v.sku || '').toLowerCase().includes(q))) {
+          return 60;
+        }
+        // 6. Name starts with search query
+        const pName = (p.nameKu || p.name || '').toLowerCase();
+        if (pName.startsWith(q)) return 50;
+        return 0;
+      };
+
+      return getScore(b) - getScore(a);
     });
   }, [products, selectedCategory, searchQuery, categories]);
 
@@ -371,15 +402,37 @@ export const PageOrders: React.FC = () => {
     const q = searchQuery.trim().toLowerCase();
     const vars = product.variations || [];
     
-    // If user searched for a specific variation barcode/sku, pick that variation directly
+    // If user searched for a barcode (item barcode or variation barcode):
     if (q) {
-      const matchingVar = vars.find(v => 
+      // 1. Exact variation barcode match -> add directly!
+      const exactVar = vars.find(v => 
         (v.barcode && v.barcode.toLowerCase() === q) ||
         (v.sku && v.sku.toLowerCase() === q)
       );
-      if (matchingVar) {
-        if ((matchingVar.stockQuantity || 0) > 0) {
-          addToCart(product, matchingVar);
+      if (exactVar) {
+        if ((exactVar.stockQuantity || 0) > 0) {
+          addToCart(product, exactVar);
+          const pName = (language === 'ku' && product.nameKu) ? product.nameKu : (language === 'ar' && product.nameAr) ? product.nameAr : product.name;
+          const varDesc = [exactVar.color, exactVar.size].filter(Boolean).join(' · ');
+          toast(language === 'ku' ? `"${pName}" (${varDesc}) زیادکرا بۆ سەبەتە 🛒` : `Product added to cart 🛒`);
+        } else {
+          toast(language === 'ku' ? 'ئەم جۆرە ستۆکی نەماوە!' : 'This variation is out of stock!', 'error');
+        }
+        return;
+      }
+
+      // 2. If only 1 variation contains this barcode query -> add directly!
+      const matchingVars = vars.filter(v => 
+        (v.barcode && v.barcode.toLowerCase().includes(q)) ||
+        (v.sku && v.sku.toLowerCase().includes(q))
+      );
+      if (matchingVars.length === 1) {
+        const v = matchingVars[0];
+        if ((v.stockQuantity || 0) > 0) {
+          addToCart(product, v);
+          const pName = (language === 'ku' && product.nameKu) ? product.nameKu : (language === 'ar' && product.nameAr) ? product.nameAr : product.name;
+          const varDesc = [v.color, v.size].filter(Boolean).join(' · ');
+          toast(language === 'ku' ? `"${pName}" (${varDesc}) زیادکرا بۆ سەبەتە 🛒` : `Product added to cart 🛒`);
         } else {
           toast(language === 'ku' ? 'ئەم جۆرە ستۆکی نەماوە!' : 'This variation is out of stock!', 'error');
         }
@@ -652,7 +705,7 @@ export const PageOrders: React.FC = () => {
                 <Search className={`w-4 h-4 text-slate-400 absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-3.5' : 'left-3.5'}`} />
                 <input
                   type="text"
-                  placeholder={language === 'ku' ? 'گەڕان بەپێی ناو، بارکۆد، کۆد، ڕەنگ، قەبارە...' : 'Search product, barcode, sku, color, size...'}
+                  placeholder={language === 'ku' ? 'بارکۆدی کاڵا، بارکۆدی لقەکان (Variations) یان ناو...' : 'Scan / enter item barcode, variation barcode, or name...'}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => {
@@ -796,11 +849,35 @@ export const PageOrders: React.FC = () => {
                       <h4 className="font-bold text-[11px] sm:text-xs text-slate-800 line-clamp-1 group-hover:text-rose-600 transition-colors">
                         {displayName}
                       </h4>
-                      {(prod.sku || (prod.variations && prod.variations[0]?.barcode)) && (
-                        <div className="text-[9px] font-mono text-slate-400 truncate">
-                          {prod.sku || prod.variations[0].barcode}
-                        </div>
-                      )}
+                      {(() => {
+                        const q = searchQuery.trim().toLowerCase();
+                        const matchedVar = q ? (prod.variations || []).find(v => 
+                          (v.barcode && v.barcode.toLowerCase().includes(q)) || 
+                          (v.sku && v.sku.toLowerCase().includes(q))
+                        ) : null;
+
+                        if (matchedVar) {
+                          const varLabel = [matchedVar.color, matchedVar.size].filter(Boolean).join(' / ');
+                          return (
+                            <div className="mt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 truncate">
+                              <ScanBarcode className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+                              <span className="font-mono">{matchedVar.barcode || matchedVar.sku}</span>
+                              {varLabel && <span className="text-emerald-800 font-medium">({varLabel})</span>}
+                            </div>
+                          );
+                        }
+
+                        const codeToShow = prod.sku || (prod.variations && prod.variations[0]?.barcode);
+                        if (codeToShow) {
+                          return (
+                            <div className="mt-0.5 flex items-center gap-1 text-[9px] font-mono text-slate-400 truncate">
+                              <ScanBarcode className="w-3 h-3 shrink-0 opacity-60" />
+                              <span>{codeToShow}</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       <div className="flex items-baseline justify-between mt-1">
                         <span className="font-black text-xs sm:text-sm text-slate-900">
                           {formatIQDLabel(effectivePrice)}

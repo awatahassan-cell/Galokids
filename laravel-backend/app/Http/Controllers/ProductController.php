@@ -107,6 +107,14 @@ class ProductController extends Controller
                 break;
             case 'newest':
             default:
+                if ($request->filled('search')) {
+                    $s = trim($request->search);
+                    $query->orderByRaw("CASE 
+                        WHEN sku = ? THEN 1
+                        WHEN sku LIKE ? THEN 2
+                        ELSE 3
+                    END", [$s, "{$s}%"]);
+                }
                 $query->orderBy('created_at', 'desc');
                 break;
         }
