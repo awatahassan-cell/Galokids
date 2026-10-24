@@ -20,6 +20,8 @@ import {
   getDistricts, Lang 
 } from '../utils/address';
 import { printDeliveryWaybill, DeliveryWaybillData } from '../utils/printHelper';
+import { API_BASE_URL } from '../config/api';
+import { Pagination } from '../components/Pagination';
 
 interface PageOrderItem {
   product: Product;
@@ -31,7 +33,8 @@ interface PageOrderItem {
 export const PageOrders: React.FC = () => {
   const { 
     products, categories, addOrder, refreshProducts, 
-    storeSettings, fetchShippingQuote, currentUser 
+    storeSettings, fetchShippingQuote, currentUser,
+    productsPagination, isProductsLoading
   } = useStore();
   const toast = useToast();
   const { language, t } = useLanguage();
@@ -88,6 +91,36 @@ export const PageOrders: React.FC = () => {
   // Filter & Search states for Catalog
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 24;
+
+  // Server-side search & category debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      refreshProducts(
+        1,
+        pageSize,
+        {
+          search: searchQuery.trim() || undefined,
+          categoryId: selectedCategory === 'all' ? undefined : selectedCategory,
+        }
+      );
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedCategory, refreshProducts]);
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    refreshProducts(
+      newPage,
+      pageSize,
+      {
+        search: searchQuery.trim() || undefined,
+        categoryId: selectedCategory === 'all' ? undefined : selectedCategory,
+      }
+    );
+  };
 
   // Variant selector modal
   const [selectedProductForModal, setSelectedProductForModal] = useState<Product | null>(null);
@@ -178,23 +211,182 @@ export const PageOrders: React.FC = () => {
 
   // Filter catalog products
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
-      const matchCat = selectedCategory === 'all' || String(p.categoryId) === String(selectedCategory);
-      if (!matchCat) return false;
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase().trim();
+    let list = products;
+    if (selectedCategory !== 'all') {
+      list = list.filter(p => String(p.categoryId) === String(selectedCategory));
+    }
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase().trim();
+    return list.filter(p => {
       const name = (p.name || '').toLowerCase();
       const nameKu = (p.nameKu || '').toLowerCase();
       const nameAr = (p.nameAr || '').toLowerCase();
       const barcode = (p.barcode || '').toLowerCase();
       const sku = (p.sku || '').toLowerCase();
-      return name.includes(q) || nameKu.includes(q) || nameAr.includes(q) || barcode.includes(q) || sku.includes(q);
+      const id = String(p.id || '').toLowerCase();
+      const desc = (p.description || '').toLowerCase();
+      const descKu = (p.descriptionKu || '').toLowerCase();
+      const descAr = (p.descriptionAr || '').toLowerCase();
+
+      // Variations matching: barcode, sku, color, size
+      const matchVar = (p.variations || []).some(v => 
+        (v.barcode || '').toLowerCase().includes(q) || 
+        (v.sku || '').toLowerCase().includes(q) ||
+        (v.color || '').toLowerCase().includes(q) ||
+        (v.size || '').toLowerCase().includes(q)
+      );
+
+      // Category matching
+      const cat = categories.find(c => String(c.id) === String(p.categoryId));
+      const matchCat = cat && (
+        (cat.name || '').toLowerCase().includes(q) ||
+        (cat.nameKu || '').toLowerCase().includes(q) ||
+        (cat.nameAr || '').toLowerCase().includes(q)
+      );
+
+      return (
+        name.includes(q) || 
+        nameKu.includes(q) || 
+        nameAr.includes(q) || 
+        barcode.includes(q) || 
+        sku.includes(q) ||
+        id === q ||
+        desc.includes(q) ||
+        descKu.includes(q) ||
+        descAr.includes(q) ||
+        matchVar ||
+        matchCat
+      );
     });
-  }, [products, selectedCategory, searchQuery]);
+  }, [products, selectedCategory, searchQuery, categories]);
+
+  // Barcode scanner or exact search submit handler
+  const handleBarcodeSubmit = async (codeToSearch?: string) => {
+    const raw = (codeToSearch || searchQuery).trim();
+    if (!raw) return;
+    const code = raw.toLowerCase();
+
+    // 1. Check in loaded products for exact variation match
+    for (const p of products) {
+      const matchingVar = (p.variations || []).find(v => 
+        (v.barcode && v.barcode.toLowerCase() === code) || 
+        (v.sku && v.sku.toLowerCase() === code)
+      );
+      if (matchingVar) {
+        if ((matchingVar.stockQuantity || 0) > 0) {
+          addToCart(p, matchingVar);
+          const pName = (language === 'ku' && p.nameKu) ? p.nameKu : (language === 'ar' && p.nameAr) ? p.nameAr : p.name;
+          const varDesc = [matchingVar.color, matchingVar.size].filter(Boolean).join(' · ');
+          toast(language === 'ku' ? `بەرهەمی "${pName}" (${varDesc}) زیادکرا بۆ سەبەتە 🛒` : `Product added to cart 🛒`);
+          setSearchQuery('');
+        } else {
+          toast(language === 'ku' ? 'ئەم جۆرە ستۆکی نەماوە!' : 'This variation is out of stock!', 'error');
+        }
+        return;
+      }
+    }
+
+    // 2. Check in loaded products for main product match
+    const mainMatch = products.find(p => 
+      (p.barcode && p.barcode.toLowerCase() === code) || 
+      (p.sku && p.sku.toLowerCase() === code)
+    ) || (filteredProducts.length === 1 ? filteredProducts[0] : null);
+
+    if (mainMatch) {
+      const vars = mainMatch.variations || [];
+      if (vars.length === 1) {
+        const singleVar = vars[0];
+        if ((singleVar.stockQuantity || 0) > 0) {
+          addToCart(mainMatch, singleVar);
+          const pName = (language === 'ku' && mainMatch.nameKu) ? mainMatch.nameKu : (language === 'ar' && mainMatch.nameAr) ? mainMatch.nameAr : mainMatch.name;
+          toast(language === 'ku' ? `بەرهەمی "${pName}" زیادکرا بۆ سەبەتە 🛒` : `Product added to cart 🛒`);
+          setSearchQuery('');
+        } else {
+          toast(language === 'ku' ? 'ئەم بەرهەمە ستۆکی نەماوە!' : 'Product is out of stock!', 'error');
+        }
+        return;
+      } else if (vars.length > 1) {
+        setSelectedProductForModal(mainMatch);
+        setChosenColor(vars[0].color || '');
+        setChosenSize(vars[0].size || '');
+        return;
+      }
+    }
+
+    // 3. Fallback: Search server directly for exact code
+    try {
+      const res = await fetch(`${API_BASE_URL}/products?search=${encodeURIComponent(raw)}&limit=5`, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        }
+      });
+      const data = await res.json();
+      const items = (data?.data || (Array.isArray(data) ? data : []));
+      
+      for (const p of items) {
+        const matchingVar = (p.variations || []).find(v => 
+          (v.barcode && v.barcode.toLowerCase() === code) || 
+          (v.sku && v.sku.toLowerCase() === code)
+        );
+        if (matchingVar) {
+          if ((matchingVar.stockQuantity || 0) > 0) {
+            addToCart(p, matchingVar);
+            const pName = (language === 'ku' && p.nameKu) ? p.nameKu : (language === 'ar' && p.nameAr) ? p.nameAr : p.name;
+            const varDesc = [matchingVar.color, matchingVar.size].filter(Boolean).join(' · ');
+            toast(language === 'ku' ? `بەرهەمی "${pName}" (${varDesc}) زیادکرا بۆ سەبەتە 🛒` : `Product added to cart 🛒`);
+            setSearchQuery('');
+          } else {
+            toast(language === 'ku' ? 'ئەم جۆرە ستۆکی نەماوە!' : 'This variation is out of stock!', 'error');
+          }
+          return;
+        }
+      }
+
+      if (items.length === 1) {
+        const singleP = items[0];
+        const vars = singleP.variations || [];
+        if (vars.length === 1) {
+          addToCart(singleP, vars[0]);
+          const pName = (language === 'ku' && singleP.nameKu) ? singleP.nameKu : (language === 'ar' && singleP.nameAr) ? singleP.nameAr : singleP.name;
+          toast(language === 'ku' ? `بەرهەمی "${pName}" زیادکرا بۆ سەبەتە 🛒` : `Product added to cart 🛒`);
+          setSearchQuery('');
+          return;
+        } else if (vars.length > 1) {
+          setSelectedProductForModal(singleP);
+          setChosenColor(vars[0].color || '');
+          setChosenSize(vars[0].size || '');
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    toast(language === 'ku' ? 'هیچ کاڵایەک نەدۆزرایەوە بەم کۆدە!' : 'No product found with this barcode!', 'error');
+  };
 
   // Product Selection Handlers
   const handleProductCardClick = (product: Product) => {
+    const q = searchQuery.trim().toLowerCase();
     const vars = product.variations || [];
+    
+    // If user searched for a specific variation barcode/sku, pick that variation directly
+    if (q) {
+      const matchingVar = vars.find(v => 
+        (v.barcode && v.barcode.toLowerCase() === q) ||
+        (v.sku && v.sku.toLowerCase() === q)
+      );
+      if (matchingVar) {
+        if ((matchingVar.stockQuantity || 0) > 0) {
+          addToCart(product, matchingVar);
+        } else {
+          toast(language === 'ku' ? 'ئەم جۆرە ستۆکی نەماوە!' : 'This variation is out of stock!', 'error');
+        }
+        return;
+      }
+    }
+
     if (vars.length === 1) {
       // Single variation -> add immediately
       addToCart(product, vars[0]);
@@ -460,20 +652,40 @@ export const PageOrders: React.FC = () => {
                 <Search className={`w-4 h-4 text-slate-400 absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-3.5' : 'left-3.5'}`} />
                 <input
                   type="text"
-                  placeholder={language === 'ku' ? 'گەڕان بەپێی ناو، بارکۆد، کۆد...' : 'Search product, barcode, sku...'}
+                  placeholder={language === 'ku' ? 'گەڕان بەپێی ناو، بارکۆد، کۆد، ڕەنگ، قەبارە...' : 'Search product, barcode, sku, color, size...'}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className={`w-full py-2.5 rounded-2xl bg-slate-100/80 border border-transparent focus:border-rose-300 focus:bg-white text-xs font-bold transition-all outline-none ${isRTL ? 'pr-9 pl-4' : 'pl-9 pr-4'}`}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleBarcodeSubmit();
+                    }
+                  }}
+                  className={`w-full py-2.5 rounded-2xl bg-slate-100/80 border border-transparent focus:border-rose-300 focus:bg-white text-xs font-bold transition-all outline-none ${isRTL ? 'pr-9 pl-9' : 'pl-9 pr-9'}`}
                 />
-                {searchQuery && (
+                {isProductsLoading ? (
+                  <RefreshCw className={`w-4 h-4 text-rose-500 animate-spin absolute top-1/2 -translate-y-1/2 ${isRTL ? 'left-3' : 'right-3'}`} />
+                ) : searchQuery ? (
                   <button 
+                    type="button"
                     onClick={() => setSearchQuery('')}
                     className={`absolute top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 ${isRTL ? 'left-3' : 'right-3'}`}
                   >
                     <X className="w-4 h-4" />
                   </button>
-                )}
+                ) : null}
               </div>
+
+              {/* Barcode scanner action button */}
+              <button
+                type="button"
+                onClick={() => handleBarcodeSubmit()}
+                className="px-3 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all shrink-0 flex items-center gap-1 active:scale-95 cursor-pointer"
+                title={language === 'ku' ? 'گەڕان / خوێندنەوەی بارکۆد' : 'Scan / Barcode Submit'}
+              >
+                <Tag className="w-4 h-4 text-slate-500" />
+                <span className="hidden md:inline">{language === 'ku' ? 'بارکۆد' : 'Barcode'}</span>
+              </button>
 
               {/* Quick custom line button */}
               <button
@@ -519,10 +731,24 @@ export const PageOrders: React.FC = () => {
 
           {/* Product Grid */}
           <div className="p-3 sm:p-4 overflow-y-auto grow max-h-[calc(100vh-280px)]">
-            {filteredProducts.length === 0 ? (
+            {isProductsLoading && filteredProducts.length === 0 ? (
+              <div className="py-20 text-center text-slate-400">
+                <RefreshCw className="w-10 h-10 mx-auto mb-3 animate-spin text-rose-400" />
+                <p className="font-bold text-sm">{language === 'ku' ? 'چاوەڕوانبە، دەگەڕێین...' : 'Searching products...'}</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
               <div className="py-20 text-center text-slate-400">
                 <ShoppingBag className="w-12 h-12 mx-auto mb-2 opacity-30" />
                 <p className="font-bold text-sm">{language === 'ku' ? 'هیچ کاڵایەک نەدۆزرایەوە' : 'No products found'}</p>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="mt-2 text-xs font-bold text-rose-500 hover:underline cursor-pointer"
+                  >
+                    {language === 'ku' ? 'سڕینەوەی گەڕان' : 'Clear search'}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3">
@@ -570,6 +796,11 @@ export const PageOrders: React.FC = () => {
                       <h4 className="font-bold text-[11px] sm:text-xs text-slate-800 line-clamp-1 group-hover:text-rose-600 transition-colors">
                         {displayName}
                       </h4>
+                      {(prod.sku || (prod.variations && prod.variations[0]?.barcode)) && (
+                        <div className="text-[9px] font-mono text-slate-400 truncate">
+                          {prod.sku || prod.variations[0].barcode}
+                        </div>
+                      )}
                       <div className="flex items-baseline justify-between mt-1">
                         <span className="font-black text-xs sm:text-sm text-slate-900">
                           {formatIQDLabel(effectivePrice)}
@@ -603,6 +834,17 @@ export const PageOrders: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Pagination Footer */}
+          {productsPagination && (productsPagination.lastPage || 1) > 1 && (
+            <div className="p-2.5 sm:p-3 border-t border-slate-100 bg-white/70 shrink-0">
+              <Pagination
+                currentPage={productsPagination.currentPage || currentPage}
+                totalPages={productsPagination.lastPage || 1}
+                onPageChange={handlePageChange}
+              />
+            </div>
+          )}
         </div>
 
         {/* Right 5 Columns: Customer, Delivery & Order Panel */}
