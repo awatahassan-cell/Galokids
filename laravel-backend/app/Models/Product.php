@@ -23,7 +23,8 @@ class Product extends Model
         'images',
         'category_id',
         'gender',
-        'sku'
+        'sku',
+        'is_active'
     ];
 
     protected $casts = [
@@ -32,9 +33,15 @@ class Product extends Model
         'cost' => 'float',
         'images' => 'array',
         'gender' => 'integer',
+        'is_active' => 'boolean',
     ];
 
     protected $appends = ['barcode'];
+
+    public function getIsActiveAttribute($value)
+    {
+        return $value !== null ? (bool) $value : true;
+    }
 
     public function getBarcodeAttribute()
     {

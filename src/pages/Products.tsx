@@ -135,6 +135,8 @@ export const Products: React.FC = () => {
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
+      // Exclude inactive / hidden products from storefront
+      if (product.isActive === false || (product as any).is_active === false || (product as any).is_active === 0) return false;
       // If backend filtering is working, this local filter might still be useful as a double-check
       // or for fields not handled by backend (like local search fallback)
       if (searchQuery) {

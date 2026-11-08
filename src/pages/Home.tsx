@@ -113,17 +113,22 @@ export const Home: React.FC = () => {
     });
   }, [storeSettings?.instagram_access_token_set]);
 
-  const featuredProducts = products.length > 0 ? [...products].reverse().slice(0, 10) : [];
+  // Filter out inactive products for public home showcase
+  const liveProducts = React.useMemo(() => {
+    return products.filter(p => p.isActive !== false && (p as any).is_active !== false && (p as any).is_active !== 0);
+  }, [products]);
+
+  const featuredProducts = liveProducts.length > 0 ? [...liveProducts].reverse().slice(0, 10) : [];
   const activeProductsList = React.useMemo(() => {
-    if (activeProductTab === 'trending') return bestSellers.length > 0 ? bestSellers : products.slice(0, 8);
-    if (activeProductTab === 'new') return products.slice(0, 8);
+    if (activeProductTab === 'trending') return bestSellers.length > 0 ? bestSellers.filter(p => p.isActive !== false && (p as any).is_active !== false) : liveProducts.slice(0, 8);
+    if (activeProductTab === 'new') return liveProducts.slice(0, 8);
     return featuredProducts;
   }, [activeProductTab, bestSellers, products, featuredProducts]);
-  const boysSpecific = products.filter(p => Number(p.gender) === 1);
-  const boysProducts = boysSpecific.length > 0 ? boysSpecific.slice(0, 10) : products.slice(0, 10);
+  const boysSpecific = liveProducts.filter(p => Number(p.gender) === 1);
+  const boysProducts = boysSpecific.length > 0 ? boysSpecific.slice(0, 10) : liveProducts.slice(0, 10);
 
-  const girlsSpecific = products.filter(p => Number(p.gender) === 2);
-  const girlsProducts = girlsSpecific.length > 0 ? girlsSpecific.slice(0, 10) : products.slice(0, 10);
+  const girlsSpecific = liveProducts.filter(p => Number(p.gender) === 2);
+  const girlsProducts = girlsSpecific.length > 0 ? girlsSpecific.slice(0, 10) : liveProducts.slice(0, 10);
 
   const recentlyViewed = React.useMemo(() => {
     const ids = getRecentlyViewedIds();
@@ -189,7 +194,7 @@ export const Home: React.FC = () => {
         */}
         <MobileHome
           categories={categories}
-          products={products}
+          products={liveProducts}
           isLoading={isProductsLoading || isLoading}
           getCategoryName={getCategoryName}
           language={language}

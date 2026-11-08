@@ -15,15 +15,19 @@ export default defineConfig(() => {
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-motion': ['motion/react'],
-            'vendor-recharts': ['recharts'],
-            // lucide-react and react-icons are deliberately NOT named here.
-            // Naming a package as a manual chunk forces all of it into the
-            // bundle: that turned ~60 icons in use into 795 kB (146 kB gzipped)
-            // downloaded on every first visit. Left alone, Rollup keeps only
-            // the icons actually imported.
+          manualChunks(id) {
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/')) {
+              return 'vendor-react';
+            }
+            if (id.includes('node_modules/motion/')) {
+              return 'vendor-motion';
+            }
+            if (id.includes('node_modules/recharts/')) {
+              return 'vendor-recharts';
+            }
+            if (id.includes('src/utils/printHelper')) {
+              return 'util-print';
+            }
           },
         },
       },

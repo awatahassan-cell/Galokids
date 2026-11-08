@@ -10,13 +10,18 @@ export const getColorHex = (colorName: string) => {
     case 'yellow': case 'زەرد': case 'أصفر': return '#eab308';
     case 'black': case 'ڕەش': case 'أسود': return '#000000';
     case 'white': case 'سپی': case 'أبيض': return '#ffffff';
+    case 'off-white': case 'off white': case 'offwhite': case 'ئۆف وایت': case 'أوف وايت': return '#fcfbf7';
+    case 'navy': case 'navy blue': case 'indigo': case 'نیلی': case 'نيلي': return '#1e3a8a';
+    case 'khaki': case 'حاکی': case 'حاكی': case 'خاکی': case 'كاكي': case 'خاكي': return '#c3b091';
+    case 'wine': case 'burgundy': case 'شرابی': case 'شرابي': case 'نبيذي': case 'عنابي': return '#722f37';
+    case 'maroon': case 'مارۆنی': case 'ماروني': return '#800000';
+    case 'cream': case 'کرێمی': case 'كرێمی': case 'كريمي': return '#fffdd0';
     case 'pink': case 'پەمەیی': case 'وردي': return '#ec4899';
     case 'purple': case 'مۆر': case 'بنفسجي': return '#a855f7';
-    case 'orange': case 'پرتەقاڵی': case 'برتقالي': return '#f97316';
+    case 'orange': case 'پڕتەقاڵی': case 'برتقالي': return '#f97316';
     case 'gray': case 'grey': case 'ڕەساسی': case 'رمادي': return '#6b7280';
     case 'brown': case 'قاوەیی': case 'بني': return '#92400e';
-    case 'navy': case 'نیلی': case 'كحلي': return '#1e3a8a';
-    case 'beige': case 'بێجی': case 'بيج': return '#fef3c7';
+    case 'beige': case 'بێژ': case 'بيج': return '#fef3c7';
     case 'sky': case 'sky blue': case 'شینی ئاسمانی': case 'أزرق سماوي': return '#38bdf8';
     default: return '#cbd5e1';
   }
@@ -33,14 +38,34 @@ export const getLocalizedColorName = (colorName: string, language: string): stri
     yellow: { ku: 'زەرد', ar: 'أصفر', en: 'Yellow' },
     black: { ku: 'ڕەش', ar: 'أسود', en: 'Black' },
     white: { ku: 'سپی', ar: 'أبيض', en: 'White' },
+    'off-white': { ku: 'ئۆف وایت', ar: 'أوف وايت', en: 'Off-White' },
+    'off white': { ku: 'ئۆف وایت', ar: 'أوف وايت', en: 'Off-White' },
+    offwhite: { ku: 'ئۆف وایت', ar: 'أوف وايت', en: 'Off-White' },
+    'ئۆف وایت': { ku: 'ئۆف وایت', ar: 'أوف وايت', en: 'Off-White' },
+    'navy blue': { ku: 'نیلی', ar: 'أزرق نيلي', en: 'Navy Blue' },
+    indigo: { ku: 'نیلی', ar: 'نيلي', en: 'Indigo' },
+    navy: { ku: 'نیلی', ar: 'نيلي', en: 'Navy' },
+    'نیلی': { ku: 'نیلی', ar: 'نيلي', en: 'Navy Blue' },
+    khaki: { ku: 'حاکی', ar: 'كاكي', en: 'Khaki' },
+    'حاکی': { ku: 'حاکی', ar: 'كاكي', en: 'Khaki' },
+    'حاكی': { ku: 'حاکی', ar: 'كاكي', en: 'Khaki' },
+    'خاکی': { ku: 'حاکی', ar: 'كاكي', en: 'Khaki' },
+    burgundy: { ku: 'شرابی', ar: 'نبيذي', en: 'Burgundy' },
+    wine: { ku: 'شرابی', ar: 'نبيذي', en: 'Wine' },
+    'شرابی': { ku: 'شرابی', ar: 'نبيذي', en: 'Burgundy' },
+    'شرابي': { ku: 'شرابی', ar: 'نبيذي', en: 'Burgundy' },
+    maroon: { ku: 'مارۆنی', ar: 'ماروني', en: 'Maroon' },
+    'مارۆنی': { ku: 'مارۆنی', ar: 'ماروني', en: 'Maroon' },
+    cream: { ku: 'کرێمی', ar: 'كريمي', en: 'Cream' },
+    'کرێمی': { ku: 'کرێمی', ar: 'كريمي', en: 'Cream' },
+    'كرێمی': { ku: 'کرێمی', ar: 'كريمي', en: 'Cream' },
     pink: { ku: 'پەمەیی', ar: 'وردي', en: 'Pink' },
     purple: { ku: 'مۆر', ar: 'بنفسجي', en: 'Purple' },
-    orange: { ku: 'پرتەقاڵی', ar: 'برتقالي', en: 'Orange' },
+    orange: { ku: 'پڕتەقاڵی', ar: 'برتقالي', en: 'Orange' },
     gray: { ku: 'ڕەساسی', ar: 'رمادي', en: 'Gray' },
     grey: { ku: 'ڕەساسی', ar: 'رمادي', en: 'Grey' },
     brown: { ku: 'قاوەیی', ar: 'بني', en: 'Brown' },
-    navy: { ku: 'نیلی', ar: 'كحلي', en: 'Navy' },
-    beige: { ku: 'بێجی', ar: 'بيج', en: 'Beige' },
+    beige: { ku: 'بێژ', ar: 'بيج', en: 'Beige' },
     sky: { ku: 'شینی ئاسمانی', ar: 'أزرق سماوي', en: 'Sky Blue' },
     'sky blue': { ku: 'شینی ئاسمانی', ar: 'أزرق سماوي', en: 'Sky Blue' },
   };

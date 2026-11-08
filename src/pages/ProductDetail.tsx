@@ -142,6 +142,7 @@ export const ProductDetail: React.FC = () => {
   };
 
   const isWishlisted = product ? wishlist.includes(product.id) : false;
+  const isProductInactive = Boolean(product && (product.isActive === false || (product as any).is_active === false || (product as any).is_active === 0));
 
   const getProductName = () => {
     if (!product) return '';

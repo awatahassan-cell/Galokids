@@ -1830,13 +1830,14 @@ export const Admin: React.FC = () => {
                     <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Cost")}</th>
                     <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Price")}</th>
                     <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Gross Margin")}</th>
+                    <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{language === 'ku' ? 'دۆخ لە وێبسایت' : language === 'ar' ? 'الحالة بالموقع' : 'Website'}</th>
                     <th className="px-4 py-3.5 text-center text-xs font-black uppercase tracking-wider">{L("Actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {isProductsLoading && products.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-4 py-16 text-center">
+                      <td colSpan={9} className="px-4 py-16 text-center">
                         <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin mx-auto" />
                       </td>
                     </tr>
@@ -1844,7 +1845,7 @@ export const Admin: React.FC = () => {
 
                   {!isProductsLoading && products.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-4 py-16 text-center">
+                      <td colSpan={9} className="px-4 py-16 text-center">
                         <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                         <p className="text-sm font-black text-slate-700">
                           {productSearchQuery || selectedAdminCategory !== 'all'
@@ -1925,6 +1926,33 @@ export const Admin: React.FC = () => {
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black ${margin >= 40 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                             {margin}%
                           </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-center" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const newActive = product.isActive === false ? true : false;
+                              await updateProduct({ ...product, isActive: newActive });
+                              toast(
+                                language === 'ku'
+                                  ? (newActive ? `بەرهەمی "${product.nameKu || product.name}" لە وێبسایت چالاککرا ✅` : `بەرهەمی "${product.nameKu || product.name}" لە وێبسایت ناچالاککرا و شاردرایەوە 🚫`)
+                                  : (newActive ? 'Product activated on website ✅' : 'Product deactivated from website 🚫')
+                              );
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black cursor-pointer transition-all shadow-2xs hover:scale-105 active:scale-95 ${
+                              product.isActive === false
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                            }`}
+                            title={language === 'ku' ? (product.isActive === false ? 'کرتە بکە بۆ چالاککردنەوە لە وێبسایت' : 'کرتە بکە بۆ شاردنەوە لە وێبسایت') : 'Click to toggle website visibility'}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${product.isActive === false ? 'bg-rose-500' : 'bg-emerald-500 animate-pulse'}`} />
+                            <span>
+                              {product.isActive === false 
+                                ? (language === 'ku' ? 'شاردراوەتەوە' : language === 'ar' ? 'مخفي' : 'Hidden') 
+                                : (language === 'ku' ? 'چالاکە' : language === 'ar' ? 'نشط' : 'Active')}
+                            </span>
+                          </button>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500 text-center" onClick={(e) => e.stopPropagation()}>
                           {product.id && (

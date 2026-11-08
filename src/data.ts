@@ -129,7 +129,12 @@ export const MOCK_EXPENSES: Expense[] = [
   { id: 'e3', description: 'Marketing Ads', amount: 300000, category: 'Marketing', date: '2023-10-20' },
 ];
 
-export const STANDARD_COLORS = ['Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Pink', 'Purple', 'Orange', 'Gray', 'Brown', 'Navy', 'Beige'];
+export const STANDARD_COLORS = [
+  'Red', 'Blue', 'Green', 'Yellow', 'Black', 'White',
+  'Off-White', 'Navy Blue', 'Indigo', 'Khaki',
+  'Burgundy', 'Wine', 'Maroon', 'Cream',
+  'Pink', 'Purple', 'Orange', 'Gray', 'Brown', 'Navy', 'Beige'
+];
 export const CLOTHING_SIZES = ['1-2', '2-3', '3-4', '4-5', '5-6', '6-7', '8-9'];
 export const SHOE_SIZES = [
   '20', '21', '22', '23', '24', '25', '26', '27', '28', '29',

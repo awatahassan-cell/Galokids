@@ -11,6 +11,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { adminTr } from '../i18n/adminDict';
 import { ProductImageEditor } from './ProductImageEditor';
 import { useToast } from './ui/Feedback';
+import { getLocalizedColorName } from '../utils/colors';
 import { ProductLabelPrinter } from './admin/ProductLabelPrinter';
 
 interface Props {
@@ -270,6 +271,37 @@ export const AdminEditModals: React.FC<Props> = ({
                   </div>
                 )}
               
+              {/* Website Visibility (Active / Inactive) */}
+              <div className={`p-4 rounded-2xl border transition-all ${
+                editingProduct.isActive !== false 
+                  ? 'bg-emerald-50/70 border-emerald-200' 
+                  : 'bg-rose-50/70 border-rose-200'
+              }`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900 flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${editingProduct.isActive !== false ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                      <span>{language === 'ku' ? 'دۆخی بەرهەم لەسەر وێبسایت' : language === 'ar' ? 'حالة المنتج على الموقع' : 'Website Visibility'}</span>
+                    </h3>
+                    <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                      {editingProduct.isActive !== false
+                        ? (language === 'ku' ? 'ئەم بەرهەمە چالاکە و لە وێبسایت بۆ کڕیاران پیشاندەدرێت' : 'This product is active and visible on the website')
+                        : (language === 'ku' ? 'ئەم بەرهەمە ناچالاککراوە و لە وێبسایت شاردراوەتەوە' : 'This product is inactive and hidden from the website')}
+                    </p>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={editingProduct.isActive !== false}
+                      onChange={e => setEditingProduct({ ...editingProduct, isActive: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+              </div>
+
               {/* Category & Gender */}
               <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/70 space-y-4">
                 <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">{L("Category & Target Group")}</h3>
@@ -445,7 +477,7 @@ export const AdminEditModals: React.FC<Props> = ({
                           >
                             <option value="">{L("Select Color")}</option>
                             {STANDARD_COLORS.map(color => (
-                              <option key={color} value={color}>{color}</option>
+                              <option key={color} value={color}>{getLocalizedColorName(color, language)} ({color})</option>
                             ))}
                           </select>
                         </div>

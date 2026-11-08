@@ -228,6 +228,11 @@ function convertKeysToCamelCase(obj: any): any {
       newObj[camelKey] = convertKeysToCamelCase(val);
     }
 
+    // Default product isActive to true if not explicitly false
+    if (Object.prototype.hasOwnProperty.call(newObj, 'price') && newObj.isActive === undefined) {
+      newObj.isActive = newObj.is_active !== undefined ? Boolean(newObj.is_active) : true;
+    }
+
     // Ensure barcode and sku are synchronized
     if (newObj.sku && !newObj.barcode) {
       newObj.barcode = String(newObj.sku);
@@ -1839,6 +1844,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       ...product,
       barcode: product.barcode || product.sku || '',
       sku: product.sku || product.barcode || '',
+      isActive: product.isActive !== undefined ? product.isActive : true,
       imageUrl: product.imageUrl || (product.images && product.images[0] ? product.images[0] : ''),
       images: Array.isArray(product.images) && product.images.length > 0
         ? product.images

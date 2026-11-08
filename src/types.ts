@@ -126,6 +126,7 @@ export interface Product {
   reviews?: Review[];
   gender?: 0 | 1 | 2;
   createdAt?: string;
+  isActive?: boolean;
 }
 
 export interface CartItem {

@@ -17,6 +17,30 @@ class ProductController extends Controller
             ? Product::with('variations')
             : Product::with(['variations', 'reviews']);
 
+        // Safely check and auto-create is_active column if missing
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('products', 'is_active')) {
+            try {
+                \Illuminate\Support\Facades\Schema::table('products', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->boolean('is_active')->default(true)->index();
+                });
+            } catch (\Throwable $e) {}
+        }
+
+        // Filter by is_active (public storefront only sees active products, unless include_inactive=1 or all=1)
+        if (\Illuminate\Support\Facades\Schema::hasColumn('products', 'is_active')) {
+            if ($request->has('is_active') && $request->is_active !== '' && $request->is_active !== 'all') {
+                $query->where('is_active', $request->boolean('is_active'));
+            } elseif (!$request->boolean('include_inactive') && !$request->boolean('all')) {
+                $user = auth('sanctum')->user();
+                if (!$user || !$user->isPrivileged()) {
+                    $query->where(function ($q) {
+                        $q->where('is_active', true)
+                          ->orWhereNull('is_active');
+                    });
+                }
+            }
+        }
+
         // Filter by category_id
         if ($request->has('category_id') && $request->category_id != '') {
             $query->where('category_id', $request->category_id);
@@ -209,6 +233,7 @@ class ProductController extends Controller
             'gender' => 'nullable|integer|in:0,1,2',
             'sku' => 'nullable|string|max:255',
             'barcode' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
         ]);
 
         // "No discount" must be stored as NULL. A 0 here used to mean the item
