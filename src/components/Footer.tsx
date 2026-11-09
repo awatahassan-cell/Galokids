@@ -130,9 +130,9 @@ export const Footer: React.FC = () => {
 
               <p className="text-[13.5px] mb-4 leading-relaxed">
                 {L(
-                  'فرۆشگای جل و پێداویستی منداڵان. لە هەولێرەوە بۆ هەموو عێراق — بە پارچەی سروشتی، نرخی ڕێک و گەیاندنی متمانەپێکراو.',
-                  'متجر ملابس ومستلزمات الأطفال. من أربيل إلى كل العراق — أقمشة طبيعية، أسعار عادلة وتوصيل موثوق.',
-                  'Kids clothing and essentials. From Erbil to all of Iraq — natural fabrics, fair prices and delivery you can count on.'
+                  'فرۆشگای جل و پێداویستی منداڵان. لە سلێمانییەوە بۆ هەموو عێراق — بە پارچەی سروشتی، نرخی ڕێک و گەیاندنی متمانەپێکراو.',
+                  'متجر ملابس ومستلزمات الأطفال. من السليمانية إلى كل العراق — أقمشة طبيعية، أسعار عادلة وتوصيل موثوق.',
+                  'Kids clothing and essentials. From Sulaymaniyah to all of Iraq — natural fabrics, fair prices and delivery you can count on.'
                 )}
               </p>
 
