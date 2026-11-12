@@ -116,7 +116,18 @@ class Product extends Model
             return $image;
         }
 
-        return rtrim(config('app.url'), '/') . '/' . ltrim($image, '/');
+        // The request's own root, not app.url.
+        //
+        // This API is served from a subdirectory — https://host/API — and
+        // app.url is routinely set to the bare host. Building from it would
+        // drop the /API and point every image at a path that does not exist.
+        // request()->root() carries whatever prefix the server is mounted
+        // under, which is also what the upload endpoint hands back when it
+        // saves an image. Outside a request (console, queue) there is no root
+        // to read, so app.url stands in.
+        $root = request() ? request()->root() : config('app.url');
+
+        return rtrim((string) $root, '/') . '/' . ltrim($image, '/');
     }
 
     /** True when the caller is signed in to the back office. */

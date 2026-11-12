@@ -23,7 +23,15 @@ class ApiClientContractTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // What the test client's requests arrive as, so the URLs are built
+        // from the same root a real caller would reach.
         config(['app.url' => 'https://api.galokids.com']);
+    }
+
+    /** The root a caller in this test actually reaches. */
+    private function root(): string
+    {
+        return rtrim(url('/'), '/');
     }
 
     private function product(array $attributes = []): Product
@@ -49,10 +57,10 @@ class ApiClientContractTest extends TestCase
         $body = $this->getJson('/api/products')->assertOk()->json();
         $product = ($body['data'] ?? $body)[0];
 
-        $this->assertSame('https://api.galokids.com/uploads/products/p1.jpg', $product['image_url']);
+        $this->assertSame($this->root() . '/uploads/products/p1.jpg', $product['image_url']);
         $this->assertSame([
-            'https://api.galokids.com/uploads/products/p1.jpg',
-            'https://api.galokids.com/uploads/products/p2.jpg',
+            $this->root() . '/uploads/products/p1.jpg',
+            $this->root() . '/uploads/products/p2.jpg',
         ], $product['images']);
     }
 
@@ -117,6 +125,31 @@ class ApiClientContractTest extends TestCase
         $product = ($body['data'] ?? $body)[0];
 
         $this->assertSame(4000.0, (float) $product['cost']);
-        $this->assertSame('https://api.galokids.com/uploads/products/p1.jpg', $product['image_url']);
+        $this->assertSame($this->root() . '/uploads/products/p1.jpg', $product['image_url']);
+    }
+
+    public function test_the_subdirectory_the_api_is_mounted_under_is_kept(): void
+    {
+        // This API is served from https://host/API, and app.url is routinely
+        // set to the bare host. Building the URL from app.url would drop the
+        // /API and point every image at a path that does not exist, which is
+        // worse than the relative path it replaced.
+        $request = \Illuminate\Http\Request::create('https://galo.prodental.dev/API/api/products', 'GET');
+        $request->server->set('SCRIPT_NAME', '/API/index.php');
+        $request->server->set('SCRIPT_FILENAME', '/var/www/API/index.php');
+        app()->instance('request', $request);
+        \Illuminate\Support\Facades\URL::setRequest($request);
+
+        $this->assertSame(
+            'https://galo.prodental.dev/API/uploads/products/p1.jpg',
+            Product::absoluteImageUrl('/uploads/products/p1.jpg'),
+            'the mount prefix must survive'
+        );
+
+        // And a CDN link is still untouched wherever the API is mounted.
+        $this->assertSame(
+            'https://cdn.example.com/x.jpg',
+            Product::absoluteImageUrl('https://cdn.example.com/x.jpg')
+        );
     }
 }
