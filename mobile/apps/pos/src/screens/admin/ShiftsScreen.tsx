@@ -33,8 +33,13 @@ export default function ShiftsScreen() {
   const [openingFloat, setOpeningFloat] = useState('');
   const [countedAmount, setCountedAmount] = useState('');
 
-  const current = useFetch<Shift | null>(() => shifts.current(), []);
-  const history = useFetch(() => shifts.list({ limit: 25 }), []);
+  // `/shifts/current` answers `{}` rather than null when there is none, and an
+  // empty object is truthy — so the open shift is recognised by its id, not by
+  // the response being non-null.
+  const current = useFetch(() => shifts.current(), []);
+  const history = useFetch<Shift[]>(() => shifts.list({ limit: 25 }), []);
+
+  const openShiftRecord = (current.data && 'id' in current.data ? current.data : null) as Shift | null;
 
   const offline = !online || useNeedsConnection(current.error);
 
@@ -82,18 +87,18 @@ export default function ShiftsScreen() {
     <Screen title="شیفتەکان" subtitle="کردنەوە، داخستن و ژماردنی دراوەر" onRefresh={current.refresh} refreshing={current.refreshing}>
       {offline ? (
         <NeedsConnection what="شیفتەکان" />
-      ) : current.loading && current.data === null ? (
+      ) : current.loading && !current.data ? (
         <Loading />
       ) : current.error ? (
         <Problem error={current.error} onRetry={current.reload} />
-      ) : current.data && current.data.status === 'open' ? (
+      ) : openShiftRecord && openShiftRecord.status === 'open' ? (
         <View style={styles.panel}>
           <View style={styles.openBadge}>
             <Text style={styles.openBadgeText}>شیفت کراوەیە</Text>
           </View>
 
-          <Row label="کراوەتەوە" value={formatDateTime(current.data.opened_at)} />
-          <Row label="بڕی دەستپێک" value={formatIQD(current.data.opening_float)} />
+          <Row label="کراوەتەوە" value={formatDateTime(openShiftRecord.opened_at)} />
+          <Row label="بڕی دەستپێک" value={formatIQD(openShiftRecord.opening_float)} />
 
           <Text style={styles.prompt}>
             پارەی ناو دراوەرەکە بژمێرە و بڕەکەی لێرە بنووسە. جیاوازییەکە تۆمار دەکرێت.
@@ -137,11 +142,11 @@ export default function ShiftsScreen() {
 
           {history.loading && !history.data ? (
             <Loading />
-          ) : (history.data?.data.length ?? 0) === 0 ? (
+          ) : (history.data?.length ?? 0) === 0 ? (
             <Empty title="هێشتا هیچ شیفتێک نییە" />
           ) : (
             <View style={styles.list}>
-              {(history.data?.data ?? []).map(shift => {
+              {(history.data ?? []).map(shift => {
                 const difference =
                   shift.closing_amount != null ? shift.closing_amount - shift.opening_float : null;
 

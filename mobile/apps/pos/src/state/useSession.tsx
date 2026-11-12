@@ -1,15 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
 import {
-  API_BASE_URL,
   AUTH_TOKEN_KEY,
   AUTH_USER_KEY,
   auth,
   configureApi,
+  deleteSecret,
+  getSecret,
+  setSecret,
   hasPermission,
   isPrivileged,
   type User,
 } from '@galokids/core';
+import { apiBaseUrl } from '@/apiConfig';
 
 /**
  * Who is signed in to this till.
@@ -44,8 +46,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // can make a request.
   useEffect(() => {
     configureApi({
-      baseUrl: API_BASE_URL,
-      getToken: async () => SecureStore.getItemAsync(AUTH_TOKEN_KEY),
+      baseUrl: apiBaseUrl,
+      getToken: async () => getSecret(AUTH_TOKEN_KEY),
     });
   }, []);
 
@@ -53,8 +55,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         const [saved, savedUser] = await Promise.all([
-          SecureStore.getItemAsync(AUTH_TOKEN_KEY),
-          SecureStore.getItemAsync(AUTH_USER_KEY),
+          getSecret(AUTH_TOKEN_KEY),
+          getSecret(AUTH_USER_KEY),
         ]);
 
         if (saved) setToken(saved);
@@ -68,7 +70,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             .me()
             .then(async fresh => {
               setUser(fresh);
-              await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(fresh));
+              await setSecret(AUTH_USER_KEY, JSON.stringify(fresh));
             })
             .catch(() => {});
         }
@@ -85,8 +87,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       throw new Error('ئەم هەژمارە ڕێگەی پێنادرێت بچێتە ناو سیستەمی فرۆشتن.');
     }
 
-    await SecureStore.setItemAsync(AUTH_TOKEN_KEY, result.access_token);
-    await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(result.user));
+    await setSecret(AUTH_TOKEN_KEY, result.access_token);
+    await setSecret(AUTH_USER_KEY, JSON.stringify(result.user));
 
     setToken(result.access_token);
     setUser(result.user);
@@ -96,8 +98,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // Tell the server if we can, but go either way: a cashier handing the till
     // over should not be stuck signed in because the connection is down.
     await auth.logout().catch(() => {});
-    await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-    await SecureStore.deleteItemAsync(AUTH_USER_KEY);
+    await deleteSecret(AUTH_TOKEN_KEY);
+    await deleteSecret(AUTH_USER_KEY);
 
     setToken(null);
     setUser(null);

@@ -5,6 +5,7 @@ import {
   formatDay,
   presetRanges,
   reports,
+  type DailyReport,
   type DailyReportRow,
   type SalesReport,
 } from '@galokids/core';
@@ -30,7 +31,7 @@ export default function ReportsScreen() {
     [range.from, range.to]
   );
 
-  const daily = useFetch<DailyReportRow[]>(
+  const daily = useFetch<DailyReport>(
     () => reports.daily({ from: range.from, to: range.to }),
     [range.from, range.to]
   );
@@ -65,24 +66,29 @@ export default function ReportsScreen() {
             <Stat label="داهات" value={formatIQD(summary.data?.revenue ?? 0)} tone="good" />
             <Stat label="ژمارەی داواکاری" value={String(summary.data?.order_count ?? 0)} />
 
-            {summary.data?.cost != null && (
-              <Stat label="تێچوو" value={formatIQD(summary.data.cost)} />
+            {summary.data?.cogs != null && (
+              <Stat label="تێچووی کاڵا" value={formatIQD(summary.data.cogs)} />
             )}
 
-            {summary.data?.profit != null && (
+            {summary.data?.expenses != null && (
+              <Stat label="خەرجی" value={formatIQD(summary.data.expenses)} tone="bad" />
+            )}
+
+            {summary.data?.net_profit != null && (
               <Stat
                 label="قازانجی پوخت"
-                value={formatIQD(summary.data.profit)}
-                tone={summary.data.profit >= 0 ? 'good' : 'bad'}
+                value={formatIQD(summary.data.net_profit)}
+                hint="دوای خەرجی"
+                tone={summary.data.net_profit >= 0 ? 'good' : 'bad'}
               />
             )}
 
-            {summary.data?.average_order != null && (
-              <Stat label="ناوەندی داواکاری" value={formatIQD(summary.data.average_order)} />
+            {summary.data?.average_order_value != null && (
+              <Stat label="ناوەندی داواکاری" value={formatIQD(summary.data.average_order_value)} />
             )}
           </View>
 
-          <DailyBars rows={daily.data ?? []} loading={daily.loading} />
+          <DailyBars rows={daily.data?.days ?? []} loading={daily.loading} />
         </>
       )}
     </Screen>

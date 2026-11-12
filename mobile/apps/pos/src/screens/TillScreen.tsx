@@ -15,7 +15,6 @@ import { enqueueSale, variationsFor, type LocalProduct, type LocalVariation } fr
 import { useCart, type CartLine } from '@/state/useCart';
 import { useSync } from '@/state/useSync';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
-import { SyncBanner } from '@/components/SyncBanner';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 
 /**
@@ -109,9 +108,8 @@ export default function TillScreen() {
   );
 
   return (
+    // The sync strip belongs to the shell, which draws it above every screen.
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SyncBanner />
-
       <View style={styles.scannerWrap}>
         <BarcodeScanner onScan={handleScan} paused={busy || picking !== null} />
       </View>

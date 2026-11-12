@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@galokids/core';
-import { useSync } from '@/state/useSync';
 
 /**
  * Fetching something for a screen.
@@ -86,14 +85,20 @@ export function useFetch<T>(
 }
 
 /**
- * True when this screen cannot work right now.
+ * True when this screen could not reach the server.
+ *
+ * Decided by what actually happened to this screen's own request, and not by
+ * the device's opinion of the internet. `expo-network` answers a question
+ * nobody here asked — can this phone reach the public internet — and the
+ * answer is routinely no in exactly the cases that matter: a shop whose till
+ * talks to a server on the same LAN, a captive-portal wifi, a corporate
+ * network that blocks the probe. Trusting it made every back-office screen
+ * refuse to load while the API was answering perfectly well a metre away.
  *
  * A screen that reads the whole dataset has nothing useful to show from one
  * device's slice of it, so it says "needs a connection" rather than drawing an
  * empty report — which looks like a shop that sold nothing.
  */
 export function useNeedsConnection(error: unknown): boolean {
-  const { online } = useSync();
-
-  return !online || (error instanceof ApiError && error.isOffline);
+  return error instanceof ApiError && error.isOffline;
 }

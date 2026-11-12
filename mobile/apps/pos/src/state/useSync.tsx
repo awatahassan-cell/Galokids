@@ -59,6 +59,11 @@ export function SyncProvider({ children, enabled }: { children: ReactNode; enabl
       try {
         const result = await sync(options);
         setLastResult(result);
+
+        // The authority on whether the shop is reachable: a sync that got
+        // through, or one that could not ask.
+        if (result.problem !== 'busy') setOnline(result.problem !== 'offline');
+
         await refreshCounts();
 
         return result;
@@ -70,28 +75,24 @@ export function SyncProvider({ children, enabled }: { children: ReactNode; enabl
     [pending, refreshCounts]
   );
 
-  // What the device thinks of its connection. Only a hint — a phone can be on
-  // a wifi network that reaches nothing — so the real answer always comes from
-  // a request either working or not.
+  // The device's own opinion, used for one thing only: noticing the moment a
+  // phone regains signal, so the queue goes out without waiting for the timer.
+  //
+  // It is NOT allowed to decide that the till is offline. `expo-network`
+  // answers a different question — can this device reach the public internet —
+  // and the answer is routinely no in the cases that matter most: a till
+  // talking to a server on the same LAN, a captive-portal wifi, a network that
+  // blocks the probe. Whether the shop is reachable is settled by a request to
+  // the shop either working or not, which is what `sync()` reports back.
   useEffect(() => {
     if (!enabled) return;
 
-    let cancelled = false;
-
-    const check = async () => {
-      const state = await Network.getNetworkStateAsync().catch(() => null);
-      if (!cancelled) setOnline(state?.isInternetReachable !== false);
-    };
-
-    check();
     const subscription = Network.addNetworkStateListener?.(state => {
-      if (!cancelled) setOnline(state.isInternetReachable !== false);
+      if (state.isInternetReachable) syncNow();
     });
 
-    return () => {
-      cancelled = true;
-      subscription?.remove?.();
-    };
+    return () => subscription?.remove?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
   // Try again on a timer while anything is waiting, and whenever the till

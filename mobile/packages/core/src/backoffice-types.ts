@@ -8,10 +8,12 @@
 
 export interface Expense {
   id: number;
-  description: string;
+  /** The API requires this, not `description` — which is the optional one. */
+  category: string;
   amount: number;
-  category: string | null;
-  spent_on: string | null;
+  description: string | null;
+  /** The column is `date`, and the API refuses a request without it. */
+  date: string;
   created_at: string;
 }
 
@@ -111,29 +113,71 @@ export interface ActivityLog {
 
 /* ------------------------------------------------------------ reports --- */
 
-/** One day on the calendar: what came in, what went out, what is left. */
+/**
+ * One day on the calendar.
+ *
+ * Written from the actual response, not from what the names suggest: the count
+ * is `orders_count` (not `order_count`, which is what the range summary uses),
+ * and cost of goods is `cogs`. Guessing at these produced screens that threw
+ * rather than screens that were merely wrong.
+ */
 export interface DailyReportRow {
   day: string;
   revenue: number;
+  pos_revenue: number;
+  online_revenue: number;
+  social_revenue: number;
+  orders_count: number;
+  items_sold: number;
+  cogs: number;
   expenses: number;
   net_profit: number;
-  order_count: number;
 }
 
+/** `GET /reports/daily` wraps its rows; it does not return a bare array. */
+export interface DailyReport {
+  from: string;
+  to: string;
+  days: DailyReportRow[];
+}
+
+/** `GET /reports/sales` over a range. */
 export interface SalesReport {
+  from: string;
+  to: string;
   revenue: number;
+  pos_revenue: number;
+  online_revenue: number;
+  social_revenue: number;
+  refunded: number;
+  /** Cost of the goods sold. */
+  cogs: number;
+  gross_profit: number;
+  expenses: number;
+  /** Gross profit less expenses — the figure the shop actually keeps. */
+  net_profit: number;
   order_count: number;
-  items_sold?: number;
-  cost?: number;
-  profit?: number;
-  average_order?: number;
+  items_sold: number;
+  average_order_value: number;
 }
 
 export interface CashierReportRow {
-  user_id: number;
+  user_id: number | null;
   name: string;
-  order_count: number;
-  revenue: number;
+  orders_count: number;
+  /** Takings, net of refunds. */
+  total: number;
+  pos_total: number;
+  online_total: number;
+  social_total: number;
+}
+
+/** `GET /reports/cashiers` wraps its rows too. */
+export interface CashierReport {
+  from: string;
+  to: string;
+  cashiers: CashierReportRow[];
+  grand_total: number;
 }
 
 export interface CouponReportRow {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { formatDay, formatIQD, presetRanges, reports, type CashierReportRow } from '@galokids/core';
+import { formatDay, formatIQD, presetRanges, reports, type CashierReport } from '@galokids/core';
 import { Chips, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -17,14 +17,16 @@ export default function CashiersScreen() {
   const [key, setKey] = useState<keyof typeof ranges>('month');
   const range = ranges[key]!;
 
-  const list = useFetch<CashierReportRow[]>(
+  const list = useFetch<CashierReport>(
     () => reports.cashiers({ from: range.from, to: range.to }),
     [range.from, range.to]
   );
 
   const offline = useNeedsConnection(list.error);
-  const rows = [...(list.data ?? [])].sort((a, b) => b.revenue - a.revenue);
-  const best = Math.max(...rows.map(row => row.revenue), 1);
+  // The endpoint already sorts by takings; copy before touching it anyway so
+  // a re-render never mutates what the fetch is holding.
+  const rows = [...(list.data?.cashiers ?? [])];
+  const best = Math.max(...rows.map(row => row.total), 1);
 
   return (
     <Screen
@@ -50,20 +52,20 @@ export default function CashiersScreen() {
       ) : (
         <View style={styles.list}>
           {rows.map((row, index) => (
-            <View key={row.user_id} style={styles.card}>
+            <View key={row.user_id ?? row.name} style={styles.card}>
               <View style={styles.cardHead}>
-                <Text style={styles.revenue}>{formatIQD(row.revenue)}</Text>
+                <Text style={styles.revenue}>{formatIQD(row.total)}</Text>
 
                 <View style={styles.cardHeadText}>
                   <Text style={styles.name}>
                     {index === 0 ? '🥇 ' : ''}{row.name}
                   </Text>
-                  <Text style={styles.count}>{row.order_count} فرۆشتن</Text>
+                  <Text style={styles.count}>{row.orders_count} فرۆشتن</Text>
                 </View>
               </View>
 
               <View style={styles.track}>
-                <View style={[styles.fill, { width: `${Math.round((row.revenue / best) * 100)}%` }]} />
+                <View style={[styles.fill, { width: `${Math.round((row.total / best) * 100)}%` }]} />
               </View>
             </View>
           ))}

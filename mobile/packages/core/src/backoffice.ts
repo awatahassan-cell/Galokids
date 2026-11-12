@@ -1,11 +1,11 @@
 import { apiRequest } from './client';
 import type {
   ActivityLog,
-  CashierReportRow,
+  CashierReport,
+  DailyReport,
   ContactMessage,
   Coupon,
   CouponReportRow,
-  DailyReportRow,
   Expense,
   OrderCounts,
   Purchase,
@@ -39,13 +39,18 @@ export const reports = {
       query: { from: range.from, to: range.to, mine: range.mine ? 1 : undefined },
     }),
 
-  /** Day by day, for the calendar and the overview chart. */
+  /**
+   * Day by day, for the calendar and the overview chart.
+   *
+   * Returns `{ from, to, days }`, not a bare array — reading it as one is how
+   * the reports screen came to throw `e.map is not a function`.
+   */
   daily: (range: DateRange = {}) =>
-    apiRequest<DailyReportRow[]>('reports/daily', { query: { from: range.from, to: range.to } }),
+    apiRequest<DailyReport>('reports/daily', { query: { from: range.from, to: range.to } }),
 
-  /** Who sold what. Admin-facing, so a cashier cannot see a colleague's till. */
+  /** Who sold what. Wrapped as `{ from, to, cashiers, grand_total }`. */
   cashiers: (range: DateRange = {}) =>
-    apiRequest<CashierReportRow[]>('reports/cashiers', { query: { from: range.from, to: range.to } }),
+    apiRequest<CashierReport>('reports/cashiers', { query: { from: range.from, to: range.to } }),
 
   coupons: (range: DateRange = {}) =>
     apiRequest<CouponReportRow[]>('reports/coupons', { query: { from: range.from, to: range.to } }),
@@ -84,9 +89,17 @@ export const inventory = {
 /* ---------------------------------------------------------- the till --- */
 
 export const shifts = {
-  current: () => apiRequest<Shift | null>('shifts/current'),
-  list: (params: { page?: number; limit?: number } = {}) =>
-    apiRequest<Paginated<Shift>>('shifts', { query: { page: params.page ?? 1, limit: params.limit ?? 25 } }),
+  /**
+   * The signed-in cashier's open shift.
+   *
+   * Answers `{}` rather than null when there is none, so check for an id — an
+   * empty object is truthy and `data !== null` was never going to catch it.
+   */
+  current: () => apiRequest<Shift | Record<string, never>>('shifts/current'),
+
+  /** A plain array, not a paginator. */
+  list: (params: { limit?: number } = {}) =>
+    apiRequest<Shift[]>('shifts', { query: { limit: params.limit ?? 25 } }),
 
   open: (openingFloat: number) =>
     apiRequest<Shift>('shifts/open', { method: 'POST', body: { opening_float: openingFloat } }),
@@ -152,6 +165,12 @@ export const backoffice = {
       query: { page: params.page ?? 1, limit: params.limit ?? 25, from: params.from, to: params.to },
     }),
 
+  /**
+   * Record a spend.
+   *
+   * `category` and `date` are both required by the API — a request without
+   * either is refused, and the column is `date`, not `spent_on`.
+   */
   saveExpense: (expense: Partial<Expense>, id?: number) =>
     id
       ? apiRequest<Expense>(`expenses/${id}`, { method: 'PUT', body: expense })

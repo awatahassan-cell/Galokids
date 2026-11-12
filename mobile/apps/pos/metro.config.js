@@ -21,4 +21,9 @@ config.resolver.nodeModulesPaths = [
 ];
 config.resolver.disableHierarchicalLookup = true;
 
+// SQLite on the web ships as WebAssembly, and Metro treats an unknown
+// extension as a module to parse rather than a file to copy. Without this the
+// web build fails on `import wasm from './wa-sqlite/wa-sqlite.wasm'`.
+config.resolver.assetExts = [...config.resolver.assetExts, 'wasm'];
+
 module.exports = config;

@@ -5,6 +5,7 @@ import {
   formatDay,
   formatIQD,
   presetRanges,
+  toDateKey,
   type Expense,
   type Paginated,
 } from '@galokids/core';
@@ -103,10 +104,10 @@ export default function ExpensesScreen() {
 
                   <View style={styles.rowBody}>
                     <Text style={styles.description} numberOfLines={1}>
-                      {item.description}
+                      {item.description || item.category}
                     </Text>
                     <Text style={styles.meta}>
-                      {[item.category, formatDay(item.spent_on ?? item.created_at)]
+                      {[item.category, formatDay(item.date ?? item.created_at)]
                         .filter(Boolean)
                         .join(' · ')}
                     </Text>
@@ -149,8 +150,11 @@ function ExpenseComposer({
   const save = async () => {
     const value = Number(amount);
 
-    if (!description.trim() || !Number.isFinite(value) || value <= 0) {
-      Alert.alert('ناتەواو', 'ناونیشان و بڕێکی دروست پێویستە.');
+    // The API requires a category, not a description — asking for the optional
+    // one and omitting the required one is how this screen would have failed
+    // on every save with a validation error nobody could act on.
+    if (!category.trim() || !Number.isFinite(value) || value <= 0) {
+      Alert.alert('ناتەواو', 'جۆری خەرجی و بڕێکی دروست پێویستە.');
       return;
     }
 
@@ -158,9 +162,12 @@ function ExpenseComposer({
 
     try {
       await backoffice.saveExpense({
-        description: description.trim(),
+        category: category.trim(),
         amount: value,
-        category: category.trim() || null,
+        description: description.trim() || null,
+        // Required by the API. Today unless the shop says otherwise, which is
+        // what recording a spend as it happens means.
+        date: toDateKey(),
       });
 
       setDescription('');
@@ -182,10 +189,10 @@ function ExpenseComposer({
 
           <TextInput
             style={styles.input}
-            placeholder="بۆچی؟ (کرێ، گواستنەوە…)"
+            placeholder="جۆری خەرجی (کرێ، گواستنەوە، مووچە…)"
             placeholderTextColor={colors.textFaint}
-            value={description}
-            onChangeText={setDescription}
+            value={category}
+            onChangeText={setCategory}
             textAlign="right"
           />
 
@@ -201,10 +208,10 @@ function ExpenseComposer({
 
           <TextInput
             style={styles.input}
-            placeholder="جۆر (ئارەزوومەندانە)"
+            placeholder="تێبینی (ئارەزوومەندانە)"
             placeholderTextColor={colors.textFaint}
-            value={category}
-            onChangeText={setCategory}
+            value={description}
+            onChangeText={setDescription}
             textAlign="right"
           />
 

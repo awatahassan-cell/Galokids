@@ -1,14 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import * as SecureStore from 'expo-secure-store';
 import {
-  API_BASE_URL,
   AUTH_TOKEN_KEY,
   AUTH_USER_KEY,
   auth,
   configureApi,
+  deleteSecret,
+  getSecret,
+  setSecret,
   normalizePhone,
   type User,
 } from '@galokids/core';
+import { apiBaseUrl } from '@/apiConfig';
 
 /**
  * The customer's account.
@@ -41,13 +43,13 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     configureApi({
-      baseUrl: API_BASE_URL,
-      getToken: async () => SecureStore.getItemAsync(AUTH_TOKEN_KEY),
+      baseUrl: apiBaseUrl,
+      getToken: async () => getSecret(AUTH_TOKEN_KEY),
       // A shopper's session going stale is not an emergency: drop it and let
       // them carry on browsing, which needs no account.
       onUnauthenticated: async () => {
-        await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY).catch(() => {});
-        await SecureStore.deleteItemAsync(AUTH_USER_KEY).catch(() => {});
+        await deleteSecret(AUTH_TOKEN_KEY).catch(() => {});
+        await deleteSecret(AUTH_USER_KEY).catch(() => {});
         setUser(null);
       },
     });
@@ -56,7 +58,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const saved = await SecureStore.getItemAsync(AUTH_USER_KEY);
+        const saved = await getSecret(AUTH_USER_KEY);
         if (saved) setUser(JSON.parse(saved) as User);
       } catch {
         // Nothing saved, or storage refused. Browsing works regardless.
@@ -88,16 +90,16 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
     const session = await auth.loginWithPhone(canonical, checked.verification_token, name);
 
-    await SecureStore.setItemAsync(AUTH_TOKEN_KEY, session.access_token);
-    await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(session.user));
+    await setSecret(AUTH_TOKEN_KEY, session.access_token);
+    await setSecret(AUTH_USER_KEY, JSON.stringify(session.user));
 
     setUser(session.user);
   }, []);
 
   const signOut = useCallback(async () => {
     await auth.logout().catch(() => {});
-    await SecureStore.deleteItemAsync(AUTH_TOKEN_KEY);
-    await SecureStore.deleteItemAsync(AUTH_USER_KEY);
+    await deleteSecret(AUTH_TOKEN_KEY);
+    await deleteSecret(AUTH_USER_KEY);
 
     setUser(null);
   }, []);
