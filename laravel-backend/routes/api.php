@@ -18,19 +18,25 @@ use App\Http\Controllers\OtpController;
 |--------------------------------------------------------------------------
 */
 
-// Public OTP Verification routes
-Route::post('/send-otp', [OtpController::class, 'sendOtp'])->middleware('throttle:15,1');
-Route::post('/verify-otp', [OtpController::class, 'verifyOtp'])->middleware('throttle:20,1');
+// Public OTP Verification routes.
+//
+// The named limiters (see AppServiceProvider) count per phone number and per
+// login, with a far looser ceiling per IP address. A plain `throttle:10,1`
+// counts per IP for anyone not signed in, and Iraqi carriers put thousands of
+// customers behind a handful of addresses — so it was ten sign-ins a minute
+// for the whole carrier.
+Route::post('/send-otp', [OtpController::class, 'sendOtp'])->middleware('throttle:otp-send');
+Route::post('/verify-otp', [OtpController::class, 'verifyOtp'])->middleware('throttle:otp-verify');
 
 // Public Authentication routes
 // SECURITY: throttle to slow down brute-force / credential-stuffing attacks.
-Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 // Requires the single-use verification_token returned by /verify-otp.
-Route::post('/login-with-phone', [AuthController::class, 'phoneLoginOrRegister'])->middleware('throttle:15,1');
+Route::post('/login-with-phone', [AuthController::class, 'phoneLoginOrRegister'])->middleware('throttle:auth');
 // Does this mobile number already have an account? Used by the login/register
 // screens so a customer on a new device gets the right prompt.
-Route::post('/auth/phone-status', [AuthController::class, 'phoneStatus'])->middleware('throttle:20,1');
+Route::post('/auth/phone-status', [AuthController::class, 'phoneStatus'])->middleware('throttle:auth');
 
 // Public resource routes
 Route::get('/products/best-sellers', [ProductController::class, 'bestSellers']);
