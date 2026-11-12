@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": false,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "expo-sqlite": ["./stubs/expo-sqlite.ts"],
+      "expo-crypto": ["./stubs/expo-crypto.ts"],
+      "@galokids/core": ["./stubs/core.ts"]
+    }
+  },
+  "include": ["./**/*.ts", "../*.ts"]
+}

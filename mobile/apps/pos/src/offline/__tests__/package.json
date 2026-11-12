@@ -1,0 +1,6 @@
+{
+  "name": "@galokids/pos-offline-tests",
+  "private": true,
+  "type": "module",
+  "comment": "ESM so the test file can use top-level await; kept out of the app bundle by its folder name."
+}

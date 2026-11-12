@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Galo Kids POS",
+    "slug": "galokids-pos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "galokids-pos",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "بۆ سکێنکردنی بارکۆدی بەرهەمەکان پێویستمان بە کامێرایە."
+        }
+      ]
+    ],
+    "android": {
+      "package": "com.galokids.pos",
+      "permissions": ["CAMERA"]
+    },
+    "ios": {
+      "bundleIdentifier": "com.galokids.pos",
+      "supportsTablet": true
+    }
+  }
+}
