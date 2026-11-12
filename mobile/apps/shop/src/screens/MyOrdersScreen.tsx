@@ -57,7 +57,10 @@ export default function MyOrdersScreen() {
           mark="🔑"
           title="بۆ بینینی داواکارییەکانت بچۆ ژوورەوە"
           body="یان ئەگەر بەبێ هەژمار داوات کردووە، بە ژمارەی داواکاری شوێنی بکەوە."
-          action={{ label: 'چوونەژوورەوە', onPress: () => router.push('/sign-in?next=/orders') }}
+          action={{
+            label: 'چوونەژوورەوە',
+            onPress: () => router.push({ pathname: '/sign-in', params: { next: '/orders' } }),
+          }}
         />
         <Pressable style={styles.secondary} onPress={() => router.push('/track')}>
           <Text style={styles.secondaryText}>شوێنکەوتنی داواکاری بە ژمارە</Text>

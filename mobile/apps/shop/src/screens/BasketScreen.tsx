@@ -143,7 +143,11 @@ export default function BasketScreen() {
 
           <Pressable
             style={styles.browse}
-            onPress={() => router.push('/sign-in?next=/basket')}
+            // The object form, not '/sign-in?next=/basket': a query string in a
+            // pushed path does not reliably reach `useLocalSearchParams`, and
+            // when it goes missing the shopper is dropped on their account
+            // page instead of back at the checkout they were trying to finish.
+            onPress={() => router.push({ pathname: '/sign-in', params: { next: '/basket' } })}
           >
             <Text style={styles.browseText}>چوونەژوورەوە بە کۆد</Text>
           </Pressable>

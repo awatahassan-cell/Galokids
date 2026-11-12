@@ -40,25 +40,60 @@ export function presetRanges(today: Date = new Date()): Record<string, Range> {
   };
 }
 
-/** `12 تشرینی دووەم` — short, and in the language the shop reads. */
-export function formatDay(value: string | Date): string {
-  const date = typeof value === 'string' ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return '';
+/**
+ * The months, written out rather than asked of `Intl`.
+ *
+ * `Intl.DateTimeFormat('ckb-IQ')` gives the right names on a machine whose ICU
+ * carries Kurdish data, and falls back to the root locale on one that does
+ * not — where November comes out as the literal string "M11". Node has the
+ * data; Chrome does not, and neither does every Android phone. A customer
+ * looking at their own order history should not be shown "M11 12" because of
+ * which locale files their handset shipped with, so the shop carries its own
+ * list and the output is the same everywhere.
+ */
+const MONTHS_KU = [
+  'کانوونی دووەم',
+  'شوبات',
+  'ئازار',
+  'نیسان',
+  'ئایار',
+  'حوزەیران',
+  'تەمموز',
+  'ئاب',
+  'ئەیلوول',
+  'تشرینی یەکەم',
+  'تشرینی دووەم',
+  'کانوونی یەکەم',
+];
 
-  return new Intl.DateTimeFormat('ckb-IQ', { day: 'numeric', month: 'long' }).format(date);
+function asDate(value: string | Date): Date | null {
+  const date = typeof value === 'string' ? new Date(value) : value;
+
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/** With the time, for a list where two rows can share a day. */
-export function formatDateTime(value: string | Date): string {
-  const date = typeof value === 'string' ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return '';
+/** `12 تشرینی دووەم` — short, and in the language the shop reads. */
+export function formatDay(value: string | Date): string {
+  const date = asDate(value);
+  if (!date) return '';
 
-  return new Intl.DateTimeFormat('ckb-IQ', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+  return `${date.getDate()} ${MONTHS_KU[date.getMonth()]}`;
+}
+
+/**
+ * With the time, for a list where two rows can share a day.
+ *
+ * A 24-hour clock, which is how a receipt and a shift report read, and which
+ * avoids AM/PM — two more words with no settled Kurdish spelling.
+ */
+export function formatDateTime(value: string | Date): string {
+  const date = asDate(value);
+  if (!date) return '';
+
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${formatDay(date)} · ${hours}:${minutes}`;
 }
 
 /** "٣ خولەک لەمەوبەر" — for a sync strip or an activity log. */

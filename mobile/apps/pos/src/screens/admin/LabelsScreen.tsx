@@ -100,10 +100,20 @@ export default function LabelsScreen() {
     setVariations(await variationsFor(product.id).catch(() => []));
   };
 
+  /**
+   * What goes under the bars.
+   *
+   * A variation's own barcode first, because that is the code on the garment's
+   * label and it identifies the exact colour and size — the same order the
+   * scanner looks them up in, so a sticker printed here is found by the till.
+   *
+   * A product has no barcode of its own in this shop: the backend's `barcode`
+   * field on a product is its SKU under another name, so the SKU is the
+   * product-level code.
+   */
   const codeFor = (product: LocalProduct, variation: LocalVariation | null): string =>
     variation?.barcode?.trim() ||
     variation?.sku?.trim() ||
-    product.barcode?.trim() ||
     product.sku?.trim() ||
     // Last resort. Every product has an id, so there is always something to
     // print — and a sticker that scans to the right product beats no sticker.
@@ -221,7 +231,7 @@ export default function LabelsScreen() {
                           {product.name_ku || product.name}
                         </Text>
                         <Text style={styles.resultCode}>
-                          {product.barcode || product.sku || `#${product.id}`}
+                          {product.sku || `#${product.id}`}
                         </Text>
                       </View>
                       <Text style={styles.resultPrice}>
@@ -426,7 +436,13 @@ function LabelPreview({
         )}
         {options.showPrice && <Text style={styles.pvPrice}>{formatIQD(spec.price)}</Text>}
 
-        <Barcode value={spec.barcode} height={options.heightMm * scale * 0.3} moduleWidth={1.1} />
+        {/* Fitted to the sticker's own width, less the padding, so a long
+            code is squeezed rather than running off the edge. */}
+        <Barcode
+          value={spec.barcode}
+          height={options.heightMm * scale * 0.3}
+          maxWidth={options.widthMm * scale - 10}
+        />
 
         {options.showBarcodeText && <Text style={styles.pvCode}>{spec.barcode}</Text>}
       </View>

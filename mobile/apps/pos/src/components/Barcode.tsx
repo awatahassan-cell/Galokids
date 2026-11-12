@@ -18,11 +18,23 @@ import { colors } from '@/theme';
 export function Barcode({
   value,
   height = 56,
-  moduleWidth = 2,
+  moduleWidth,
+  maxWidth,
 }: {
   value: string;
   height?: number;
+  /** Fixed width per module. Ignored when `maxWidth` is given. */
   moduleWidth?: number;
+  /**
+   * Fit the whole code into this many pixels.
+   *
+   * Preferred over a fixed module width on a label preview. A barcode's width
+   * is set by how many characters the code has, so a fixed width draws a short
+   * code neatly and runs a long one off the edge of the sticker — and a
+   * barcode missing its last few bars is one a scanner will not read, which is
+   * precisely what the preview is there to let somebody notice.
+   */
+  maxWidth?: number;
 }) {
   const widths = code128Widths(value);
 
@@ -31,13 +43,16 @@ export function Barcode({
   // barcode to draw.
   if (!widths) return null;
 
+  const modules = widths.reduce((total, width) => total + width, 0);
+  const unit = maxWidth ? maxWidth / modules : (moduleWidth ?? 2);
+
   return (
     <View style={{ flexDirection: 'row', height, alignItems: 'stretch' }}>
       {widths.map((width, index) => (
         <View
           key={index}
           style={{
-            width: width * moduleWidth,
+            width: width * unit,
             // Widths alternate bar, space, bar, space… starting with a bar.
             backgroundColor: index % 2 === 0 ? colors.text : 'transparent',
           }}
