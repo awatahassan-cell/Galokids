@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { formatDateTime, formatIQD, orders, type Order } from '@galokids/core';
-import { Empty, Loading, Problem, StatusPill, TabBar } from '@/components/ui';
+import { Empty, Loading, PageWash, Problem, StatusPill, TabBar } from '@/components/ui';
 import { useAccount } from '@/state/useAccount';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { colors, radius, shadow, spacing, typography } from '@/theme';
 
 /**
  * Everything this customer has ordered.
@@ -52,7 +52,9 @@ export default function MyOrdersScreen() {
   if (!user && !accountLoading) {
     return (
       <View style={styles.screen}>
+        <PageWash />
         <Header title="داواکارییەکانم" />
+
         <Empty
           mark="🔑"
           title="بۆ بینینی داواکارییەکانت بچۆ ژوورەوە"
@@ -62,9 +64,11 @@ export default function MyOrdersScreen() {
             onPress: () => router.push({ pathname: '/sign-in', params: { next: '/orders' } }),
           }}
         />
+
         <Pressable style={styles.secondary} onPress={() => router.push('/track')}>
           <Text style={styles.secondaryText}>شوێنکەوتنی داواکاری بە ژمارە</Text>
         </Pressable>
+
         <TabBar />
       </View>
     );
@@ -72,6 +76,7 @@ export default function MyOrdersScreen() {
 
   return (
     <View style={styles.screen}>
+      <PageWash />
       <Header title="داواکارییەکانم" subtitle={user?.name ?? undefined} />
 
       {loading || accountLoading ? (
@@ -83,6 +88,7 @@ export default function MyOrdersScreen() {
           data={list}
           keyExtractor={order => String(order.id)}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -90,7 +96,7 @@ export default function MyOrdersScreen() {
                 setRefreshing(true);
                 load(1, true);
               }}
-              tintColor={colors.brand}
+              tintColor={colors.brandDeep}
             />
           }
           onEndReachedThreshold={0.4}
@@ -106,7 +112,10 @@ export default function MyOrdersScreen() {
             />
           }
           renderItem={({ item }) => (
-            <Pressable style={styles.card} onPress={() => router.push(`/orders/${item.id}`)}>
+            <Pressable
+              style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              onPress={() => router.push(`/orders/${item.id}`)}
+            >
               <View style={styles.cardTop}>
                 <Text style={styles.number}>#{item.invoice_no ?? item.id}</Text>
                 <StatusPill status={item.status} />
@@ -115,9 +124,7 @@ export default function MyOrdersScreen() {
               <Text style={styles.when}>{formatDateTime(item.created_at)}</Text>
 
               <View style={styles.cardBottom}>
-                <Text style={styles.items}>
-                  {item.items?.length ?? 0} بەرهەم
-                </Text>
+                <Text style={styles.items}>{item.items?.length ?? 0} بەرهەم</Text>
                 <Text style={styles.total}>{formatIQD(item.total_amount)}</Text>
               </View>
             </Pressable>
@@ -141,7 +148,7 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
 
       <View style={styles.headerText}>
         <Text style={styles.title}>{title}</Text>
-        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
     </View>
   );
@@ -159,48 +166,55 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   headerText: { flex: 1, alignItems: 'flex-end' },
-  title: { ...typography.title, color: colors.text, textAlign: 'right' },
+  title: { ...typography.display, color: colors.text, textAlign: 'right' },
   subtitle: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
   track: {
-    minHeight: 36,
+    minHeight: 34,
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandLine,
   },
-  trackText: { ...typography.tiny, color: colors.brand },
+  trackText: { ...typography.tiny, color: colors.brandText },
 
-  list: { padding: spacing.lg, gap: spacing.md, flexGrow: 1 },
+  list: { padding: spacing.lg, gap: spacing.md, flexGrow: 1, paddingBottom: spacing.xxl },
   card: {
     padding: spacing.lg,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     gap: spacing.xs,
+    ...shadow.card,
   },
+  cardPressed: { opacity: 0.92, transform: [{ scale: 0.995 }] },
   cardTop: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
-  number: { ...typography.heading, color: colors.text },
+  number: { ...typography.title, color: colors.text },
   when: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
   cardBottom: {
     flexDirection: 'row-reverse',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   items: { ...typography.small, color: colors.textMuted },
-  total: { ...typography.title, color: colors.brand },
+  total: { ...typography.title, color: colors.brandText },
 
   secondary: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing.lg,
-    minHeight: TOUCH_TARGET,
+    minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: radius.pill,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  secondaryText: { ...typography.small, color: colors.brand },
+  secondaryText: { ...typography.small, color: colors.brandText },
 });

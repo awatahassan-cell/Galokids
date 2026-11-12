@@ -1,11 +1,11 @@
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { displayPhone } from '@galokids/core';
-import { TabBar } from '@/components/ui';
+import { PageWash, PrimaryButton, TabBar } from '@/components/ui';
 import { useAccount } from '@/state/useAccount';
 import { useBasket } from '@/state/useBasket';
 import { useWishlist } from '@/state/useWishlist';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { colors, radius, shadow, spacing, TOUCH_TARGET, typography } from '@/theme';
 
 /**
  * The shopper's own corner of the app.
@@ -42,7 +42,9 @@ export default function AccountScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.body}>
+      <PageWash />
+
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <View style={styles.identity}>
           <View style={styles.avatar}>
             <Text style={styles.avatarMark}>{user ? '👤' : '🎈'}</Text>
@@ -60,9 +62,12 @@ export default function AccountScreen() {
                 بچۆ ژوورەوە بۆ داواکردن و بینینی داواکارییەکانت.
               </Text>
 
-              <Pressable style={styles.signIn} onPress={() => router.push('/sign-in')}>
-                <Text style={styles.signInText}>چوونەژوورەوە بە کۆد</Text>
-              </Pressable>
+              <View style={styles.signIn}>
+                <PrimaryButton
+                  label="چوونەژوورەوە بە کۆد"
+                  onPress={() => router.push('/sign-in')}
+                />
+              </View>
             </>
           )}
         </View>
@@ -147,35 +152,40 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   body: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
 
-  identity: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xl },
+  identity: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.card,
+  },
   avatar: {
     width: 76,
     height: 76,
     borderRadius: radius.pill,
     backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandLine,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,
   },
   avatarMark: { fontSize: 34 },
-  name: { ...typography.title, color: colors.text, textAlign: 'center' },
+  name: { ...typography.display, color: colors.text, textAlign: 'center' },
   phone: { ...typography.small, color: colors.textMuted, textAlign: 'center' },
-  signIn: {
-    marginTop: spacing.md,
-    minHeight: TOUCH_TARGET,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brand,
-  },
-  signInText: { color: '#fff', ...typography.heading },
+  signIn: { marginTop: spacing.lg, alignSelf: 'stretch', maxWidth: 280 },
 
   menu: {
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
+    ...shadow.card,
   },
   item: {
     flexDirection: 'row-reverse',
@@ -197,10 +207,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     borderRadius: radius.pill,
     backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandLine,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  itemBadgeText: { ...typography.tiny, color: colors.brand },
+  itemBadgeText: { ...typography.tiny, color: colors.brandText },
 
   leave: { alignItems: 'center', paddingVertical: spacing.md },
   leaveText: { ...typography.small, color: colors.danger },

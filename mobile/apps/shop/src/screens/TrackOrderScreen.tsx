@@ -1,12 +1,5 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   ApiError,
   formatDateTime,
@@ -16,8 +9,8 @@ import {
   orders,
   type TrackedOrder,
 } from '@galokids/core';
-import { OrderProgress, Page, StatusPill } from '@/components/ui';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { Eyebrow, OrderProgress, Page, PrimaryButton, StatusPill } from '@/components/ui';
+import { colors, fonts, radius, shadow, spacing, TOUCH_TARGET, typography } from '@/theme';
 
 /**
  * Following an order without an account.
@@ -113,9 +106,7 @@ export default function TrackOrderScreen() {
 
         {problem && <Text style={styles.problem}>{problem}</Text>}
 
-        <Pressable style={[styles.go, busy && styles.goBusy]} onPress={look} disabled={busy}>
-          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.goText}>گەڕان</Text>}
-        </Pressable>
+        <PrimaryButton label="گەڕان" onPress={look} busy={busy} />
       </View>
 
       {found && (
@@ -132,7 +123,7 @@ export default function TrackOrderScreen() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>بەرهەمەکان</Text>
+            <Eyebrow>بەرهەمەکان</Eyebrow>
 
             {found.items.map((item, index) => (
               <View key={index} style={styles.item}>
@@ -164,6 +155,7 @@ const styles = StyleSheet.create({
   form: { gap: spacing.sm },
   lead: { ...typography.small, color: colors.textMuted, textAlign: 'right', lineHeight: 22 },
   input: {
+    alignSelf: 'stretch',
     minHeight: TOUCH_TARGET + 4,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -174,20 +166,12 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   problem: { ...typography.small, color: colors.danger, textAlign: 'right' },
-  go: {
-    minHeight: TOUCH_TARGET + 4,
-    borderRadius: radius.md,
-    backgroundColor: colors.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  goBusy: { opacity: 0.7 },
-  goText: { color: '#fff', ...typography.title },
 
   statusCard: {
     marginTop: spacing.lg,
     padding: spacing.lg,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    ...shadow.card,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -203,14 +187,16 @@ const styles = StyleSheet.create({
 
   card: {
     padding: spacing.lg,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
+    alignItems: 'flex-end',
+    ...shadow.card,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     gap: spacing.sm,
   },
-  cardTitle: { ...typography.heading, color: colors.text, textAlign: 'right' },
   item: {
+    alignSelf: 'stretch',
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -219,6 +205,7 @@ const styles = StyleSheet.create({
   itemName: { flex: 1, ...typography.small, color: colors.text, textAlign: 'right' },
   itemFigure: { ...typography.small, color: colors.textMuted },
   totalRow: {
+    alignSelf: 'stretch',
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'baseline',
@@ -228,6 +215,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   totalLabel: { ...typography.heading, color: colors.textMuted },
-  totalValue: { ...typography.title, color: colors.brand },
+  totalValue: { fontSize: 20, fontFamily: fonts.bold, color: colors.brandText, lineHeight: 30 },
   address: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
 });

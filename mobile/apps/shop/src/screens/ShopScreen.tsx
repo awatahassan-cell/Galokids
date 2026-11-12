@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -10,11 +9,11 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ApiError, catalogue, type Category, type Product } from '@galokids/core';
+import { catalogue, type Category, type Product } from '@galokids/core';
 import { ProductCard } from '@/components/ProductCard';
-import { TabBar } from '@/components/ui';
-import { useBasket } from '@/state/useBasket';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { Empty, Loading, PageWash, Problem, TabBar } from '@/components/ui';
+import { useWishlist } from '@/state/useWishlist';
+import { colors, fonts, radius, shadow, spacing, TOUCH_TARGET, typography } from '@/theme';
 
 /**
  * What the shop is selling.
@@ -25,7 +24,7 @@ import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
  */
 export default function ShopScreen() {
   const router = useRouter();
-  const basket = useBasket();
+  const wishlist = useWishlist();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -35,12 +34,12 @@ export default function ShopScreen() {
   const [lastPage, setLastPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
   const load = useCallback(
     async (nextPage: number, replace: boolean) => {
       try {
-        setProblem(null);
+        setError(null);
 
         const response = await catalogue.products({
           page: nextPage,
@@ -52,14 +51,8 @@ export default function ShopScreen() {
         setProducts(previous => (replace ? response.data : [...previous, ...response.data]));
         setPage(response.current_page);
         setLastPage(response.last_page);
-      } catch (error) {
-        // Say which of the two it is. "Try again" is useless advice when the
-        // problem is that the phone has no signal.
-        setProblem(
-          error instanceof ApiError && error.isOffline
-            ? 'هیچ پەیوەندییەک نییە. ئینتەرنێتەکەت بپشکنە.'
-            : (error as Error).message
-        );
+      } catch (caught) {
+        setError(caught);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -81,35 +74,57 @@ export default function ShopScreen() {
     return () => clearTimeout(timer);
   }, [load]);
 
+  const chips = [{ id: 0, name: 'هەموو' } as Category, ...categories];
+
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <Pressable style={styles.basketButton} onPress={() => router.push('/basket')}>
-          <Text style={styles.basketIcon}>🧺</Text>
-          {basket.itemCount > 0 && (
-            <View style={styles.basketCount}>
-              <Text style={styles.basketCountText}>{basket.itemCount}</Text>
-            </View>
-          )}
-        </Pressable>
+      <PageWash />
 
-        <TextInput
-          style={styles.search}
-          placeholder="گەڕان بۆ بەرهەم…"
-          placeholderTextColor={colors.textFaint}
-          value={search}
-          onChangeText={setSearch}
-          textAlign="right"
-        />
+      <View style={styles.header}>
+        <View style={styles.brandRow}>
+          <Pressable
+            style={styles.saved}
+            onPress={() => router.replace('/wishlist')}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="دڵخوازەکان"
+          >
+            <Text style={styles.savedMark}>♥</Text>
+            {wishlist.count > 0 && (
+              <View style={styles.savedCount}>
+                <Text style={styles.savedCountText}>{wishlist.count}</Text>
+              </View>
+            )}
+          </Pressable>
+
+          <View style={styles.brandText}>
+            <Text style={styles.brandName}>گەلۆ کیدز</Text>
+            <Text style={styles.brandLine}>جلوبەرگی منداڵان</Text>
+          </View>
+        </View>
+
+        <View style={styles.searchWrap}>
+          <Text style={styles.searchMark}>⌕</Text>
+          <TextInput
+            style={styles.search}
+            placeholder="گەڕان بۆ بەرهەم…"
+            placeholderTextColor={colors.textFaint}
+            value={search}
+            onChangeText={setSearch}
+            textAlign="right"
+            returnKeyType="search"
+          />
+        </View>
       </View>
 
       {categories.length > 0 && (
         <FlatList
           horizontal
           inverted
-          data={[{ id: 0, name: 'هەموو' } as Category, ...categories]}
+          data={chips}
           keyExtractor={item => String(item.id)}
           showsHorizontalScrollIndicator={false}
+          style={styles.chipStrip}
           contentContainerStyle={styles.chips}
           renderItem={({ item }) => {
             const active = item.id === 0 ? category === null : category === item.id;
@@ -129,16 +144,9 @@ export default function ShopScreen() {
       )}
 
       {loading && products.length === 0 ? (
-        <View style={styles.centre}>
-          <ActivityIndicator size="large" color={colors.brand} />
-        </View>
-      ) : problem && products.length === 0 ? (
-        <View style={styles.centre}>
-          <Text style={styles.problemText}>{problem}</Text>
-          <Pressable style={styles.retry} onPress={() => load(1, true)}>
-            <Text style={styles.retryText}>هەوڵدانەوە</Text>
-          </Pressable>
-        </View>
+        <Loading />
+      ) : error && products.length === 0 ? (
+        <Problem error={error} onRetry={() => load(1, true)} />
       ) : (
         <FlatList
           data={products}
@@ -146,6 +154,7 @@ export default function ShopScreen() {
           numColumns={2}
           columnWrapperStyle={styles.column}
           contentContainerStyle={styles.grid}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -153,7 +162,7 @@ export default function ShopScreen() {
                 setRefreshing(true);
                 load(1, true);
               }}
-              tintColor={colors.brand}
+              tintColor={colors.brandDeep}
             />
           }
           onEndReachedThreshold={0.5}
@@ -161,9 +170,11 @@ export default function ShopScreen() {
             if (!loading && page < lastPage) load(page + 1, false);
           }}
           ListEmptyComponent={
-            <View style={styles.centre}>
-              <Text style={styles.problemText}>هیچ بەرهەمێک نەدۆزرایەوە.</Text>
-            </View>
+            <Empty
+              mark="🔍"
+              title="هیچ بەرهەمێک نەدۆزرایەوە"
+              body="ناوێکی تر تاقی بکەرەوە، یان بەشێکی تر هەڵبژێرە."
+            />
           }
           renderItem={({ item }) => (
             <ProductCard product={item} onPress={() => router.push(`/product/${item.id}`)} />
@@ -178,48 +189,61 @@ export default function ShopScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  search: {
-    flex: 1,
-    minHeight: TOUCH_TARGET,
-    borderRadius: radius.pill,
+
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.md },
+  brandRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
+  brandText: { flex: 1, alignItems: 'flex-end' },
+  brandName: { ...typography.display, color: colors.text, textAlign: 'right' },
+  brandLine: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
+
+  saved: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    ...typography.body,
-    color: colors.text,
-  },
-  basketButton: {
-    width: TOUCH_TARGET,
-    height: TOUCH_TARGET,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadow.card,
   },
-  basketIcon: { fontSize: 20 },
-  basketCount: {
+  savedMark: { fontSize: 17, color: colors.brandDeep, lineHeight: 22 },
+  savedCount: {
     position: 'absolute',
-    top: 2,
-    insetInlineEnd: 2,
+    top: -5,
+    insetInlineStart: -5,
     minWidth: 18,
     height: 18,
     paddingHorizontal: 4,
     borderRadius: radius.pill,
-    backgroundColor: colors.brand,
+    backgroundColor: colors.brandDeep,
+    borderWidth: 2,
+    borderColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  basketCountText: { color: '#fff', ...typography.tiny },
+  savedCountText: { color: '#fff', fontSize: 9, fontFamily: fonts.bold, lineHeight: 13 },
 
-  chips: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.sm },
+  searchWrap: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: TOUCH_TARGET,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    ...shadow.card,
+  },
+  searchMark: { fontSize: 18, color: colors.textFaint },
+  search: { flex: 1, ...typography.body, color: colors.text },
+
+  // An explicit height. A horizontal list inside a flex column takes its
+  // height from the content, which here resolved to about half a chip — the
+  // strip was sliced through the middle of the words.
+  chipStrip: { flexGrow: 0, height: 60, marginTop: spacing.md },
+  chips: { paddingHorizontal: spacing.lg, gap: spacing.sm, alignItems: 'center' },
   chip: {
     paddingHorizontal: spacing.lg,
     height: 36,
@@ -229,21 +253,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   chipText: { ...typography.small, color: colors.textMuted },
-  chipTextActive: { color: '#fff' },
+  chipTextActive: { color: '#fff', fontFamily: fonts.bold },
 
-  grid: { padding: spacing.lg, gap: spacing.lg },
-  column: { gap: spacing.lg },
-
-  centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  problemText: { ...typography.body, color: colors.textMuted, textAlign: 'center' },
-  retry: {
-    minHeight: TOUCH_TARGET,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brand,
-  },
-  retryText: { color: '#fff', ...typography.heading },
+  grid: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
+  column: { gap: spacing.md },
 });

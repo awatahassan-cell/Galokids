@@ -3,10 +3,10 @@ import { Image } from 'expo-image';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { catalogue, effectivePrice, formatIQD, type Product } from '@galokids/core';
-import { Empty, TabBar } from '@/components/ui';
+import { Empty, MediaWash, PageWash, TabBar } from '@/components/ui';
 import { useBasket } from '@/state/useBasket';
 import { useWishlist, type WishlistEntry } from '@/state/useWishlist';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { colors, mediaWash, radius, shadow, spacing, typography } from '@/theme';
 
 /**
  * The things a shopper saved.
@@ -60,6 +60,8 @@ export default function WishlistScreen() {
 
   return (
     <View style={styles.screen}>
+      <PageWash />
+
       <View style={styles.header}>
         {wishlist.count > 0 && (
           <Pressable onPress={wishlist.clear} hitSlop={8} style={styles.clear}>
@@ -79,21 +81,22 @@ export default function WishlistScreen() {
 
       {wishlist.count === 0 ? (
         <Empty
-          mark="♡"
+          mark="♥"
           title="هێشتا هیچ دڵخوازێک نییە"
           body="لەسەر هەر بەرهەمێک دڵەکە دابگرە بۆ ئەوەی لێرە پاشەکەوت بکرێت."
           action={{ label: 'بڕۆ بۆ فرۆشگا', onPress: () => router.replace('/') }}
         />
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
+        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {wishlist.entries.map(entry => {
             const product = fresh[entry.productId];
             const removed = gone.includes(entry.productId);
 
             const price = product ? effectivePrice(product) : entry.price;
             const changed = product != null && Math.round(price) !== Math.round(entry.price);
+            const variations = product?.variations ?? [];
             const inStock = product
-              ? (product.variations ?? []).some(variation => variation.stock_quantity > 0)
+              ? variations.length === 0 || variations.some(v => v.stock_quantity > 0)
               : true;
 
             return (
@@ -103,17 +106,17 @@ export default function WishlistScreen() {
                   onPress={() => router.push(`/product/${entry.productId}`)}
                   disabled={removed}
                 >
-                  {entry.imageUrl || product?.image_url ? (
-                    <Image
-                      source={{ uri: product?.image_url ?? entry.imageUrl ?? undefined }}
-                      style={styles.thumb}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <View style={[styles.thumb, styles.thumbEmpty]}>
+                  <MediaWash wash={mediaWash(entry.productId)} style={styles.thumb}>
+                    {entry.imageUrl || product?.image_url ? (
+                      <Image
+                        source={{ uri: product?.image_url ?? entry.imageUrl ?? undefined }}
+                        style={styles.thumbImage}
+                        contentFit="cover"
+                      />
+                    ) : (
                       <Text style={styles.thumbMark}>👕</Text>
-                    </View>
-                  )}
+                    )}
+                  </MediaWash>
 
                   <View style={styles.info}>
                     <Text style={styles.name} numberOfLines={2}>
@@ -122,9 +125,7 @@ export default function WishlistScreen() {
 
                     <View style={styles.priceRow}>
                       <Text style={styles.price}>{formatIQD(price)}</Text>
-                      {changed && (
-                        <Text style={styles.wasPrice}>{formatIQD(entry.price)}</Text>
-                      )}
+                      {changed && <Text style={styles.wasPrice}>{formatIQD(entry.price)}</Text>}
                     </View>
 
                     {removed ? (
@@ -139,7 +140,11 @@ export default function WishlistScreen() {
 
                 <View style={styles.actions}>
                   <Pressable
-                    style={[styles.add, (!inStock || removed) && styles.addOff]}
+                    style={({ pressed }) => [
+                      styles.add,
+                      (!inStock || removed) && styles.addOff,
+                      pressed && styles.addPressed,
+                    ]}
                     disabled={!product || !inStock || removed}
                     onPress={() => {
                       if (!product) return;
@@ -147,15 +152,12 @@ export default function WishlistScreen() {
                       // Straight to the basket only when there is nothing to
                       // choose. With colours and sizes the product page has to
                       // ask, and guessing a size for somebody is a return.
-                      const variations = product.variations ?? [];
-                      const sellable = variations.filter(v => v.stock_quantity > 0);
+                      const options = product.variations ?? [];
+                      const sellable = options.filter(v => v.stock_quantity > 0);
 
-                      if (variations.length === 0) basket.add(product, null);
+                      if (options.length === 0) basket.add(product, null);
                       else if (sellable.length === 1) basket.add(product, sellable[0]!);
-                      else {
-                        router.push(`/product/${product.id}`);
-                        return;
-                      }
+                      else router.push(`/product/${product.id}`);
                     }}
                   >
                     <Text style={styles.addText}>بۆ سەبەتە</Text>
@@ -182,6 +184,7 @@ export default function WishlistScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
+
   header: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -191,43 +194,46 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   headerText: { flex: 1, alignItems: 'flex-end' },
-  title: { ...typography.title, color: colors.text, textAlign: 'right' },
+  title: { ...typography.display, color: colors.text, textAlign: 'right' },
   subtitle: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
   clear: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
   clearText: { ...typography.tiny, color: colors.danger },
 
-  list: { padding: spacing.lg, gap: spacing.md },
+  list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
   row: {
     flexDirection: 'row-reverse',
+    alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadow.card,
   },
-  rowMain: { flex: 1, flexDirection: 'row-reverse', gap: spacing.md },
-  thumb: { width: 72, height: 88, borderRadius: radius.sm, backgroundColor: colors.brandSoft },
-  thumbEmpty: { alignItems: 'center', justifyContent: 'center' },
+  rowMain: { flex: 1, flexDirection: 'row-reverse', gap: spacing.md, alignItems: 'center' },
+  thumb: { width: 76, height: 92, borderRadius: radius.md },
+  thumbImage: { width: '100%', height: '100%' },
   thumbMark: { fontSize: 26 },
-  info: { flex: 1, alignItems: 'flex-end', gap: spacing.xs },
+  info: { flex: 1, alignItems: 'flex-end', gap: 2 },
   name: { ...typography.body, color: colors.text, textAlign: 'right' },
   priceRow: { flexDirection: 'row-reverse', alignItems: 'baseline', gap: spacing.sm },
-  price: { ...typography.heading, color: colors.brand },
+  price: { ...typography.price, color: colors.brandText },
   wasPrice: { ...typography.tiny, color: colors.textFaint, textDecorationLine: 'line-through' },
   bad: { ...typography.tiny, color: colors.danger },
-  changed: { ...typography.tiny, color: colors.accent },
+  changed: { ...typography.tiny, color: colors.grapeText },
 
-  actions: { justifyContent: 'center', alignItems: 'center', gap: spacing.xs },
+  actions: { alignItems: 'center', gap: spacing.xs },
   add: {
-    minHeight: TOUCH_TARGET - 10,
+    minHeight: 38,
     paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brand,
+    borderRadius: radius.md,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addOff: { opacity: 0.35 },
+  addOff: { backgroundColor: colors.borderStrong },
+  addPressed: { transform: [{ scale: 0.97 }] },
   addText: { color: '#fff', ...typography.tiny },
   drop: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
   dropText: { ...typography.tiny, color: colors.textFaint },

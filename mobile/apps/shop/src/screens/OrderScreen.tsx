@@ -8,8 +8,8 @@ import {
   orders,
   type Order,
 } from '@galokids/core';
-import { Loading, OrderProgress, Page, Problem, StatusPill } from '@/components/ui';
-import { colors, radius, spacing, typography } from '@/theme';
+import { Eyebrow, Loading, OrderProgress, Page, Problem, StatusPill } from '@/components/ui';
+import { colors, radius, shadow, spacing, typography } from '@/theme';
 
 /**
  * One order, and where it has got to.
@@ -137,7 +137,7 @@ export default function OrderScreen() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Eyebrow>{title}</Eyebrow>
       <View style={styles.sectionBody}>{children}</View>
     </View>
   );
@@ -163,11 +163,12 @@ function Line({
 const styles = StyleSheet.create({
   statusCard: {
     padding: spacing.lg,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     gap: spacing.lg,
+    ...shadow.card,
   },
   statusTop: {
     flexDirection: 'row-reverse',
@@ -176,14 +177,15 @@ const styles = StyleSheet.create({
   },
   statusHeading: { ...typography.heading, color: colors.text },
 
-  section: { gap: spacing.sm },
-  sectionTitle: { ...typography.heading, color: colors.text, textAlign: 'right' },
+  section: { gap: spacing.sm, alignItems: 'flex-end' },
   sectionBody: {
-    borderRadius: radius.md,
+    alignSelf: 'stretch',
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
+    ...shadow.card,
   },
 
   item: {
@@ -198,7 +200,7 @@ const styles = StyleSheet.create({
   itemName: { ...typography.body, color: colors.text, textAlign: 'right' },
   itemVariant: { ...typography.tiny, color: colors.textMuted },
   itemUnit: { ...typography.tiny, color: colors.textFaint },
-  itemTotal: { ...typography.heading, color: colors.text },
+  itemTotal: { ...typography.price, color: colors.text },
 
   line: {
     flexDirection: 'row-reverse',
@@ -211,8 +213,8 @@ const styles = StyleSheet.create({
   lineLabel: { ...typography.small, color: colors.textMuted },
   lineValue: { ...typography.small, color: colors.text, flexShrink: 1, textAlign: 'left' },
   lineStrongLabel: { ...typography.heading, color: colors.text },
-  lineStrongValue: { ...typography.title, color: colors.brand },
+  lineStrongValue: { ...typography.title, color: colors.brandText },
 
   again: { alignItems: 'center', paddingVertical: spacing.md },
-  againText: { ...typography.small, color: colors.brand },
+  againText: { ...typography.small, color: colors.brandText },
 });

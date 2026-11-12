@@ -1,25 +1,27 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  ApiError,
   catalogue,
   effectivePrice,
   formatIQD,
   type Product,
   type ProductVariation,
 } from '@galokids/core';
+import { Eyebrow, Loading, MediaWash, PageWash, Problem } from '@/components/ui';
 import { useBasket } from '@/state/useBasket';
 import { useWishlist } from '@/state/useWishlist';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import {
+  colors,
+  fonts,
+  mediaWash,
+  radius,
+  shadow,
+  spacing,
+  TOUCH_TARGET,
+  typography,
+} from '@/theme';
 
 /**
  * One garment.
@@ -37,12 +39,13 @@ export default function ProductScreen() {
   const [product, setProduct] = useState<Product | null>(null);
   const [chosen, setChosen] = useState<ProductVariation | null>(null);
   const [loading, setLoading] = useState(true);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     const productId = Number(id);
+
     if (!Number.isFinite(productId)) {
-      setProblem('ئەم بەرهەمە نەدۆزرایەوە.');
+      setError(new Error('ئەم بەرهەمە نەدۆزرایەوە.'));
       setLoading(false);
       return;
     }
@@ -57,31 +60,24 @@ export default function ProductScreen() {
         const options = found.variations ?? [];
         if (options.length === 1) setChosen(options[0]!);
       })
-      .catch(error => {
-        setProblem(
-          error instanceof ApiError && error.isOffline
-            ? 'هیچ پەیوەندییەک نییە. ئینتەرنێتەکەت بپشکنە.'
-            : (error as Error).message
-        );
-      })
+      .catch(setError)
       .finally(() => setLoading(false));
   }, [id]);
 
   if (loading) {
     return (
-      <View style={styles.centre}>
-        <ActivityIndicator size="large" color={colors.brand} />
+      <View style={styles.screen}>
+        <PageWash />
+        <Loading />
       </View>
     );
   }
 
-  if (problem || !product) {
+  if (error || !product) {
     return (
-      <View style={styles.centre}>
-        <Text style={styles.problem}>{problem ?? 'ئەم بەرهەمە نەدۆزرایەوە.'}</Text>
-        <Pressable style={styles.back} onPress={() => router.back()}>
-          <Text style={styles.backText}>گەڕانەوە</Text>
-        </Pressable>
+      <View style={styles.screen}>
+        <PageWash />
+        <Problem error={error} onRetry={() => router.back()} />
       </View>
     );
   }
@@ -89,77 +85,104 @@ export default function ProductScreen() {
   const options = product.variations ?? [];
   const price = effectivePrice(product, chosen);
   const discounted = product.discount_price != null && product.discount_price > 0;
+  const off = discounted
+    ? Math.round((1 - Number(product.discount_price) / Number(product.price)) * 100)
+    : 0;
+
   const needsChoice = options.length > 1 && !chosen;
-  const soldOut = chosen ? chosen.stock_quantity <= 0 : options.every(v => v.stock_quantity <= 0);
+  const soldOut = chosen
+    ? chosen.stock_quantity <= 0
+    : options.length > 0 && options.every(v => v.stock_quantity <= 0);
+
+  const saved = wishlist.has(product.id);
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.imageWrap}>
+      <PageWash />
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <MediaWash wash={mediaWash(product.id)} style={styles.media}>
           {product.image_url ? (
             <Image source={{ uri: product.image_url }} style={styles.image} contentFit="cover" />
           ) : (
-            <View style={[styles.image, styles.placeholder]}>
-              <Text style={styles.placeholderMark}>👕</Text>
-            </View>
+            <Text style={styles.placeholderMark}>👕</Text>
           )}
+
+          <Pressable style={styles.back} onPress={() => router.back()} hitSlop={8}>
+            <Text style={styles.backMark}>→</Text>
+          </Pressable>
 
           <Pressable
             style={styles.heart}
             onPress={() => wishlist.toggle(product)}
             accessibilityRole="button"
-            accessibilityLabel={
-              wishlist.has(product.id) ? 'لابردن لە دڵخوازەکان' : 'زیادکردن بۆ دڵخوازەکان'
-            }
+            accessibilityLabel={saved ? 'لابردن لە دڵخوازەکان' : 'زیادکردن بۆ دڵخوازەکان'}
           >
-            <Text style={[styles.heartMark, wishlist.has(product.id) && styles.heartMarkOn]}>
-              {wishlist.has(product.id) ? '♥' : '♡'}
-            </Text>
+            <Text style={[styles.heartMark, saved && styles.heartMarkOn]}>{saved ? '♥' : '♡'}</Text>
           </Pressable>
-        </View>
 
-        <Text style={styles.name}>{product.name_ku || product.name}</Text>
-
-        <View style={styles.priceRow}>
-          {discounted && <Text style={styles.wasPrice}>{formatIQD(product.price)}</Text>}
-          <Text style={styles.price}>{formatIQD(price)}</Text>
-        </View>
-
-        {product.description_ku || product.description ? (
-          <Text style={styles.description}>{product.description_ku || product.description}</Text>
-        ) : null}
-
-        {options.length > 1 && (
-          <View style={styles.optionsBlock}>
-            <Text style={styles.optionsTitle}>ڕەنگ و قەبارە</Text>
-
-            <View style={styles.options}>
-              {options.map(option => {
-                const active = chosen?.id === option.id;
-                const out = option.stock_quantity <= 0;
-
-                return (
-                  <Pressable
-                    key={option.id}
-                    disabled={out}
-                    style={[styles.option, active && styles.optionActive, out && styles.optionOut]}
-                    onPress={() => setChosen(option)}
-                  >
-                    <Text style={[styles.optionText, active && styles.optionTextActive]}>
-                      {[option.color, option.size].filter(Boolean).join(' · ') || 'ئاسایی'}
-                    </Text>
-                    {out && <Text style={styles.optionOutText}>تەواو</Text>}
-                  </Pressable>
-                );
-              })}
+          {discounted && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>داشکانی %{off}</Text>
             </View>
+          )}
+        </MediaWash>
+
+        <View style={styles.sheet}>
+          <Text style={styles.name}>{product.name_ku || product.name}</Text>
+
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>{formatIQD(price)}</Text>
+            {discounted && <Text style={styles.wasPrice}>{formatIQD(product.price)}</Text>}
           </View>
-        )}
+
+          {product.description_ku || product.description ? (
+            <Text style={styles.description}>
+              {product.description_ku || product.description}
+            </Text>
+          ) : null}
+
+          {options.length > 1 && (
+            <View style={styles.optionsBlock}>
+              <Eyebrow>ڕەنگ و قەبارە</Eyebrow>
+
+              <View style={styles.options}>
+                {options.map(option => {
+                  const active = chosen?.id === option.id;
+                  const out = option.stock_quantity <= 0;
+
+                  return (
+                    <Pressable
+                      key={option.id}
+                      disabled={out}
+                      style={[styles.option, active && styles.optionActive, out && styles.optionOut]}
+                      onPress={() => setChosen(option)}
+                    >
+                      <Text style={[styles.optionText, active && styles.optionTextActive]}>
+                        {[option.color, option.size].filter(Boolean).join(' · ') || 'ئاسایی'}
+                      </Text>
+                      {out && <Text style={styles.optionOutText}>تەواو</Text>}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
+        <View style={styles.footerPrice}>
+          <Text style={styles.footerLabel}>نرخ</Text>
+          <Text style={styles.footerValue}>{formatIQD(price)}</Text>
+        </View>
+
         <Pressable
-          style={[styles.add, (needsChoice || soldOut) && styles.addDisabled]}
+          style={({ pressed }) => [
+            styles.add,
+            (needsChoice || soldOut) && styles.addOff,
+            pressed && styles.addPressed,
+          ]}
           disabled={needsChoice || soldOut}
           onPress={() => {
             basket.add(product, chosen);
@@ -167,7 +190,11 @@ export default function ProductScreen() {
           }}
         >
           <Text style={styles.addText}>
-            {soldOut ? 'تەواو بووە' : needsChoice ? 'ڕەنگ و قەبارە هەڵبژێرە' : 'زیادکردن بۆ سەبەتە'}
+            {soldOut
+              ? 'تەواو بووە'
+              : needsChoice
+                ? 'ڕەنگ و قەبارە هەڵبژێرە'
+                : 'زیادکردن بۆ سەبەتە'}
           </Text>
         </Pressable>
       </View>
@@ -177,70 +204,133 @@ export default function ProductScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
-  centre: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl },
+  // flexGrow so the white panel reaches the footer on a short product;
+  // otherwise it stopped at its own height and the page showed beneath it.
+  content: { flexGrow: 1 },
 
-  imageWrap: { aspectRatio: 1, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.brandSoft },
+  media: { width: '100%', aspectRatio: 1 },
   image: { width: '100%', height: '100%' },
-  heart: {
-    position: 'absolute',
-    top: spacing.md,
-    insetInlineStart: spacing.md,
-    width: 44,
-    height: 44,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heartMark: { fontSize: 24, color: colors.textMuted, lineHeight: 28 },
-  heartMarkOn: { color: colors.brand },
-  placeholder: { alignItems: 'center', justifyContent: 'center' },
   placeholderMark: { fontSize: 56 },
 
-  name: { ...typography.display, color: colors.text, textAlign: 'right' },
-  priceRow: { flexDirection: 'row-reverse', alignItems: 'baseline', gap: spacing.md },
-  price: { ...typography.title, color: colors.brand },
-  wasPrice: { ...typography.small, color: colors.textFaint, textDecorationLine: 'line-through' },
-  description: { ...typography.body, color: colors.textMuted, textAlign: 'right', lineHeight: 24 },
+  back: {
+    position: 'absolute',
+    top: spacing.xl + spacing.sm,
+    insetInlineEnd: spacing.lg,
+    width: 42,
+    height: 42,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.card,
+  },
+  backMark: { fontSize: 18, color: colors.text },
 
-  optionsBlock: { gap: spacing.sm, marginTop: spacing.sm },
-  optionsTitle: { ...typography.heading, color: colors.text, textAlign: 'right' },
-  options: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
+  heart: {
+    position: 'absolute',
+    top: spacing.xl + spacing.sm,
+    insetInlineStart: spacing.lg,
+    width: 42,
+    height: 42,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.card,
+  },
+  heartMark: { fontSize: 20, color: colors.textMuted, lineHeight: 26 },
+  heartMarkOn: { color: colors.brandDeep },
+
+  badge: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    insetInlineStart: spacing.lg,
+    backgroundColor: colors.brand,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+  },
+  badgeText: { color: '#fff', fontSize: 11, fontFamily: fonts.bold, lineHeight: 17 },
+
+  // Lifted over the photo, the way the website's product panel sits.
+  sheet: {
+    marginTop: -spacing.xl,
+    backgroundColor: colors.surface,
+    borderTopStartRadius: radius.xl,
+    borderTopEndRadius: radius.xl,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: colors.border,
+    padding: spacing.xl,
+    paddingBottom: spacing.xxl,
+    gap: spacing.sm,
+    flexGrow: 1,
+  },
+  name: { ...typography.display, color: colors.text, textAlign: 'right' },
+  priceRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'baseline',
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  price: { fontSize: 24, fontFamily: fonts.bold, color: colors.brandText, lineHeight: 34 },
+  wasPrice: {
+    ...typography.small,
+    color: colors.textFaint,
+    textDecorationLine: 'line-through',
+  },
+  description: {
+    ...typography.body,
+    color: colors.textMuted,
+    textAlign: 'right',
+    marginTop: spacing.sm,
+  },
+
+  optionsBlock: { gap: spacing.md, marginTop: spacing.lg, alignItems: 'flex-end' },
+  options: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    alignSelf: 'stretch',
+  },
   option: {
-    minHeight: TOUCH_TARGET,
+    minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong,
+  },
+  optionActive: { borderColor: colors.ink, backgroundColor: colors.ink },
+  optionOut: { opacity: 0.45 },
+  optionText: { ...typography.small, color: colors.text },
+  optionTextActive: { color: '#fff', fontFamily: fonts.bold },
+  optionOutText: { ...typography.tiny, color: colors.danger },
+
+  footer: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderStrong,
     backgroundColor: colors.surface,
   },
-  optionActive: { backgroundColor: colors.brand, borderColor: colors.brand },
-  optionOut: { opacity: 0.4 },
-  optionText: { ...typography.small, color: colors.text },
-  optionTextActive: { color: '#fff' },
-  optionOutText: { ...typography.tiny, color: colors.textFaint },
-
-  footer: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
+  footerPrice: { alignItems: 'flex-end' },
+  footerLabel: { ...typography.tiny, color: colors.textMuted },
+  footerValue: { ...typography.title, color: colors.text },
   add: {
-    minHeight: TOUCH_TARGET + 6,
+    flex: 1,
+    minHeight: TOUCH_TARGET + 4,
     borderRadius: radius.md,
-    backgroundColor: colors.brand,
+    backgroundColor: colors.ink,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadow.card,
   },
-  addDisabled: { opacity: 0.4 },
-  addText: { color: '#fff', ...typography.title },
-
-  problem: { ...typography.body, color: colors.textMuted, textAlign: 'center' },
-  back: {
-    minHeight: TOUCH_TARGET,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brandSoft,
-  },
-  backText: { ...typography.heading, color: colors.brand },
+  addOff: { backgroundColor: colors.borderStrong },
+  addPressed: { transform: [{ scale: 0.98 }] },
+  addText: { color: '#fff', ...typography.heading },
 });

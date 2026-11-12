@@ -13,18 +13,27 @@ import {
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ApiError, formatIQD, isValidPhone, normalizePhone, orders } from '@galokids/core';
-import { Empty, TabBar } from '@/components/ui';
+import { Empty, Eyebrow, MediaWash, PageWash, PrimaryButton, TabBar } from '@/components/ui';
 import { useAccount } from '@/state/useAccount';
 import { useBasket, type BasketLine } from '@/state/useBasket';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import {
+  colors,
+  fonts,
+  mediaWash,
+  radius,
+  shadow,
+  spacing,
+  TOUCH_TARGET,
+  typography,
+} from '@/theme';
 
 /**
  * The basket, and ordering from it.
  *
- * Checkout needs a signed-in customer, because the order has to belong to
- * somebody for them to be able to track it. The app asks here rather than at
- * the door: a shopper who was only looking should never have met a sign-up
- * wall.
+ * Checkout needs a signed-in customer, because the orders endpoint is behind
+ * authentication and because the order has to belong to somebody for them to
+ * be able to track it. The app asks here rather than at the door: a shopper
+ * who was only looking should never have met a sign-up wall.
  *
  * Totals shown are the app's arithmetic. The server prices every line from the
  * catalogue and works out delivery from the governorate itself, so what the
@@ -109,6 +118,7 @@ export default function BasketScreen() {
   if (basket.lines.length === 0) {
     return (
       <View style={styles.screen}>
+        <PageWash />
         <Empty
           mark="🧺"
           title="سەبەتەکەت بەتاڵە"
@@ -122,35 +132,37 @@ export default function BasketScreen() {
 
   // Ordering needs a session: the orders endpoint is behind authentication, so
   // without one the server would answer 401 and the shopper would see a
-  // meaningless failure after filling in their whole address. Asking here also
-  // means the order belongs to somebody, which is what makes it trackable.
+  // meaningless failure after filling in their whole address.
   if (!user) {
     return (
       <View style={styles.screen}>
+        <PageWash />
+
         <View style={styles.gate}>
-          <Text style={styles.gateMark}>🔑</Text>
+          <View style={styles.gateMarkRing}>
+            <Text style={styles.gateMark}>🔑</Text>
+          </View>
+
           <Text style={styles.gateTitle}>بۆ تەواوکردنی داواکاری بچۆ ژوورەوە</Text>
           <Text style={styles.gateBody}>
             کۆدێک بۆ ژمارەی مۆبایلەکەت دەنێرین. سەبەتەکەت وەک خۆی دەمێنێتەوە.
           </Text>
 
           <View style={styles.gateSummary}>
-            <Text style={styles.gateSummaryLabel}>
-              {basket.itemCount} بەرهەم لە سەبەتەدا
-            </Text>
+            <Text style={styles.gateSummaryLabel}>{basket.itemCount} بەرهەم لە سەبەتەدا</Text>
             <Text style={styles.gateSummaryValue}>{formatIQD(basket.subtotal)}</Text>
           </View>
 
-          <Pressable
-            style={styles.browse}
-            // The object form, not '/sign-in?next=/basket': a query string in a
-            // pushed path does not reliably reach `useLocalSearchParams`, and
-            // when it goes missing the shopper is dropped on their account
-            // page instead of back at the checkout they were trying to finish.
-            onPress={() => router.push({ pathname: '/sign-in', params: { next: '/basket' } })}
-          >
-            <Text style={styles.browseText}>چوونەژوورەوە بە کۆد</Text>
-          </Pressable>
+          <View style={styles.gateAction}>
+            <PrimaryButton
+              label="چوونەژوورەوە بە کۆد"
+              // The object form, not '/sign-in?next=/basket': a query string in
+              // a pushed path does not reliably reach `useLocalSearchParams`,
+              // and when it goes missing the shopper is dropped on their
+              // account page instead of back at the checkout.
+              onPress={() => router.push({ pathname: '/sign-in', params: { next: '/basket' } })}
+            />
+          </View>
 
           <Pressable style={styles.keepLooking} onPress={() => router.replace('/')}>
             <Text style={styles.keepLookingText}>بەردەوامبوون بە گەڕان</Text>
@@ -163,27 +175,43 @@ export default function BasketScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <PageWash />
+
+      <View style={styles.head}>
+        <Text style={styles.headTitle}>سەبەتەکەم</Text>
+        <Text style={styles.headLine}>{basket.itemCount} بەرهەم</Text>
+      </View>
+
       <FlatList
         data={basket.lines}
         keyExtractor={line => line.key}
         contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
           <Line line={item} onChange={basket.setQuantity} onRemove={basket.remove} />
         )}
         ListFooterComponent={
           <View style={styles.form}>
-            <Text style={styles.formTitle}>زانیاری گەیاندن</Text>
+            <Eyebrow>زانیاری گەیاندن</Eyebrow>
 
-            <TextInput style={styles.input} placeholder="ناوی تەواو" placeholderTextColor={colors.textFaint}
-              value={name} onChangeText={setName} textAlign="right" />
-            <TextInput style={styles.input} placeholder="ژمارەی مۆبایل" placeholderTextColor={colors.textFaint}
-              keyboardType="phone-pad" value={phone} onChangeText={setPhone} textAlign="right" />
-            <TextInput style={styles.input} placeholder="پارێزگا" placeholderTextColor={colors.textFaint}
-              value={governorate} onChangeText={setGovernorate} textAlign="right" />
-            <TextInput style={[styles.input, styles.address]} placeholder="ناونیشانی ورد"
-              placeholderTextColor={colors.textFaint} multiline value={address}
-              onChangeText={setAddress} textAlign="right" />
+            <Field placeholder="ناوی تەواو" value={name} onChange={setName} />
+            <Field
+              placeholder="ژمارەی مۆبایل"
+              value={phone}
+              onChange={setPhone}
+              keyboard="phone-pad"
+            />
+            <Field placeholder="پارێزگا" value={governorate} onChange={setGovernorate} />
+            <Field
+              placeholder="ناونیشانی ورد"
+              value={address}
+              onChange={setAddress}
+              multiline
+            />
           </View>
         }
       />
@@ -196,11 +224,40 @@ export default function BasketScreen() {
 
         <Text style={styles.note}>کرێی گەیاندن لەسەر پارێزگاکە دیاری دەکرێت.</Text>
 
-        <Pressable style={[styles.place, placing && styles.placeDisabled]} onPress={placeOrder} disabled={placing}>
-          <Text style={styles.placeText}>{placing ? 'دەنێردرێت…' : 'جێبەجێکردنی داواکاری'}</Text>
-        </Pressable>
+        <PrimaryButton
+          label={placing ? 'دەنێردرێت…' : 'جێبەجێکردنی داواکاری'}
+          onPress={placeOrder}
+          busy={placing}
+        />
       </View>
     </KeyboardAvoidingView>
+  );
+}
+
+function Field({
+  placeholder,
+  value,
+  onChange,
+  keyboard,
+  multiline,
+}: {
+  placeholder: string;
+  value: string;
+  onChange: (next: string) => void;
+  keyboard?: 'phone-pad';
+  multiline?: boolean;
+}) {
+  return (
+    <TextInput
+      style={[styles.input, multiline && styles.inputTall]}
+      placeholder={placeholder}
+      placeholderTextColor={colors.textFaint}
+      value={value}
+      onChangeText={onChange}
+      keyboardType={keyboard}
+      multiline={multiline}
+      textAlign="right"
+    />
   );
 }
 
@@ -215,25 +272,33 @@ function Line({
 }) {
   return (
     <View style={styles.line}>
-      {line.imageUrl ? (
-        <Image source={{ uri: line.imageUrl }} style={styles.thumb} contentFit="cover" />
-      ) : (
-        <View style={[styles.thumb, styles.thumbPlaceholder]} />
-      )}
+      <MediaWash wash={mediaWash(line.productId)} style={styles.thumb}>
+        {line.imageUrl ? (
+          <Image source={{ uri: line.imageUrl }} style={styles.thumbImage} contentFit="cover" />
+        ) : (
+          <Text style={styles.thumbMark}>👕</Text>
+        )}
+      </MediaWash>
 
       <View style={styles.lineInfo}>
-        <Text style={styles.lineName} numberOfLines={2}>{line.name}</Text>
-        {line.variationLabel && <Text style={styles.lineVariation}>{line.variationLabel}</Text>}
+        <Text style={styles.lineName} numberOfLines={2}>
+          {line.name}
+        </Text>
+        {line.variationLabel ? (
+          <Text style={styles.lineVariation}>{line.variationLabel}</Text>
+        ) : null}
         <Text style={styles.linePrice}>{formatIQD(line.unitPrice * line.quantity)}</Text>
 
-        <View style={styles.stepper}>
-          <Pressable style={styles.step} onPress={() => onChange(line.key, line.quantity - 1)}>
-            <Text style={styles.stepText}>−</Text>
-          </Pressable>
-          <Text style={styles.quantity}>{line.quantity}</Text>
-          <Pressable style={styles.step} onPress={() => onChange(line.key, line.quantity + 1)}>
-            <Text style={styles.stepText}>+</Text>
-          </Pressable>
+        <View style={styles.stepperRow}>
+          <View style={styles.stepper}>
+            <Pressable style={styles.step} onPress={() => onChange(line.key, line.quantity - 1)}>
+              <Text style={styles.stepText}>−</Text>
+            </Pressable>
+            <Text style={styles.quantity}>{line.quantity}</Text>
+            <Pressable style={styles.step} onPress={() => onChange(line.key, line.quantity + 1)}>
+              <Text style={styles.stepText}>+</Text>
+            </Pressable>
+          </View>
 
           <Pressable style={styles.remove} onPress={() => onRemove(line.key)} hitSlop={8}>
             <Text style={styles.removeText}>سڕینەوە</Text>
@@ -246,7 +311,88 @@ function Line({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  list: { padding: spacing.lg, gap: spacing.md },
+
+  head: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, alignItems: 'flex-end' },
+  headTitle: { ...typography.display, color: colors.text },
+  headLine: { ...typography.tiny, color: colors.textMuted },
+
+  list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
+
+  line: {
+    flexDirection: 'row-reverse',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    ...shadow.card,
+  },
+  thumb: { width: 76, height: 92, borderRadius: radius.md },
+  thumbImage: { width: '100%', height: '100%' },
+  thumbMark: { fontSize: 26 },
+  lineInfo: { flex: 1, alignItems: 'flex-end', gap: 2 },
+  lineName: { ...typography.body, color: colors.text, textAlign: 'right' },
+  lineVariation: { ...typography.tiny, color: colors.textMuted },
+  linePrice: { ...typography.price, color: colors.brandText, marginTop: 2 },
+
+  stepperRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.xs,
+    alignSelf: 'stretch',
+    justifyContent: 'space-between',
+  },
+  stepper: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.brandSoft,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.brandLine,
+    padding: 2,
+  },
+  step: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepText: { fontSize: 17, fontFamily: fonts.bold, color: colors.brandText, lineHeight: 22 },
+  quantity: { minWidth: 22, textAlign: 'center', ...typography.heading, color: colors.text },
+  remove: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
+  removeText: { ...typography.tiny, color: colors.danger },
+
+  form: { gap: spacing.sm, marginTop: spacing.lg, alignItems: 'flex-end' },
+  input: {
+    alignSelf: 'stretch',
+    minHeight: TOUCH_TARGET + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    ...typography.body,
+    color: colors.text,
+  },
+  inputTall: { minHeight: 92, paddingTop: spacing.md, textAlignVertical: 'top' },
+
+  footer: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
+  },
+  totalRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'baseline' },
+  totalLabel: { ...typography.heading, color: colors.textMuted },
+  totalValue: { fontSize: 24, fontFamily: fonts.bold, color: colors.text, lineHeight: 34 },
+  note: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
+
   gate: {
     flex: 1,
     alignItems: 'center',
@@ -254,13 +400,25 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.xl,
   },
-  gateMark: { fontSize: 44 },
+  gateMarkRing: {
+    width: 84,
+    height: 84,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+    ...shadow.card,
+  },
+  gateMark: { fontSize: 36, lineHeight: 44 },
   gateTitle: { ...typography.title, color: colors.text, textAlign: 'center' },
   gateBody: {
     ...typography.body,
     color: colors.textMuted,
     textAlign: 'center',
-    lineHeight: 22,
+    maxWidth: 300,
     marginBottom: spacing.md,
   },
   gateSummary: {
@@ -273,60 +431,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: spacing.md,
+    ...shadow.card,
   },
   gateSummaryLabel: { ...typography.small, color: colors.textMuted },
-  gateSummaryValue: { ...typography.heading, color: colors.brand },
+  gateSummaryValue: { ...typography.price, color: colors.brandText },
+  gateAction: { alignSelf: 'stretch', maxWidth: 300, marginTop: spacing.lg },
   keepLooking: { paddingVertical: spacing.md },
   keepLookingText: { ...typography.small, color: colors.textMuted },
-
-  browse: {
-    minHeight: TOUCH_TARGET, justifyContent: 'center', paddingHorizontal: spacing.xl,
-    borderRadius: radius.pill, backgroundColor: colors.brand,
-  },
-  browseText: { color: '#fff', ...typography.heading },
-
-  line: {
-    flexDirection: 'row-reverse', gap: spacing.md, backgroundColor: colors.surface,
-    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md,
-  },
-  thumb: { width: 72, height: 88, borderRadius: radius.sm, backgroundColor: colors.brandSoft },
-  thumbPlaceholder: { backgroundColor: colors.brandSoft },
-  lineInfo: { flex: 1, alignItems: 'flex-end', gap: spacing.xs },
-  lineName: { ...typography.body, color: colors.text, textAlign: 'right' },
-  lineVariation: { ...typography.tiny, color: colors.textMuted },
-  linePrice: { ...typography.heading, color: colors.brand },
-
-  stepper: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
-  step: {
-    width: 36, height: 36, borderRadius: radius.sm, backgroundColor: colors.brandSoft,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  stepText: { ...typography.title, color: colors.brand },
-  quantity: { minWidth: 24, textAlign: 'center', ...typography.heading, color: colors.text },
-  remove: { paddingHorizontal: spacing.sm },
-  removeText: { ...typography.tiny, color: colors.danger },
-
-  form: { gap: spacing.sm, marginTop: spacing.lg },
-  formTitle: { ...typography.heading, color: colors.text, textAlign: 'right' },
-  input: {
-    minHeight: TOUCH_TARGET, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
-    backgroundColor: colors.surface, paddingHorizontal: spacing.md, ...typography.body, color: colors.text,
-  },
-  address: { minHeight: 88, paddingTop: spacing.md, textAlignVertical: 'top' },
-
-  footer: {
-    padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border,
-    backgroundColor: colors.surface, gap: spacing.sm,
-  },
-  totalRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'baseline' },
-  totalLabel: { ...typography.heading, color: colors.textMuted },
-  totalValue: { ...typography.display, color: colors.text },
-  note: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
-  place: {
-    minHeight: TOUCH_TARGET + 6, borderRadius: radius.md, backgroundColor: colors.brand,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  placeDisabled: { opacity: 0.5 },
-  placeText: { color: '#fff', ...typography.title },
 });
