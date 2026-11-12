@@ -17,7 +17,15 @@ class CategoryController extends Controller
 
     public function show($id)
     {
-        $category = Category::with('products')->findOrFail($id);
+        // Its products, minus the ones taken off the website.
+        //
+        // This route is public, and it was eager-loading the lot: a product
+        // deactivated in the panel was still served here, in full, to anyone
+        // who asked for the category it belongs to — the same enumeration of
+        // taken-down stock that filtering the catalogue was meant to close.
+        $category = Category::with(['products' => fn ($q) => $q->visibleToViewer()])
+            ->findOrFail($id);
+
         return response()->json($category);
     }
 

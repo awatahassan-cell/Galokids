@@ -79,6 +79,42 @@ class Product extends Model
         return $data;
     }
 
+    /** True when the caller is signed in to the back office. */
+    public static function viewerIsPrivileged(): bool
+    {
+        // Sanctum by name again: most of the routes that list products are
+        // public, so no auth middleware runs and the default guard never looks
+        // at the bearer token.
+        $user = auth('sanctum')->user();
+
+        return (bool) ($user && $user->isPrivileged());
+    }
+
+    /**
+     * Hide products the shop has taken off the website.
+     *
+     * One place, used by every query that can reach a shopper — the catalogue,
+     * a single product, the best-sellers strip, a category's products. Written
+     * out per controller it was simply forgotten in three of them, and a
+     * deactivated product went on being served from each.
+     *
+     * `orWhereNull` is for a column added by hand without a default: in SQL
+     * `is_active = 1` drops a NULL rather than matching it, which would empty
+     * the shop rather than fill it.
+     */
+    public function scopeVisibleToShoppers($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('is_active', true)->orWhereNull('is_active');
+        });
+    }
+
+    /** The same, applied only when the caller is not back-office staff. */
+    public function scopeVisibleToViewer($query)
+    {
+        return self::viewerIsPrivileged() ? $query : $query->visibleToShoppers();
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);

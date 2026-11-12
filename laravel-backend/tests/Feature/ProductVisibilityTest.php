@@ -105,15 +105,59 @@ class ProductVisibilityTest extends TestCase
         $this->actingAs($admin)->getJson("/api/products/{$hidden->id}")->assertOk();
     }
 
-    public function test_the_panel_still_defaults_to_the_active_ones(): void
+    public function test_the_panel_lists_the_hidden_ones_by_default(): void
     {
+        // The switch that turns a product back on lives on its row. Filter the
+        // deactivated ones out of the panel's default list and the product
+        // disappears from the only screen that could restore it — nothing in
+        // the panel asks for them with a query parameter. The inventory audit
+        // and the purchases picker read this same list and need the hidden
+        // stock counted too.
         $this->hidden();
         $this->shown();
 
         $body = $this->actingAs(User::factory()->create(['role' => Roles::ADMIN]))
             ->getJson('/api/products')->assertOk()->json();
 
-        $this->assertSame(['On Sale Tee'], array_column($body['data'] ?? $body, 'name'));
+        $this->assertEqualsCanonicalizing(
+            ['On Sale Tee', 'Unreleased Jacket'],
+            array_column($body['data'] ?? $body, 'name')
+        );
+    }
+
+    public function test_the_homepage_strip_does_not_carry_a_hidden_product(): void
+    {
+        // best-sellers tops itself up with the newest products, so a product
+        // deactivated a moment ago went straight to the front of the homepage.
+        $this->hidden();
+        $this->shown();
+
+        $public = $this->getJson('/api/products/best-sellers')->assertOk()->json();
+        $this->assertSame(['On Sale Tee'], array_column($public, 'name'));
+
+        $staff = $this->actingAs(User::factory()->create(['role' => Roles::ADMIN]))
+            ->getJson('/api/products/best-sellers')->assertOk()->json();
+        $this->assertEqualsCanonicalizing(
+            ['On Sale Tee', 'Unreleased Jacket'],
+            array_column($staff, 'name')
+        );
+    }
+
+    public function test_a_category_does_not_hand_out_its_hidden_products(): void
+    {
+        $category = \App\Models\Category::create(['name' => 'Jackets']);
+        $this->hidden()->forceFill(['category_id' => $category->id])->save();
+        $this->shown()->forceFill(['category_id' => $category->id])->save();
+
+        $public = $this->getJson("/api/categories/{$category->id}")->assertOk()->json();
+        $this->assertSame(['On Sale Tee'], array_column($public['products'], 'name'));
+
+        $staff = $this->actingAs(User::factory()->create(['role' => Roles::ADMIN]))
+            ->getJson("/api/categories/{$category->id}")->assertOk()->json();
+        $this->assertEqualsCanonicalizing(
+            ['On Sale Tee', 'Unreleased Jacket'],
+            array_column($staff['products'], 'name')
+        );
     }
 
     public function test_a_product_created_without_touching_the_switch_is_visible(): void

@@ -25,23 +25,19 @@ class ProductController extends Controller
         // `?include_inactive=1` got the hidden products, and `?is_active=0`
         // handed them a list of exactly what the shop had taken down, which is
         // the one thing deactivating a product is meant to prevent.
-        $viewer = auth('sanctum')->user();
-        $maySeeHidden = $viewer && $viewer->isPrivileged();
-
-        if (!$maySeeHidden) {
-            // `orWhereNull` for rows that predate the column: absent is not
-            // hidden, and in SQL `is_active = 1` drops a NULL rather than
-            // matching it, which would have emptied the shop.
-            $query->where(function ($q) {
-                $q->where('is_active', true)->orWhereNull('is_active');
-            });
+        if (!Product::viewerIsPrivileged()) {
+            $query->visibleToShoppers();
         } elseif ($request->has('is_active') && $request->is_active !== '' && $request->is_active !== 'all') {
+            // Only the panel may narrow to one side or the other.
             $query->where('is_active', $request->boolean('is_active'));
-        } elseif (!$request->boolean('include_inactive') && !$request->boolean('all')) {
-            $query->where(function ($q) {
-                $q->where('is_active', true)->orWhereNull('is_active');
-            });
         }
+
+        // Note what the panel does NOT get: an active-only default. It lists
+        // every product, deactivated ones included, because the switch that
+        // turns one back on lives on its row — filter them out of the default
+        // list and the product disappears from the only screen that could
+        // restore it. The inventory audit and the purchases picker read the
+        // same list and need the hidden stock counted too.
 
         // Filter by category_id
         if ($request->has('category_id') && $request->category_id != '') {
@@ -169,7 +165,7 @@ class ProductController extends Controller
         // as for a product that does not exist.
         $viewer = auth('sanctum')->user();
 
-        if ($product->is_active === false && (!$viewer || !$viewer->isPrivileged())) {
+        if ($product->is_active === false && !Product::viewerIsPrivileged()) {
             abort(404);
         }
 
@@ -195,7 +191,12 @@ class ProductController extends Controller
             ->pluck('product_id')
             ->all();
 
+        // The storefront's homepage strip. A product the shop has taken down
+        // must not reappear here, and the "top up with the newest" branch
+        // below would otherwise put a just-deactivated one straight in front
+        // of every shopper.
         $products = Product::with(['variations', 'reviews'])
+            ->visibleToViewer()
             ->whereIn('id', $topIds ?: [0])
             ->get()
             ->sortBy(function ($p) use ($topIds) {
@@ -205,6 +206,7 @@ class ProductController extends Controller
         // Top up with newest products if there aren't enough sales-based results.
         if ($products->count() < $limit) {
             $fill = Product::with(['variations', 'reviews'])
+                ->visibleToViewer()
                 ->whereNotIn('id', $products->pluck('id')->all() ?: [0])
                 ->orderByDesc('created_at')
                 ->limit($limit - $products->count())
