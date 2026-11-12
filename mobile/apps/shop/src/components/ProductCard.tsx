@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { effectivePrice, formatIQD, type Product } from '@galokids/core';
+import { useWishlist } from '@/state/useWishlist';
 import { colors, radius, spacing, typography } from '@/theme';
 
 /**
@@ -11,6 +12,9 @@ import { colors, radius, spacing, typography } from '@/theme';
  * it. A product with no picture gets a placeholder rather than a broken frame.
  */
 export function ProductCard({ product, onPress }: { product: Product; onPress: () => void }) {
+  const wishlist = useWishlist();
+  const saved = wishlist.has(product.id);
+
   const price = effectivePrice(product);
   const discounted = product.discount_price != null && product.discount_price > 0;
 
@@ -43,6 +47,18 @@ export function ProductCard({ product, onPress }: { product: Product; onPress: (
             <Text style={styles.soldOutText}>تەواو بووە</Text>
           </View>
         )}
+
+        {/* Over the sold-out veil on purpose: saving something that is out of
+            stock is exactly when a shopper wants to come back to it. */}
+        <Pressable
+          style={styles.heart}
+          onPress={() => wishlist.toggle(product)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={saved ? 'لابردن لە دڵخوازەکان' : 'زیادکردن بۆ دڵخوازەکان'}
+        >
+          <Text style={[styles.heartMark, saved && styles.heartMarkOn]}>{saved ? '♥' : '♡'}</Text>
+        </Pressable>
       </View>
 
       <Text style={styles.name} numberOfLines={2}>
@@ -86,6 +102,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(31,20,32,0.45)',
   },
   soldOutText: { color: '#fff', ...typography.heading },
+  heart: {
+    position: 'absolute',
+    top: spacing.xs,
+    insetInlineStart: spacing.xs,
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heartMark: { fontSize: 18, color: colors.textMuted, lineHeight: 22 },
+  heartMarkOn: { color: colors.brand },
   name: { ...typography.small, color: colors.text, textAlign: 'right' },
   priceRow: { flexDirection: 'row-reverse', alignItems: 'baseline', gap: spacing.sm },
   price: { ...typography.heading, color: colors.brand },

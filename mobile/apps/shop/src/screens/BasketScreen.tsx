@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -13,6 +13,7 @@ import {
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { ApiError, formatIQD, isValidPhone, normalizePhone, orders } from '@galokids/core';
+import { Empty, TabBar } from '@/components/ui';
 import { useAccount } from '@/state/useAccount';
 import { useBasket, type BasketLine } from '@/state/useBasket';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
@@ -40,6 +41,15 @@ export default function BasketScreen() {
   const [governorate, setGovernorate] = useState('');
   const [address, setAddress] = useState('');
   const [placing, setPlacing] = useState(false);
+
+  // Fill in what the account already knows, so a returning shopper types an
+  // address and nothing else.
+  useEffect(() => {
+    if (!user) return;
+
+    setName(previous => previous || user.name || '');
+    setPhone(previous => previous || (user.phone ?? ''));
+  }, [user]);
 
   const placeOrder = async () => {
     if (basket.lines.length === 0 || placing) return;
@@ -72,10 +82,14 @@ export default function BasketScreen() {
 
       basket.clear();
 
+      // Straight to the order rather than back to the shop: the first thing
+      // anybody wants after ordering is to see that it exists, and this is
+      // also the screen they will come back to for its status.
+      router.replace(`/orders/${order.id}`);
+
       Alert.alert(
         'داواکارییەکەت تۆمارکرا',
-        `ژمارەی داواکاری: ${order.invoice_no ?? order.id}\nکۆی گشتی: ${formatIQD(order.total_amount)}`,
-        [{ text: 'باشە', onPress: () => router.replace('/') }]
+        `ژمارەی داواکاری: ${order.invoice_no ?? order.id}\nکۆی گشتی: ${formatIQD(order.total_amount)}`
       );
     } catch (error) {
       // No idempotency key here on purpose: a shopper's order is placed by a
@@ -94,12 +108,52 @@ export default function BasketScreen() {
 
   if (basket.lines.length === 0) {
     return (
-      <View style={styles.centre}>
-        <Text style={styles.emptyMark}>🧺</Text>
-        <Text style={styles.emptyTitle}>سەبەتەکەت بەتاڵە</Text>
-        <Pressable style={styles.browse} onPress={() => router.replace('/')}>
-          <Text style={styles.browseText}>بڕۆ بۆ فرۆشگا</Text>
-        </Pressable>
+      <View style={styles.screen}>
+        <Empty
+          mark="🧺"
+          title="سەبەتەکەت بەتاڵە"
+          body="بەرهەمێک هەڵبژێرە بۆ ئەوەی لێرە دەربکەوێت."
+          action={{ label: 'بڕۆ بۆ فرۆشگا', onPress: () => router.replace('/') }}
+        />
+        <TabBar />
+      </View>
+    );
+  }
+
+  // Ordering needs a session: the orders endpoint is behind authentication, so
+  // without one the server would answer 401 and the shopper would see a
+  // meaningless failure after filling in their whole address. Asking here also
+  // means the order belongs to somebody, which is what makes it trackable.
+  if (!user) {
+    return (
+      <View style={styles.screen}>
+        <View style={styles.gate}>
+          <Text style={styles.gateMark}>🔑</Text>
+          <Text style={styles.gateTitle}>بۆ تەواوکردنی داواکاری بچۆ ژوورەوە</Text>
+          <Text style={styles.gateBody}>
+            کۆدێک بۆ ژمارەی مۆبایلەکەت دەنێرین. سەبەتەکەت وەک خۆی دەمێنێتەوە.
+          </Text>
+
+          <View style={styles.gateSummary}>
+            <Text style={styles.gateSummaryLabel}>
+              {basket.itemCount} بەرهەم لە سەبەتەدا
+            </Text>
+            <Text style={styles.gateSummaryValue}>{formatIQD(basket.subtotal)}</Text>
+          </View>
+
+          <Pressable
+            style={styles.browse}
+            onPress={() => router.push('/sign-in?next=/basket')}
+          >
+            <Text style={styles.browseText}>چوونەژوورەوە بە کۆد</Text>
+          </Pressable>
+
+          <Pressable style={styles.keepLooking} onPress={() => router.replace('/')}>
+            <Text style={styles.keepLookingText}>بەردەوامبوون بە گەڕان</Text>
+          </Pressable>
+        </View>
+
+        <TabBar />
       </View>
     );
   }
@@ -189,9 +243,39 @@ function Line({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   list: { padding: spacing.lg, gap: spacing.md },
-  centre: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, backgroundColor: colors.background },
-  emptyMark: { fontSize: 48 },
-  emptyTitle: { ...typography.title, color: colors.text },
+  gate: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    padding: spacing.xl,
+  },
+  gateMark: { fontSize: 44 },
+  gateTitle: { ...typography.title, color: colors.text, textAlign: 'center' },
+  gateBody: {
+    ...typography.body,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing.md,
+  },
+  gateSummary: {
+    flexDirection: 'row-reverse',
+    alignItems: 'baseline',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  gateSummaryLabel: { ...typography.small, color: colors.textMuted },
+  gateSummaryValue: { ...typography.heading, color: colors.brand },
+  keepLooking: { paddingVertical: spacing.md },
+  keepLookingText: { ...typography.small, color: colors.textMuted },
+
   browse: {
     minHeight: TOUCH_TARGET, justifyContent: 'center', paddingHorizontal: spacing.xl,
     borderRadius: radius.pill, backgroundColor: colors.brand,

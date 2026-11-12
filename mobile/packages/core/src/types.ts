@@ -83,6 +83,53 @@ export type OrderStatus =
   | 'cancelled'
   | 'returned';
 
+/**
+ * What a shopper is told an order's status means.
+ *
+ * Here rather than in each app because the customer reads one of these on the
+ * tracking screen and the cashier reads the same word in the back office. Two
+ * copies drift, and a shopper told "نێردراو" while the panel says something
+ * else phones the shop.
+ */
+export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  pending: 'چاوەڕوان',
+  processing: 'لە ئامادەکردندا',
+  shipped: 'نێردراو',
+  delivered: 'گەیەنراو',
+  cancelled: 'هەڵوەشێنراو',
+  returned: 'گەڕێنراوە',
+};
+
+/**
+ * The route an order normally takes, for drawing progress.
+ *
+ * Cancelled and returned are deliberately absent: they are not later stages of
+ * the same journey, and putting them on the end of a progress bar tells a
+ * customer whose order was cancelled that it is nearly there.
+ */
+export const ORDER_STATUS_FLOW: OrderStatus[] = ['pending', 'processing', 'shipped', 'delivered'];
+
+export function orderStatusLabel(status: string | null | undefined): string {
+  return ORDER_STATUS_LABELS[status as OrderStatus] ?? String(status ?? '—');
+}
+
+/**
+ * What the public tracking endpoint answers.
+ *
+ * A deliberately smaller thing than `Order`: the endpoint is open to anyone
+ * with an order number and the matching phone, so it returns what a customer
+ * needs to follow their parcel and nothing about cost, margin or payment.
+ */
+export interface TrackedOrder {
+  id: number;
+  status: OrderStatus;
+  created_at: string;
+  total_amount: number;
+  customer_name: string | null;
+  shipping_address: string | null;
+  items: { name: string | null; quantity: number; price: number }[];
+}
+
 export interface Order {
   id: number;
   invoice_no: string | null;

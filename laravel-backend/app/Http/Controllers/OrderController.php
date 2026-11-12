@@ -359,7 +359,17 @@ class OrderController extends Controller
         // The POS tab shows a cashier their own takings. It is a view filter,
         // not a permission — any of them may still look an order up at the
         // counter to take a return.
-        if ($request->boolean('mine') && $request->user()) {
+        //
+        // Only for staff. `mine` means two different things to the two callers:
+        // to a cashier it is "sales I rang up", which is strictly `user_id`; to
+        // a customer it is "orders that are mine", which includes the ones
+        // placed under their phone number before they ever signed in. The
+        // caller above already scopes a customer that way, by account *or*
+        // phone — and this line, applied to them as well, cancelled the phone
+        // half of it. A customer's own order history showed only orders placed
+        // while signed in, which in this shop is the minority of them: most are
+        // taken over Instagram and typed in by staff against a phone number.
+        if ($request->boolean('mine') && $request->user()?->isPrivileged()) {
             $query->where('user_id', $request->user()->id);
         }
 
@@ -518,10 +528,19 @@ class OrderController extends Controller
         ]);
 
         $order = Order::with('items.product')->find($request->id);
-        $phone = preg_replace('/\D/', '', (string) $request->phone);
-        $orderPhone = $order ? preg_replace('/\D/', '', (string) $order->customer_phone) : '';
 
-        if (!$order || $phone === '' || $orderPhone === '' || $phone !== $orderPhone) {
+        // Compared as the local digits rather than as whatever each side typed.
+        // Orders predating normalization are stored as "0750…", "+964 750…" and
+        // "750…", and a straight string comparison made a customer's own order
+        // untrackable unless they happened to type it the way a member of staff
+        // once had. `mine` on the orders list has always matched across the
+        // variants; this endpoint not doing so was the inconsistency.
+        $asked = PhoneNumber::local($request->phone);
+        $onOrder = $order ? PhoneNumber::local($order->customer_phone) : '';
+
+        // One message for every kind of miss. Told which half was wrong, anyone
+        // could walk the order numbers and learn which ones exist.
+        if (!$order || $asked === '' || $onOrder === '' || $asked !== $onOrder) {
             return response()->json(['message' => 'No matching order found.'], 404);
         }
 

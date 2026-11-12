@@ -6,6 +6,7 @@ import {
   Order,
   Paginated,
   Product,
+  TrackedOrder,
   User,
 } from './types';
 
@@ -117,6 +118,25 @@ export const orders = {
     }),
 
   get: (id: number) => apiRequest<Order>(`orders/${id}`),
+
+  /**
+   * Follow an order without signing in.
+   *
+   * Open to anyone, so the server insists on both the order number and the
+   * phone number recorded against it — guessing sequential ids gets you
+   * nothing. It answers 404 for a wrong pair rather than saying which half was
+   * wrong, which is also why this returns a slimmer shape than `get`.
+   *
+   * The phone must be in canonical form; pass it through `normalizePhone`
+   * first. The server compares digits, so `0750…` and `964750…` are different
+   * strings to it and a customer typing the number the way they say it aloud
+   * would be told their own order does not exist.
+   */
+  track: (id: number | string, phone: string) =>
+    apiRequest<TrackedOrder>('orders/track', {
+      query: { id, phone },
+      anonymous: true,
+    }),
 
   /**
    * Ring up a sale.

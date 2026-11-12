@@ -39,6 +39,7 @@ async function migrate(conn: SQLite.SQLiteDatabase): Promise<void> {
       discount_price  REAL,
       cost            REAL,
       sku             TEXT,
+      barcode         TEXT,
       image_url       TEXT,
       category_id     INTEGER,
       is_active       INTEGER NOT NULL DEFAULT 1,
@@ -55,11 +56,6 @@ async function migrate(conn: SQLite.SQLiteDatabase): Promise<void> {
       barcode         TEXT,
       price_override  REAL
     );
-
-    -- Scanning is the one thing that must never feel slow.
-    CREATE INDEX IF NOT EXISTS variations_barcode ON variations (barcode);
-    CREATE INDEX IF NOT EXISTS variations_product ON variations (product_id);
-    CREATE INDEX IF NOT EXISTS products_sku ON products (sku);
 
     -- Sales taken while there was no signal. Nothing else holds these.
     CREATE TABLE IF NOT EXISTS outbox (
@@ -89,6 +85,53 @@ async function migrate(conn: SQLite.SQLiteDatabase): Promise<void> {
       value TEXT NOT NULL
     );
   `);
+
+  await addMissingColumns(conn);
+
+  // After the columns, not with the tables: an index on a column a till
+  // installed before that column existed does not yet have would fail, and
+  // this runs in the same statement batch as everything above it.
+  //
+  // Scanning is the one thing that must never feel slow.
+  await conn.execAsync(`
+    CREATE INDEX IF NOT EXISTS variations_barcode ON variations (barcode);
+    CREATE INDEX IF NOT EXISTS variations_product ON variations (product_id);
+    CREATE INDEX IF NOT EXISTS products_sku ON products (sku);
+    CREATE INDEX IF NOT EXISTS products_barcode ON products (barcode);
+  `);
+}
+
+/**
+ * Columns added after a till was already in service.
+ *
+ * `CREATE TABLE IF NOT EXISTS` does nothing to a table that already exists, so
+ * a new column has to be added by hand — and a till that has been selling for
+ * months is exactly the one that must not break on an update.
+ *
+ * Driven off the table's real columns rather than a stored version number,
+ * because the two disagree the moment anyone reinstalls, and because the
+ * question each `ALTER` really asks is "is this column here".
+ */
+async function addMissingColumns(conn: SQLite.SQLiteDatabase): Promise<void> {
+  const additions: { table: string; column: string; definition: string }[] = [
+    // A product's own barcode. Without it the till could only match a scan
+    // against a variation's code or a product's SKU, so a plain product with a
+    // barcode of its own — most of the shop's older lines — would not scan at
+    // all once the connection dropped.
+    { table: 'products', column: 'barcode', definition: 'TEXT' },
+  ];
+
+  for (const addition of additions) {
+    const columns = await conn.getAllAsync<{ name: string }>(
+      `PRAGMA table_info(${addition.table})`
+    );
+
+    if (columns.some(column => column.name === addition.column)) continue;
+
+    await conn.execAsync(
+      `ALTER TABLE ${addition.table} ADD COLUMN ${addition.column} ${addition.definition}`
+    );
+  }
 }
 
 /* ------------------------------------------------------------- meta --- */

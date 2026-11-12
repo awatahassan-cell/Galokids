@@ -8,5 +8,6 @@ export * from './money';
 export * from './phone';
 export * from './dates';
 export * from './useLayout';
+export * from './code128';
 export * from './secureStorage';
 export { API_BASE_URL, AUTH_TOKEN_KEY, AUTH_USER_KEY, DEVICE_ID_KEY } from './config';

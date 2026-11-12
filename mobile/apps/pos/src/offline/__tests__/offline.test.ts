@@ -204,6 +204,28 @@ await test("a product's own barcode with one variation sells that variation", as
   assert.equal(hit?.variation?.id, 21, 'one variation and no scan of its own: that is the thing');
 });
 
+await test("a product whose barcode is not its SKU still scans", async () => {
+  // The case the till used to get wrong. It kept only the SKU, so a product
+  // whose printed barcode differs from its SKU — which is most of the older
+  // lines, where the barcode came off the supplier's label — scanned as
+  // nothing at all the moment the connection dropped.
+  await upsertProducts([
+    {
+      id: 3, name: 'Supplier coded', name_ku: null, name_ar: null, description: null,
+      description_ku: null, description_ar: null, price: 7500, discount_price: null,
+      image_url: null, images: [], gender: 0, sku: 'INTERNAL-3', barcode: '6941234567890',
+      category_id: 1, is_active: true, updated_at: '2026-11-10T10:00:00Z',
+      variations: [{ id: 31, product_id: 3, color: null, size: null, stock_quantity: 4, sku: null, barcode: null, price_override: null }],
+    } as any,
+  ]);
+
+  const scanned = await findByBarcode('6941234567890');
+  assert.equal(scanned?.product.id, 3, 'the printed barcode must find the product');
+
+  // The SKU still works, because a cashier reading a code off a sheet types that.
+  assert.equal((await findByBarcode('INTERNAL-3'))?.product.id, 3);
+});
+
 await test('an unknown code finds nothing rather than guessing', async () => {
   assert.equal(await findByBarcode('NOT-A-CODE'), null);
 });

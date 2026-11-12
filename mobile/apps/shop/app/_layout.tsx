@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AccountProvider } from '@/state/useAccount';
 import { BasketProvider } from '@/state/useBasket';
+import { WishlistProvider } from '@/state/useWishlist';
 import { colors } from '@/theme';
 
 /**
@@ -18,12 +19,14 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <AccountProvider>
         <BasketProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-            }}
-          />
+          <WishlistProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+              }}
+            />
+          </WishlistProvider>
         </BasketProvider>
       </AccountProvider>
     </SafeAreaProvider>

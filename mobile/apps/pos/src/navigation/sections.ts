@@ -161,6 +161,9 @@ export const SECTIONS: Section[] = [
     icon: '🏷️',
     permission: 'labels.print',
     group: 'stock',
+    // Reads the device's own catalogue and encodes the barcode here, so a shop
+    // can label new stock in a back room with no signal.
+    offline: true,
   },
 
   // ---- money ---------------------------------------------------------

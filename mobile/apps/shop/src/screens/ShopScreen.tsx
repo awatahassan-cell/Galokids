@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ApiError, catalogue, type Category, type Product } from '@galokids/core';
 import { ProductCard } from '@/components/ProductCard';
+import { TabBar } from '@/components/ui';
 import { useBasket } from '@/state/useBasket';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 
@@ -169,6 +170,8 @@ export default function ShopScreen() {
           )}
         />
       )}
+
+      <TabBar />
     </View>
   );
 }

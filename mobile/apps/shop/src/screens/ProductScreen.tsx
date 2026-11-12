@@ -18,6 +18,7 @@ import {
   type ProductVariation,
 } from '@galokids/core';
 import { useBasket } from '@/state/useBasket';
+import { useWishlist } from '@/state/useWishlist';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 
 /**
@@ -31,6 +32,7 @@ export default function ProductScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const basket = useBasket();
+  const wishlist = useWishlist();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [chosen, setChosen] = useState<ProductVariation | null>(null);
@@ -101,6 +103,19 @@ export default function ProductScreen() {
               <Text style={styles.placeholderMark}>👕</Text>
             </View>
           )}
+
+          <Pressable
+            style={styles.heart}
+            onPress={() => wishlist.toggle(product)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              wishlist.has(product.id) ? 'لابردن لە دڵخوازەکان' : 'زیادکردن بۆ دڵخوازەکان'
+            }
+          >
+            <Text style={[styles.heartMark, wishlist.has(product.id) && styles.heartMarkOn]}>
+              {wishlist.has(product.id) ? '♥' : '♡'}
+            </Text>
+          </Pressable>
         </View>
 
         <Text style={styles.name}>{product.name_ku || product.name}</Text>
@@ -167,6 +182,19 @@ const styles = StyleSheet.create({
 
   imageWrap: { aspectRatio: 1, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.brandSoft },
   image: { width: '100%', height: '100%' },
+  heart: {
+    position: 'absolute',
+    top: spacing.md,
+    insetInlineStart: spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heartMark: { fontSize: 24, color: colors.textMuted, lineHeight: 28 },
+  heartMarkOn: { color: colors.brand },
   placeholder: { alignItems: 'center', justifyContent: 'center' },
   placeholderMark: { fontSize: 56 },
 

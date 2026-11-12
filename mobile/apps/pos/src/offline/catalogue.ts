@@ -29,6 +29,7 @@ export interface LocalProduct {
   discount_price: number | null;
   cost: number | null;
   sku: string | null;
+  barcode: string | null;
   image_url: string | null;
   category_id: number | null;
   is_active: number;
@@ -50,12 +51,13 @@ export async function upsertProducts(products: Product[]): Promise<void> {
     for (const product of products) {
       await conn.runAsync(
         `INSERT INTO products
-           (id, name, name_ku, name_ar, price, discount_price, cost, sku, image_url, category_id, is_active, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           (id, name, name_ku, name_ar, price, discount_price, cost, sku, barcode, image_url, category_id, is_active, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            name = excluded.name, name_ku = excluded.name_ku, name_ar = excluded.name_ar,
            price = excluded.price, discount_price = excluded.discount_price, cost = excluded.cost,
-           sku = excluded.sku, image_url = excluded.image_url, category_id = excluded.category_id,
+           sku = excluded.sku, barcode = excluded.barcode, image_url = excluded.image_url,
+           category_id = excluded.category_id,
            is_active = excluded.is_active, updated_at = excluded.updated_at`,
         product.id,
         product.name,
@@ -65,6 +67,7 @@ export async function upsertProducts(products: Product[]): Promise<void> {
         product.discount_price,
         product.cost ?? null,
         product.sku,
+        product.barcode ?? null,
         product.image_url,
         product.category_id,
         product.is_active === false ? 0 : 1,
@@ -124,7 +127,8 @@ export async function findByBarcode(code: string): Promise<ScanHit | null> {
   }
 
   const product = await conn.getFirstAsync<LocalProduct>(
-    'SELECT * FROM products WHERE sku = ? LIMIT 1',
+    'SELECT * FROM products WHERE barcode = ? OR sku = ? LIMIT 1',
+    scanned,
     scanned
   );
 
@@ -147,9 +151,10 @@ export async function searchProducts(term: string, limit = 30): Promise<LocalPro
   return conn.getAllAsync<LocalProduct>(
     `SELECT * FROM products
      WHERE is_active = 1
-       AND (name LIKE ? OR name_ku LIKE ? OR name_ar LIKE ? OR sku LIKE ?)
+       AND (name LIKE ? OR name_ku LIKE ? OR name_ar LIKE ? OR sku LIKE ? OR barcode LIKE ?)
      ORDER BY name
      LIMIT ?`,
+    query,
     query,
     query,
     query,
