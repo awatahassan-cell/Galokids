@@ -17,28 +17,30 @@ class ProductController extends Controller
             ? Product::with('variations')
             : Product::with(['variations', 'reviews']);
 
-        // Safely check and auto-create is_active column if missing
-        if (!\Illuminate\Support\Facades\Schema::hasColumn('products', 'is_active')) {
-            try {
-                \Illuminate\Support\Facades\Schema::table('products', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->boolean('is_active')->default(true)->index();
-                });
-            } catch (\Throwable $e) {}
-        }
+        // Products taken off the website stay off it.
+        //
+        // The back office may ask to see them — that is what the products
+        // screen is for — but a shopper may not, however they ask. The tests
+        // below the request were being trusted for everyone: a stranger adding
+        // `?include_inactive=1` got the hidden products, and `?is_active=0`
+        // handed them a list of exactly what the shop had taken down, which is
+        // the one thing deactivating a product is meant to prevent.
+        $viewer = auth('sanctum')->user();
+        $maySeeHidden = $viewer && $viewer->isPrivileged();
 
-        // Filter by is_active (public storefront only sees active products, unless include_inactive=1 or all=1)
-        if (\Illuminate\Support\Facades\Schema::hasColumn('products', 'is_active')) {
-            if ($request->has('is_active') && $request->is_active !== '' && $request->is_active !== 'all') {
-                $query->where('is_active', $request->boolean('is_active'));
-            } elseif (!$request->boolean('include_inactive') && !$request->boolean('all')) {
-                $user = auth('sanctum')->user();
-                if (!$user || !$user->isPrivileged()) {
-                    $query->where(function ($q) {
-                        $q->where('is_active', true)
-                          ->orWhereNull('is_active');
-                    });
-                }
-            }
+        if (!$maySeeHidden) {
+            // `orWhereNull` for rows that predate the column: absent is not
+            // hidden, and in SQL `is_active = 1` drops a NULL rather than
+            // matching it, which would have emptied the shop.
+            $query->where(function ($q) {
+                $q->where('is_active', true)->orWhereNull('is_active');
+            });
+        } elseif ($request->has('is_active') && $request->is_active !== '' && $request->is_active !== 'all') {
+            $query->where('is_active', $request->boolean('is_active'));
+        } elseif (!$request->boolean('include_inactive') && !$request->boolean('all')) {
+            $query->where(function ($q) {
+                $q->where('is_active', true)->orWhereNull('is_active');
+            });
         }
 
         // Filter by category_id
@@ -158,6 +160,19 @@ class ProductController extends Controller
     public function show($id)
     {
         $product = Product::with(['variations', 'reviews'])->findOrFail($id);
+
+        // Hidden from the list means hidden here too.
+        //
+        // Only the listing was filtered, so a product taken off the website was
+        // still served in full at its own address — and its id is one more than
+        // its neighbour's. A shopper who should not see it gets the same answer
+        // as for a product that does not exist.
+        $viewer = auth('sanctum')->user();
+
+        if ($product->is_active === false && (!$viewer || !$viewer->isPrivileged())) {
+            abort(404);
+        }
+
         return response()->json($product);
     }
 
