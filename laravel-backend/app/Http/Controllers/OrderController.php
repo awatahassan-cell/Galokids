@@ -408,17 +408,21 @@ class OrderController extends Controller
             if ($request->channel === 'pos') {
                 $query->whereRaw($tillSale);
             } elseif ($request->channel === 'social') {
-                $query->whereRaw($socialSale);
+                // A till sale stays a till sale even when something in it also
+                // reads as social, so the two lists cannot both claim it.
+                $query->whereRaw("{$socialSale} AND NOT {$tillSale}");
             } elseif ($request->channel === 'online') {
-                $query->where(function ($q) use ($tillSale, $socialSale) {
-                    $q->where(function ($sub) {
-                        $sub->where('orders.channel', 'online')
-                            ->orWhereNull('orders.channel')
-                            ->orWhere('orders.channel', '');
-                    })
-                    ->whereRaw("NOT {$tillSale}")
-                    ->whereRaw("NOT {$socialSale}");
-                });
+                // Everything that is neither — the complement, not a match on
+                // the word.
+                //
+                // This had become a positive test for channel = 'online' (or
+                // null, or empty). Any other value fell outside all three
+                // lists at once: an order with channel 'web' was in no tab of
+                // the panel while still counting in the totals and the
+                // reports, which is the discrepancy nobody can explain. The
+                // website list is defined as what is left over, so a value
+                // nobody anticipated lands here rather than nowhere.
+                $query->whereRaw("NOT {$tillSale} AND NOT {$socialSale}");
             }
         }
 

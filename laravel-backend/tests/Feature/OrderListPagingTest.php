@@ -130,6 +130,55 @@ class OrderListPagingTest extends TestCase
         $this->assertSame($all, $pos + $online, 'every order belongs to exactly one of the two');
     }
 
+    public function test_the_three_channel_filters_partition_the_table(): void
+    {
+        // Adding the social/page list made "online" a positive match on the
+        // word instead of the leftovers, so an order with any other channel
+        // was in none of the three lists — invisible in the panel while still
+        // counting in the totals.
+        $this->makeOrders(7, ['channel' => 'pos']);
+        $this->makeOrders(4, ['channel' => 'online']);
+        $this->makeOrders(3, ['channel' => 'social']);
+        $this->makeOrders(2, ['channel' => 'web']);
+
+        $cashier = $this->cashier();
+        $total = fn (?string $channel) => $this->actingAs($cashier)
+            ->getJson('/api/orders' . ($channel ? "?channel={$channel}" : ''))
+            ->assertOk()->json('total');
+
+        $all = $total(null);
+        $this->assertSame(16, $all);
+
+        // Jointly exhaustive: nothing falls outside all three.
+        $this->assertSame(
+            $all,
+            $total('pos') + $total('social') + $total('online'),
+            'every order belongs to exactly one of the three'
+        );
+
+        // And the odd one out lands on the website list rather than nowhere.
+        $this->assertSame(6, $total('online'), 'the four online orders plus the two "web" ones');
+        $this->assertSame(3, $total('social'));
+        $this->assertSame(7, $total('pos'));
+    }
+
+    public function test_a_till_sale_that_also_reads_as_social_is_only_a_till_sale(): void
+    {
+        // Mutually exclusive, not just exhaustive: counted twice, a sale would
+        // inflate whichever total the shop happened to read.
+        $this->makeOrders(1, [
+            'channel' => 'pos',
+            'shipping_address' => 'پەیج',
+        ]);
+
+        $cashier = $this->cashier();
+        $pos = $this->actingAs($cashier)->getJson('/api/orders?channel=pos')->assertOk()->json('total');
+        $social = $this->actingAs($cashier)->getJson('/api/orders?channel=social')->assertOk()->json('total');
+
+        $this->assertSame(1, $pos);
+        $this->assertSame(0, $social);
+    }
+
     public function test_filtering_by_status_counts_the_whole_table(): void
     {
         $this->makeOrders(30, ['status' => 'pending']);
