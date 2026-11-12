@@ -76,7 +76,47 @@ class Product extends Model
             unset($data['cost']);
         }
 
+        // Every image comes back as a URL a client can actually fetch.
+        //
+        // These are stored as the path they were saved at, e.g.
+        // "/uploads/products/p1.jpg". A browser resolves that against the page
+        // it is on — which is the storefront, not this API, so the shop's own
+        // images 404 the moment the two are on different hosts. A phone app
+        // has no page to resolve against at all and cannot show them full
+        // stop. Absolute here means every client gets the same usable URL
+        // without each one having to know where the API lives.
+        $data['image_url'] = self::absoluteImageUrl($data['image_url'] ?? null);
+
+        if (isset($data['images']) && is_array($data['images'])) {
+            $data['images'] = array_values(array_filter(array_map(
+                fn ($image) => self::absoluteImageUrl($image),
+                $data['images']
+            )));
+        }
+
         return $data;
+    }
+
+    /**
+     * Turn a stored image path into a URL that stands on its own.
+     *
+     * Anything already absolute is left exactly as it is: a product may point
+     * at a CDN, at the shop's Instagram, or carry an inline data: URI, and
+     * rewriting those would break them.
+     */
+    public static function absoluteImageUrl(?string $image): ?string
+    {
+        $image = trim((string) $image);
+
+        if ($image === '') {
+            return null;
+        }
+
+        if (preg_match('#^(https?:)?//#i', $image) || str_starts_with($image, 'data:')) {
+            return $image;
+        }
+
+        return rtrim(config('app.url'), '/') . '/' . ltrim($image, '/');
     }
 
     /** True when the caller is signed in to the back office. */
