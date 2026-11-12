@@ -39,6 +39,25 @@ class ProductController extends Controller
         // restore it. The inventory audit and the purchases picker read the
         // same list and need the hidden stock counted too.
 
+        // Only what changed since the till last synced.
+        //
+        // An offline POS keeps the whole catalogue on the device. Re-reading
+        // all of it on every sync is a long wait on a shop's connection and
+        // most of it has not moved; this asks for the difference. Ordered
+        // oldest-first so a till that is many pages behind can walk forward
+        // and remember where it got to.
+        if ($request->filled('updated_since')) {
+            try {
+                $since = \Carbon\Carbon::parse($request->input('updated_since'));
+            } catch (\Throwable $e) {
+                abort(response()->json([
+                    'message' => 'updated_since must be a date.',
+                ], 422));
+            }
+
+            $query->where('products.updated_at', '>', $since)->reorder('products.updated_at');
+        }
+
         // Filter by category_id
         if ($request->has('category_id') && $request->category_id != '') {
             $query->where('category_id', $request->category_id);
@@ -113,8 +132,15 @@ class ProductController extends Controller
             $query->whereRaw('COALESCE(discount_price, price) <= ?', [(float) $request->max_price]);
         }
 
-        // Sorting (whitelisted to avoid SQL injection via ORDER BY)
-        switch ($request->input('sort')) {
+        // Sorting (whitelisted to avoid SQL injection via ORDER BY).
+        //
+        // A delta sync has already chosen its order — oldest change first, so
+        // a till many pages behind can walk forward — and must not have it
+        // overwritten here.
+        switch ($request->filled('updated_since') ? '__delta__' : $request->input('sort')) {
+            case '__delta__':
+                break;
+
             case 'price_asc':
                 $query->orderByRaw('COALESCE(discount_price, price) ASC');
                 break;

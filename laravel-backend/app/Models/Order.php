@@ -29,6 +29,10 @@ class Order extends Model
         'shipping_address',
         'payment_method',
         'channel',
+        // Offline till sync. The key identifies one sale across every retry;
+        // the flag marks one that outran the stock count it was rung up on.
+        'idempotency_key',
+        'offline_stock_conflict',
     ];
 
     /**
@@ -48,6 +52,7 @@ class Order extends Model
         'refunded_amount' => 'float',
         'amount_paid' => 'float',
         'change_due' => 'float',
+        'offline_stock_conflict' => 'boolean',
     ];
 
     /** Every item on this order came back. */

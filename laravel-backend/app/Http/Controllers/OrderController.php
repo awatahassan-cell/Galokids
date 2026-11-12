@@ -591,13 +591,40 @@ class OrderController extends Controller
             'discount_amount' => 'nullable|numeric|min:0',
             'amount_paid' => 'nullable|numeric|min:0',
             'user_id' => 'nullable|integer|exists:users,id',
+            // ---- a till that was offline when the sale happened -----------
+            //
+            // All three are honoured for back-office callers only. A shopper
+            // on the website has no use for them, and letting one choose its
+            // own sale time or invoice number would let it write into the
+            // shop's books.
+            'idempotency_key' => 'nullable|string|max:64',
+            'sold_at' => 'nullable|date',
+            'invoice_no' => 'nullable|string|max:64',
         ]);
 
+        // The same sale, sent twice.
+        //
+        // A till that loses signal mid-request does not know whether the order
+        // landed, so it sends it again. The key is made on the device before
+        // the first attempt and never changes, so the second arrival is
+        // recognised rather than rung up a second time — which would take the
+        // stock off twice and show the shop a sale that never happened.
+        $idempotencyKey = $isStaff ? ($validated['idempotency_key'] ?? null) : null;
+
+        if ($idempotencyKey) {
+            $existing = Order::with('items')->where('idempotency_key', $idempotencyKey)->first();
+
+            if ($existing) {
+                return response()->json($existing, 200);
+            }
+        }
+
         try {
-            $order = DB::transaction(function () use ($validated, $request, $user, $isStaff) {
+            $order = DB::transaction(function () use ($validated, $request, $user, $isStaff, $idempotencyKey) {
                 $subtotal = 0;
                 $lineItems = [];
                 $stockToDeduct = [];
+                $stockConflict = false;
 
                 foreach ($validated['items'] as $item) {
                     $qty = (int) $item['quantity'];
@@ -621,6 +648,16 @@ class OrderController extends Controller
                                 abort(response()->json([
                                     'message' => 'Insufficient stock for one of the selected items.',
                                 ], 422));
+                            }
+
+                            // Staff may oversell — a cashier with the piece in
+                            // their hand is right and the count is wrong. But
+                            // when a till was offline it was working from a
+                            // stock figure that may have moved since, so note
+                            // that this sale and the shelf disagree. The sale
+                            // stands; the shop is told, and can count.
+                            if ($isStaff && $variation->stock_quantity < $qty) {
+                                $stockConflict = true;
                             }
                             // Recorded in the stock ledger further down, once
                             // the order exists and can be referenced.
@@ -763,15 +800,44 @@ class OrderController extends Controller
                     'shipping_address' => $validated['shipping_address'] ?? null,
                     'payment_method' => $validated['payment_method'] ?? null,
                     'channel' => $channel,
+                    'idempotency_key' => $idempotencyKey,
+                    'offline_stock_conflict' => $stockConflict,
                 ]);
+
+                // When the sale actually happened, not when it reached us.
+                //
+                // A sale rung up on Tuesday while the till was offline and
+                // synced on Thursday landed in Thursday's takings, so the
+                // day's cash never matched the day's report and the shift it
+                // belonged to had already been closed. The till sends the
+                // moment it took the money; we trust it within reason — not
+                // the future, and not further back than a month, because a
+                // wrong clock on one device must not rewrite last quarter.
+                if ($isStaff && !empty($validated['sold_at'])) {
+                    $soldAt = \Carbon\Carbon::parse($validated['sold_at']);
+
+                    if ($soldAt->lessThanOrEqualTo(now()) && $soldAt->greaterThan(now()->subDays(31))) {
+                        $order->created_at = $soldAt;
+                        $order->save();
+                    }
+                }
 
                 foreach ($lineItems as $li) {
                     $order->items()->create($li);
                 }
 
-                // Invoice number is derived from the order id, which the
-                // database has already made unique.
-                $order->invoice_no = 'INV-' . $order->created_at->format('Ymd') . '-' . str_pad((string) $order->id, 4, '0', STR_PAD_LEFT);
+                // The number already printed on the customer's receipt wins.
+                //
+                // The server's own number is built from the row id, which does
+                // not exist until the row does — so a till with no signal
+                // cannot know it, and printed something else. Honour what the
+                // device used, as long as no other order has it; otherwise
+                // fall back to ours rather than collide.
+                $deviceInvoice = $isStaff ? trim((string) ($validated['invoice_no'] ?? '')) : '';
+
+                $order->invoice_no = ($deviceInvoice !== '' && !Order::where('invoice_no', $deviceInvoice)->exists())
+                    ? $deviceInvoice
+                    : 'INV-' . $order->created_at->format('Ymd') . '-' . str_pad((string) $order->id, 4, '0', STR_PAD_LEFT);
                 $order->save();
 
                 // Stock ledger: one entry per line, pointing back at the order.
