@@ -1,0 +1,14 @@
+{
+  "name": "galokids-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --build --force",
+    "shop": "npm run start --workspace @galokids/shop",
+    "pos": "npm run start --workspace @galokids/pos"
+  }
+}

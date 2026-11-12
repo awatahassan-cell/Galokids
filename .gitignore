@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Expo / React Native
+mobile/node_modules/
+mobile/**/node_modules/
+mobile/**/.expo/
+mobile/**/android/
+mobile/**/ios/
