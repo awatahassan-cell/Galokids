@@ -21,6 +21,31 @@ export interface CartLine {
   variation: LocalVariation | null;
   quantity: number;
   unitPrice: number;
+  /**
+   * A line with no catalogue product behind it — the till's "quick add".
+   *
+   * Sent to the server as a name and a price rather than a product id, and
+   * kept out of local stock because there is none to take it from.
+   */
+  custom?: { name: string };
+}
+
+/** What the cashier types for a discount: a flat sum, or a share of the subtotal. */
+export interface DiscountSpec {
+  mode: 'amount' | 'percent';
+  value: number;
+}
+
+export interface Customer {
+  name: string;
+  phone: string;
+}
+
+/** Everything a half-rung sale is, so it can be put aside and picked up again. */
+export interface CartSnapshot {
+  lines: CartLine[];
+  discount: DiscountSpec;
+  customer: Customer;
 }
 
 export interface CartTotals {
@@ -36,7 +61,8 @@ function lineKey(product: LocalProduct, variation: LocalVariation | null): strin
 
 export function useCart() {
   const [lines, setLines] = useState<CartLine[]>([]);
-  const [discount, setDiscount] = useState(0);
+  const [discount, setDiscount] = useState<DiscountSpec>({ mode: 'amount', value: 0 });
+  const [customer, setCustomer] = useState<Customer>({ name: '', phone: '' });
 
   const add = useCallback((product: LocalProduct, variation: LocalVariation | null, quantity = 1) => {
     const key = lineKey(product, variation);
@@ -81,7 +107,39 @@ export function useCart() {
 
   const clear = useCallback(() => {
     setLines([]);
-    setDiscount(0);
+    setDiscount({ mode: 'amount', value: 0 });
+    setCustomer({ name: '', phone: '' });
+  }, []);
+
+  /** A line the catalogue does not know — priced by the cashier. */
+  const addCustom = useCallback((name: string, unitPrice: number, quantity = 1) => {
+    const stub: LocalProduct = {
+      id: 0,
+      name,
+      name_ku: null,
+      name_ar: null,
+      price: unitPrice,
+      discount_price: null,
+      cost: null,
+      sku: null,
+      image_url: null,
+      category_id: null,
+      is_active: 1,
+      updated_at: '',
+    };
+
+    setLines(previous => [
+      ...previous,
+      { key: `c${Date.now()}${previous.length}`, product: stub, variation: null, quantity, unitPrice, custom: { name } },
+    ]);
+  }, []);
+
+  const snapshot = useCallback((): CartSnapshot => ({ lines, discount, customer }), [lines, discount, customer]);
+
+  const restore = useCallback((saved: CartSnapshot) => {
+    setLines(saved.lines);
+    setDiscount(saved.discount);
+    setCustomer(saved.customer);
   }, []);
 
   /** Scan a code and put what it found in the basket. */
@@ -119,7 +177,11 @@ export function useCart() {
     // Whole dinars, matching what the server stores, so the drawer and the
     // report cannot disagree by the fractions a discount leaves behind.
     const rounded = Math.round(subtotal);
-    const capped = Math.min(Math.round(discount), rounded);
+    const wanted =
+      discount.mode === 'percent'
+        ? rounded * (Math.min(Math.max(discount.value, 0), 100) / 100)
+        : Math.max(discount.value, 0);
+    const capped = Math.min(Math.round(wanted), rounded);
 
     return {
       subtotal: rounded,
@@ -129,5 +191,20 @@ export function useCart() {
     };
   }, [lines, discount]);
 
-  return { lines, totals, discount, setDiscount, add, setQuantity, remove, clear, scan };
+  return {
+    lines,
+    totals,
+    discount,
+    setDiscount,
+    customer,
+    setCustomer,
+    add,
+    addCustom,
+    setQuantity,
+    remove,
+    clear,
+    scan,
+    snapshot,
+    restore,
+  };
 }

@@ -1,19 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { Alert, formatDateTime, formatIQD, shifts, type Shift } from '@galokids/core';
-import {
-  Button,
-  Empty,
-  Loading,
-  NeedsConnection,
-  Problem,
-  Row,
-  Screen,
-} from '@/components/kit';
+import { StyleSheet, Text, View } from 'react-native';
+import { formatDateTime, formatIQD, shifts, type Shift } from '@galokids/core';
+import { Button, Empty, Loading, NeedsConnection, Problem, Row, Screen } from '@/components/kit';
+import { CashSheet, CloseShiftSheet, OpenShiftSheet } from '@/components/ShiftModals';
 import { Pill, Table, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { useSync } from '@/state/useSync';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { colors, radius, spacing, typography } from '@/theme';
 
 /**
  * The drawer.
@@ -29,9 +22,7 @@ import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
  */
 export default function ShiftsScreen() {
   const { online } = useSync();
-  const [busy, setBusy] = useState(false);
-  const [openingFloat, setOpeningFloat] = useState('');
-  const [countedAmount, setCountedAmount] = useState('');
+  const [sheet, setSheet] = useState<'open' | 'close' | 'cash' | null>(null);
 
   // `/shifts/current` answers `{}` rather than null when there is none, and an
   // empty object is truthy — so the open shift is recognised by its id, not by
@@ -43,44 +34,9 @@ export default function ShiftsScreen() {
 
   const offline = !online || useNeedsConnection(current.error);
 
-  const openShift = async () => {
-    const value = Number(openingFloat || 0);
-    if (!Number.isFinite(value) || value < 0) {
-      Alert.alert('بڕی دەستپێک', 'بڕێکی دروست بنووسە.');
-      return;
-    }
-
-    setBusy(true);
-    try {
-      await shifts.open(value);
-      setOpeningFloat('');
-      current.reload();
-      history.refresh();
-    } catch (error) {
-      Alert.alert('نەتوانرا بکرێتەوە', (error as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const closeShift = async () => {
-    const value = Number(countedAmount);
-    if (!Number.isFinite(value) || value < 0) {
-      Alert.alert('بڕی ژمێردراو', 'ئەو بڕە بنووسە کە لە دراوەرەکەدا ژمێردرا.');
-      return;
-    }
-
-    setBusy(true);
-    try {
-      await shifts.close(value);
-      setCountedAmount('');
-      current.reload();
-      history.refresh();
-    } catch (error) {
-      Alert.alert('نەتوانرا دابخرێت', (error as Error).message);
-    } finally {
-      setBusy(false);
-    }
+  const changed = () => {
+    current.reload();
+    history.refresh();
   };
 
   return (
@@ -100,21 +56,10 @@ export default function ShiftsScreen() {
           <Row label="کراوەتەوە" value={formatDateTime(openShiftRecord.opened_at)} />
           <Row label="بڕی دەستپێک" value={formatIQD(openShiftRecord.opening_float)} />
 
-          <Text style={styles.prompt}>
-            پارەی ناو دراوەرەکە بژمێرە و بڕەکەی لێرە بنووسە. جیاوازییەکە تۆمار دەکرێت.
-          </Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="بڕی ژمێردراو"
-            placeholderTextColor={colors.textFaint}
-            keyboardType="number-pad"
-            value={countedAmount}
-            onChangeText={setCountedAmount}
-            textAlign="right"
-          />
-
-          <Button label={busy ? 'دادەخرێت…' : 'داخستنی شیفت'} tone="danger" onPress={closeShift} disabled={busy} />
+          <View style={styles.actions}>
+            <Button label="پارە لە دراوەر" tone="quiet" onPress={() => setSheet('cash')} />
+            <Button label="داخستنی شیفت" tone="danger" onPress={() => setSheet('close')} />
+          </View>
         </View>
       ) : (
         <View style={styles.panel}>
@@ -122,17 +67,7 @@ export default function ShiftsScreen() {
             هیچ شیفتێکی کراوە نییە. پێش دەستپێکردنی فرۆشتن، ئەو پارەیە بنووسە کە لە دراوەرەکەدایە.
           </Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="بڕی دەستپێک"
-            placeholderTextColor={colors.textFaint}
-            keyboardType="number-pad"
-            value={openingFloat}
-            onChangeText={setOpeningFloat}
-            textAlign="right"
-          />
-
-          <Button label={busy ? 'دەکرێتەوە…' : 'کردنەوەی شیفت'} onPress={openShift} disabled={busy} />
+          <Button label="کردنەوەی شیفت" onPress={() => setSheet('open')} />
         </View>
       )}
 
@@ -154,6 +89,18 @@ export default function ShiftsScreen() {
           )}
         </>
       )}
+
+      {sheet === 'open' && (
+        <OpenShiftSheet
+          onClose={() => setSheet(null)}
+          onOpened={() => {
+            setSheet(null);
+            changed();
+          }}
+        />
+      )}
+      {sheet === 'cash' && <CashSheet onClose={() => setSheet(null)} onChanged={() => {}} />}
+      {sheet === 'close' && <CloseShiftSheet onClose={() => setSheet(null)} onClosed={changed} />}
     </Screen>
   );
 }
@@ -165,7 +112,7 @@ const HISTORY: Column<Shift>[] = [
     title: 'کاشێر',
     width: 1.5,
     primary: true,
-    render: shift => shift.user_name ?? `کارمەند #${shift.user_id}`,
+    render: shift => shift.user?.name ?? `کارمەند #${shift.user_id}`,
   },
   { title: 'کردنەوە', width: 1.3, render: shift => formatDateTime(shift.opened_at) },
   {
@@ -180,19 +127,28 @@ const HISTORY: Column<Shift>[] = [
     render: shift => formatIQD(shift.opening_float),
   },
   {
-    title: 'پارەی کۆتایی',
+    title: 'ژمێردراو',
     width: 1.1,
     align: 'center',
-    render: shift => (shift.closing_amount != null ? formatIQD(shift.closing_amount) : '—'),
+    render: shift => (shift.counted_cash != null ? formatIQD(shift.counted_cash) : '—'),
+  },
+  {
+    title: 'چاوەڕوانکراو',
+    width: 1.1,
+    align: 'center',
+    render: shift => (shift.expected_cash != null ? formatIQD(shift.expected_cash) : '—'),
   },
   {
     title: 'جیاوازی',
     width: 1.1,
     align: 'center',
     render: shift => {
-      if (shift.closing_amount == null) return <Pill label="کراوەیە" tone="info" />;
+      if (shift.status === 'open' || shift.difference == null) return <Pill label="کراوەیە" tone="info" />;
 
-      const difference = shift.closing_amount - shift.opening_float;
+      // The server's own figure: counted minus what the till expected, which
+      // includes sales, refunds and cash in and out. The old column took
+      // closing minus the opening float and so called every shift "up".
+      const difference = shift.difference;
 
       return (
         <Pill
@@ -222,14 +178,6 @@ const styles = StyleSheet.create({
   },
   openBadgeText: { ...typography.small, color: colors.success },
   prompt: { ...typography.small, color: colors.textMuted, textAlign: 'right', lineHeight: 22 },
-  input: {
-    minHeight: TOUCH_TARGET,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    ...typography.body,
-    color: colors.text,
-  },
+  actions: { flexDirection: 'row-reverse', gap: spacing.sm, flexWrap: 'wrap', marginTop: spacing.sm },
   sectionTitle: { ...typography.heading, color: colors.text, textAlign: 'right', marginTop: spacing.md },
 });

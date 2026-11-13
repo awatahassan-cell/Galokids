@@ -104,12 +104,40 @@ export interface StockMovement {
 export interface Shift {
   id: number;
   user_id: number;
-  user_name?: string | null;
+  user?: { id: number; name: string } | null;
   status: 'open' | 'closed';
   opening_float: number;
-  closing_amount: number | null;
+  /** What the cashier counted in the drawer when closing. */
+  counted_cash: number | null;
+  /** What the till expected to be there. */
+  expected_cash: number | null;
+  /** counted − expected: negative is a shortage. */
+  difference: number | null;
+  note: string | null;
   opened_at: string;
   closed_at: string | null;
+}
+
+/** The Z-report figures, as the server works them out. */
+export interface ShiftSummary {
+  orders_count: number;
+  cash_sales: number;
+  card_sales: number;
+  total_sales: number;
+  refunds: number;
+  cash_in: number;
+  cash_out: number;
+  opening_float: number;
+  expected_cash: number;
+}
+
+export interface CashMovement {
+  id: number;
+  shift_id: number;
+  direction: 'in' | 'out';
+  amount: number;
+  reason: string;
+  created_at: string;
 }
 
 export interface Review {
@@ -261,4 +289,13 @@ export interface CustomerLookup {
   orders_count?: number;
   total_spent?: number;
   last_order_at?: string | null;
+}
+
+/** What an exchange answers: the money that changes hands, and both orders. */
+export interface ExchangeResult {
+  returned_value: number;
+  new_value: number;
+  /** Positive: collect from the customer. Negative: give back. */
+  difference: number;
+  replacement_order: { id: number; invoice_no: string | null };
 }

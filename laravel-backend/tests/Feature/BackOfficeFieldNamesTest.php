@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductVariation;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -189,5 +190,65 @@ class BackOfficeFieldNamesTest extends TestCase
 
         $miss = $this->actingAs($this->admin())->getJson('/api/customers/lookup?phone=07709999999')->assertOk()->json();
         $this->assertFalse($miss['found']);
+    }
+
+    /** Closing a shift takes `counted_cash`; the app used to send `closing_amount` and was refused. */
+    public function test_a_shift_closes_on_counted_cash_and_reports_the_gap(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->postJson('/api/shifts/open', ['opening_float' => 50000])->assertSuccessful();
+
+        $this->actingAs($admin)->postJson('/api/shifts/cash', [
+            'direction' => 'out', 'amount' => 2000, 'reason' => 'driver',
+        ])->assertSuccessful()->assertJsonStructure(['movement' => ['id', 'direction', 'amount', 'reason'], 'summary']);
+
+        $this->actingAs($admin)->postJson('/api/shifts/close', ['closing_amount' => 48000])->assertStatus(422);
+
+        $closed = $this->actingAs($admin)->postJson('/api/shifts/close', ['counted_cash' => 49000])
+            ->assertOk()->json();
+
+        foreach (['counted_cash', 'expected_cash', 'difference', 'status'] as $field) {
+            $this->assertArrayHasKey($field, $closed['shift']);
+        }
+        foreach (['orders_count', 'cash_sales', 'card_sales', 'total_sales', 'refunds', 'cash_in', 'cash_out',
+                  'opening_float', 'expected_cash'] as $field) {
+            $this->assertArrayHasKey($field, $closed['summary']);
+        }
+
+        $this->assertEquals(48000, $closed['summary']['expected_cash']);
+        $this->assertEquals(1000, $closed['shift']['difference']);
+    }
+
+    /** The till's exchange: returned lines + replacement variations, answered with the money difference. */
+    public function test_an_exchange_answers_with_the_difference_and_the_replacement_order(): void
+    {
+        $admin = $this->admin();
+
+        $tee = Product::create(['name' => 'Tee', 'price' => 20000, 'gender' => 0]);
+        $small = ProductVariation::create(['product_id' => $tee->id, 'color' => 'Red', 'size' => 'S', 'stock_quantity' => 5]);
+        $large = ProductVariation::create(['product_id' => $tee->id, 'color' => 'Red', 'size' => 'L', 'stock_quantity' => 5]);
+
+        $order = Order::create([
+            'customer_name' => 'Dayik', 'status' => 'delivered', 'subtotal' => 20000,
+            'total_amount' => 20000, 'shipping_fee' => 0, 'channel' => 'pos',
+        ]);
+        $line = $order->items()->create([
+            'product_id' => $tee->id, 'product_variation_id' => $small->id,
+            'product_name' => 'Tee', 'quantity' => 1, 'price' => 20000,
+        ]);
+
+        $result = $this->actingAs($admin)->postJson("/api/orders/{$order->id}/exchange", [
+            'returned_items' => [['order_item_id' => $line->id, 'quantity' => 1]],
+            'new_items' => [['product_variation_id' => $large->id, 'quantity' => 1]],
+        ])->assertSuccessful()->json();
+
+        foreach (['returned_value', 'new_value', 'difference'] as $key) {
+            $this->assertArrayHasKey($key, $result);
+        }
+        $this->assertArrayHasKey('id', $result['replacement_order']);
+        $this->assertEquals(0, $result['difference']);
+        $this->assertSame(6, $small->fresh()->stock_quantity);
+        $this->assertSame(4, $large->fresh()->stock_quantity);
     }
 }

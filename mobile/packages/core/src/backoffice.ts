@@ -1,12 +1,14 @@
 import { apiRequest } from './client';
 import type {
   ActivityLog,
+  CashMovement,
   CashierReport,
   DailyReport,
   ContactMessage,
   Coupon,
   CustomerLookup,
   CouponReportRow,
+  ExchangeResult,
   Expense,
   OrderCounts,
   OrderHistoryEntry,
@@ -14,6 +16,7 @@ import type {
   Review,
   SalesReport,
   Shift,
+  ShiftSummary,
   StockMovement,
   Supplier,
 } from './backoffice-types';
@@ -106,14 +109,31 @@ export const shifts = {
   open: (openingFloat: number) =>
     apiRequest<Shift>('shifts/open', { method: 'POST', body: { opening_float: openingFloat } }),
 
-  close: (countedAmount: number, note?: string) =>
-    apiRequest<Shift>('shifts/close', { method: 'POST', body: { closing_amount: countedAmount, note } }),
+  /**
+   * Close the shift with what was counted in the drawer.
+   *
+   * The server's field is `counted_cash` — this used to send `closing_amount`,
+   * which it does not read, so closing a shift from the app was refused.
+   * Answers the closed shift with the final Z-report figures.
+   */
+  close: (countedCash: number, note?: string) =>
+    apiRequest<{ shift: Shift; summary: ShiftSummary }>('shifts/close', {
+      method: 'POST',
+      body: { counted_cash: countedCash, note },
+    }),
 
   /** Money in or out of the drawer that is not a sale. */
   recordCash: (direction: 'in' | 'out', amount: number, reason: string) =>
-    apiRequest<void>('shifts/cash', { method: 'POST', body: { direction, amount, reason } }),
+    apiRequest<{ movement: CashMovement; summary: ShiftSummary }>('shifts/cash', {
+      method: 'POST',
+      body: { direction, amount, reason },
+    }),
 
-  report: (shiftId?: number) => apiRequest<Record<string, unknown>>('shifts/report', { query: { shift_id: shiftId } }),
+  /** This shift's cash in and out, newest first. */
+  cashMovements: () => apiRequest<CashMovement[]>('shifts/cash'),
+
+  /** The live Z-report for the open shift. 404 when none is open. */
+  report: () => apiRequest<{ shift: Shift; summary: ShiftSummary }>('shifts/report'),
 };
 
 /* ---------------------------------------------------------- the shop --- */
@@ -148,7 +168,7 @@ export const backoffice = {
       new_items: { product_variation_id: number; quantity: number }[];
       reason?: string;
     }
-  ) => apiRequest<unknown>(`orders/${id}/exchange`, { method: 'POST', body }),
+  ) => apiRequest<ExchangeResult>(`orders/${id}/exchange`, { method: 'POST', body }),
 
   deleteOrder: (id: number) => apiRequest<void>(`orders/${id}`, { method: 'DELETE' }),
 

@@ -11,9 +11,16 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Alert, formatIQD, useLayout } from '@galokids/core';
+import { Alert, formatIQD, shop, useLayout, type Order } from '@galokids/core';
 import { enqueueSale, variationsFor, type LocalProduct, type LocalVariation } from '@/offline';
 import { useCart, type CartLine } from '@/state/useCart';
+import { useHeld } from '@/state/useHeld';
+import { useShift } from '@/state/useShift';
+import { useFetch } from '@/state/useFetch';
+import { CashSheet, CloseShiftSheet, OpenShiftSheet } from '@/components/ShiftModals';
+import { CustomerBox, DiscountBox, HeldSheet, QuickAddSheet, RecentSalesSheet, ReturnSheet, TillBar } from '@/components/TillTools';
+import { printLabelSheet } from '@/labels/print';
+import { buildReceiptHtml, storeInfo } from '@/print/receipt';
 import { useSync } from '@/state/useSync';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
 import { ProductGrid } from '@/components/ProductGrid';
@@ -44,6 +51,10 @@ export default function TillScreen() {
   const [cashGiven, setCashGiven] = useState('');
   const [scanning, setScanning] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [sheet, setSheet] = useState<'shift' | 'cash' | 'held' | 'recent' | 'return' | 'quick' | null>(null);
+  const shift = useShift();
+  const held = useHeld();
+  const settings = useFetch(() => shop.settings(), []);
   const [picking, setPicking] = useState<{
     product: LocalProduct;
     options: LocalVariation[];
@@ -92,6 +103,20 @@ export default function TillScreen() {
     async (method: 'cash' | 'card') => {
       if (cart.lines.length === 0 || busy) return;
 
+      // Only a definite "no shift" stops a sale. If the till cannot reach the
+      // server it cannot know, and a shop that has lost its wifi still has to
+      // be able to sell.
+      if (shift.state === 'closed') {
+        Alert.alert('شیفت دابخراوە', 'پێش فرۆشتن شیفتێک بکەرەوە.');
+        setSheet('shift');
+        return;
+      }
+
+      if (method === 'cash' && cashGiven !== '' && Number(cashGiven) < cart.totals.total) {
+        Alert.alert('پارەی وەرگیراو', 'پارەی وەرگیراو لە کۆی گشتی کەمترە.');
+        return;
+      }
+
       setBusy(true);
 
       try {
@@ -99,11 +124,17 @@ export default function TillScreen() {
 
         const row = await enqueueSale(
           {
-            items: cart.lines.map(line => ({
-              product_id: line.product.id,
-              product_variation_id: line.variation?.id ?? null,
-              quantity: line.quantity,
-            })),
+            items: cart.lines.map(line =>
+              line.custom
+                ? { quantity: line.quantity, unit_price: line.unitPrice, name: line.custom.name }
+                : {
+                    product_id: line.product.id,
+                    product_variation_id: line.variation?.id ?? null,
+                    quantity: line.quantity,
+                  }
+            ),
+            customer_name: cart.customer.name.trim() || undefined,
+            customer_phone: cart.customer.phone.trim() || undefined,
             channel: 'pos',
             payment_method: method,
             discount_amount: cart.totals.discount || undefined,
@@ -120,6 +151,38 @@ export default function TillScreen() {
         const change = Math.max(0, paid - cart.totals.total);
         const total = cart.totals.total;
 
+        // What was just sold, as the receipt needs it. Taken before the cart
+        // is cleared; built here rather than read back from the server so the
+        // receipt prints with no connection, like the sale itself.
+        const sold: Order = {
+          id: 0,
+          invoice_no: row.invoice_no,
+          customer_name: cart.customer.name.trim() || null,
+          customer_phone: cart.customer.phone.trim() || null,
+          status: 'delivered',
+          subtotal: cart.totals.subtotal,
+          discount_amount: cart.totals.discount,
+          shipping_fee: 0,
+          total_amount: total,
+          amount_paid: paid,
+          change_due: change,
+          governorate: null,
+          shipping_address: null,
+          payment_method: method,
+          channel: 'pos',
+          created_at: new Date().toISOString(),
+          items: cart.lines.map((line, index) => ({
+            id: index,
+            product_id: line.custom ? null : line.product.id,
+            product_variation_id: line.variation?.id ?? null,
+            product_name: line.custom?.name ?? line.product.name,
+            product_name_ku: line.custom ? null : line.product.name_ku,
+            variation_label: [line.variation?.color, line.variation?.size].filter(Boolean).join(' · ') || null,
+            quantity: line.quantity,
+            price: line.unitPrice,
+          })),
+        };
+
         cart.clear();
         setCashGiven('');
         setCartOpen(false);
@@ -131,7 +194,18 @@ export default function TillScreen() {
         Alert.alert(
           'فرۆشتن تۆمارکرا',
           `پسووڵە ${row.invoice_no}\nکۆی گشتی ${formatIQD(total)}` +
-            (change > 0 ? `\nگەڕاوە ${formatIQD(change)}` : '')
+            (change > 0 ? `\nگەڕاوە ${formatIQD(change)}` : '') +
+            '\n\nپسووڵە چاپ بکەم؟',
+          [
+            { text: 'نەخێر', style: 'cancel' },
+            {
+              text: 'چاپکردنی پسووڵە',
+              onPress: () =>
+                printLabelSheet(buildReceiptHtml(sold, storeInfo(settings.data))).catch(error =>
+                  Alert.alert('نەتوانرا چاپ بکرێت', (error as Error).message)
+                ),
+            },
+          ]
         );
       } catch (error) {
         Alert.alert('نەتوانرا تۆمار بکرێت', (error as Error).message);
@@ -139,8 +213,24 @@ export default function TillScreen() {
         setBusy(false);
       }
     },
-    [busy, cart, cashGiven, syncNow]
+    [busy, cart, cashGiven, syncNow, shift.state, settings.data]
   );
+
+  const holdSale = () => {
+    if (cart.lines.length === 0) return;
+    held.hold(cart.snapshot());
+    cart.clear();
+    setCashGiven('');
+  };
+
+  const resume = (id: string) => {
+    // Picking one up while another is half rung would lose it. Put the current
+    // one aside first instead of asking.
+    if (cart.lines.length > 0) held.hold(cart.snapshot());
+    const saved = held.take(id);
+    if (saved) cart.restore(saved);
+    setSheet(null);
+  };
 
   const panel = (
     <CartPanel
@@ -160,6 +250,18 @@ export default function TillScreen() {
     >
       <View style={[styles.body, wide && styles.bodyWide]}>
         <View style={styles.gridSide}>
+          <TillBar
+            shiftState={shift.state}
+            heldCount={held.held.length}
+            canHold={cart.lines.length > 0}
+            onShift={() => setSheet('shift')}
+            onCash={() => setSheet('cash')}
+            onHold={holdSale}
+            onHeld={() => setSheet('held')}
+            onRecent={() => setSheet('recent')}
+            onReturn={() => setSheet('return')}
+            onQuick={() => setSheet('quick')}
+          />
           <ProductGrid onPick={pick} columns={columns} />
         </View>
 
@@ -229,6 +331,38 @@ export default function TillScreen() {
           </View>
         </View>
       </Modal>
+
+      {sheet === 'shift' && shift.state !== 'open' && (
+        <OpenShiftSheet
+          onClose={() => setSheet(null)}
+          onOpened={() => {
+            setSheet(null);
+            shift.reload();
+          }}
+        />
+      )}
+      {sheet === 'shift' && shift.state === 'open' && (
+        <CloseShiftSheet onClose={() => setSheet(null)} onClosed={shift.reload} />
+      )}
+      {sheet === 'cash' && <CashSheet onClose={() => setSheet(null)} onChanged={() => {}} />}
+      {sheet === 'held' && (
+        <HeldSheet held={held.held} onClose={() => setSheet(null)} onResume={resume} onDiscard={held.discard} />
+      )}
+      {sheet === 'recent' && <RecentSalesSheet onClose={() => setSheet(null)} />}
+      {sheet === 'return' && (
+        <ReturnSheet
+          cartLines={cart.lines.map(line => ({ variationId: line.variation?.id ?? null, quantity: line.quantity }))}
+          onClose={() => setSheet(null)}
+          onExchanged={() => {
+            cart.clear();
+            setCashGiven('');
+            syncNow({ pullCatalogue: true });
+          }}
+        />
+      )}
+      {sheet === 'quick' && (
+        <QuickAddSheet onClose={() => setSheet(null)} onAdd={(name, price, quantity) => cart.addCustom(name, price, quantity)} />
+      )}
 
       {/* Which colour and size. */}
       <Modal visible={picking !== null} transparent animationType="fade">
@@ -303,6 +437,9 @@ function CartPanel({
       )}
 
       <View style={styles.totals}>
+        <CustomerBox customer={cart.customer} onChange={cart.setCustomer} />
+        <DiscountBox discount={cart.discount} onChange={cart.setDiscount} />
+
         {cart.totals.discount > 0 && (
           <View style={styles.totalRow}>
             <Text style={styles.subLabel}>داشکاندن</Text>
