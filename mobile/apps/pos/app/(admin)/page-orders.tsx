@@ -1,7 +1,5 @@
-import { OrdersScreen } from '@/screens/admin/OrdersScreen';
+import PageOrderScreen from '@/screens/admin/PageOrderScreen';
 
 export default function PageOrders() {
-  return (
-    <OrdersScreen channel="social" title="داواکاری پەیج" subtitle="لە سۆشیاڵ میدیاوە" />
-  );
+  return <PageOrderScreen />;
 }

@@ -491,7 +491,7 @@ function CartPanel({
   );
 }
 
-function Line({
+export function Line({
   line,
   onChange,
   onRemove,
@@ -544,7 +544,7 @@ function Line({
   );
 }
 
-function VariationPicker({
+export function VariationPicker({
   product,
   options,
   onPick,

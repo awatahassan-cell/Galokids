@@ -126,7 +126,7 @@ export const SECTIONS: Section[] = [
     id: 'page-orders',
     route: 'page-orders',
     title: 'داواکاری پەیج',
-    subtitle: 'داواکاری سۆشیاڵ میدیا',
+    subtitle: 'تۆمارکردنی داواکاری لە سۆشیاڵ میدیاوە',
     icon: 'page-order',
     permission: 'orders.manage',
     group: 'sell',

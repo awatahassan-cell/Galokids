@@ -183,6 +183,8 @@ export interface NewOrder {
   shipping_address?: string;
   coupon_code?: string;
   discount_amount?: number;
+  /** Staff only: overrides the rate card, for a negotiated or waived delivery. */
+  shipping_fee?: number;
   amount_paid?: number;
 
   // ---- a till that was offline when the sale happened ------------------
