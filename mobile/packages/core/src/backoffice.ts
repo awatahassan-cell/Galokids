@@ -179,11 +179,11 @@ export const backoffice = {
   deleteExpense: (id: number) => apiRequest<void>(`expenses/${id}`, { method: 'DELETE' }),
 
   coupons: () => apiRequest<Coupon[]>('coupons'),
-  saveCoupon: (coupon: Partial<Coupon>, id?: number) =>
+  saveCoupon: (coupon: Partial<Coupon>, id?: string | number) =>
     id
       ? apiRequest<Coupon>(`coupons/${id}`, { method: 'PUT', body: coupon })
       : apiRequest<Coupon>('coupons', { method: 'POST', body: coupon }),
-  deleteCoupon: (id: number) => apiRequest<void>(`coupons/${id}`, { method: 'DELETE' }),
+  deleteCoupon: (id: string | number) => apiRequest<void>(`coupons/${id}`, { method: 'DELETE' }),
 
   suppliers: () => apiRequest<Supplier[]>('suppliers'),
   saveSupplier: (supplier: Partial<Supplier>, id?: number) =>

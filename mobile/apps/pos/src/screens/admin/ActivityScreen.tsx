@@ -56,6 +56,6 @@ const COLUMNS: Column<ActivityLog>[] = [
     title: 'وردەکاری',
     width: 3.4,
     primary: true,
-    render: entry => entry.description || entry.action,
+    render: entry => entry.summary || entry.action,
   },
 ];

@@ -18,7 +18,7 @@ export default function SuppliersScreen() {
   const list = useFetch<Supplier[]>(() => backoffice.suppliers(), []);
   const offline = useNeedsConnection(list.error);
 
-  const owed = (list.data ?? []).reduce((sum, s) => sum + Math.max(0, Number(s.balance ?? 0)), 0);
+  const owed = (list.data ?? []).reduce((sum, s) => sum + Math.max(0, Number(s.debt_balance ?? 0)), 0);
 
   // Who the shop buys from, how to reach them, and what it still owes each.
   const columns: Column<Supplier>[] = [
@@ -35,7 +35,7 @@ export default function SuppliersScreen() {
       width: 1.2,
       align: 'center',
       render: supplier => {
-        const balance = Number(supplier.balance ?? 0);
+        const balance = Number(supplier.debt_balance ?? 0);
 
         return (
           <Pill label={formatIQD(balance)} tone={balance > 0 ? 'bad' : 'good'} />
@@ -47,7 +47,7 @@ export default function SuppliersScreen() {
       width: 1.1,
       align: 'center',
       render: supplier =>
-        Number(supplier.balance ?? 0) > 0 ? (
+        Number(supplier.debt_balance ?? 0) > 0 ? (
           <Pressable style={styles.payButton} onPress={() => setPaying(supplier)}>
             <Text style={styles.payButtonText}>پارەدان</Text>
           </Pressable>
@@ -130,7 +130,7 @@ function PaymentSheet({
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
           <Text style={styles.sheetTitle}>{supplier.name}</Text>
-          <Text style={styles.sheetSub}>قەرزی ماوە: {formatIQD(Number(supplier.balance ?? 0))}</Text>
+          <Text style={styles.sheetSub}>قەرزی ماوە: {formatIQD(Number(supplier.debt_balance ?? 0))}</Text>
 
           <TextInput style={styles.input} placeholder="بڕی پارەدان"
             placeholderTextColor={colors.textFaint} keyboardType="number-pad"

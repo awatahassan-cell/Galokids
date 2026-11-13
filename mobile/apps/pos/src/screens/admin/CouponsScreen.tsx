@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Alert, backoffice, formatIQD, type Coupon } from '@galokids/core';
 import { Button, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
@@ -49,27 +49,27 @@ export default function CouponsScreen() {
       title: 'داشکاندن',
       width: 0.9,
       align: 'center',
-      render: coupon => <Pill label={`٪${coupon.discount_percentage}`} tone="info" />,
+      render: coupon => <Pill label={`٪${coupon.discountPercentage}`} tone="info" />,
     },
     {
       title: 'بەکارهێنان',
       width: 1.2,
       align: 'center',
       render: coupon =>
-        `${coupon.used_count}${coupon.usage_limit != null ? ` / ${coupon.usage_limit}` : ''}`,
+        `${coupon.timesUsed}${coupon.maxUses != null ? ` / ${coupon.maxUses}` : ''}`,
     },
     {
       title: 'کەمترین بڕ',
       width: 1.2,
       align: 'center',
-      render: coupon => (coupon.min_subtotal ? formatIQD(coupon.min_subtotal) : '—'),
+      render: coupon => (coupon.minOrderAmount > 0 ? formatIQD(coupon.minOrderAmount) : '—'),
     },
     {
       title: 'دۆخ',
       width: 1,
       align: 'center',
       render: coupon => {
-        const exhausted = coupon.usage_limit != null && coupon.used_count >= coupon.usage_limit;
+        const exhausted = coupon.maxUses != null && coupon.timesUsed >= coupon.maxUses;
 
         if (!coupon.isActive) return <Pill label="ناچالاک" tone="bad" />;
         if (exhausted) return <Pill label="تەواو بووە" tone="warn" />;
@@ -104,6 +104,7 @@ export default function CouponsScreen() {
         <Table
           rows={list.data!}
           keyFor={coupon => String(coupon.id)}
+          onPress={setEditing}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
           columns={columns}
@@ -166,6 +167,20 @@ function CouponSheet({
   const [active, setActive] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const existing = target && target !== 'new' ? target : null;
+
+  // Fill the form from the coupon being edited, and empty it for a new one.
+  // Without this the sheet opened blank whichever row was tapped, so editing
+  // an existing coupon meant retyping all of it.
+  useEffect(() => {
+    if (!target) return;
+
+    setCode(existing?.code ?? '');
+    setPercent(existing ? String(existing.discountPercentage) : '');
+    setLimit(existing?.maxUses != null ? String(existing.maxUses) : '');
+    setActive(existing?.isActive ?? true);
+  }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!target) return null;
 
   const save = async () => {
@@ -178,12 +193,17 @@ function CouponSheet({
 
     setSaving(true);
     try {
-      await backoffice.saveCoupon({
-        code: code.trim().toUpperCase(),
-        discount_percentage: value,
-        isActive: active,
-        usage_limit: limit.trim() ? Number(limit) : null,
-      });
+      await backoffice.saveCoupon(
+        {
+          code: code.trim().toUpperCase(),
+          discountPercentage: value,
+          isActive: active,
+          maxUses: limit.trim() ? Number(limit) : null,
+        },
+        // The id is what makes this an edit. Without it the server treats the
+        // request as a new coupon and refuses the code as already taken.
+        existing?.id
+      );
       setCode(''); setPercent(''); setLimit('');
       onSaved();
     } catch (error) {
@@ -197,7 +217,7 @@ function CouponSheet({
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>کوپۆنی نوێ</Text>
+          <Text style={styles.sheetTitle}>{existing ? `دەستکاری ${existing.code}` : 'کوپۆنی نوێ'}</Text>
 
           <TextInput style={styles.input} placeholder="کۆد (نموونە: EID20)"
             placeholderTextColor={colors.textFaint} autoCapitalize="characters"

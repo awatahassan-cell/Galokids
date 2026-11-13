@@ -20,10 +20,10 @@ export default function MessagesScreen() {
 
   const offline = useNeedsConnection(list.error);
   const messages = Array.isArray(list.data) ? list.data : (list.data?.data ?? []);
-  const unread = messages.filter(message => !message.read_at).length;
+  const unread = messages.filter(message => message.status === 'unread').length;
 
   const markRead = async (message: ContactMessage) => {
-    if (message.read_at) return;
+    if (message.status !== 'unread') return;
 
     try {
       await backoffice.markMessageRead(message.id);
@@ -72,7 +72,7 @@ const COLUMNS: Column<ContactMessage>[] = [
       <Titled
         title={message.name}
         sub={[displayPhone(message.phone), message.email].filter(Boolean).join(' · ') || null}
-        leading={!message.read_at ? <View style={styles.dot} /> : undefined}
+        leading={message.status === 'unread' ? <View style={styles.dot} /> : undefined}
       />
     ),
   },
@@ -80,7 +80,7 @@ const COLUMNS: Column<ContactMessage>[] = [
     title: 'پەیام',
     width: 3.4,
     render: message => (
-      <Text style={[styles.message, !message.read_at && styles.messageUnread]} numberOfLines={3}>
+      <Text style={[styles.message, message.status === 'unread' && styles.messageUnread]} numberOfLines={3}>
         {message.message}
       </Text>
     ),
@@ -91,7 +91,7 @@ const COLUMNS: Column<ContactMessage>[] = [
     width: 0.9,
     align: 'center',
     render: message =>
-      message.read_at ? <Pill label="خوێندراوە" tone="neutral" /> : <Pill label="نوێ" tone="info" />,
+      message.status === 'unread' ? <Pill label="نوێ" tone="info" /> : <Pill label={message.status === 'replied' ? "وەڵامدراوە" : "خوێندراوە"} tone={message.status === 'replied' ? "good" : "neutral"} />,
   },
 ];
 

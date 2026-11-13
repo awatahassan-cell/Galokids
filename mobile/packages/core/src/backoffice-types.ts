@@ -17,24 +17,55 @@ export interface Expense {
   created_at: string;
 }
 
+/**
+ * A coupon, as `/coupons` returns it.
+ *
+ * camelCase, unlike almost everything else the API sends — the controller
+ * formats coupons for the website, which has always asked for them that way.
+ * An earlier version of this type was written from the database columns
+ * instead (`discount_percentage`, `used_count`) and every field read as
+ * `undefined`: the table drew "%undefined", and nothing complained, because
+ * the type checker was only ever shown the type.
+ *
+ * The id is a string for the same reason: the column is a string key.
+ */
 export interface Coupon {
-  id: number;
+  id: string;
   code: string;
-  discount_percentage: number;
+  discountPercentage: number;
   isActive: boolean;
-  usage_limit: number | null;
-  used_count: number;
-  min_subtotal: number | null;
-  expires_at: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  /** How many times it may be used in all. null means without limit. */
+  maxUses: number | null;
+  maxUsesPerCustomer: number | null;
+  minOrderAmount: number;
+  timesUsed: number;
 }
 
+/**
+ * A supplier, as `/suppliers` returns it.
+ *
+ * What the shop still owes is `debt_balance`. An earlier version of this type
+ * called it `balance`, which the API has never sent — so the field read as
+ * undefined, every supplier showed as owed nothing, and the one screen that
+ * exists to say who the shop owes money to said nobody.
+ */
 export interface Supplier {
   id: number;
   name: string;
+  company?: string | null;
+  contact_person?: string | null;
   phone: string | null;
+  email?: string | null;
+  address?: string | null;
   notes: string | null;
+  opening_balance?: number;
+  purchases_count?: number;
+  total_purchases?: number;
+  total_paid?: number;
   /** What the shop still owes: purchases on credit, less payments made. */
-  balance?: number;
+  debt_balance: number;
 }
 
 export interface PurchaseItem {
@@ -91,23 +122,34 @@ export interface Review {
   created_at: string;
 }
 
+/**
+ * An inquiry from the contact form.
+ *
+ * Read or not is `status` — "unread", "read" or "replied" — not a timestamp.
+ * The type used to say `read_at`, which does not exist, so every message read
+ * as unread, or every one as read, depending on which way the check was
+ * written.
+ */
 export interface ContactMessage {
   id: number;
   name: string;
   email: string | null;
   phone: string | null;
   message: string;
-  read_at: string | null;
+  status: 'unread' | 'read' | 'replied';
   created_at: string;
 }
 
 export interface ActivityLog {
   id: number;
+  /** A dotted name: "settings.updated", "order.refunded". */
   action: string;
   subject_type: string | null;
   subject_id: number | null;
-  description: string | null;
+  /** The one-line account of what happened. Not `description`. */
+  summary: string | null;
   user_name?: string | null;
+  ip?: string | null;
   created_at: string;
 }
 
