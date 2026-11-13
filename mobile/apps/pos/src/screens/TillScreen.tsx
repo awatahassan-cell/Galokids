@@ -3,6 +3,7 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -10,34 +11,70 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { formatIQD } from '@galokids/core';
+import { Image } from 'expo-image';
+import { formatIQD, useLayout } from '@galokids/core';
 import { enqueueSale, variationsFor, type LocalProduct, type LocalVariation } from '@/offline';
 import { useCart, type CartLine } from '@/state/useCart';
 import { useSync } from '@/state/useSync';
 import { BarcodeScanner } from '@/components/BarcodeScanner';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { ProductGrid } from '@/components/ProductGrid';
+import { NavIcon } from '@/navigation/NavIcon';
+import { colors, fonts, radius, shadow, spacing, TOUCH_TARGET, typography } from '@/theme';
 
 /**
  * The counter.
  *
- * Taking the money is the one thing that must never depend on the network. The
- * sale is written to the device, the receipt number comes from the device, and
- * the drawer opens — then, separately and later, the sale is sent. A cashier
- * should not be able to tell from this screen whether the shop has a
- * connection, except by reading the strip at the top because they chose to.
+ * The panel's till, in the panel's shape: a wall of products on one side and
+ * the cart on the other. A cashier picks a garment by tapping its picture far
+ * more often than by scanning it — children's clothes arrive without a tag as
+ * often as with one — so the scanner is a tool on this screen rather than the
+ * screen itself.
+ *
+ * Taking the money never depends on the network. The sale is written to the
+ * device, the receipt number comes from the device, and the drawer opens —
+ * then, separately and later, the sale is sent. A cashier should not be able
+ * to tell from this screen whether the shop has a connection, except by
+ * reading the strip at the top because they chose to.
  */
 export default function TillScreen() {
   const cart = useCart();
   const { syncNow } = useSync();
+  const { wide, width } = useLayout();
 
   const [busy, setBusy] = useState(false);
   const [cashGiven, setCashGiven] = useState('');
-  const [picking, setPicking] = useState<{ product: LocalProduct; options: LocalVariation[] } | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [picking, setPicking] = useState<{
+    product: LocalProduct;
+    options: LocalVariation[];
+  } | null>(null);
+
+  // Four across on a phone is unreadable and two on a desk is a lot of
+  // scrolling, so the grid is sized from the space it actually has.
+  const gridWidth = wide ? width - 232 - 420 : width;
+  const columns = Math.max(2, Math.min(6, Math.floor(gridWidth / 150)));
+
+  const pick = useCallback(
+    async (product: LocalProduct, variation: LocalVariation | null) => {
+      if (variation) {
+        cart.add(product, variation);
+        return;
+      }
+
+      const options = await variationsFor(product.id);
+
+      // Several colours or sizes behind one tap: the cashier says which,
+      // because guessing puts the shop's stock wrong where nobody sees it.
+      if (options.length > 1) setPicking({ product, options });
+      else cart.add(product, options[0] ?? null);
+    },
+    [cart]
+  );
 
   const handleScan = useCallback(
     async (code: string) => {
       const result = await cart.scan(code);
-
       if (result.ok) return;
 
       if (result.reason === 'unknown') {
@@ -47,10 +84,7 @@ export default function TillScreen() {
         return;
       }
 
-      // Several colours or sizes behind one code: the cashier says which,
-      // because guessing puts the shop's stock wrong where nobody sees it.
-      const options = await variationsFor(result.product!.id);
-      setPicking({ product: result.product!, options });
+      setPicking({ product: result.product!, options: await variationsFor(result.product!.id) });
     },
     [cart]
   );
@@ -85,9 +119,11 @@ export default function TillScreen() {
         );
 
         const change = Math.max(0, paid - cart.totals.total);
+        const total = cart.totals.total;
 
         cart.clear();
         setCashGiven('');
+        setCartOpen(false);
 
         // Sent in the background. The sale is already safe on the device, so
         // nothing here waits for it and nothing here fails if it cannot go.
@@ -95,7 +131,7 @@ export default function TillScreen() {
 
         Alert.alert(
           'فرۆشتن تۆمارکرا',
-          `پسووڵە ${row.invoice_no}\nکۆی گشتی ${formatIQD(cart.totals.total)}` +
+          `پسووڵە ${row.invoice_no}\nکۆی گشتی ${formatIQD(total)}` +
             (change > 0 ? `\nگەڕاوە ${formatIQD(change)}` : '')
         );
       } catch (error) {
@@ -107,44 +143,167 @@ export default function TillScreen() {
     [busy, cart, cashGiven, syncNow]
   );
 
+  const panel = (
+    <CartPanel
+      cart={cart}
+      busy={busy}
+      cashGiven={cashGiven}
+      onCash={setCashGiven}
+      onPay={takePayment}
+      onScan={() => setScanning(true)}
+    />
+  );
+
   return (
-    // The sync strip belongs to the shell, which draws it above every screen.
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.scannerWrap}>
-        <BarcodeScanner onScan={handleScan} paused={busy || picking !== null} />
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <View style={[styles.body, wide && styles.bodyWide]}>
+        <View style={styles.gridSide}>
+          <ProductGrid onPick={pick} columns={columns} />
+        </View>
+
+        {/* On a desk the cart stands beside the grid, as it does in the panel.
+            On a phone there is no room for both, so it is a sheet the cashier
+            raises — with the total and the count always on the bar, so they
+            never have to open it to know where the sale is. */}
+        {wide ? <View style={styles.panelSide}>{panel}</View> : null}
       </View>
 
-      <FlatList
-        data={cart.lines}
-        keyExtractor={line => line.key}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>سەبەتە بەتاڵە</Text>
-            <Text style={styles.emptyBody}>بارکۆدی بەرهەمێک سکێن بکە بۆ دەستپێکردن.</Text>
+      {!wide && (
+        <Pressable style={styles.bar} onPress={() => setCartOpen(true)}>
+          <View style={styles.barLeft}>
+            <Text style={styles.barTotal}>{formatIQD(cart.totals.total)}</Text>
+            <Text style={styles.barHint}>کردنەوەی سەبەتە</Text>
           </View>
-        }
-        renderItem={({ item }) => <Line line={item} onChange={cart.setQuantity} onRemove={cart.remove} />}
-      />
 
-      {picking && (
-        <VariationPicker
-          product={picking.product}
-          options={picking.options}
-          onPick={variation => {
-            cart.add(picking.product, variation);
-            setPicking(null);
-          }}
-          onCancel={() => setPicking(null)}
+          <View style={styles.barCount}>
+            <Text style={styles.barCountText}>
+              {cart.lines.reduce((sum, line) => sum + line.quantity, 0)}
+            </Text>
+          </View>
+
+          <Pressable
+            style={styles.barScan}
+            onPress={() => setScanning(true)}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="سکێنکردنی بارکۆد"
+          >
+            <NavIcon name="labels" size={18} color="#fff" />
+          </Pressable>
+        </Pressable>
+      )}
+
+      {/* The cart, on a phone. */}
+      <Modal visible={!wide && cartOpen} transparent animationType="slide">
+        <View style={styles.sheetScrim}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCartOpen(false)} />
+
+          <View style={styles.sheet}>
+            <Pressable style={styles.sheetGrab} onPress={() => setCartOpen(false)}>
+              <View style={styles.grab} />
+            </Pressable>
+
+            {panel}
+          </View>
+        </View>
+      </Modal>
+
+      {/* The scanner, raised on demand rather than occupying the screen. */}
+      <Modal visible={scanning} transparent animationType="fade">
+        <View style={styles.scanScrim}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setScanning(false)} />
+
+          <View style={styles.scanCard}>
+            <BarcodeScanner
+              onScan={code => {
+                handleScan(code);
+              }}
+              paused={busy || picking !== null}
+            />
+
+            <Pressable style={styles.scanClose} onPress={() => setScanning(false)}>
+              <Text style={styles.scanCloseText}>داخستن</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Which colour and size. */}
+      <Modal visible={picking !== null} transparent animationType="fade">
+        <View style={styles.scanScrim}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPicking(null)} />
+
+          {picking && (
+            <VariationPicker
+              product={picking.product}
+              options={picking.options}
+              onPick={option => {
+                cart.add(picking.product, option);
+                setPicking(null);
+              }}
+              onCancel={() => setPicking(null)}
+            />
+          )}
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
+  );
+}
+
+function CartPanel({
+  cart,
+  busy,
+  cashGiven,
+  onCash,
+  onPay,
+  onScan,
+}: {
+  cart: ReturnType<typeof useCart>;
+  busy: boolean;
+  cashGiven: string;
+  onCash: (next: string) => void;
+  onPay: (method: 'cash' | 'card') => void;
+  onScan: () => void;
+}) {
+  const change = Math.max(0, Number(cashGiven || 0) - cart.totals.total);
+
+  return (
+    <View style={styles.panel}>
+      <View style={styles.panelHead}>
+        <Pressable style={styles.scanButton} onPress={onScan}>
+          <NavIcon name="labels" size={15} color={colors.brand} />
+          <Text style={styles.scanButtonText}>سکێن</Text>
+        </Pressable>
+
+        <Text style={styles.panelTitle}>
+          سەبەتە · {cart.lines.reduce((sum, line) => sum + line.quantity, 0)}
+        </Text>
+      </View>
+
+      {cart.lines.length === 0 ? (
+        <View style={styles.cartEmpty}>
+          <NavIcon name="till" size={26} color={colors.textFaint} />
+          <Text style={styles.cartEmptyTitle}>سەبەتە بەتاڵە</Text>
+          <Text style={styles.cartEmptyBody}>
+            بەرهەمێک هەڵبژێرە یان بارکۆدێک سکێن بکە.
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={cart.lines}
+          keyExtractor={line => line.key}
+          contentContainerStyle={styles.lines}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <Line line={item} onChange={cart.setQuantity} onRemove={cart.remove} />
+          )}
         />
       )}
 
-      <View style={styles.footer}>
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>کۆی گشتی</Text>
-          <Text style={styles.totalValue}>{formatIQD(cart.totals.total)}</Text>
-        </View>
-
+      <View style={styles.totals}>
         {cart.totals.discount > 0 && (
           <View style={styles.totalRow}>
             <Text style={styles.subLabel}>داشکاندن</Text>
@@ -152,21 +311,33 @@ export default function TillScreen() {
           </View>
         )}
 
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>کۆی گشتی</Text>
+          <Text style={styles.totalValue}>{formatIQD(cart.totals.total)}</Text>
+        </View>
+
         <TextInput
           style={styles.cashInput}
+          value={cashGiven}
+          onChangeText={onCash}
+          keyboardType="number-pad"
           placeholder="پارەی وەرگیراو (نەقد)"
           placeholderTextColor={colors.textFaint}
-          keyboardType="number-pad"
-          value={cashGiven}
-          onChangeText={setCashGiven}
           textAlign="right"
         />
+
+        {change > 0 && (
+          <View style={styles.changeRow}>
+            <Text style={styles.changeLabel}>گەڕاوە</Text>
+            <Text style={styles.changeValue}>{formatIQD(change)}</Text>
+          </View>
+        )}
 
         <View style={styles.payRow}>
           <Pressable
             style={[styles.pay, styles.payCard, cart.lines.length === 0 && styles.payDisabled]}
             disabled={cart.lines.length === 0 || busy}
-            onPress={() => takePayment('card')}
+            onPress={() => onPay('card')}
           >
             <Text style={styles.payCardText}>کارت</Text>
           </Pressable>
@@ -174,13 +345,13 @@ export default function TillScreen() {
           <Pressable
             style={[styles.pay, styles.payCash, cart.lines.length === 0 && styles.payDisabled]}
             disabled={cart.lines.length === 0 || busy}
-            onPress={() => takePayment('cash')}
+            onPress={() => onPay('cash')}
           >
             <Text style={styles.payCashText}>{busy ? 'چاوەڕێ بکە…' : 'نەقد'}</Text>
           </Pressable>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -197,9 +368,26 @@ function Line({
 
   return (
     <View style={styles.line}>
-      <Pressable onPress={() => onRemove(line.key)} hitSlop={8} style={styles.remove}>
-        <Text style={styles.removeText}>✕</Text>
-      </Pressable>
+      {line.product.image_url ? (
+        <Image source={{ uri: line.product.image_url }} style={styles.lineThumb} contentFit="cover" />
+      ) : (
+        <View style={[styles.lineThumb, styles.lineThumbEmpty]} />
+      )}
+
+      <View style={styles.lineInfo}>
+        <Text style={styles.lineName} numberOfLines={1}>
+          {line.product.name_ku || line.product.name}
+        </Text>
+
+        <View style={styles.lineMeta}>
+          {label !== '' && (
+            <View style={styles.lineChip}>
+              <Text style={styles.lineChipText}>{label}</Text>
+            </View>
+          )}
+          <Text style={styles.lineUnit}>{formatIQD(line.unitPrice)}</Text>
+        </View>
+      </View>
 
       <View style={styles.stepper}>
         <Pressable style={styles.step} onPress={() => onChange(line.key, line.quantity - 1)}>
@@ -211,13 +399,11 @@ function Line({
         </Pressable>
       </View>
 
-      <View style={styles.lineInfo}>
-        <Text style={styles.lineName} numberOfLines={1}>
-          {line.product.name_ku || line.product.name}
-        </Text>
-        {label !== '' && <Text style={styles.lineVariation}>{label}</Text>}
-        <Text style={styles.linePrice}>{formatIQD(line.unitPrice * line.quantity)}</Text>
-      </View>
+      <Text style={styles.lineTotal}>{formatIQD(line.unitPrice * line.quantity)}</Text>
+
+      <Pressable onPress={() => onRemove(line.key)} hitSlop={8} style={styles.remove}>
+        <Text style={styles.removeText}>✕</Text>
+      </Pressable>
     </View>
   );
 }
@@ -230,27 +416,36 @@ function VariationPicker({
 }: {
   product: LocalProduct;
   options: LocalVariation[];
-  onPick: (variation: LocalVariation) => void;
+  onPick: (option: LocalVariation) => void;
   onCancel: () => void;
 }) {
   return (
-    <View style={styles.sheet}>
-      <Text style={styles.sheetTitle}>{product.name_ku || product.name}</Text>
-      <Text style={styles.sheetBody}>کام ڕەنگ و قەبارە؟</Text>
+    <View style={styles.pickerCard}>
+      <Text style={styles.pickerTitle}>{product.name_ku || product.name}</Text>
+      <Text style={styles.pickerBody}>کام ڕەنگ و قەبارە؟</Text>
 
-      <View style={styles.sheetOptions}>
-        {options.map(option => (
-          <Pressable key={option.id} style={styles.option} onPress={() => onPick(option)}>
-            <Text style={styles.optionText}>
-              {[option.color, option.size].filter(Boolean).join(' · ') || 'ئاسایی'}
-            </Text>
-            <Text style={styles.optionStock}>{option.stock_quantity} دانە</Text>
-          </Pressable>
-        ))}
+      <View style={styles.pickerOptions}>
+        {options.map(option => {
+          const out = option.stock_quantity <= 0;
+
+          return (
+            <Pressable
+              key={option.id}
+              style={[styles.pickerOption, out && styles.pickerOptionOut]}
+              disabled={out}
+              onPress={() => onPick(option)}
+            >
+              <Text style={[styles.pickerOptionText, out && styles.pickerOptionTextOut]}>
+                {[option.color, option.size].filter(Boolean).join(' · ') || 'ئاسایی'}
+              </Text>
+              <Text style={styles.pickerStock}>{option.stock_quantity}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      <Pressable style={styles.sheetCancel} onPress={onCancel}>
-        <Text style={styles.sheetCancelText}>پاشگەزبوونەوە</Text>
+      <Pressable style={styles.pickerCancel} onPress={onCancel}>
+        <Text style={styles.pickerCancelText}>پاشگەزبوونەوە</Text>
       </Pressable>
     </View>
   );
@@ -258,106 +453,226 @@ function VariationPicker({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  scannerWrap: { padding: spacing.lg, paddingBottom: spacing.sm },
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, gap: spacing.sm },
+  body: { flex: 1, padding: spacing.md, gap: spacing.md },
+  bodyWide: { flexDirection: 'row-reverse' },
+  gridSide: { flex: 1, minWidth: 0 },
+  panelSide: { width: 400 },
 
-  empty: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.xs },
-  emptyTitle: { ...typography.heading, color: colors.text },
-  emptyBody: { ...typography.small, color: colors.textMuted },
-
-  line: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: spacing.md,
+  panel: {
+    flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
+    gap: spacing.sm,
+    ...shadow.card,
   },
-  lineInfo: { flex: 1, alignItems: 'flex-end', gap: 2 },
-  lineName: { ...typography.body, color: colors.text, textAlign: 'right' },
-  lineVariation: { ...typography.tiny, color: colors.textMuted },
-  linePrice: { ...typography.heading, color: colors.brand, ...typography.mono },
-
-  stepper: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  step: {
-    width: TOUCH_TARGET - 8,
-    height: TOUCH_TARGET - 8,
+  panelHead: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  panelTitle: { ...typography.heading, color: colors.text },
+  scanButton: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    height: 32,
     borderRadius: radius.sm,
     backgroundColor: colors.brandSoft,
+  },
+  scanButtonText: { ...typography.tiny, color: colors.brand },
+
+  cartEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    borderRadius: radius.md,
+  },
+  cartEmptyTitle: { ...typography.heading, color: colors.textMuted },
+  cartEmptyBody: { ...typography.tiny, color: colors.textFaint, textAlign: 'center' },
+
+  lines: { gap: spacing.xs, paddingBottom: spacing.sm },
+  line: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  lineThumb: { width: 38, height: 38, borderRadius: radius.sm, backgroundColor: colors.border },
+  lineThumbEmpty: { backgroundColor: colors.border },
+  lineInfo: { flex: 1, alignItems: 'flex-end', gap: 2 },
+  lineName: { ...typography.small, color: colors.text, textAlign: 'right' },
+  lineMeta: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.xs },
+  lineChip: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 5,
+    backgroundColor: colors.border,
+  },
+  lineChipText: { fontSize: 9, fontFamily: fonts.semibold, color: colors.textMuted, lineHeight: 14 },
+  lineUnit: { fontSize: 10, fontFamily: fonts.semibold, color: colors.textMuted, lineHeight: 15 },
+
+  stepper: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: colors.border,
+    borderRadius: radius.sm,
+    padding: 2,
+  },
+  step: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepText: { ...typography.title, color: colors.brand },
-  quantity: { minWidth: 28, textAlign: 'center', ...typography.heading, color: colors.text },
+  stepText: { fontSize: 14, fontFamily: fonts.bold, color: colors.text, lineHeight: 18 },
+  quantity: { minWidth: 20, textAlign: 'center', ...typography.small, color: colors.text },
+  lineTotal: { ...typography.small, color: colors.text, minWidth: 62, textAlign: 'left' },
+  remove: { padding: 2 },
+  removeText: { ...typography.tiny, color: colors.textFaint },
 
-  remove: { padding: spacing.xs },
-  removeText: { ...typography.heading, color: colors.textFaint },
-
-  footer: {
+  totals: {
+    gap: spacing.xs,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    gap: spacing.sm,
+    paddingTop: spacing.sm,
   },
   totalRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'baseline' },
   totalLabel: { ...typography.heading, color: colors.textMuted },
-  totalValue: { ...typography.display, color: colors.text, ...typography.mono },
+  totalValue: { fontSize: 24, fontFamily: fonts.bold, color: colors.text, lineHeight: 34 },
   subLabel: { ...typography.small, color: colors.textMuted },
-  subValue: { ...typography.small, color: colors.danger, ...typography.mono },
+  subValue: { ...typography.small, color: colors.success },
 
   cashInput: {
-    minHeight: TOUCH_TARGET,
+    minHeight: TOUCH_TARGET - 6,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    backgroundColor: colors.background,
     paddingHorizontal: spacing.md,
     ...typography.body,
     color: colors.text,
   },
+  changeRow: { flexDirection: 'row-reverse', justifyContent: 'space-between' },
+  changeLabel: { ...typography.small, color: colors.textMuted },
+  changeValue: { ...typography.heading, color: colors.success },
 
-  payRow: { flexDirection: 'row-reverse', gap: spacing.sm },
+  payRow: { flexDirection: 'row-reverse', gap: spacing.sm, marginTop: spacing.xs },
   pay: {
     flex: 1,
-    minHeight: TOUCH_TARGET + 8,
+    minHeight: TOUCH_TARGET + 2,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   payCash: { backgroundColor: colors.success },
-  payCashText: { color: '#fff', ...typography.title },
-  payCard: { backgroundColor: colors.brandSoft },
-  payCardText: { color: colors.brand, ...typography.title },
+  payCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   payDisabled: { opacity: 0.4 },
+  payCashText: { color: '#fff', ...typography.title },
+  payCardText: { color: colors.text, ...typography.title },
 
+  bar: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.ink,
+  },
+  barLeft: { flex: 1, alignItems: 'flex-end' },
+  barTotal: { color: '#fff', ...typography.title },
+  barHint: { color: 'rgba(255,255,255,0.6)', ...typography.tiny },
+  barCount: {
+    minWidth: 30,
+    height: 30,
+    paddingHorizontal: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  barCountText: { color: '#fff', ...typography.small },
+  barScan: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  sheetScrim: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
   sheet: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.xxl,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
+    height: '82%',
+    backgroundColor: colors.background,
+    borderTopStartRadius: radius.xl,
+    borderTopEndRadius: radius.xl,
+    padding: spacing.md,
+    paddingTop: 0,
+  },
+  sheetGrab: { alignItems: 'center', paddingVertical: spacing.md },
+  grab: { width: 44, height: 4, borderRadius: 2, backgroundColor: colors.border },
+
+  scanScrim: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: spacing.lg,
+  },
+  scanCard: {
+    width: '100%',
+    maxWidth: 440,
+    backgroundColor: colors.background,
+    borderRadius: radius.xl,
+    padding: spacing.md,
     gap: spacing.sm,
   },
-  sheetTitle: { ...typography.title, color: colors.text, textAlign: 'right' },
-  sheetBody: { ...typography.small, color: colors.textMuted, textAlign: 'right' },
-  sheetOptions: { gap: spacing.sm, marginTop: spacing.sm },
-  option: {
+  scanClose: { alignItems: 'center', paddingVertical: spacing.md },
+  scanCloseText: { ...typography.small, color: colors.textMuted },
+
+  pickerCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    ...shadow.raised,
+  },
+  pickerTitle: { ...typography.title, color: colors.text, textAlign: 'right' },
+  pickerBody: { ...typography.small, color: colors.textMuted, textAlign: 'right' },
+  pickerOptions: { gap: spacing.xs, marginTop: spacing.xs },
+  pickerOption: {
     flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     minHeight: TOUCH_TARGET,
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
-    backgroundColor: colors.brandSoft,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  optionText: { ...typography.heading, color: colors.brand },
-  optionStock: { ...typography.small, color: colors.textMuted },
-  sheetCancel: { minHeight: TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
-  sheetCancelText: { ...typography.body, color: colors.textMuted },
+  pickerOptionOut: { opacity: 0.45 },
+  pickerOptionText: { ...typography.body, color: colors.text },
+  pickerOptionTextOut: { textDecorationLine: 'line-through' },
+  pickerStock: { ...typography.tiny, color: colors.textMuted },
+  pickerCancel: { alignItems: 'center', paddingVertical: spacing.md },
+  pickerCancelText: { ...typography.small, color: colors.textMuted },
 });

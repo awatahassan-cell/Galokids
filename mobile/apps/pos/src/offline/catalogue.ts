@@ -158,6 +158,57 @@ export async function searchProducts(term: string, limit = 30): Promise<LocalPro
   );
 }
 
+/**
+ * What to show on the till before anybody has typed anything.
+ *
+ * A cashier in this shop picks a garment off a wall of pictures far more often
+ * than they scan one — children's clothes come in without a tag as often as
+ * with one. An empty grid waiting for a search term is a till that cannot sell
+ * the thing in the customer's hand.
+ *
+ * Ordered by what the shop touched most recently, because that is what is in
+ * the window and on the counter this week.
+ */
+export async function browseProducts(limit = 60): Promise<LocalProduct[]> {
+  const conn = await db();
+
+  return conn.getAllAsync<LocalProduct>(
+    `SELECT * FROM products
+     WHERE is_active = 1
+     ORDER BY updated_at DESC, name
+     LIMIT ?`,
+    limit
+  );
+}
+
+/** Every variation for a set of products, in one query rather than one each. */
+export async function variationsForMany(
+  productIds: number[]
+): Promise<Map<number, LocalVariation[]>> {
+  const map = new Map<number, LocalVariation[]>();
+  if (productIds.length === 0) return map;
+
+  const conn = await db();
+
+  // The ids are numbers this code just read out of its own database, so the
+  // list is built rather than bound — but it is still forced through Number()
+  // so nothing but digits can reach the statement.
+  const ids = productIds.map(id => Number(id)).filter(Number.isFinite).join(',');
+  if (!ids) return map;
+
+  const rows = await conn.getAllAsync<LocalVariation>(
+    `SELECT * FROM variations WHERE product_id IN (${ids}) ORDER BY color, size`
+  );
+
+  for (const row of rows) {
+    const list = map.get(row.product_id) ?? [];
+    list.push(row);
+    map.set(row.product_id, list);
+  }
+
+  return map;
+}
+
 export async function variationsFor(productId: number): Promise<LocalVariation[]> {
   const conn = await db();
 

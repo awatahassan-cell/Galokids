@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
 import { formatIQD } from '@galokids/core';
 import { Empty, Loading, Screen, SearchField, Stat } from '@/components/kit';
 import {
   catalogueSize,
+  browseProducts,
   searchProducts,
   variationsFor,
+  variationsForMany,
   type LocalProduct,
   type LocalVariation,
 } from '@/offline';
 import { useSession } from '@/state/useSession';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { colors, fonts, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 
 /**
  * The catalogue, read from the device.
@@ -31,12 +34,25 @@ export default function ProductsScreen() {
   const [counts, setCounts] = useState({ products: 0, variations: 0 });
   const [expanded, setExpanded] = useState<number | null>(null);
   const [variations, setVariations] = useState<LocalVariation[]>([]);
+  // Every listed product's variations, for the stock figure on each row. The
+  // open row still fetches its own, but a closed row was being handed an empty
+  // list and so reported every product in the shop as having no variations at
+  // all — in red, next to a stock count of nothing.
+  const [allVariations, setAllVariations] = useState<Map<number, LocalVariation[]>>(new Map());
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async (search: string) => {
     setLoading(true);
     try {
-      setProducts(await searchProducts(search, 80));
+      // An empty box lists the catalogue rather than nothing: a products
+      // screen that shows no products until you guess a name is a screen
+      // nobody can use to find out what the shop has.
+      const found =
+        search.trim().length >= 2 ? await searchProducts(search, 80) : await browseProducts(80);
+
+      setProducts(found);
+      // One query for the whole page rather than one per row.
+      setAllVariations(await variationsForMany(found.map(product => product.id)));
       setCounts(await catalogueSize());
     } finally {
       setLoading(false);
@@ -90,7 +106,7 @@ export default function ProductsScreen() {
             <ProductRow
               product={item}
               open={expanded === item.id}
-              variations={expanded === item.id ? variations : []}
+              variations={expanded === item.id ? variations : (allVariations.get(item.id) ?? [])}
               showCost={can('reports.view')}
               onPress={() => toggle(item)}
             />
@@ -117,20 +133,59 @@ function ProductRow({
   const price = product.discount_price && product.discount_price > 0 ? product.discount_price : product.price;
   const stock = variations.reduce((sum, variation) => sum + variation.stock_quantity, 0);
 
+  // What the shop keeps on each piece, as the panel's table shows it. Only
+  // where a cost is recorded: a margin computed against a missing cost reads
+  // as 100% and tells a shopkeeper something untrue about their own stock.
+  const margin =
+    showCost && product.cost != null && product.cost > 0 && price > 0
+      ? Math.round(((price - product.cost) / price) * 100)
+      : null;
+
   return (
     <Pressable style={styles.card} onPress={onPress}>
       <View style={styles.cardHead}>
-        <Text style={styles.price}>{formatIQD(price)}</Text>
+        {product.image_url ? (
+          <Image source={{ uri: product.image_url }} style={styles.thumb} contentFit="cover" />
+        ) : (
+          <View style={[styles.thumb, styles.thumbEmpty]}>
+            <Text style={styles.thumbMark}>—</Text>
+          </View>
+        )}
 
         <View style={styles.cardHeadText}>
           <Text style={styles.name} numberOfLines={1}>
             {product.name_ku || product.name}
           </Text>
-          {product.sku && <Text style={styles.sku}>{product.sku}</Text>}
+          {product.sku ? <Text style={styles.sku}>{product.sku}</Text> : null}
+
+          <View style={styles.tags}>
+            <View style={[styles.tag, stock <= 0 && styles.tagOut]}>
+              <Text style={[styles.tagText, stock <= 0 && styles.tagTextOut]}>
+                {variations.length === 0 ? 'بێ جۆر' : `${stock} دانە`}
+              </Text>
+            </View>
+
+            {product.is_active === 0 ? (
+              <View style={[styles.tag, styles.tagHidden]}>
+                <Text style={[styles.tagText, styles.tagTextHidden]}>لە وێبسایت نییە</Text>
+              </View>
+            ) : null}
+
+            {margin !== null ? (
+              <View style={[styles.tag, styles.tagMargin]}>
+                <Text style={[styles.tagText, styles.tagTextMargin]}>قازانج ٪{margin}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.cardPrice}>
+          <Text style={styles.price}>{formatIQD(price)}</Text>
+          {showCost && product.cost != null ? (
+            <Text style={styles.cost}>تێچوو {formatIQD(product.cost)}</Text>
+          ) : null}
         </View>
       </View>
-
-      {product.is_active === 0 && <Text style={styles.hidden}>لە وێبسایت شاردراوەتەوە</Text>}
 
       {open && (
         <View style={styles.variations}>
@@ -172,6 +227,26 @@ function ProductRow({
 }
 
 const styles = StyleSheet.create({
+  thumb: { width: 52, height: 52, borderRadius: radius.sm, backgroundColor: colors.background },
+  thumbEmpty: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  thumbMark: { ...typography.small, color: colors.textFaint },
+  cardPrice: { alignItems: 'flex-start' },
+  cost: { ...typography.tiny, color: colors.textFaint },
+  tags: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 4, marginTop: 3 },
+  tag: {
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+    borderRadius: radius.sm,
+    backgroundColor: colors.successSoft,
+  },
+  tagOut: { backgroundColor: colors.dangerSoft },
+  tagHidden: { backgroundColor: colors.warningSoft },
+  tagMargin: { backgroundColor: colors.brandSoft },
+  tagText: { fontSize: 9.5, fontFamily: fonts.semibold, color: colors.success, lineHeight: 15 },
+  tagTextOut: { color: colors.danger },
+  tagTextHidden: { color: colors.warning },
+  tagTextMargin: { color: colors.brand },
+
   stats: { flexDirection: 'row-reverse', gap: spacing.sm },
   list: { gap: spacing.xs, paddingBottom: spacing.xxl, paddingTop: spacing.sm },
   card: {
