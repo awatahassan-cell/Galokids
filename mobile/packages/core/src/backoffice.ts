@@ -42,9 +42,9 @@ export interface DateRange {
 
 export const reports = {
   /** Revenue, cost and profit over a range. The shop's headline numbers. */
-  sales: (range: DateRange & { mine?: boolean } = {}) =>
+  sales: (range: DateRange & { mine?: boolean; channel?: 'online' | 'pos' | 'social' } = {}) =>
     apiRequest<SalesReport>('reports/sales', {
-      query: { from: range.from, to: range.to, mine: range.mine ? 1 : undefined },
+      query: { from: range.from, to: range.to, mine: range.mine ? 1 : undefined, channel: range.channel },
     }),
 
   /**

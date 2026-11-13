@@ -352,7 +352,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadow.card,
   },
-  frameInline: { flex: 0 },
+  // Explicit, not `flex: 0`: that leaves the base style's zero flex-basis in
+  // place and the frame collapses to nothing inside a scrolling page.
+  frameInline: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
   head: {
     flexDirection: 'row-reverse',
     backgroundColor: colors.background,

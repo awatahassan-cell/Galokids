@@ -284,6 +284,7 @@ export interface SalesReport {
   order_count: number;
   items_sold: number;
   average_order_value: number;
+  top_products?: { id: number; name: string; qty: number; revenue: number }[];
 }
 
 export interface CashierReportRow {
