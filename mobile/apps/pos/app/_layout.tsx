@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Slot } from 'expo-router';
+import { useFonts } from 'expo-font';
 import { useLayout } from '@galokids/core';
 import { db } from '@/offline';
 import { SessionProvider, useSession } from '@/state/useSession';
@@ -26,11 +27,21 @@ import { colors } from '@/theme';
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
 
+  // The till's own face. A font that will not load is not a reason to show a
+  // cashier nothing at all — the app is usable in the system face — so a
+  // failure lets the shell through rather than holding it.
+  const [fontsReady, fontError] = useFonts({
+    'IBMPlexSansArabic-Regular': require('../assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+    'IBMPlexSansArabic-Medium': require('../assets/fonts/IBMPlexSansArabic-Medium.ttf'),
+    'IBMPlexSansArabic-SemiBold': require('../assets/fonts/IBMPlexSansArabic-SemiBold.ttf'),
+    'IBMPlexSansArabic-Bold': require('../assets/fonts/IBMPlexSansArabic-Bold.ttf'),
+  });
+
   useEffect(() => {
     db().then(() => setReady(true)).catch(() => setReady(true));
   }, []);
 
-  if (!ready) return <Splash />;
+  if (!ready || (!fontsReady && !fontError)) return <Splash />;
 
   return (
     <SafeAreaProvider>

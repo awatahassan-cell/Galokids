@@ -157,6 +157,16 @@ export const orders = {
 export const shop = {
   settings: () => apiRequest<Record<string, unknown>>('settings', { anonymous: true }),
 
+  /**
+   * Write shop settings. Admin only; the server checks.
+   *
+   * A partial map: only the keys sent are touched, so saving the banner
+   * cannot blank the shop's address. Arrays and objects are JSON-encoded
+   * server side, which is how `hero_slides` is stored.
+   */
+  updateSettings: (values: Record<string, unknown>) =>
+    apiRequest<{ message?: string }>('settings', { method: 'PUT', body: values }),
+
   shippingQuote: (governorate: string, subtotal: number) =>
     apiRequest<{ fee: number; free: boolean }>('shipping/quote', {
       query: { governorate, subtotal },

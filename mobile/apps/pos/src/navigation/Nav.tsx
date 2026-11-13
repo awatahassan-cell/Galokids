@@ -2,10 +2,11 @@ import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useLayout } from '@galokids/core';
+import { NavIcon } from '@/navigation/NavIcon';
 import { GROUPS, sectionsFor, type Section } from '@/navigation/sections';
 import { useSession } from '@/state/useSession';
 import { useSync } from '@/state/useSync';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { colors, fonts, radius, shadow, spacing, TOUCH_TARGET, typography } from '@/theme';
 
 /**
  * Getting around the back office.
@@ -29,8 +30,14 @@ export function SideNav() {
   return (
     <View style={styles.rail}>
       <View style={styles.brand}>
-        <Text style={styles.brandName}>گەلۆ کیدز</Text>
-        <Text style={styles.brandRole}>{user?.name}</Text>
+        <View style={styles.brandText}>
+          <Text style={styles.brandName}>گەلۆ کیدز</Text>
+          <Text style={styles.brandRole}>{user?.name}</Text>
+        </View>
+
+        <View style={styles.brandMark}>
+          <Text style={styles.brandMarkText}>G</Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.railScroll} showsVerticalScrollIndicator={false}>
@@ -52,7 +59,13 @@ export function SideNav() {
                     style={[styles.railItem, active && styles.railItemActive]}
                     onPress={() => router.push(`/(admin)/${section.route}` as never)}
                   >
-                    <Text style={styles.railIcon}>{section.icon}</Text>
+                    <NavIcon
+                      name={section.icon}
+                      size={17}
+                      // Indigo on the dark selected row, which is where the
+                      // accent reads; grey everywhere else.
+                      color={active ? colors.brandOnDark : colors.textFaint}
+                    />
                     <Text
                       style={[
                         styles.railLabel,
@@ -95,7 +108,10 @@ export function SectionGrid() {
 
   return (
     <ScrollView contentContainerStyle={styles.gridScroll}>
-      <Text style={styles.greeting}>بەخێربێیت، {user?.name}</Text>
+      <View style={styles.greetingBlock}>
+        <Text style={styles.greeting}>بەخێربێیت، {user?.name}</Text>
+        <Text style={styles.greetingLine}>بەشێک هەڵبژێرە بۆ دەستپێکردن</Text>
+      </View>
 
       {GROUPS.map(group => {
         const items = visible.filter(section => section.group === group.id);
@@ -148,7 +164,9 @@ function Tile({
       style={({ pressed }) => [styles.tile, { width }, pressed && styles.tilePressed]}
       onPress={onPress}
     >
-      <Text style={styles.tileIcon}>{section.icon}</Text>
+      <View style={styles.tileIcon}>
+        <NavIcon name={section.icon} size={20} color={colors.brand} />
+      </View>
       <Text style={styles.tileTitle} numberOfLines={2}>
         {section.title}
       </Text>
@@ -178,16 +196,33 @@ const styles = StyleSheet.create({
     borderStartColor: colors.border,
     backgroundColor: colors.surface,
   },
-  brand: { padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  brandName: { ...typography.title, color: colors.text, textAlign: 'right' },
+  brand: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  brandText: { flex: 1, alignItems: 'flex-end' },
+  brandName: { ...typography.heading, color: colors.text, textAlign: 'right' },
   brandRole: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
+  brandMark: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandMarkText: { color: '#fff', fontSize: 15, fontFamily: fonts.bold, lineHeight: 22 },
   railScroll: { padding: spacing.sm, gap: spacing.md },
   group: { gap: 2 },
   groupTitle: {
-    ...typography.tiny,
+    ...typography.eyebrow,
     color: colors.textFaint,
     textAlign: 'right',
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
   railItem: {
@@ -195,13 +230,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     minHeight: 42,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
   },
-  railItemActive: { backgroundColor: colors.brandSoft },
-  railIcon: { fontSize: 16 },
+  // Near-black rather than a tinted row: the panel marks the open tab this
+  // way, which says "you are here" without spending the accent colour.
+  railItemActive: { backgroundColor: colors.ink },
   railLabel: { flex: 1, ...typography.small, color: colors.textMuted, textAlign: 'right' },
-  railLabelActive: { color: colors.brand },
+  railLabelActive: { color: '#fff', fontFamily: fonts.bold },
   railLabelDim: { opacity: 0.45 },
   railBadge: {
     minWidth: 20,
@@ -223,21 +259,33 @@ const styles = StyleSheet.create({
   signOutText: { ...typography.small, color: colors.danger },
 
   gridScroll: { padding: spacing.lg, gap: spacing.xl, paddingBottom: spacing.xxl },
+  greetingBlock: { alignItems: 'flex-end' },
   greeting: { ...typography.display, color: colors.text, textAlign: 'right' },
+  greetingLine: { ...typography.small, color: colors.textMuted, textAlign: 'right' },
   gridGroup: { gap: spacing.sm },
-  gridGroupTitle: { ...typography.heading, color: colors.textMuted, textAlign: 'right' },
+  gridGroupTitle: { ...typography.eyebrow, color: colors.textFaint, textAlign: 'right' },
   grid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
   tile: {
-    minHeight: 112,
+    minHeight: 118,
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     gap: 2,
+    alignItems: 'flex-end',
+    ...shadow.card,
   },
-  tilePressed: { opacity: 0.7 },
-  tileIcon: { fontSize: 24, textAlign: 'right' },
+  tilePressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
+  tileIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.sm,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
   tileTitle: { ...typography.heading, color: colors.text, textAlign: 'right' },
   tileSubtitle: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
   tileOffline: {

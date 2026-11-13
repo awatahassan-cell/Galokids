@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import type { NavIconName } from './NavIcon';
 
 /**
  * Every screen the back office has, and who may open it.
@@ -14,6 +14,9 @@ import type { ComponentType } from 'react';
  */
 
 export type SectionId =
+  | 'overview'
+  | 'calendar'
+  | 'banner'
   | 'till'
   | 'orders'
   | 'page-orders'
@@ -42,14 +45,15 @@ export interface Section {
   route: string;
   title: string;
   subtitle: string;
-  icon: string;
+  icon: NavIconName;
   permission: string;
-  group: 'sell' | 'stock' | 'money' | 'people' | 'system';
+  group: 'insight' | 'sell' | 'stock' | 'money' | 'people' | 'system';
   /** True when the screen still works with no connection. */
   offline?: boolean;
 }
 
 export const GROUPS: { id: Section['group']; title: string }[] = [
+  { id: 'insight', title: 'ئامار' },
   { id: 'sell', title: 'فرۆشتن' },
   { id: 'stock', title: 'کۆگا و بەرهەم' },
   { id: 'money', title: 'دارایی و ڕاپۆرت' },
@@ -58,13 +62,33 @@ export const GROUPS: { id: Section['group']; title: string }[] = [
 ];
 
 export const SECTIONS: Section[] = [
+  // ---- what the shop is doing ----------------------------------------
+  {
+    id: 'overview',
+    route: 'overview',
+    title: 'ڕوونکردنەوەی گشتی',
+    subtitle: 'داهات، قازانج و دۆخی ئەمڕۆ',
+    icon: 'dashboard',
+    permission: 'reports.view',
+    group: 'insight',
+  },
+  {
+    id: 'calendar',
+    route: 'calendar',
+    title: 'ڕۆژژمێری فرۆشتن',
+    subtitle: 'ڕۆژ بە ڕۆژی مانگەکە',
+    icon: 'calendar',
+    permission: 'reports.view',
+    group: 'insight',
+  },
+
   // ---- selling -------------------------------------------------------
   {
     id: 'till',
     route: 'till',
     title: 'سیستەمی فرۆشتن',
     subtitle: 'سکێن، سەبەتە و وەرگرتنی پارە',
-    icon: '🧾',
+    icon: 'till',
     permission: 'pos.access',
     group: 'sell',
     offline: true,
@@ -74,7 +98,7 @@ export const SECTIONS: Section[] = [
     route: 'orders',
     title: 'داواکارییەکانی وێبسایت',
     subtitle: 'بینین و گۆڕینی دۆخ',
-    icon: '📦',
+    icon: 'orders',
     permission: 'orders.view',
     group: 'sell',
   },
@@ -83,7 +107,7 @@ export const SECTIONS: Section[] = [
     route: 'page-orders',
     title: 'داواکاری پەیج',
     subtitle: 'داواکاری سۆشیاڵ میدیا',
-    icon: '💬',
+    icon: 'page-order',
     permission: 'orders.manage',
     group: 'sell',
   },
@@ -92,7 +116,7 @@ export const SECTIONS: Section[] = [
     route: 'shifts',
     title: 'شیفتەکان',
     subtitle: 'کردنەوە، داخستن و دراوەری پارە',
-    icon: '🕐',
+    icon: 'shifts',
     permission: 'pos.reports',
     group: 'sell',
   },
@@ -103,7 +127,7 @@ export const SECTIONS: Section[] = [
     route: 'products',
     title: 'بەرهەمەکان',
     subtitle: 'زیادکردن، نرخ و بارکۆد',
-    icon: '👕',
+    icon: 'products',
     permission: 'products.view',
     group: 'stock',
     offline: true,
@@ -113,7 +137,7 @@ export const SECTIONS: Section[] = [
     route: 'inventory',
     title: 'جەردی کۆگا',
     subtitle: 'بڕی ماوە و نرخی کۆگا',
-    icon: '📊',
+    icon: 'inventory',
     permission: 'inventory.view',
     group: 'stock',
   },
@@ -122,7 +146,7 @@ export const SECTIONS: Section[] = [
     route: 'stock-ledger',
     title: 'مێژووی ستۆک',
     subtitle: 'هەموو جوڵەیەکی کۆگا',
-    icon: '📜',
+    icon: 'ledger',
     permission: 'inventory.view',
     group: 'stock',
   },
@@ -131,7 +155,7 @@ export const SECTIONS: Section[] = [
     route: 'purchases',
     title: 'کڕین',
     subtitle: 'وەصڵی کڕین و تێچوو',
-    icon: '🚚',
+    icon: 'purchases',
     permission: 'purchases.manage',
     group: 'stock',
   },
@@ -140,7 +164,7 @@ export const SECTIONS: Section[] = [
     route: 'suppliers',
     title: 'دابینکەران',
     subtitle: 'هەژمار و قەرزەکان',
-    icon: '🏭',
+    icon: 'suppliers',
     permission: 'purchases.manage',
     group: 'stock',
   },
@@ -149,7 +173,7 @@ export const SECTIONS: Section[] = [
     route: 'categories',
     title: 'بەشەکان',
     subtitle: 'پۆلەکانی فرۆشگا',
-    icon: '🗂️',
+    icon: 'categories',
     permission: 'categories.manage',
     group: 'stock',
   },
@@ -158,7 +182,7 @@ export const SECTIONS: Section[] = [
     route: 'labels',
     title: 'لەیبل و بارکۆد',
     subtitle: 'چاپکردنی ستیکەر',
-    icon: '🏷️',
+    icon: 'labels',
     permission: 'labels.print',
     group: 'stock',
     // Reads the device's own catalogue and encodes the barcode here, so a shop
@@ -172,7 +196,7 @@ export const SECTIONS: Section[] = [
     route: 'reports',
     title: 'ڕاپۆرتەکان',
     subtitle: 'داهات، تێچوو و قازانج',
-    icon: '📈',
+    icon: 'profit',
     permission: 'reports.view',
     group: 'money',
   },
@@ -181,7 +205,7 @@ export const SECTIONS: Section[] = [
     route: 'cashiers',
     title: 'فرۆشتنی کاشێرەکان',
     subtitle: 'کێ چەندی فرۆشتووە',
-    icon: '🧑‍💼',
+    icon: 'cashiers',
     permission: 'reports.view',
     group: 'money',
   },
@@ -190,7 +214,7 @@ export const SECTIONS: Section[] = [
     route: 'expenses',
     title: 'خەرجییەکان',
     subtitle: 'تۆمارکردنی خەرجی',
-    icon: '💸',
+    icon: 'expenses',
     permission: 'expenses.manage',
     group: 'money',
   },
@@ -199,18 +223,28 @@ export const SECTIONS: Section[] = [
     route: 'coupons',
     title: 'کوپۆنەکان',
     subtitle: 'کۆدی داشکاندن',
-    icon: '🎟️',
+    icon: 'coupons',
     permission: 'coupons.manage',
     group: 'money',
   },
 
   // ---- people --------------------------------------------------------
   {
+    id: 'banner',
+    route: 'banner',
+    title: 'بانەری سەرەکی',
+    subtitle: 'ڕیکلامی سەرەوەی ئەپ و وێبسایت',
+    icon: 'banner',
+    permission: 'settings.manage',
+    group: 'money',
+  },
+
+  {
     id: 'customers',
     route: 'customers',
     title: 'کڕیاران',
     subtitle: 'لیست و مێژووی کڕین',
-    icon: '👥',
+    icon: 'customers',
     permission: 'customers.view',
     group: 'people',
   },
@@ -219,7 +253,7 @@ export const SECTIONS: Section[] = [
     route: 'staff',
     title: 'ستاف و دەسەڵاتەکان',
     subtitle: 'زیادکردن و پێدانی دەسەڵات',
-    icon: '🔑',
+    icon: 'staff',
     permission: 'staff.manage',
     group: 'people',
   },
@@ -228,7 +262,7 @@ export const SECTIONS: Section[] = [
     route: 'reviews',
     title: 'هەڵسەنگاندنەکان',
     subtitle: 'ڕای کڕیاران',
-    icon: '⭐',
+    icon: 'reviews',
     permission: 'products.view',
     group: 'people',
   },
@@ -237,7 +271,7 @@ export const SECTIONS: Section[] = [
     route: 'messages',
     title: 'پەیامەکان',
     subtitle: 'پەیوەندی کڕیاران',
-    icon: '✉️',
+    icon: 'messages',
     permission: 'messages.view',
     group: 'people',
   },
@@ -248,7 +282,7 @@ export const SECTIONS: Section[] = [
     route: 'activity',
     title: 'تۆماری چالاکی',
     subtitle: 'کێ چی گۆڕی',
-    icon: '🕵️',
+    icon: 'activity',
     permission: 'activity_log.view',
     group: 'system',
   },
@@ -257,7 +291,7 @@ export const SECTIONS: Section[] = [
     route: 'settings',
     title: 'ڕێکخستنەکان',
     subtitle: 'فرۆشگا، گەیاندن و ئامێر',
-    icon: '⚙️',
+    icon: 'settings',
     permission: 'settings.manage',
     group: 'system',
   },
