@@ -2,15 +2,18 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import {
   Alert,
+  backoffice,
   displayPhone,
   formatDateTime,
   formatIQD,
   orders as ordersApi,
   type Order,
+  type OrderCounts,
   type OrderStatus,
   type Paginated,
 } from '@galokids/core';
 import { Chips, Empty, Loading, NeedsConnection, Problem, Screen, SearchField } from '@/components/kit';
+import { OrderSheet } from '@/components/OrderSheet';
 import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { useSession } from '@/state/useSession';
@@ -53,6 +56,7 @@ export function OrdersScreen({
   const [status, setStatus] = useState<OrderStatus | 'all'>('all');
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [open, setOpen] = useState<Order | null>(null);
 
   const list = useFetch<Paginated<Order>>(
     () =>
@@ -67,6 +71,10 @@ export function OrdersScreen({
 
   const offline = useNeedsConnection(list.error);
 
+  // The panel's chips carry a count each, taken over the whole channel rather
+  // than the page on screen.
+  const counts = useFetch<OrderCounts>(() => backoffice.orderCounts({ channel }), [channel]);
+
   const advance = useCallback(
     async (order: Order) => {
       const next = NEXT[order.status];
@@ -77,6 +85,7 @@ export function OrdersScreen({
       try {
         await ordersApi.updateStatus(order.id, next.to);
         list.refresh();
+        counts.refresh();
       } catch (error) {
         Alert.alert('نەتوانرا بگۆڕدرێت', (error as Error).message);
       } finally {
@@ -169,7 +178,11 @@ export function OrdersScreen({
       <Chips
         value={status as string}
         onChange={next => setStatus(next as OrderStatus | 'all')}
-        options={STATUSES.map(s => ({ id: s.id as string, label: s.label }))}
+        options={STATUSES.map(s => {
+          const n = s.id === 'all' ? counts.data?.total : counts.data?.[s.id as keyof OrderCounts];
+
+          return { id: s.id as string, label: typeof n === 'number' ? `${s.label} ${n}` : s.label };
+        })}
       />
 
       {offline ? (
@@ -187,8 +200,18 @@ export function OrdersScreen({
           refreshing={list.refreshing}
           onRefresh={list.refresh}
           columns={columns}
+          onPress={setOpen}
         />
       )}
+
+      <OrderSheet
+        order={open}
+        onClose={() => setOpen(null)}
+        onChanged={() => {
+          list.refresh();
+          counts.refresh();
+        }}
+      />
     </Screen>
   );
 }

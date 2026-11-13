@@ -70,9 +70,12 @@ export interface OrderItem {
   product_id: number | null;
   product_variation_id: number | null;
   product_name: string | null;
+  product_name_ku?: string | null;
   variation_label: string | null;
   quantity: number;
   price: number;
+  /** How many of this line have been taken back. */
+  returned_quantity?: number;
 }
 
 export type OrderStatus =
@@ -146,6 +149,12 @@ export interface Order {
   shipping_address: string | null;
   payment_method: string | null;
   channel: 'pos' | 'online' | 'social' | null;
+  coupon_code?: string | null;
+  /** What has been given back, in dinars. The order's own total is not reduced. */
+  refunded_amount?: number;
+  returned_quantity?: number;
+  total_quantity?: number;
+  fully_returned?: boolean;
   items: OrderItem[];
   /** Set when the sale was rung up against a stock count that had moved. */
   offline_stock_conflict?: boolean;

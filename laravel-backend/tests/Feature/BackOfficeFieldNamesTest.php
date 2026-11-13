@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\ActivityLog;
 use App\Models\Coupon;
+use App\Models\Order;
+use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -106,5 +108,86 @@ class BackOfficeFieldNamesTest extends TestCase
 
         $this->assertSame('Updated: hero_slides', $row['summary']);
         $this->assertArrayNotHasKey('description', $row);
+    }
+
+    private function soldOrder(): Order
+    {
+        $product = Product::create(['name' => 'Kids Tee', 'price' => 20000, 'gender' => 0]);
+
+        $order = Order::create([
+            'customer_name' => 'Dayik', 'customer_phone' => '0750 123 4567',
+            'status' => 'pending', 'subtotal' => 40000, 'total_amount' => 40000,
+            'shipping_fee' => 0, 'channel' => 'pos',
+        ]);
+
+        $order->items()->create([
+            'product_id' => $product->id, 'product_name' => 'Kids Tee', 'quantity' => 2, 'price' => 20000,
+        ]);
+
+        return $order;
+    }
+
+    /** The status chips are drawn from these keys. */
+    public function test_order_counts_carry_a_total_and_one_key_per_status(): void
+    {
+        $this->soldOrder();
+
+        $counts = $this->actingAs($this->admin())->getJson('/api/orders/counts?channel=pos')->assertOk()->json();
+
+        foreach (['total', 'pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'new_and_pending'] as $key) {
+            $this->assertArrayHasKey($key, $counts);
+        }
+        $this->assertSame(1, $counts['pending']);
+    }
+
+    /** The order sheet reads the trail as a bare list, newest first. */
+    public function test_order_history_is_a_list_of_transitions_with_who_made_them(): void
+    {
+        $admin = $this->admin();
+        $order = $this->soldOrder();
+
+        $this->actingAs($admin)->putJson("/api/orders/{$order->id}", ['status' => 'processing'])->assertOk();
+
+        $history = $this->actingAs($admin)->getJson("/api/orders/{$order->id}/history")->assertOk()->json();
+
+        $this->assertNotEmpty($history);
+        foreach (['id', 'from_status', 'to_status', 'note', 'created_at', 'user'] as $key) {
+            $this->assertArrayHasKey($key, $history[0], "history entry is missing `$key`");
+        }
+        $this->assertSame('processing', $history[0]['to_status']);
+    }
+
+    /** Refund takes order_item_id + quantity, and the lines then say how many came back. */
+    public function test_a_refund_marks_the_returned_quantity_on_the_line(): void
+    {
+        $admin = $this->admin();
+        $order = $this->soldOrder();
+        $line = $order->items()->first();
+
+        $this->actingAs($admin)->postJson("/api/orders/{$order->id}/refund", [
+            'items' => [['order_item_id' => $line->id, 'quantity' => 1]],
+            'reason' => 'wrong size',
+        ])->assertSuccessful();
+
+        $shown = $this->actingAs($admin)->getJson("/api/orders/{$order->id}")->assertOk()->json();
+
+        $this->assertSame(1, $shown['items'][0]['returned_quantity']);
+        $this->assertArrayHasKey('refunded_amount', $shown);
+    }
+
+    /** The till finds a returning customer by `phone`, in whichever form it was typed. */
+    public function test_customer_lookup_takes_phone_and_answers_found(): void
+    {
+        $this->soldOrder();
+
+        $hit = $this->actingAs($this->admin())->getJson('/api/customers/lookup?phone=%2B9647501234567')->assertOk()->json();
+
+        $this->assertTrue($hit['found']);
+        foreach (['name', 'orders_count', 'total_spent', 'last_order_at'] as $key) {
+            $this->assertArrayHasKey($key, $hit);
+        }
+
+        $miss = $this->actingAs($this->admin())->getJson('/api/customers/lookup?phone=07709999999')->assertOk()->json();
+        $this->assertFalse($miss['found']);
     }
 }

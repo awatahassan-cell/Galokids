@@ -19,6 +19,8 @@ export type SectionId =
   | 'banner'
   | 'till'
   | 'orders'
+  | 'social-orders'
+  | 'pos-sales'
   | 'page-orders'
   | 'products'
   | 'inventory'
@@ -99,6 +101,24 @@ export const SECTIONS: Section[] = [
     title: 'داواکارییەکانی وێبسایت',
     subtitle: 'بینین و گۆڕینی دۆخ',
     icon: 'orders',
+    permission: 'orders.view',
+    group: 'sell',
+  },
+  {
+    id: 'social-orders',
+    route: 'social-orders',
+    title: 'داواکاری سۆشیاڵ',
+    subtitle: 'ئەوانەی لە پەیجەوە تۆمارکراون',
+    icon: 'social',
+    permission: 'orders.view',
+    group: 'sell',
+  },
+  {
+    id: 'pos-sales',
+    route: 'pos-sales',
+    title: 'فرۆشتنی دوکان',
+    subtitle: 'ئەوەی لە سیستەمی فرۆشتن تۆمارکراوە',
+    icon: 'pos-sales',
     permission: 'orders.view',
     group: 'sell',
   },

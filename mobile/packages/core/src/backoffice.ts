@@ -5,9 +5,11 @@ import type {
   DailyReport,
   ContactMessage,
   Coupon,
+  CustomerLookup,
   CouponReportRow,
   Expense,
   OrderCounts,
+  OrderHistoryEntry,
   Purchase,
   Review,
   SalesReport,
@@ -122,17 +124,44 @@ export const backoffice = {
       query: { channel: params.channel, mine: params.mine ? 1 : undefined },
     }),
 
-  orderHistory: (id: number) =>
-    apiRequest<{ to_status: string; note: string | null; created_at: string }[]>(`orders/${id}/history`),
+  /**
+   * Where an order has been, newest first. Each entry says what it moved from
+   * and to, who moved it, and any note they left.
+   */
+  orderHistory: (id: number) => apiRequest<OrderHistoryEntry[]>(`orders/${id}/history`),
 
-  refundOrder: (id: number, body: { items?: { order_item_id: number; quantity: number }[]; reason?: string }) =>
+  /**
+   * Take part or all of an order back.
+   *
+   * `items` is required — the server refuses an empty refund — and each line
+   * names an order *item*, not a product. Quantities above what is still
+   * refundable are clamped server side, so a double tap cannot refund twice.
+   */
+  refundOrder: (id: number, body: { items: { order_item_id: number; quantity: number }[]; reason?: string }) =>
     apiRequest<unknown>(`orders/${id}/refund`, { method: 'POST', body }),
+
+  /** Swap goods on an order for others in one step, with the price difference worked out. */
+  exchangeOrder: (
+    id: number,
+    body: {
+      returned_items: { order_item_id: number; quantity: number }[];
+      new_items: { product_variation_id: number; quantity: number }[];
+      reason?: string;
+    }
+  ) => apiRequest<unknown>(`orders/${id}/exchange`, { method: 'POST', body }),
 
   deleteOrder: (id: number) => apiRequest<void>(`orders/${id}`, { method: 'DELETE' }),
 
-  /** Find a returning customer at the counter by phone or name. */
-  lookupCustomer: (term: string) =>
-    apiRequest<User[]>('customers/lookup', { query: { search: term } }),
+  /**
+   * Is this a returning customer? Asked at the counter by phone number.
+   *
+   * It takes `phone`, not a search term, and answers with what the shop knows
+   * about that number — not a list of users. An earlier version of this call
+   * sent `search` and typed the answer as `User[]`, so it could never have
+   * worked: the server would have refused it for a missing `phone`.
+   */
+  lookupCustomer: (phone: string) =>
+    apiRequest<CustomerLookup>('customers/lookup', { query: { phone } }),
 
   users: (params: { page?: number; limit?: number; role?: number; search?: string } = {}) =>
     apiRequest<Paginated<User>>('users', {

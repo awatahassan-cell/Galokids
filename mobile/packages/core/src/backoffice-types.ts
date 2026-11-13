@@ -239,4 +239,26 @@ export interface OrderCounts {
   delivered?: number;
   cancelled?: number;
   returned?: number;
+  /** New plus pending: what the shop has not yet acted on. */
+  new_and_pending?: number;
+}
+
+/** One step in an order's life. */
+export interface OrderHistoryEntry {
+  id: number;
+  from_status: string | null;
+  to_status: string;
+  note: string | null;
+  customer_notified: boolean;
+  created_at: string;
+  user?: { id: number; name: string } | null;
+}
+
+/** What the shop knows about a phone number, at the counter. */
+export interface CustomerLookup {
+  found: boolean;
+  name?: string | null;
+  orders_count?: number;
+  total_spent?: number;
+  last_order_at?: string | null;
 }
