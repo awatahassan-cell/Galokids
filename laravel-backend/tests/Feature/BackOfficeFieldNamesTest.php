@@ -281,4 +281,60 @@ class BackOfficeFieldNamesTest extends TestCase
             $this->assertArrayHasKey($key, $shown);
         }
     }
+
+    /**
+     * Purchases: `invoice_number`, `paid_amount`, `purchase_date`, and lines with
+     * `cost_price` and `subtotal` — the app first read `reference`, `amount_paid`,
+     * `purchased_at` and `unit_cost`, so every purchase showed as unpaid and undated.
+     */
+    public function test_a_purchase_is_sent_with_invoice_paid_amount_date_and_priced_lines(): void
+    {
+        $admin = $this->admin();
+        $tee = Product::create(['name' => 'Tee', 'price' => 20000, 'gender' => 0]);
+        $variation = ProductVariation::create(['product_id' => $tee->id, 'color' => 'Red', 'size' => 'S', 'stock_quantity' => 1, 'sku' => 'GK-P1']);
+
+        $this->actingAs($admin)->postJson('/api/purchases', [
+            'supplier_name' => 'Istanbul', 'purchase_date' => '2026-11-12', 'paid_amount' => 5000,
+            'items' => [['product_id' => $tee->id, 'product_variation_id' => $variation->id, 'quantity' => 10, 'cost_price' => 900]],
+        ])->assertCreated();
+
+        $page = $this->actingAs($admin)->getJson('/api/purchases?page=1&limit=5')->assertOk()->json();
+        $row = $page['data'][0];
+
+        foreach (['invoice_number', 'supplier_name', 'purchase_date', 'total_amount', 'paid_amount', 'payment_status'] as $key) {
+            $this->assertArrayHasKey($key, $row, "purchase is missing `$key`");
+        }
+        foreach (['reference', 'amount_paid', 'purchased_at'] as $stale) {
+            $this->assertArrayNotHasKey($stale, $row);
+        }
+        foreach (['quantity', 'cost_price', 'subtotal', 'product', 'variation'] as $key) {
+            $this->assertArrayHasKey($key, $row['items'][0], "purchase line is missing `$key`");
+        }
+
+        $this->assertEquals(9000, $row['total_amount']);
+        $this->assertEquals(5000, $row['paid_amount']);
+        $this->assertSame(11, $variation->fresh()->stock_quantity);
+    }
+
+    /** Paying a supplier needs a payment_date and reads the note as `notes`; the statement carries the lists. */
+    public function test_paying_a_supplier_needs_a_date_and_shows_on_the_statement(): void
+    {
+        $admin = $this->admin();
+        $supplier = Supplier::create(['name' => 'Istanbul', 'opening_balance' => 100000]);
+
+        $this->actingAs($admin)->postJson("/api/suppliers/{$supplier->id}/payments", ['amount' => 30000])
+            ->assertStatus(422);
+
+        $this->actingAs($admin)->postJson("/api/suppliers/{$supplier->id}/payments", [
+            'amount' => 30000, 'payment_date' => '2026-11-13', 'payment_method' => 'cash', 'notes' => 'part',
+        ])->assertSuccessful();
+
+        $statement = $this->actingAs($admin)->getJson("/api/suppliers/{$supplier->id}")->assertOk()->json();
+
+        foreach (['purchases', 'payments', 'total_purchases', 'total_paid', 'direct_paid', 'debt_balance'] as $key) {
+            $this->assertArrayHasKey($key, $statement);
+        }
+        $this->assertEquals(70000, $statement['debt_balance']);
+        $this->assertSame('part', $statement['payments'][0]['notes']);
+    }
 }

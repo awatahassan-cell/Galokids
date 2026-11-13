@@ -68,24 +68,79 @@ export interface Supplier {
   debt_balance: number;
 }
 
+/**
+ * One line of a purchase, as the server sends it.
+ *
+ * `cost_price` and `subtotal`, with the product and variation nested — not the
+ * `unit_cost` and flat `product_name` the app first assumed.
+ */
 export interface PurchaseItem {
   id: number;
   product_id: number | null;
   product_variation_id: number | null;
-  product_name: string | null;
   quantity: number;
-  unit_cost: number;
+  previous_cost: number;
+  cost_price: number;
+  previous_price: number;
+  retail_price: number;
+  subtotal: number;
+  product?: { id: number; name: string; name_ku: string | null } | null;
+  variation?: { id: number; color: string | null; size: string | null } | null;
 }
 
 export interface Purchase {
   id: number;
+  invoice_number: string;
   supplier_id: number | null;
-  supplier_name?: string | null;
-  reference: string | null;
+  supplier_name: string;
+  supplier_phone: string | null;
+  purchase_date: string;
   total_amount: number;
-  amount_paid: number;
-  purchased_at: string;
+  paid_amount: number;
+  payment_status: 'paid' | 'partial' | 'unpaid';
+  payment_method: string | null;
+  notes: string | null;
   items: PurchaseItem[];
+}
+
+/** What is sent to record a purchase. */
+export interface NewPurchase {
+  supplier_id?: number | null;
+  supplier_name: string;
+  supplier_phone?: string | null;
+  purchase_date: string;
+  payment_method?: string;
+  paid_amount?: number;
+  notes?: string | null;
+  items: {
+    product_id: number;
+    product_variation_id: number;
+    quantity: number;
+    cost_price: number;
+    retail_price?: number | null;
+  }[];
+}
+
+export interface SupplierPayment {
+  id: number;
+  supplier_id: number;
+  purchase_id: number | null;
+  amount: number;
+  payment_date: string;
+  payment_method: string | null;
+  reference_number: string | null;
+  notes: string | null;
+  user?: { id: number; name: string } | null;
+}
+
+/** A supplier with everything bought from and paid to them. */
+export interface SupplierStatement extends Supplier {
+  purchases: Purchase[];
+  payments: SupplierPayment[];
+  total_purchases: number;
+  total_paid: number;
+  invoice_paid: number;
+  direct_paid: number;
 }
 
 export interface StockMovement {

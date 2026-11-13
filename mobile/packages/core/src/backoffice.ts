@@ -13,6 +13,7 @@ import type {
   Expense,
   OrderCounts,
   OrderHistoryEntry,
+  NewPurchase,
   Purchase,
   Review,
   SalesReport,
@@ -20,6 +21,7 @@ import type {
   ShiftSummary,
   StockMovement,
   Supplier,
+  SupplierStatement,
 } from './backoffice-types';
 import type { Category, Paginated, Product, ProductVariation, User } from './types';
 
@@ -276,15 +278,26 @@ export const backoffice = {
     id
       ? apiRequest<Supplier>(`suppliers/${id}`, { method: 'PUT', body: supplier })
       : apiRequest<Supplier>('suppliers', { method: 'POST', body: supplier }),
-  paySupplier: (id: number, amount: number, note?: string) =>
-    apiRequest<unknown>(`suppliers/${id}/payments`, { method: 'POST', body: { amount, note } }),
+  /** One supplier with their purchases, payments and running balance. */
+  supplier: (id: number) => apiRequest<SupplierStatement>(`suppliers/${id}`),
+
+  deleteSupplier: (id: number) => apiRequest<void>(`suppliers/${id}`, { method: 'DELETE' }),
+
+  /**
+   * Pay a supplier. The server requires a `payment_date` and reads the note as
+   * `notes` — this used to send neither, so every payment was refused.
+   */
+  paySupplier: (
+    id: number,
+    payment: { amount: number; payment_date: string; payment_method?: string; notes?: string; purchase_id?: number }
+  ) => apiRequest<unknown>(`suppliers/${id}/payments`, { method: 'POST', body: payment }),
 
   purchases: (params: { page?: number; limit?: number } = {}) =>
     apiRequest<Paginated<Purchase>>('purchases', {
       query: { page: params.page ?? 1, limit: params.limit ?? 25 },
     }),
 
-  savePurchase: (purchase: Record<string, unknown>) =>
+  savePurchase: (purchase: NewPurchase) =>
     apiRequest<Purchase>('purchases', { method: 'POST', body: purchase }),
 
   deletePurchase: (id: number) => apiRequest<void>(`purchases/${id}`, { method: 'DELETE' }),
