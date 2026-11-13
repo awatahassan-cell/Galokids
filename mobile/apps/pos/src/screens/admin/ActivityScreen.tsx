@@ -1,8 +1,12 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { backoffice, timeAgo, type ActivityLog, type Paginated } from '@galokids/core';
+import {
+  backoffice,
+  formatDateTime,
+  type ActivityLog,
+  type Paginated,
+} from '@galokids/core';
 import { Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Pill, Table, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
-import { colors, radius, spacing, typography } from '@/theme';
 
 /**
  * Who changed what.
@@ -26,35 +30,32 @@ export default function ActivityScreen() {
       ) : (list.data?.data.length ?? 0) === 0 ? (
         <Empty title="هێشتا هیچ تۆمارێک نییە" />
       ) : (
-        <FlatList
-          data={list.data!.data}
-          keyExtractor={entry => String(entry.id)}
-          contentContainerStyle={styles.list}
+        <Table
+          rows={list.data!.data}
+          keyFor={entry => String(entry.id)}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
-          renderItem={({ item }) => (
-            <View style={styles.row}>
-              <View style={styles.rowBody}>
-                <Text style={styles.action}>{item.description || item.action}</Text>
-                <Text style={styles.meta}>
-                  {[item.user_name, timeAgo(item.created_at)].filter(Boolean).join(' · ')}
-                </Text>
-              </View>
-            </View>
-          )}
+          columns={COLUMNS}
         />
       )}
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  list: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  row: {
-    padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border,
+// The panel's activity log: when, who, what kind of thing, and what happened.
+const COLUMNS: Column<ActivityLog>[] = [
+  { title: 'بەروار', width: 1.2, render: entry => formatDateTime(entry.created_at) },
+  { title: 'بەکارهێنەر', width: 1.2, render: entry => entry.user_name || '—' },
+  {
+    title: 'چالاکی',
+    width: 1.2,
+    align: 'center',
+    render: entry => <Pill label={entry.action} tone="neutral" />,
   },
-  rowBody: { gap: 2 },
-  action: { ...typography.small, color: colors.text, textAlign: 'right' },
-  meta: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
-});
+  {
+    title: 'وردەکاری',
+    width: 3.4,
+    primary: true,
+    render: entry => entry.description || entry.action,
+  },
+];

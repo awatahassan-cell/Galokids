@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { formatIQD } from '@galokids/core';
 import { Empty, Loading, Screen, SearchField, Stat } from '@/components/kit';
@@ -12,8 +12,9 @@ import {
   type LocalProduct,
   type LocalVariation,
 } from '@/offline';
+import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useSession } from '@/state/useSession';
-import { colors, fonts, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { colors, radius, spacing, typography } from '@/theme';
 
 /**
  * The catalogue, read from the device.
@@ -77,6 +78,104 @@ export default function ProductsScreen() {
     [expanded]
   );
 
+  const showCost = can('reports.view');
+
+  const stockOf = (product: LocalProduct) =>
+    (allVariations.get(product.id) ?? []).reduce((sum, v) => sum + v.stock_quantity, 0);
+
+  const priceOf = (product: LocalProduct) =>
+    product.discount_price && product.discount_price > 0 ? product.discount_price : product.price;
+
+  // The panel's product table, column for column: product, barcode, stock,
+  // cost, price, gross margin, and whether the website is showing it. Cost and
+  // margin only for those allowed to see what the shop pays.
+  const columns: Column<LocalProduct>[] = [
+    {
+      title: 'بەرهەم',
+      width: 2.4,
+      primary: true,
+      render: product => (
+        <Titled
+          title={product.name_ku || product.name}
+          sub={`${(allVariations.get(product.id) ?? []).length} جۆر`}
+          leading={
+            product.image_url ? (
+              <Image source={{ uri: product.image_url }} style={styles.thumb} contentFit="cover" />
+            ) : (
+              <View style={[styles.thumb, styles.thumbEmpty]} />
+            )
+          }
+        />
+      ),
+    },
+    {
+      title: 'بارکۆد',
+      width: 1.1,
+      align: 'center',
+      render: product => <Text style={styles.code}>{product.sku || `#${product.id}`}</Text>,
+    },
+    {
+      title: 'ستۆک',
+      width: 0.8,
+      align: 'center',
+      render: product => {
+        const count = (allVariations.get(product.id) ?? []).length;
+        const stock = stockOf(product);
+
+        if (count === 0) return <Pill label="بێ جۆر" tone="neutral" />;
+
+        return <Pill label={`${stock} دانە`} tone={stock <= 0 ? 'bad' : stock <= 5 ? 'warn' : 'good'} />;
+      },
+    },
+    ...(showCost
+      ? [
+          {
+            title: 'تێچوو',
+            width: 1,
+            align: 'center' as const,
+            render: (product: LocalProduct) =>
+              product.cost != null ? formatIQD(product.cost) : '—',
+          },
+        ]
+      : []),
+    {
+      title: 'نرخ',
+      width: 1,
+      align: 'center',
+      render: product => <Text style={styles.price}>{formatIQD(priceOf(product))}</Text>,
+    },
+    ...(showCost
+      ? [
+          {
+            title: 'قازانجی خاو',
+            width: 0.9,
+            align: 'center' as const,
+            // Only where a cost is recorded: a margin against a missing cost
+            // reads as 100% and tells a shopkeeper something untrue.
+            render: (product: LocalProduct) => {
+              const price = priceOf(product);
+              if (product.cost == null || product.cost <= 0 || price <= 0) return '—';
+
+              const margin = Math.round(((price - product.cost) / price) * 100);
+
+              return <Pill label={`٪${margin}`} tone={margin >= 30 ? 'good' : margin > 0 ? 'warn' : 'bad'} />;
+            },
+          },
+        ]
+      : []),
+    {
+      title: 'وێبسایت',
+      width: 0.9,
+      align: 'center',
+      render: product =>
+        product.is_active === 0 ? (
+          <Pill label="شاردراوە" tone="warn" />
+        ) : (
+          <Pill label="چالاک" tone="good" />
+        ),
+    },
+  ];
+
   return (
     <Screen title="بەرهەمەکان" subtitle="لەسەر ئەم ئامێرە — بێ ئینتەرنێتیش کاردەکات" scroll={false}>
       <View style={styles.stats}>
@@ -98,189 +197,61 @@ export default function ProductsScreen() {
           }
         />
       ) : (
-        <FlatList
-          data={products}
-          keyExtractor={product => String(product.id)}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <ProductRow
-              product={item}
-              open={expanded === item.id}
-              variations={expanded === item.id ? variations : (allVariations.get(item.id) ?? [])}
-              showCost={can('reports.view')}
-              onPress={() => toggle(item)}
-            />
-          )}
+        <Table
+          rows={products}
+          keyFor={product => String(product.id)}
+          columns={columns}
+          onPress={toggle}
+          detailFor={product =>
+            expanded === product.id ? <Variations list={variations} /> : null
+          }
         />
       )}
     </Screen>
   );
 }
 
-function ProductRow({
-  product,
-  open,
-  variations,
-  showCost,
-  onPress,
-}: {
-  product: LocalProduct;
-  open: boolean;
-  variations: LocalVariation[];
-  showCost: boolean;
-  onPress: () => void;
-}) {
-  const price = product.discount_price && product.discount_price > 0 ? product.discount_price : product.price;
-  const stock = variations.reduce((sum, variation) => sum + variation.stock_quantity, 0);
-
-  // What the shop keeps on each piece, as the panel's table shows it. Only
-  // where a cost is recorded: a margin computed against a missing cost reads
-  // as 100% and tells a shopkeeper something untrue about their own stock.
-  const margin =
-    showCost && product.cost != null && product.cost > 0 && price > 0
-      ? Math.round(((price - product.cost) / price) * 100)
-      : null;
+/** A product's colours and sizes, opened under its row. */
+function Variations({ list }: { list: LocalVariation[] }) {
+  if (list.length === 0) return <Text style={styles.noVariations}>هیچ جۆرێکی نییە.</Text>;
 
   return (
-    <Pressable style={styles.card} onPress={onPress}>
-      <View style={styles.cardHead}>
-        {product.image_url ? (
-          <Image source={{ uri: product.image_url }} style={styles.thumb} contentFit="cover" />
-        ) : (
-          <View style={[styles.thumb, styles.thumbEmpty]}>
-            <Text style={styles.thumbMark}>—</Text>
-          </View>
-        )}
-
-        <View style={styles.cardHeadText}>
-          <Text style={styles.name} numberOfLines={1}>
-            {product.name_ku || product.name}
+    <View style={styles.variations}>
+      {list.map(variation => (
+        <View key={variation.id} style={styles.variation}>
+          <Text style={styles.variationLabel} numberOfLines={1}>
+            {[variation.color, variation.size].filter(Boolean).join(' · ') || 'ئاسایی'}
           </Text>
-          {product.sku ? <Text style={styles.sku}>{product.sku}</Text> : null}
-
-          <View style={styles.tags}>
-            <View style={[styles.tag, stock <= 0 && styles.tagOut]}>
-              <Text style={[styles.tagText, stock <= 0 && styles.tagTextOut]}>
-                {variations.length === 0 ? 'بێ جۆر' : `${stock} دانە`}
-              </Text>
-            </View>
-
-            {product.is_active === 0 ? (
-              <View style={[styles.tag, styles.tagHidden]}>
-                <Text style={[styles.tagText, styles.tagTextHidden]}>لە وێبسایت نییە</Text>
-              </View>
-            ) : null}
-
-            {margin !== null ? (
-              <View style={[styles.tag, styles.tagMargin]}>
-                <Text style={[styles.tagText, styles.tagTextMargin]}>قازانج ٪{margin}</Text>
-              </View>
-            ) : null}
-          </View>
+          {variation.barcode ? <Text style={styles.code}>{variation.barcode}</Text> : null}
+          <Pill
+            label={String(variation.stock_quantity)}
+            tone={variation.stock_quantity <= 0 ? 'bad' : 'good'}
+          />
         </View>
-
-        <View style={styles.cardPrice}>
-          <Text style={styles.price}>{formatIQD(price)}</Text>
-          {showCost && product.cost != null ? (
-            <Text style={styles.cost}>تێچوو {formatIQD(product.cost)}</Text>
-          ) : null}
-        </View>
-      </View>
-
-      {open && (
-        <View style={styles.variations}>
-          {variations.length === 0 ? (
-            <Text style={styles.noVariations}>هیچ جۆرێکی نییە.</Text>
-          ) : (
-            <>
-              {variations.map(variation => (
-                <View key={variation.id} style={styles.variationRow}>
-                  <Text
-                    style={[
-                      styles.variationStock,
-                      variation.stock_quantity <= 0 && styles.variationOut,
-                    ]}
-                  >
-                    {variation.stock_quantity}
-                  </Text>
-
-                  <Text style={styles.variationLabel} numberOfLines={1}>
-                    {[variation.color, variation.size].filter(Boolean).join(' · ') || 'ئاسایی'}
-                  </Text>
-
-                  {variation.barcode && <Text style={styles.variationBarcode}>{variation.barcode}</Text>}
-                </View>
-              ))}
-
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryText}>کۆی ماوە: {stock} دانە</Text>
-                {showCost && product.cost != null && (
-                  <Text style={styles.summaryText}>تێچوو: {formatIQD(product.cost)}</Text>
-                )}
-              </View>
-            </>
-          )}
-        </View>
-      )}
-    </Pressable>
+      ))}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  thumb: { width: 52, height: 52, borderRadius: radius.sm, backgroundColor: colors.background },
-  thumbEmpty: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
-  thumbMark: { ...typography.small, color: colors.textFaint },
-  cardPrice: { alignItems: 'flex-start' },
-  cost: { ...typography.tiny, color: colors.textFaint },
-  tags: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 4, marginTop: 3 },
-  tag: {
-    paddingHorizontal: 7,
-    paddingVertical: 1,
-    borderRadius: radius.sm,
-    backgroundColor: colors.successSoft,
-  },
-  tagOut: { backgroundColor: colors.dangerSoft },
-  tagHidden: { backgroundColor: colors.warningSoft },
-  tagMargin: { backgroundColor: colors.brandSoft },
-  tagText: { fontSize: 9.5, fontFamily: fonts.semibold, color: colors.success, lineHeight: 15 },
-  tagTextOut: { color: colors.danger },
-  tagTextHidden: { color: colors.warning },
-  tagTextMargin: { color: colors.brand },
-
   stats: { flexDirection: 'row-reverse', gap: spacing.sm },
-  list: { gap: spacing.xs, paddingBottom: spacing.xxl, paddingTop: spacing.sm },
-  card: {
-    padding: spacing.md,
-    borderRadius: radius.md,
+  thumb: { width: 42, height: 42, borderRadius: radius.sm, backgroundColor: colors.background },
+  thumbEmpty: { borderWidth: 1, borderColor: colors.border },
+  code: { ...typography.tiny, ...typography.mono, color: colors.textMuted },
+  price: { ...typography.heading, color: colors.text },
+
+  variations: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
+  variation: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.sm,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    gap: spacing.xs,
   },
-  cardHead: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  cardHeadText: { flex: 1 },
-  name: { ...typography.body, color: colors.text, textAlign: 'right' },
-  sku: { ...typography.tiny, color: colors.textFaint, textAlign: 'right', ...typography.mono },
-  price: { ...typography.heading, color: colors.brand, ...typography.mono },
-  hidden: { ...typography.tiny, color: colors.warning, textAlign: 'right' },
-
-  variations: { gap: spacing.xs, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
-  noVariations: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
-  variationRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  variationStock: {
-    minWidth: 34,
-    textAlign: 'center',
-    ...typography.small,
-    color: colors.success,
-    ...typography.mono,
-  },
-  variationOut: { color: colors.danger },
-  variationLabel: { flex: 1, ...typography.small, color: colors.text, textAlign: 'right' },
-  variationBarcode: { ...typography.tiny, color: colors.textFaint, ...typography.mono },
-  summaryRow: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-    paddingTop: spacing.xs,
-  },
-  summaryText: { ...typography.tiny, color: colors.textMuted },
+  variationLabel: { ...typography.small, color: colors.text },
+  noVariations: { ...typography.small, color: colors.textFaint, textAlign: 'right' },
 });

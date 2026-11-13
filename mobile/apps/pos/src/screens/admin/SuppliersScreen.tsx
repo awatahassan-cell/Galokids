@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { backoffice, displayPhone, formatIQD, type Supplier } from '@galokids/core';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, backoffice, displayPhone, formatIQD, type Supplier } from '@galokids/core';
 import { Button, Empty, Loading, NeedsConnection, Problem, Screen, Stat } from '@/components/kit';
+import { Pill, Table, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 
@@ -19,6 +20,43 @@ export default function SuppliersScreen() {
 
   const owed = (list.data ?? []).reduce((sum, s) => sum + Math.max(0, Number(s.balance ?? 0)), 0);
 
+  // Who the shop buys from, how to reach them, and what it still owes each.
+  const columns: Column<Supplier>[] = [
+    { title: 'دابینکەر', width: 2, primary: true, render: supplier => supplier.name },
+    {
+      title: 'مۆبایل',
+      width: 1.3,
+      align: 'center',
+      render: supplier => displayPhone(supplier.phone) || '—',
+    },
+    { title: 'تێبینی', width: 2, render: supplier => supplier.notes || '—' },
+    {
+      title: 'قەرزی ماوە',
+      width: 1.2,
+      align: 'center',
+      render: supplier => {
+        const balance = Number(supplier.balance ?? 0);
+
+        return (
+          <Pill label={formatIQD(balance)} tone={balance > 0 ? 'bad' : 'good'} />
+        );
+      },
+    },
+    {
+      title: 'کردار',
+      width: 1.1,
+      align: 'center',
+      render: supplier =>
+        Number(supplier.balance ?? 0) > 0 ? (
+          <Pressable style={styles.payButton} onPress={() => setPaying(supplier)}>
+            <Text style={styles.payButtonText}>پارەدان</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.noAction}>—</Text>
+        ),
+    },
+  ];
+
   return (
     <Screen title="دابینکەران" subtitle="هەژمار و قەرزەکان" scroll={false}>
       {offline ? (
@@ -34,32 +72,12 @@ export default function SuppliersScreen() {
           {(list.data?.length ?? 0) === 0 ? (
             <Empty title="هیچ دابینکەرێک نییە" />
           ) : (
-            <FlatList
-              data={list.data!}
-              keyExtractor={supplier => String(supplier.id)}
-              contentContainerStyle={styles.list}
+            <Table
+              rows={list.data!}
+              keyFor={supplier => String(supplier.id)}
               refreshing={list.refreshing}
               onRefresh={list.refresh}
-              renderItem={({ item }) => {
-                const balance = Number(item.balance ?? 0);
-
-                return (
-                  <Pressable style={styles.card} onPress={() => balance > 0 && setPaying(item)}>
-                    <View style={styles.head}>
-                      <Text style={[styles.balance, balance > 0 ? styles.owing : styles.clear]}>
-                        {formatIQD(balance)}
-                      </Text>
-
-                      <View style={styles.headText}>
-                        <Text style={styles.name}>{item.name}</Text>
-                        {item.phone && <Text style={styles.phone}>{displayPhone(item.phone)}</Text>}
-                      </View>
-                    </View>
-
-                    {balance > 0 && <Text style={styles.hint}>کلیک بکە بۆ تۆمارکردنی پارەدان</Text>}
-                  </Pressable>
-                );
-              }}
+              columns={columns}
             />
           )}
         </>
@@ -129,19 +147,14 @@ function PaymentSheet({
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  card: {
-    padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, gap: spacing.xs,
+  payButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
+    borderRadius: radius.sm,
+    backgroundColor: colors.ink,
   },
-  head: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  headText: { flex: 1 },
-  name: { ...typography.heading, color: colors.text, textAlign: 'right' },
-  phone: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
-  balance: { ...typography.heading, ...typography.mono },
-  owing: { color: colors.danger },
-  clear: { color: colors.success },
-  hint: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
+  payButtonText: { color: '#fff', ...typography.tiny },
+  noAction: { ...typography.small, color: colors.textFaint },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },
   sheet: {

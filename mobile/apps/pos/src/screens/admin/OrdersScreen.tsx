@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import {
-  backoffice,
+  Alert,
+  displayPhone,
   formatDateTime,
   formatIQD,
   orders as ordersApi,
@@ -10,6 +11,7 @@ import {
   type Paginated,
 } from '@galokids/core';
 import { Chips, Empty, Loading, NeedsConnection, Problem, Screen, SearchField } from '@/components/kit';
+import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { useSession } from '@/state/useSession';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
@@ -84,6 +86,82 @@ export function OrdersScreen({
     [busyId, list]
   );
 
+  // The panel's own columns, in the panel's order: who, what, when, how much,
+  // where it has got to, and the one thing a shop does to an order.
+  const canManage = can('orders.manage');
+
+  const columns: Column<Order>[] = [
+    {
+      title: 'داواکاری',
+      width: 1.2,
+      primary: true,
+      render: order => (
+        <Titled
+          title={order.invoice_no ?? `#${order.id}`}
+          sub={
+            order.offline_stock_conflict
+              ? '⚠ ئۆفلاین تۆمارکراوە — کۆگا بژمێرە'
+              : null
+          }
+        />
+      ),
+    },
+    {
+      title: 'کڕیار',
+      width: 1.6,
+      render: order => (
+        <Titled
+          title={order.customer_name || 'کڕیاری بێ ناو'}
+          // The same number is stored three ways depending on who typed it; shown
+          // one way, so two rows for one customer look like one customer.
+          sub={displayPhone(order.customer_phone) || null}
+        />
+      ),
+    },
+    {
+      title: 'دانە',
+      width: 0.6,
+      align: 'center',
+      render: order =>
+        String(order.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0),
+    },
+    { title: 'بەروار', width: 1.2, render: order => formatDateTime(order.created_at) },
+    {
+      title: 'بڕ',
+      width: 1,
+      render: order => <Text style={styles.total}>{formatIQD(order.total_amount)}</Text>,
+    },
+    {
+      title: 'دۆخ',
+      width: 1,
+      align: 'center',
+      render: order => {
+        const tone = STATUS_TONE[order.status];
+
+        return <Pill label={tone?.label ?? order.status} tone={tone?.tone ?? 'neutral'} />;
+      },
+    },
+    {
+      title: 'کردار',
+      width: 1,
+      align: 'center',
+      render: order => {
+        const next = NEXT[order.status];
+        if (!canManage || !next) return <Text style={styles.none}>—</Text>;
+
+        return (
+          <Pressable
+            style={styles.advance}
+            onPress={() => advance(order)}
+            disabled={busyId === order.id}
+          >
+            <Text style={styles.advanceText}>{busyId === order.id ? '…' : next.label}</Text>
+          </Pressable>
+        );
+      },
+    },
+  ];
+
   return (
     <Screen title={title} subtitle={subtitle} scroll={false}>
       <SearchField value={search} onChange={setSearch} placeholder="ژمارەی پسووڵە، ناو یان مۆبایل…" />
@@ -103,121 +181,39 @@ export function OrdersScreen({
       ) : (list.data?.data.length ?? 0) === 0 ? (
         <Empty title="هیچ داواکارییەک نییە" body="لەم دۆخەدا هیچ داواکارییەک نەدۆزرایەوە." />
       ) : (
-        <FlatList
-          data={list.data!.data}
-          keyExtractor={order => String(order.id)}
-          contentContainerStyle={styles.list}
+        <Table
+          rows={list.data!.data}
+          keyFor={order => String(order.id)}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
-          renderItem={({ item }) => (
-            <OrderRow
-              order={item}
-              busy={busyId === item.id}
-              canManage={can('orders.manage')}
-              onAdvance={() => advance(item)}
-            />
-          )}
+          columns={columns}
         />
       )}
     </Screen>
   );
 }
 
-function OrderRow({
-  order,
-  busy,
-  canManage,
-  onAdvance,
-}: {
-  order: Order;
-  busy: boolean;
-  canManage: boolean;
-  onAdvance: () => void;
-}) {
-  const next = NEXT[order.status];
-  const tone = STATUS_TONE[order.status] ?? { bg: colors.brandSoft, fg: colors.brand, label: order.status };
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHead}>
-        <View style={[styles.badge, { backgroundColor: tone.bg }]}>
-          <Text style={[styles.badgeText, { color: tone.fg }]}>{tone.label}</Text>
-        </View>
-
-        <View style={styles.cardHeadText}>
-          <Text style={styles.invoice}>{order.invoice_no ?? `#${order.id}`}</Text>
-          <Text style={styles.when}>{formatDateTime(order.created_at)}</Text>
-        </View>
-      </View>
-
-      <Text style={styles.customer} numberOfLines={1}>
-        {order.customer_name || 'کڕیاری بێ ناو'}
-        {order.customer_phone ? ` · ${order.customer_phone}` : ''}
-      </Text>
-
-      {order.offline_stock_conflict && (
-        <Text style={styles.conflict}>
-          ⚠ ئەم فرۆشتنە لە کاتی ئۆفلایندا تۆمارکراوە و ستۆکەکە ناتەواو بووە — کۆگا بژمێرە.
-        </Text>
-      )}
-
-      <View style={styles.cardFoot}>
-        {canManage && next && (
-          <Pressable style={styles.advance} onPress={onAdvance} disabled={busy}>
-            <Text style={styles.advanceText}>{busy ? '…' : next.label}</Text>
-          </Pressable>
-        )}
-
-        <Text style={styles.total}>{formatIQD(order.total_amount)}</Text>
-        <Text style={styles.itemCount}>
-          {order.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0} دانە
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-const STATUS_TONE: Record<string, { bg: string; fg: string; label: string }> = {
-  pending: { bg: colors.warningSoft, fg: colors.warning, label: 'چاوەڕوان' },
-  processing: { bg: colors.brandSoft, fg: colors.brand, label: 'لە ئامادەکردندا' },
-  shipped: { bg: '#eff6ff', fg: '#2563eb', label: 'نێردراو' },
-  delivered: { bg: colors.successSoft, fg: colors.success, label: 'گەیەنراو' },
-  cancelled: { bg: colors.dangerSoft, fg: colors.danger, label: 'هەڵوەشێنراو' },
-  returned: { bg: colors.dangerSoft, fg: colors.danger, label: 'گەڕێنراوە' },
+const STATUS_TONE: Record<
+  string,
+  { label: string; tone: 'neutral' | 'good' | 'bad' | 'warn' | 'info' }
+> = {
+  pending: { label: 'چاوەڕوان', tone: 'warn' },
+  processing: { label: 'لە ئامادەکردندا', tone: 'info' },
+  shipped: { label: 'نێردراو', tone: 'info' },
+  delivered: { label: 'گەیەنراو', tone: 'good' },
+  cancelled: { label: 'هەڵوەشێنراو', tone: 'bad' },
+  returned: { label: 'گەڕێنراوە', tone: 'bad' },
 };
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.sm, paddingBottom: spacing.xxl, paddingTop: spacing.sm },
-  card: {
-    padding: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.xs,
-  },
-  cardHead: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  cardHeadText: { flex: 1 },
-  invoice: { ...typography.heading, color: colors.text, textAlign: 'right', ...typography.mono },
-  when: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
-  badge: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill },
-  badgeText: { ...typography.tiny },
-  customer: { ...typography.small, color: colors.textMuted, textAlign: 'right' },
-  conflict: { ...typography.tiny, color: colors.warning, textAlign: 'right' },
-  cardFoot: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.xs,
-  },
-  total: { ...typography.heading, color: colors.brand, ...typography.mono },
-  itemCount: { flex: 1, ...typography.tiny, color: colors.textFaint, textAlign: 'left' },
+  total: { ...typography.heading, color: colors.text },
+  none: { ...typography.small, color: colors.textFaint },
   advance: {
-    minHeight: TOUCH_TARGET - 12,
+    minHeight: TOUCH_TARGET - 14,
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brand,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: colors.ink,
   },
-  advanceText: { color: '#fff', ...typography.small },
+  advanceText: { color: '#fff', ...typography.tiny },
 });

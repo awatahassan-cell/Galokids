@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
-import { formatIQD, inventory } from '@galokids/core';
+import { Modal, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
+import { Alert, formatIQD, inventory } from '@galokids/core';
 import { Button, Empty, Loading, Screen, SearchField, Stat } from '@/components/kit';
 import { searchProducts, variationsFor, type LocalProduct, type LocalVariation } from '@/offline';
+import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useSession } from '@/state/useSession';
 import { useSync } from '@/state/useSync';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
@@ -22,6 +23,7 @@ export default function InventoryScreen() {
   const [term, setTerm] = useState('');
   const [rows, setRows] = useState<{ product: LocalProduct; variations: LocalVariation[] }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState<number | null>(null);
   const [counting, setCounting] = useState<{ product: LocalProduct; variation: LocalVariation } | null>(null);
 
   const load = useCallback(async (search: string) => {
@@ -59,6 +61,95 @@ export default function InventoryScreen() {
     row.variations.some(v => v.stock_quantity > 0 && v.stock_quantity <= 3)
   ).length;
 
+  type InventoryRow = { product: LocalProduct; variations: LocalVariation[] };
+
+  const showCost = can('reports.view');
+  const piecesOf = (row: InventoryRow) =>
+    row.variations.reduce((sum, variation) => sum + variation.stock_quantity, 0);
+  const priceOf = (row: InventoryRow) =>
+    row.product.discount_price && row.product.discount_price > 0
+      ? row.product.discount_price
+      : row.product.price;
+
+  // The panel's stock audit, column for column: what it is, how many are left,
+  // what one cost and sells for, and what the shelf is worth at each — which
+  // is where the expected profit comes from. The money columns only for those
+  // allowed to see what the shop pays.
+  const columns: Column<InventoryRow>[] = [
+    {
+      title: 'بەرهەم / کۆد',
+      width: 2,
+      primary: true,
+      render: row => (
+        <Titled title={row.product.name_ku || row.product.name} sub={row.product.sku} />
+      ),
+    },
+    {
+      title: 'جۆر',
+      width: 0.7,
+      align: 'center',
+      render: row => String(row.variations.length),
+    },
+    {
+      title: 'پارچە لە کۆگا',
+      width: 1,
+      align: 'center',
+      render: row => {
+        const pieces = piecesOf(row);
+
+        return <Pill label={String(pieces)} tone={pieces <= 0 ? 'bad' : pieces <= 5 ? 'warn' : 'good'} />;
+      },
+    },
+    ...(showCost
+      ? [
+          {
+            title: 'تێچوو',
+            width: 1,
+            align: 'center' as const,
+            render: (row: InventoryRow) =>
+              row.product.cost != null ? formatIQD(row.product.cost) : '—',
+          },
+        ]
+      : []),
+    {
+      title: 'نرخی فرۆشتن',
+      width: 1,
+      align: 'center',
+      render: row => formatIQD(priceOf(row)),
+    },
+    ...(showCost
+      ? [
+          {
+            title: 'کۆی بەهای تێچوو',
+            width: 1.2,
+            align: 'center' as const,
+            render: (row: InventoryRow) =>
+              formatIQD(piecesOf(row) * Number(row.product.cost ?? 0)),
+          },
+          {
+            title: 'کۆی بەهای فرۆشتن',
+            width: 1.2,
+            align: 'center' as const,
+            render: (row: InventoryRow) => formatIQD(piecesOf(row) * priceOf(row)),
+          },
+          {
+            title: 'قازانجی پێشبینیکراو',
+            width: 1.2,
+            align: 'center' as const,
+            render: (row: InventoryRow) => {
+              // Nothing to say without a cost: the "profit" would be the whole
+              // shelf price, which is not a profit.
+              if (row.product.cost == null) return '—';
+
+              const profit = piecesOf(row) * (priceOf(row) - Number(row.product.cost));
+
+              return <Pill label={formatIQD(profit)} tone={profit > 0 ? 'good' : 'bad'} />;
+            },
+          },
+        ]
+      : []),
+  ];
+
   return (
     <Screen title="جەردی کۆگا" subtitle="بڕی ماوە و نرخی کۆگا" scroll={false}>
       <View style={styles.stats}>
@@ -74,53 +165,47 @@ export default function InventoryScreen() {
       ) : rows.length === 0 ? (
         <Empty title="هیچ نەدۆزرایەوە" />
       ) : (
-        <FlatList
-          data={rows}
-          keyExtractor={row => String(row.product.id)}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Text style={styles.name} numberOfLines={1}>
-                {item.product.name_ku || item.product.name}
-              </Text>
-
-              {item.variations.map(variation => {
-                const out = variation.stock_quantity <= 0;
-                const low = !out && variation.stock_quantity <= 3;
-
-                return (
+        <Table
+          rows={rows}
+          keyFor={row => String(row.product.id)}
+          columns={columns}
+          onPress={row => setOpen(open === row.product.id ? null : row.product.id)}
+          detailFor={row =>
+            open === row.product.id ? (
+              <View style={styles.variations}>
+                {row.variations.map(variation => (
                   <Pressable
                     key={variation.id}
-                    style={styles.variationRow}
+                    style={styles.variation}
                     onPress={() =>
                       can('inventory.manage')
-                        ? setCounting({ product: item.product, variation })
+                        ? setCounting({ product: row.product, variation })
                         : undefined
                     }
                   >
-                    <Text
-                      style={[
-                        styles.stock,
-                        out && styles.stockOut,
-                        low && styles.stockLow,
-                      ]}
-                    >
-                      {variation.stock_quantity}
-                    </Text>
-
                     <Text style={styles.variationLabel} numberOfLines={1}>
                       {[variation.color, variation.size].filter(Boolean).join(' · ') || 'ئاسایی'}
                     </Text>
+                    <Pill
+                      label={String(variation.stock_quantity)}
+                      tone={
+                        variation.stock_quantity <= 0
+                          ? 'bad'
+                          : variation.stock_quantity <= 3
+                            ? 'warn'
+                            : 'good'
+                      }
+                    />
                   </Pressable>
-                );
-              })}
-            </View>
-          )}
+                ))}
+              </View>
+            ) : null
+          }
         />
       )}
 
       {can('inventory.manage') && (
-        <Text style={styles.hint}>بۆ ڕاستکردنەوەی ژمارەیەک، کلیکی لێ بکە.</Text>
+        <Text style={styles.hint}>ڕیزێک بکەرەوە و لەسەر جۆرێک کلیک بکە بۆ ڕاستکردنەوەی ژمارەکەی.</Text>
       )}
 
       <CountSheet
@@ -218,18 +303,20 @@ function CountSheet({
 }
 
 const styles = StyleSheet.create({
-  stats: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
-  list: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.md },
-  card: {
-    padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, gap: spacing.xs,
+  variations: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
+  variation: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  name: { ...typography.body, color: colors.text, textAlign: 'right' },
-  variationRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm, minHeight: 34 },
+  stats: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
   variationLabel: { flex: 1, ...typography.small, color: colors.textMuted, textAlign: 'right' },
-  stock: { minWidth: 38, textAlign: 'center', ...typography.heading, color: colors.success, ...typography.mono },
-  stockLow: { color: colors.warning },
-  stockOut: { color: colors.danger },
   hint: { ...typography.tiny, color: colors.textFaint, textAlign: 'center' },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },

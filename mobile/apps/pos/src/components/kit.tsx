@@ -226,7 +226,15 @@ export function Chips<T extends string>({
   onChange: (next: T) => void;
 }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      // flexGrow 0, or the strip claims half the screen. A horizontal scroller
+      // in a column grows vertically by default, and it was taking that space
+      // from the list beneath it — three orders came back and one was visible.
+      style={styles.chipStrip}
+      contentContainerStyle={styles.chips}
+    >
       {options.map(option => {
         const active = option.id === value;
 
@@ -292,6 +300,7 @@ export function Button({
 }
 
 const styles = StyleSheet.create({
+  chipStrip: { flexGrow: 0, flexShrink: 0 },
   screen: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row-reverse',
@@ -334,10 +343,13 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statLabel: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
-  statValue: { ...typography.title, textAlign: 'right', ...typography.mono },
+  // In the app's own face, not monospace: mixing a typewriter font into the
+  // figures made every total look pasted in from somewhere else. A column of
+  // numbers lines up through the table's alignment, not through its font.
+  statValue: { ...typography.title, textAlign: 'right' },
   statHint: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
 
-  money: { ...typography.heading, ...typography.mono },
+  money: { ...typography.heading },
 
   card: {
     padding: spacing.md,

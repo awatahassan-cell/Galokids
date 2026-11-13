@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
+  Alert,
   backoffice,
   formatDay,
   formatIQD,
@@ -19,6 +20,7 @@ import {
   Screen,
   Stat,
 } from '@/components/kit';
+import { Pill, Table, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 
@@ -63,6 +65,37 @@ export default function ExpensesScreen() {
     ]);
   };
 
+  // The panel's expense table: when, what for, which kind, how much, and the
+  // one thing you can do to it. A visible button rather than a long press — a
+  // gesture nobody can discover is a feature nobody has.
+  const columns: Column<Expense>[] = [
+    { title: 'بەروار', width: 1, render: expense => formatDay(expense.date ?? expense.created_at) },
+    {
+      title: 'وەسف',
+      width: 2.2,
+      primary: true,
+      render: expense => expense.description || expense.category,
+    },
+    {
+      title: 'جۆر',
+      width: 1,
+      align: 'center',
+      render: expense => <Pill label={expense.category} tone="neutral" />,
+    },
+    {
+      title: 'بڕ',
+      width: 1,
+      align: 'center',
+      render: expense => <Text style={styles.amount}>{formatIQD(expense.amount)}</Text>,
+    },
+    {
+      title: 'کردار',
+      width: 0.8,
+      align: 'center',
+      render: expense => <RowAction label="سڕینەوە" danger onPress={() => remove(expense)} />,
+    },
+  ];
+
   return (
     <Screen
       title="خەرجییەکان"
@@ -92,32 +125,15 @@ export default function ExpensesScreen() {
           {(list.data?.data.length ?? 0) === 0 ? (
             <Empty title="هیچ خەرجییەک تۆمار نەکراوە" body="لەم ماوەیەدا هیچ خەرجییەک نییە." />
           ) : (
-            <FlatList
-              data={list.data!.data}
-              keyExtractor={expense => String(expense.id)}
-              contentContainerStyle={styles.list}
+            <Table
+              rows={list.data!.data}
+              keyFor={expense => String(expense.id)}
               refreshing={list.refreshing}
               onRefresh={list.refresh}
-              renderItem={({ item }) => (
-                <Pressable style={styles.row} onLongPress={() => remove(item)}>
-                  <Text style={styles.amount}>{formatIQD(item.amount)}</Text>
-
-                  <View style={styles.rowBody}>
-                    <Text style={styles.description} numberOfLines={1}>
-                      {item.description || item.category}
-                    </Text>
-                    <Text style={styles.meta}>
-                      {[item.category, formatDay(item.date ?? item.created_at)]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </Text>
-                  </View>
-                </Pressable>
-              )}
+              columns={columns}
             />
           )}
 
-          <Text style={styles.hint}>بۆ سڕینەوە، دەستت لەسەر خەرجییەک ڕاگرە.</Text>
         </>
       )}
 
@@ -132,6 +148,38 @@ export default function ExpensesScreen() {
     </Screen>
   );
 }
+
+function RowAction({
+  label,
+  onPress,
+  danger,
+}: {
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <Pressable
+      style={[actionStyles.button, danger && actionStyles.danger]}
+      onPress={onPress}
+      hitSlop={4}
+    >
+      <Text style={[actionStyles.text, danger && actionStyles.dangerText]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const actionStyles = StyleSheet.create({
+  button: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
+    borderRadius: radius.sm,
+    backgroundColor: colors.brandSoft,
+  },
+  danger: { backgroundColor: colors.dangerSoft },
+  text: { ...typography.tiny, color: colors.brand },
+  dangerText: { color: colors.danger },
+});
 
 function ExpenseComposer({
   visible,
@@ -227,22 +275,7 @@ function ExpenseComposer({
 
 const styles = StyleSheet.create({
   stats: { flexDirection: 'row-reverse', gap: spacing.sm },
-  list: { gap: spacing.xs, paddingBottom: spacing.md, paddingTop: spacing.sm },
-  row: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  rowBody: { flex: 1 },
-  description: { ...typography.body, color: colors.text, textAlign: 'right' },
-  meta: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
-  amount: { ...typography.heading, color: colors.danger, ...typography.mono },
-  hint: { ...typography.tiny, color: colors.textFaint, textAlign: 'center' },
+  amount: { ...typography.heading, color: colors.danger },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },
   sheet: {

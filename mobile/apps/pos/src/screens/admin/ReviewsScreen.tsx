@@ -1,6 +1,7 @@
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { backoffice, timeAgo, type Paginated, type Review } from '@galokids/core';
+import { Pressable, StyleSheet, Text } from 'react-native';
+import { Alert, backoffice, timeAgo, type Paginated, type Review } from '@galokids/core';
 import { Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Table, Titled, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { useSession } from '@/state/useSession';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -35,6 +36,48 @@ export default function ReviewsScreen() {
     ]);
   };
 
+  const canDelete = can('products.manage');
+
+  // The panel's review table: who, how many stars, what they said, when.
+  const columns: Column<Review>[] = [
+    {
+      title: 'نووسەر',
+      width: 1.5,
+      primary: true,
+      render: review => (
+        <Titled
+          title={review.customer_name || 'میوان'}
+          sub={review.verified_purchase ? 'کڕینی پشتڕاستکراو' : null}
+        />
+      ),
+    },
+    {
+      title: 'هەڵسەنگاندن',
+      width: 1,
+      align: 'center',
+      render: review => (
+        <Text style={styles.stars}>
+          {'★'.repeat(review.rating)}
+          {'☆'.repeat(5 - review.rating)}
+        </Text>
+      ),
+    },
+    { title: 'بۆچوون', width: 3, render: review => review.comment || '—' },
+    { title: 'بەروار', width: 1, align: 'center', render: review => timeAgo(review.created_at) },
+    ...(canDelete
+      ? [
+          {
+            title: 'کردار',
+            width: 0.9,
+            align: 'center' as const,
+            render: (review: Review) => (
+              <RowAction label="سڕینەوە" danger onPress={() => remove(review)} />
+            ),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <Screen title="هەڵسەنگاندنەکان" subtitle="ڕای کڕیاران لەسەر بەرهەمەکان" scroll={false}>
       {offline ? (
@@ -46,61 +89,51 @@ export default function ReviewsScreen() {
       ) : (list.data?.data.length ?? 0) === 0 ? (
         <Empty title="هێشتا هیچ هەڵسەنگاندنێک نییە" />
       ) : (
-        <FlatList
-          data={list.data!.data}
-          keyExtractor={review => String(review.id)}
-          contentContainerStyle={styles.list}
+        <Table
+          rows={list.data!.data}
+          keyFor={review => String(review.id)}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
-          renderItem={({ item }) => (
-            <Pressable
-              style={styles.card}
-              onLongPress={() => (can('products.manage') ? remove(item) : undefined)}
-            >
-              <View style={styles.head}>
-                <Text style={styles.stars}>{'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}</Text>
-
-                <View style={styles.headText}>
-                  <Text style={styles.who}>{item.customer_name || 'میوان'}</Text>
-                  <Text style={styles.when}>{timeAgo(item.created_at)}</Text>
-                </View>
-
-                {item.verified_purchase && (
-                  <View style={styles.verified}>
-                    <Text style={styles.verifiedText}>کڕینی پشتڕاستکراو</Text>
-                  </View>
-                )}
-              </View>
-
-              {item.comment && <Text style={styles.comment}>{item.comment}</Text>}
-            </Pressable>
-          )}
+          columns={columns}
         />
       )}
 
-      {can('products.manage') && (
-        <Text style={styles.hint}>بۆ سڕینەوە، دەستت لەسەر هەڵسەنگاندنێک ڕاگرە.</Text>
-      )}
     </Screen>
   );
 }
 
+function RowAction({
+  label,
+  onPress,
+  danger,
+}: {
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <Pressable
+      style={[actionStyles.button, danger && actionStyles.danger]}
+      onPress={onPress}
+      hitSlop={4}
+    >
+      <Text style={[actionStyles.text, danger && actionStyles.dangerText]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const actionStyles = StyleSheet.create({
+  button: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
+    borderRadius: radius.sm,
+    backgroundColor: colors.brandSoft,
+  },
+  danger: { backgroundColor: colors.dangerSoft },
+  text: { ...typography.tiny, color: colors.brand },
+  dangerText: { color: colors.danger },
+});
+
 const styles = StyleSheet.create({
-  list: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.md },
-  card: {
-    padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, gap: spacing.xs,
-  },
-  head: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  headText: { flex: 1 },
   stars: { ...typography.body, color: colors.warning },
-  who: { ...typography.small, color: colors.text, textAlign: 'right' },
-  when: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
-  verified: {
-    paddingHorizontal: spacing.sm, paddingVertical: 2,
-    borderRadius: radius.pill, backgroundColor: colors.successSoft,
-  },
-  verifiedText: { ...typography.tiny, color: colors.success },
-  comment: { ...typography.small, color: colors.textMuted, textAlign: 'right', lineHeight: 22 },
-  hint: { ...typography.tiny, color: colors.textFaint, textAlign: 'center' },
 });

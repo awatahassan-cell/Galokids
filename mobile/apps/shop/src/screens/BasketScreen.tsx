@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -12,7 +11,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { ApiError, formatIQD, isValidPhone, normalizePhone, orders } from '@galokids/core';
+import { Alert, ApiError, formatIQD, isValidPhone, normalizePhone, orders } from '@galokids/core';
 import { Empty, Eyebrow, MediaWash, PageWash, PrimaryButton, TabBar } from '@/components/ui';
 import { useAccount } from '@/state/useAccount';
 import { useBasket, type BasketLine } from '@/state/useBasket';

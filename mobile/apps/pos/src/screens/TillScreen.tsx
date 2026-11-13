@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -12,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { formatIQD, useLayout } from '@galokids/core';
+import { Alert, formatIQD, useLayout } from '@galokids/core';
 import { enqueueSale, variationsFor, type LocalProduct, type LocalVariation } from '@/offline';
 import { useCart, type CartLine } from '@/state/useCart';
 import { useSync } from '@/state/useSync';

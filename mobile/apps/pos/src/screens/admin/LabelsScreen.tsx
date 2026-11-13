@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { canEncodeCode128, formatIQD, useLayout } from '@galokids/core';
+import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, canEncodeCode128, formatIQD, useLayout } from '@galokids/core';
 import { Button, Card, Chips, Empty, Screen, SearchField } from '@/components/kit';
 import { Barcode } from '@/components/Barcode';
 import {

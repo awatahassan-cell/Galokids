@@ -1,8 +1,9 @@
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { backoffice, formatDateTime, formatIQD, type Paginated, type Purchase } from '@galokids/core';
 import { Empty, Loading, NeedsConnection, Problem, Screen, Stat } from '@/components/kit';
+import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
-import { colors, radius, spacing, typography } from '@/theme';
+import { colors, spacing, typography } from '@/theme';
 
 /**
  * What the shop bought in.
@@ -37,39 +38,12 @@ export default function PurchasesScreen() {
           {rows.length === 0 ? (
             <Empty title="هیچ کڕینێک تۆمار نەکراوە" />
           ) : (
-            <FlatList
-              data={rows}
-              keyExtractor={purchase => String(purchase.id)}
-              contentContainerStyle={styles.list}
+            <Table
+              rows={rows}
+              keyFor={purchase => String(purchase.id)}
               refreshing={list.refreshing}
               onRefresh={list.refresh}
-              renderItem={({ item }) => {
-                const remaining = Math.max(0, item.total_amount - item.amount_paid);
-
-                return (
-                  <View style={styles.card}>
-                    <View style={styles.head}>
-                      <Text style={styles.total}>{formatIQD(item.total_amount)}</Text>
-
-                      <View style={styles.headText}>
-                        <Text style={styles.supplier} numberOfLines={1}>
-                          {item.supplier_name || item.reference || `کڕینی #${item.id}`}
-                        </Text>
-                        <Text style={styles.when}>{formatDateTime(item.purchased_at)}</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.footer}>
-                      <Text style={styles.items}>{item.items?.length ?? 0} بەرهەم</Text>
-                      {remaining > 0 ? (
-                        <Text style={styles.owed}>قەرز: {formatIQD(remaining)}</Text>
-                      ) : (
-                        <Text style={styles.settled}>پارەکەی دراوە</Text>
-                      )}
-                    </View>
-                  </View>
-                );
-              }}
+              columns={COLUMNS}
             />
           )}
         </>
@@ -78,20 +52,51 @@ export default function PurchasesScreen() {
   );
 }
 
+// The panel's purchase list: the invoice, who it was bought from, when, what
+// it came to, what has been paid, and what is still owed.
+const COLUMNS: Column<Purchase>[] = [
+  {
+    title: 'ژمارەی پسووڵە',
+    width: 1.4,
+    primary: true,
+    render: purchase => (
+      <Titled
+        title={purchase.reference || `کڕینی #${purchase.id}`}
+        sub={`${purchase.items?.length ?? 0} بەرهەم`}
+      />
+    ),
+  },
+  { title: 'دابینکەر', width: 1.6, render: purchase => purchase.supplier_name || '—' },
+  { title: 'بەروار', width: 1.2, render: purchase => formatDateTime(purchase.purchased_at) },
+  {
+    title: 'کۆی پسووڵە',
+    width: 1.1,
+    align: 'center',
+    render: purchase => <Text style={styles.total}>{formatIQD(purchase.total_amount)}</Text>,
+  },
+  {
+    title: 'بڕی دراو',
+    width: 1.1,
+    align: 'center',
+    render: purchase => formatIQD(purchase.amount_paid),
+  },
+  {
+    title: 'قەرزی ماوە',
+    width: 1.1,
+    align: 'center',
+    render: purchase => {
+      const remaining = Math.max(0, purchase.total_amount - purchase.amount_paid);
+
+      return remaining > 0 ? (
+        <Pill label={formatIQD(remaining)} tone="bad" />
+      ) : (
+        <Pill label="دراوە" tone="good" />
+      );
+    },
+  },
+];
+
 const styles = StyleSheet.create({
   stats: { flexDirection: 'row-reverse', gap: spacing.sm },
-  list: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  card: {
-    padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, gap: spacing.xs,
-  },
-  head: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  headText: { flex: 1 },
-  supplier: { ...typography.heading, color: colors.text, textAlign: 'right' },
-  when: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
-  total: { ...typography.heading, color: colors.text, ...typography.mono },
-  footer: { flexDirection: 'row-reverse', justifyContent: 'space-between' },
-  items: { ...typography.tiny, color: colors.textMuted },
-  owed: { ...typography.tiny, color: colors.danger },
-  settled: { ...typography.tiny, color: colors.success },
+  total: { ...typography.heading, color: colors.text },
 });

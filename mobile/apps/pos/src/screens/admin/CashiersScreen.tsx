@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { formatDay, formatIQD, presetRanges, reports, type CashierReport } from '@galokids/core';
 import { Chips, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Table } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
-import { colors, radius, spacing, typography } from '@/theme';
+import { colors, radius, typography } from '@/theme';
 
 /**
  * Who sold what.
@@ -50,42 +51,55 @@ export default function CashiersScreen() {
       ) : rows.length === 0 ? (
         <Empty title="هیچ فرۆشتنێک نییە" body="لەم ماوەیەدا هیچ کاشێرێک نەیفرۆشتووە." />
       ) : (
-        <View style={styles.list}>
-          {rows.map((row, index) => (
-            <View key={row.user_id ?? row.name} style={styles.card}>
-              <View style={styles.cardHead}>
-                <Text style={styles.revenue}>{formatIQD(row.total)}</Text>
-
-                <View style={styles.cardHeadText}>
-                  <Text style={styles.name}>
-                    {index === 0 ? '🥇 ' : ''}{row.name}
-                  </Text>
-                  <Text style={styles.count}>{row.orders_count} فرۆشتن</Text>
+        <Table
+          inline
+          rows={rows}
+          keyFor={row => String(row.user_id ?? row.name)}
+          columns={[
+            {
+              title: 'کاشێر',
+              width: 1.8,
+              primary: true,
+              render: row => (
+                <View style={styles.who}>
+                  <Text style={styles.name}>{row.name}</Text>
+                  <View style={styles.track}>
+                    <View
+                      style={[styles.fill, { width: `${Math.round((row.total / best) * 100)}%` }]}
+                    />
+                  </View>
                 </View>
-              </View>
-
-              <View style={styles.track}>
-                <View style={[styles.fill, { width: `${Math.round((row.total / best) * 100)}%` }]} />
-              </View>
-            </View>
-          ))}
-        </View>
+              ),
+            },
+            { title: 'فرۆشتن', width: 0.8, align: 'center', render: row => String(row.orders_count) },
+            { title: 'POS', width: 1.1, align: 'center', render: row => formatIQD(row.pos_total) },
+            { title: 'وێبسایت', width: 1.1, align: 'center', render: row => formatIQD(row.online_total) },
+            { title: 'پەیج', width: 1.1, align: 'center', render: row => formatIQD(row.social_total) },
+            {
+              title: 'کۆی گشتی',
+              width: 1.2,
+              align: 'center',
+              render: row => <Text style={styles.revenue}>{formatIQD(row.total)}</Text>,
+            },
+          ]}
+        />
       )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.sm },
-  card: {
-    padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, gap: spacing.sm,
+  who: { alignSelf: 'stretch', alignItems: 'flex-end', gap: 4 },
+  name: { ...typography.small, color: colors.text, textAlign: 'right' },
+  revenue: { ...typography.heading, color: colors.text },
+  // How each cashier compares with the best of them, drawn under the name.
+  track: {
+    alignSelf: 'stretch',
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: colors.borderSoft,
+    overflow: 'hidden',
+    flexDirection: 'row-reverse',
   },
-  cardHead: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  cardHeadText: { flex: 1 },
-  name: { ...typography.heading, color: colors.text, textAlign: 'right' },
-  count: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
-  revenue: { ...typography.heading, color: colors.brand, ...typography.mono },
-  track: { height: 6, borderRadius: radius.pill, backgroundColor: colors.brandSoft, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: colors.brand, borderRadius: radius.pill },
+  fill: { height: 4, borderRadius: radius.pill, backgroundColor: colors.brand },
 });

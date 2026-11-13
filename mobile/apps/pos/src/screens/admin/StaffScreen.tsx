@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { backoffice, displayPhone, ROLE, type Paginated, type Role, type User } from '@galokids/core';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, backoffice, displayPhone, ROLE, type Paginated, type Role, type User } from '@galokids/core';
 import { Button, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { ALL_PERMISSIONS, PRESETS } from '@/navigation/permissions';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
@@ -49,41 +50,13 @@ export default function StaffScreen() {
       ) : staff.length === 0 ? (
         <Empty title="هیچ ستافێک نییە" />
       ) : (
-        <FlatList
-          data={staff}
-          keyExtractor={user => String(user.id)}
-          contentContainerStyle={styles.list}
+        <Table
+          rows={staff}
+          keyFor={user => String(user.id)}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
-          renderItem={({ item }) => {
-            const role = ROLES.find(r => r.id === item.role);
-            const count = Array.isArray(item.permissions) ? item.permissions.length : null;
-
-            return (
-              <Pressable style={styles.card} onPress={() => setEditing(item)}>
-                <View style={styles.cardHead}>
-                  <View style={styles.roleTag}>
-                    <Text style={styles.roleTagText}>{role?.label ?? '—'}</Text>
-                  </View>
-
-                  <View style={styles.cardHeadText}>
-                    <Text style={styles.name}>{item.name}</Text>
-                    <Text style={styles.contact}>
-                      {[displayPhone(item.phone), item.email].filter(Boolean).join(' · ') || '—'}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={styles.perms}>
-                  {item.role === ROLE.ADMIN
-                    ? 'دەسەڵاتی تەواو'
-                    : count != null
-                      ? `${count} دەسەڵاتی دیاریکراو`
-                      : 'دەسەڵاتە بنەڕەتییەکانی ڕۆڵەکەی'}
-                </Text>
-              </Pressable>
-            );
-          }}
+          onPress={setEditing}
+          columns={COLUMNS}
         />
       )}
 
@@ -95,6 +68,39 @@ export default function StaffScreen() {
     </Screen>
   );
 }
+
+// The panel's users table: who, how to reach them, what they are, and what
+// they are allowed to do. Tapping a row opens the same editor.
+const COLUMNS: Column<User>[] = [
+  {
+    title: 'ناو',
+    width: 1.8,
+    primary: true,
+    render: user => <Titled title={user.name} sub={user.email} />,
+  },
+  { title: 'مۆبایل', width: 1.3, align: 'center', render: user => displayPhone(user.phone) || '—' },
+  {
+    title: 'ڕۆڵ',
+    width: 1,
+    align: 'center',
+    render: user => (
+      <Pill
+        label={ROLES.find(role => role.id === user.role)?.label ?? '—'}
+        tone={user.role === ROLE.ADMIN ? 'info' : 'neutral'}
+      />
+    ),
+  },
+  {
+    title: 'دەسەڵاتەکان',
+    width: 2,
+    render: user =>
+      user.role === ROLE.ADMIN
+        ? 'دەسەڵاتی تەواو'
+        : Array.isArray(user.permissions)
+          ? `${user.permissions.length} دەسەڵاتی دیاریکراو`
+          : 'دەسەڵاتە بنەڕەتییەکانی ڕۆڵەکەی',
+  },
+];
 
 function StaffSheet({
   target,
@@ -225,19 +231,6 @@ function StaffSheet({
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  card: {
-    padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, gap: spacing.xs,
-  },
-  cardHead: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  cardHeadText: { flex: 1 },
-  name: { ...typography.heading, color: colors.text, textAlign: 'right' },
-  contact: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
-  roleTag: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: colors.brandSoft },
-  roleTagText: { ...typography.tiny, color: colors.brand },
-  perms: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
-
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },
   sheet: {
     maxHeight: '88%', backgroundColor: colors.surface,

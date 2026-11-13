@@ -1,17 +1,16 @@
-import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
 import {
-  backoffice,
   formatDateTime,
-  formatIQD,
   inventory,
   type Paginated,
   type StockMovement,
 } from '@galokids/core';
-import { Chips, Empty, Loading, NeedsConnection, Problem, Screen, Stat } from '@/components/kit';
+import { Chips, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Pill, Table, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
-import { catalogueSize, type LocalProduct } from '@/offline';
-import { colors, radius, spacing, typography } from '@/theme';
+
+import { colors, typography } from '@/theme';
 
 /**
  * Where the stock went.
@@ -52,77 +51,74 @@ export default function StockLedgerScreen() {
       ) : (list.data?.data.length ?? 0) === 0 ? (
         <Empty title="هیچ جوڵەیەک نییە" />
       ) : (
-        <FlatList
-          data={list.data!.data}
-          keyExtractor={move => String(move.id)}
-          contentContainerStyle={styles.list}
+        <Table
+          rows={list.data!.data}
+          keyFor={move => String(move.id)}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
-          renderItem={({ item }) => <MovementRow movement={item} />}
+          columns={COLUMNS}
         />
       )}
     </Screen>
   );
 }
 
-function MovementRow({ movement }: { movement: StockMovement }) {
-  const added = movement.quantity_change > 0;
+/** What each kind of movement is called, as the panel names them. */
+const TYPE_LABEL: Record<string, string> = {
+  sale: 'فرۆشتن',
+  purchase: 'کڕین',
+  adjustment: 'ڕاستکردنەوە',
+  return: 'گەڕانەوە',
+  refund: 'گەڕاندنەوە',
+  exchange: 'گۆڕینەوە',
+  cancel: 'هەڵوەشاندنەوە',
+  initial: 'سەرەتایی',
+};
 
-  // A movement that changed nothing is worth seeing, not hiding: it is what a
-  // sale against empty stock looks like, and the shop needs to notice.
-  const nothing = movement.quantity_change === 0;
+// The panel's ledger, in its order: when, what, the kind of movement, how
+// much it moved, what was left, and why.
+const COLUMNS: Column<StockMovement>[] = [
+  { title: 'بەروار', width: 1.2, render: move => formatDateTime(move.created_at) },
+  {
+    title: 'بەرهەم',
+    width: 2,
+    primary: true,
+    render: move => move.product_name || `جۆری #${move.product_variation_id}`,
+  },
+  {
+    title: 'چالاکی',
+    width: 1,
+    align: 'center',
+    render: move => <Pill label={TYPE_LABEL[move.type] ?? move.type} tone="neutral" />,
+  },
+  {
+    title: 'گۆڕان',
+    width: 0.8,
+    align: 'center',
+    render: move => {
+      const added = move.quantity_change > 0;
+      // A movement that changed nothing is worth seeing, not hiding: it is
+      // what a sale against empty stock looks like, and the shop needs to
+      // notice.
+      const nothing = move.quantity_change === 0;
 
-  return (
-    <View style={styles.row}>
-      <View
-        style={[
-          styles.delta,
-          { backgroundColor: nothing ? colors.warningSoft : added ? colors.successSoft : colors.dangerSoft },
-        ]}
-      >
-        <Text
-          style={[
-            styles.deltaText,
-            { color: nothing ? colors.warning : added ? colors.success : colors.danger },
-          ]}
-        >
-          {added ? '+' : ''}
-          {movement.quantity_change}
-        </Text>
-      </View>
-
-      <View style={styles.rowBody}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          {movement.product_name || `جۆری #${movement.product_variation_id}`}
-        </Text>
-        <Text style={styles.rowNote} numberOfLines={1}>
-          {movement.note || movement.type}
-        </Text>
-        <Text style={styles.rowWhen}>{formatDateTime(movement.created_at)}</Text>
-      </View>
-
-      <Text style={styles.after}>{movement.quantity_after}</Text>
-    </View>
-  );
-}
+      return (
+        <Pill
+          label={`${added ? '+' : ''}${move.quantity_change}`}
+          tone={nothing ? 'warn' : added ? 'good' : 'bad'}
+        />
+      );
+    },
+  },
+  {
+    title: 'دوای گۆڕان',
+    width: 0.8,
+    align: 'center',
+    render: move => <Text style={styles.after}>{move.quantity_after}</Text>,
+  },
+  { title: 'هۆکار', width: 1.8, render: move => move.note || '—' },
+];
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.xs, paddingBottom: spacing.xxl, paddingTop: spacing.sm },
-  row: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  delta: { minWidth: 52, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.sm },
-  deltaText: { ...typography.heading, textAlign: 'center', ...typography.mono },
-  rowBody: { flex: 1, gap: 1 },
-  rowTitle: { ...typography.small, color: colors.text, textAlign: 'right' },
-  rowNote: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
-  rowWhen: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
-  after: { ...typography.small, color: colors.textMuted, ...typography.mono },
+  after: { ...typography.heading, color: colors.text },
 });

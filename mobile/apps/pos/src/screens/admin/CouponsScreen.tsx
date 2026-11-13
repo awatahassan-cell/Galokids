@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Alert, FlatList, Modal, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { backoffice, formatIQD, type Coupon } from '@galokids/core';
+import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, backoffice, formatIQD, type Coupon } from '@galokids/core';
 import { Button, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Pill, Table, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 
@@ -16,6 +17,73 @@ export default function CouponsScreen() {
   const [editing, setEditing] = useState<Coupon | 'new' | null>(null);
   const list = useFetch<Coupon[]>(() => backoffice.coupons(), []);
   const offline = useNeedsConnection(list.error);
+
+  const remove = (coupon: Coupon) => {
+    Alert.alert('سڕینەوەی کۆپۆن', `کۆپۆنی ${coupon.code} بسڕدرێتەوە؟`, [
+      { text: 'نەخێر', style: 'cancel' },
+      {
+        text: 'سڕینەوە',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await backoffice.deleteCoupon(coupon.id);
+            list.refresh();
+          } catch (error) {
+            Alert.alert('نەتوانرا بسڕدرێتەوە', (error as Error).message);
+          }
+        },
+      },
+    ]);
+  };
+
+  // The panel's coupon table: the code, what it takes off, how often it has
+  // been used, whether it still works, and what you can do to it.
+  const columns: Column<Coupon>[] = [
+    {
+      title: 'کۆد',
+      width: 1.6,
+      primary: true,
+      render: coupon => <Text style={styles.code}>{coupon.code}</Text>,
+    },
+    {
+      title: 'داشکاندن',
+      width: 0.9,
+      align: 'center',
+      render: coupon => <Pill label={`٪${coupon.discount_percentage}`} tone="info" />,
+    },
+    {
+      title: 'بەکارهێنان',
+      width: 1.2,
+      align: 'center',
+      render: coupon =>
+        `${coupon.used_count}${coupon.usage_limit != null ? ` / ${coupon.usage_limit}` : ''}`,
+    },
+    {
+      title: 'کەمترین بڕ',
+      width: 1.2,
+      align: 'center',
+      render: coupon => (coupon.min_subtotal ? formatIQD(coupon.min_subtotal) : '—'),
+    },
+    {
+      title: 'دۆخ',
+      width: 1,
+      align: 'center',
+      render: coupon => {
+        const exhausted = coupon.usage_limit != null && coupon.used_count >= coupon.usage_limit;
+
+        if (!coupon.isActive) return <Pill label="ناچالاک" tone="bad" />;
+        if (exhausted) return <Pill label="تەواو بووە" tone="warn" />;
+
+        return <Pill label="چالاک" tone="good" />;
+      },
+    },
+    {
+      title: 'کردار',
+      width: 0.9,
+      align: 'center',
+      render: coupon => <RowAction label="سڕینەوە" danger onPress={() => remove(coupon)} />,
+    },
+  ];
 
   return (
     <Screen
@@ -33,37 +101,12 @@ export default function CouponsScreen() {
       ) : (list.data?.length ?? 0) === 0 ? (
         <Empty title="هیچ کوپۆنێک نییە" body="کۆدێکی داشکاندن دروست بکە." />
       ) : (
-        <FlatList
-          data={list.data!}
-          keyExtractor={coupon => String(coupon.id)}
-          contentContainerStyle={styles.list}
+        <Table
+          rows={list.data!}
+          keyFor={coupon => String(coupon.id)}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
-          renderItem={({ item }) => {
-            const exhausted = item.usage_limit != null && item.used_count >= item.usage_limit;
-
-            return (
-              <View style={styles.card}>
-                <View style={styles.cardHead}>
-                  <Text style={styles.percent}>{item.discount_percentage}%</Text>
-
-                  <View style={styles.cardHeadText}>
-                    <Text style={styles.code}>{item.code}</Text>
-                    <Text style={styles.used}>
-                      {item.used_count} جار بەکارهاتووە
-                      {item.usage_limit != null ? ` لە ${item.usage_limit}` : ''}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.tags}>
-                  {!item.isActive && <Tag text="ناچالاک" tone="danger" />}
-                  {exhausted && <Tag text="تەواو بووە" tone="warning" />}
-                  {item.min_subtotal ? <Tag text={`لە ${formatIQD(item.min_subtotal)} زیاتر`} /> : null}
-                </View>
-              </View>
-            );
-          }}
+          columns={columns}
         />
       )}
 
@@ -76,16 +119,37 @@ export default function CouponsScreen() {
   );
 }
 
-function Tag({ text, tone }: { text: string; tone?: 'danger' | 'warning' }) {
-  const bg = tone === 'danger' ? colors.dangerSoft : tone === 'warning' ? colors.warningSoft : colors.brandSoft;
-  const fg = tone === 'danger' ? colors.danger : tone === 'warning' ? colors.warning : colors.brand;
-
+function RowAction({
+  label,
+  onPress,
+  danger,
+}: {
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+}) {
   return (
-    <View style={[styles.tag, { backgroundColor: bg }]}>
-      <Text style={[styles.tagText, { color: fg }]}>{text}</Text>
-    </View>
+    <Pressable
+      style={[actionStyles.button, danger && actionStyles.danger]}
+      onPress={onPress}
+      hitSlop={4}
+    >
+      <Text style={[actionStyles.text, danger && actionStyles.dangerText]}>{label}</Text>
+    </Pressable>
   );
 }
+
+const actionStyles = StyleSheet.create({
+  button: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
+    borderRadius: radius.sm,
+    backgroundColor: colors.brandSoft,
+  },
+  danger: { backgroundColor: colors.dangerSoft },
+  text: { ...typography.tiny, color: colors.brand },
+  dangerText: { color: colors.danger },
+});
 
 function CouponSheet({
   target,
@@ -161,19 +225,7 @@ function CouponSheet({
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  card: {
-    padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, gap: spacing.xs,
-  },
-  cardHead: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  cardHeadText: { flex: 1 },
   code: { ...typography.heading, color: colors.text, textAlign: 'right', ...typography.mono },
-  used: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
-  percent: { ...typography.title, color: colors.brand, ...typography.mono },
-  tags: { flexDirection: 'row-reverse', gap: spacing.xs, flexWrap: 'wrap' },
-  tag: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.pill },
-  tagText: { ...typography.tiny },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },
   sheet: {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { shop } from '@galokids/core';
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, shop } from '@galokids/core';
 import { Button, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { colors, radius, shadow, spacing, TOUCH_TARGET, typography } from '@/theme';

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
-import { timeAgo } from '@galokids/core';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, timeAgo } from '@galokids/core';
 import { Button, Row, Screen, Stat } from '@/components/kit';
-import { catalogueSize, devicePrefix, outboxCounts, resetCatalogue, setDevicePrefix } from '@/offline';
+import { catalogueSize, devicePrefix, resetCatalogue, setDevicePrefix } from '@/offline';
 import { useSession } from '@/state/useSession';
 import { useSync } from '@/state/useSync';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';

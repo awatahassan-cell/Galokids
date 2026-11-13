@@ -1,6 +1,6 @@
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { displayPhone } from '@galokids/core';
+import { Alert, displayPhone } from '@galokids/core';
 import { PageWash, PrimaryButton, TabBar } from '@/components/ui';
 import { useAccount } from '@/state/useAccount';
 import { useBasket } from '@/state/useBasket';
@@ -26,13 +26,6 @@ export default function AccountScreen() {
       await signOut();
       router.replace('/');
     };
-
-    // Alert has no buttons on web, so asking there would sign them out with no
-    // way to say no.
-    if (Platform.OS === 'web') {
-      go();
-      return;
-    }
 
     Alert.alert('چوونەدەرەوە', 'دڵنیایی؟ سەبەتە و دڵخوازەکانت لەسەر ئەم مۆبایلە دەمێننەوە.', [
       { text: 'نەخێر', style: 'cancel' },

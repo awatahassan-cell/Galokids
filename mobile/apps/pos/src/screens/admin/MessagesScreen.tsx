@@ -1,8 +1,9 @@
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { backoffice, displayPhone, timeAgo, type ContactMessage, type Paginated } from '@galokids/core';
+import { StyleSheet, Text, View } from 'react-native';
+import { Alert, backoffice, displayPhone, timeAgo, type ContactMessage, type Paginated } from '@galokids/core';
 import { Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
-import { colors, radius, spacing, typography } from '@/theme';
+import { colors, radius, typography } from '@/theme';
 
 /**
  * What customers wrote in.
@@ -47,51 +48,55 @@ export default function MessagesScreen() {
       ) : messages.length === 0 ? (
         <Empty title="هیچ پەیامێک نییە" />
       ) : (
-        <FlatList
-          data={messages}
-          keyExtractor={message => String(message.id)}
-          contentContainerStyle={styles.list}
+        <Table
+          rows={messages}
+          keyFor={message => String(message.id)}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
-          renderItem={({ item }) => (
-            <Pressable
-              style={[styles.card, !item.read_at && styles.cardUnread]}
-              onPress={() => markRead(item)}
-            >
-              <View style={styles.head}>
-                {!item.read_at && <View style={styles.dot} />}
-
-                <View style={styles.headText}>
-                  <Text style={styles.name}>{item.name}</Text>
-                  <Text style={styles.contact}>
-                    {[displayPhone(item.phone), item.email].filter(Boolean).join(' · ')}
-                  </Text>
-                </View>
-
-                <Text style={styles.when}>{timeAgo(item.created_at)}</Text>
-              </View>
-
-              <Text style={styles.message}>{item.message}</Text>
-            </Pressable>
-          )}
+          onPress={markRead}
+          columns={COLUMNS}
         />
       )}
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  list: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  card: {
-    padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border, gap: spacing.xs,
+// The panel's inbox: who wrote, how to reach them, what they said, when, and
+// whether anyone has opened it. Tapping a row marks it read.
+const COLUMNS: Column<ContactMessage>[] = [
+  {
+    title: 'نێرەر',
+    width: 1.6,
+    primary: true,
+    render: message => (
+      <Titled
+        title={message.name}
+        sub={[displayPhone(message.phone), message.email].filter(Boolean).join(' · ') || null}
+        leading={!message.read_at ? <View style={styles.dot} /> : undefined}
+      />
+    ),
   },
-  cardUnread: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
-  head: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  headText: { flex: 1 },
+  {
+    title: 'پەیام',
+    width: 3.4,
+    render: message => (
+      <Text style={[styles.message, !message.read_at && styles.messageUnread]} numberOfLines={3}>
+        {message.message}
+      </Text>
+    ),
+  },
+  { title: 'بەروار', width: 1, align: 'center', render: message => timeAgo(message.created_at) },
+  {
+    title: 'دۆخ',
+    width: 0.9,
+    align: 'center',
+    render: message =>
+      message.read_at ? <Pill label="خوێندراوە" tone="neutral" /> : <Pill label="نوێ" tone="info" />,
+  },
+];
+
+const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: radius.pill, backgroundColor: colors.brand },
-  name: { ...typography.heading, color: colors.text, textAlign: 'right' },
-  contact: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
-  when: { ...typography.tiny, color: colors.textFaint },
-  message: { ...typography.small, color: colors.text, textAlign: 'right', lineHeight: 22 },
+  message: { ...typography.small, color: colors.textMuted, textAlign: 'right' },
+  messageUnread: { color: colors.text },
 });

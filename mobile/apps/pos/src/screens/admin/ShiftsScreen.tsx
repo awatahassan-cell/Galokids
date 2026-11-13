@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
-import { formatDateTime, formatIQD, shifts, type Shift } from '@galokids/core';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, formatDateTime, formatIQD, shifts, type Shift } from '@galokids/core';
 import {
   Button,
   Empty,
@@ -9,8 +9,8 @@ import {
   Problem,
   Row,
   Screen,
-  Stat,
 } from '@/components/kit';
+import { Pill, Table, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { useSync } from '@/state/useSync';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
@@ -145,42 +145,64 @@ export default function ShiftsScreen() {
           ) : (history.data?.length ?? 0) === 0 ? (
             <Empty title="هێشتا هیچ شیفتێک نییە" />
           ) : (
-            <View style={styles.list}>
-              {(history.data ?? []).map(shift => {
-                const difference =
-                  shift.closing_amount != null ? shift.closing_amount - shift.opening_float : null;
-
-                return (
-                  <View key={shift.id} style={styles.historyRow}>
-                    <View style={styles.historyBody}>
-                      <Text style={styles.historyWho}>{shift.user_name ?? `کارمەند #${shift.user_id}`}</Text>
-                      <Text style={styles.historyWhen}>
-                        {formatDateTime(shift.opened_at)}
-                        {shift.closed_at ? ` → ${formatDateTime(shift.closed_at)}` : ' — کراوە'}
-                      </Text>
-                    </View>
-
-                    {difference != null && (
-                      <Text
-                        style={[
-                          styles.difference,
-                          { color: difference < 0 ? colors.danger : colors.success },
-                        ]}
-                      >
-                        {difference >= 0 ? '+' : ''}
-                        {formatIQD(difference)}
-                      </Text>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
+            <Table
+              inline
+              rows={history.data ?? []}
+              keyFor={shift => String(shift.id)}
+              columns={HISTORY}
+            />
           )}
         </>
       )}
     </Screen>
   );
 }
+
+// Every drawer that has been opened: whose, from when to when, what was in it
+// at each end, and the gap between the two — which is the number that matters.
+const HISTORY: Column<Shift>[] = [
+  {
+    title: 'کاشێر',
+    width: 1.5,
+    primary: true,
+    render: shift => shift.user_name ?? `کارمەند #${shift.user_id}`,
+  },
+  { title: 'کردنەوە', width: 1.3, render: shift => formatDateTime(shift.opened_at) },
+  {
+    title: 'داخستن',
+    width: 1.3,
+    render: shift => (shift.closed_at ? formatDateTime(shift.closed_at) : '—'),
+  },
+  {
+    title: 'پارەی سەرەتا',
+    width: 1.1,
+    align: 'center',
+    render: shift => formatIQD(shift.opening_float),
+  },
+  {
+    title: 'پارەی کۆتایی',
+    width: 1.1,
+    align: 'center',
+    render: shift => (shift.closing_amount != null ? formatIQD(shift.closing_amount) : '—'),
+  },
+  {
+    title: 'جیاوازی',
+    width: 1.1,
+    align: 'center',
+    render: shift => {
+      if (shift.closing_amount == null) return <Pill label="کراوەیە" tone="info" />;
+
+      const difference = shift.closing_amount - shift.opening_float;
+
+      return (
+        <Pill
+          label={`${difference >= 0 ? '+' : ''}${formatIQD(difference)}`}
+          tone={difference < 0 ? 'bad' : 'good'}
+        />
+      );
+    },
+  },
+];
 
 const styles = StyleSheet.create({
   panel: {
@@ -210,19 +232,4 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   sectionTitle: { ...typography.heading, color: colors.text, textAlign: 'right', marginTop: spacing.md },
-  list: { gap: spacing.xs },
-  historyRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  historyBody: { flex: 1 },
-  historyWho: { ...typography.small, color: colors.text, textAlign: 'right' },
-  historyWhen: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },
-  difference: { ...typography.heading, ...typography.mono },
 });

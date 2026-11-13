@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { backoffice, catalogue, type Category } from '@galokids/core';
+import { Modal, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, backoffice, catalogue, type Category } from '@galokids/core';
 import { Button, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 
@@ -27,18 +28,13 @@ export default function CategoriesScreen() {
       ) : (list.data?.length ?? 0) === 0 ? (
         <Empty title="هیچ بەشێک نییە" />
       ) : (
-        <FlatList
-          data={list.data!}
-          keyExtractor={category => String(category.id)}
-          contentContainerStyle={styles.list}
+        <Table
+          rows={list.data!}
+          keyFor={category => String(category.id)}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
-          renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => setEditing(item)}>
-              <Text style={styles.count}>{item.products_count ?? 0}</Text>
-              <Text style={styles.name}>{item.name_ku || item.name}</Text>
-            </Pressable>
-          )}
+          onPress={setEditing}
+          columns={COLUMNS}
         />
       )}
 
@@ -50,6 +46,29 @@ export default function CategoriesScreen() {
     </Screen>
   );
 }
+
+// The shop's departments: the name in each language, and how much is in it.
+const COLUMNS: Column<Category>[] = [
+  {
+    title: 'بەش',
+    width: 2,
+    primary: true,
+    render: category => <Titled title={category.name_ku || category.name} sub={category.slug} />,
+  },
+  { title: 'ئینگلیزی', width: 1.4, render: category => category.name || '—' },
+  { title: 'عەرەبی', width: 1.4, render: category => category.name_ar || '—' },
+  {
+    title: 'بەرهەم',
+    width: 0.9,
+    align: 'center',
+    render: category => (
+      <Pill
+        label={String(category.products_count ?? 0)}
+        tone={(category.products_count ?? 0) > 0 ? 'info' : 'neutral'}
+      />
+    ),
+  },
+];
 
 function CategorySheet({
   target,
@@ -115,18 +134,6 @@ function CategorySheet({
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.xs, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
-  row: {
-    flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm,
-    minHeight: TOUCH_TARGET + 6, paddingHorizontal: spacing.md,
-    borderRadius: radius.md, backgroundColor: colors.surface,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  name: { flex: 1, ...typography.body, color: colors.text, textAlign: 'right' },
-  count: {
-    minWidth: 34, textAlign: 'center', ...typography.small,
-    color: colors.brand, ...typography.mono,
-  },
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg,
