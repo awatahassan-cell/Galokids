@@ -32,10 +32,9 @@ import { colors, fonts, radius, spacing, TOUCH_TARGET, typography } from '@/them
 export function TillBar({
   shiftState,
   heldCount,
-  canHold,
+  wide,
   onShift,
   onCash,
-  onHold,
   onHeld,
   onRecent,
   onReturn,
@@ -43,10 +42,10 @@ export function TillBar({
 }: {
   shiftState: 'open' | 'closed' | 'unknown';
   heldCount: number;
-  canHold: boolean;
+  /** On a desk the quick add sits beside the search box instead. */
+  wide: boolean;
   onShift: () => void;
   onCash: () => void;
-  onHold: () => void;
   onHeld: () => void;
   onRecent: () => void;
   onReturn: () => void;
@@ -81,11 +80,10 @@ export function TillBar({
       </Pressable>
 
       <Tool label="پارە لە دراوەر" onPress={onCash} disabled={shiftState !== 'open'} />
-      <Tool label="هێشتنەوە" onPress={onHold} disabled={!canHold} />
       <Tool label={heldCount ? `هێڵراوەکان (${heldCount})` : 'هێڵراوەکان'} onPress={onHeld} />
       <Tool label="فرۆشتنەکانی ئەمڕۆ" onPress={onRecent} />
       <Tool label="گەڕاندنەوە / گۆڕینەوە" onPress={onReturn} />
-      <Tool label="بەرهەمی خێرا" onPress={onQuick} />
+      {!wide && <Tool label="بەرهەمی خێرا" onPress={onQuick} />}
     </ScrollView>
   );
 }

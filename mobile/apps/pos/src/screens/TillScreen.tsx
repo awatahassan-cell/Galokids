@@ -40,6 +40,7 @@ export default function TillScreen() {
 
   const [busy, setBusy] = useState(false);
   const [cashGiven, setCashGiven] = useState('');
+  const [payMethod, setPayMethod] = useState<'cash' | 'card'>('cash');
   const [scanning, setScanning] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [sheet, setSheet] = useState<'shift' | 'cash' | 'held' | 'recent' | 'return' | 'quick' | null>(null);
@@ -91,8 +92,9 @@ export default function TillScreen() {
   );
 
   const takePayment = useCallback(
-    async (method: 'cash' | 'card') => {
+    async (print: boolean) => {
       if (cart.lines.length === 0 || busy) return;
+      const method = payMethod;
 
       // Only a definite "no shift" stops a sale. If the till cannot reach the
       // server it cannot know, and a shop that has lost its wifi still has to
@@ -182,29 +184,26 @@ export default function TillScreen() {
         // nothing here waits for it and nothing here fails if it cannot go.
         syncNow({ pullCatalogue: false });
 
-        Alert.alert(
-          'فرۆشتن تۆمارکرا',
-          `پسووڵە ${row.invoice_no}\nکۆی گشتی ${formatIQD(total)}` +
-            (change > 0 ? `\nگەڕاوە ${formatIQD(change)}` : '') +
-            '\n\nپسووڵە چاپ بکەم؟',
-          [
-            { text: 'نەخێر', style: 'cancel' },
-            {
-              text: 'چاپکردنی پسووڵە',
-              onPress: () =>
-                printLabelSheet(buildReceiptHtml(sold, storeInfo(settings.data))).catch(error =>
-                  Alert.alert('نەتوانرا چاپ بکرێت', (error as Error).message)
-                ),
-            },
-          ]
-        );
+        if (print) {
+          // Sell and print, as the panel's button does: the receipt goes
+          // straight to the printer with nothing to confirm in between.
+          printLabelSheet(buildReceiptHtml(sold, storeInfo(settings.data))).catch(error =>
+            Alert.alert('نەتوانرا چاپ بکرێت', (error as Error).message)
+          );
+        } else {
+          Alert.alert(
+            'فرۆشتن تۆمارکرا',
+            `پسووڵە ${row.invoice_no}\nکۆی گشتی ${formatIQD(total)}` +
+              (change > 0 ? `\nگەڕاوە ${formatIQD(change)}` : '')
+          );
+        }
       } catch (error) {
         Alert.alert('نەتوانرا تۆمار بکرێت', (error as Error).message);
       } finally {
         setBusy(false);
       }
     },
-    [busy, cart, cashGiven, syncNow, shift.state, settings.data]
+    [busy, cart, cashGiven, syncNow, shift.state, settings.data, payMethod]
   );
 
   const holdSale = () => {
@@ -229,7 +228,14 @@ export default function TillScreen() {
       busy={busy}
       cashGiven={cashGiven}
       onCash={setCashGiven}
-      onPay={takePayment}
+      method={payMethod}
+      onMethod={setPayMethod}
+      onSell={takePayment}
+      onHold={holdSale}
+      onClear={() => {
+        cart.clear();
+        setCashGiven('');
+      }}
       onScan={() => setScanning(true)}
     />
   );
@@ -244,16 +250,26 @@ export default function TillScreen() {
           <TillBar
             shiftState={shift.state}
             heldCount={held.held.length}
-            canHold={cart.lines.length > 0}
+            wide={wide}
             onShift={() => setSheet('shift')}
             onCash={() => setSheet('cash')}
-            onHold={holdSale}
             onHeld={() => setSheet('held')}
             onRecent={() => setSheet('recent')}
             onReturn={() => setSheet('return')}
             onQuick={() => setSheet('quick')}
           />
-          <ProductGrid onPick={pick} columns={columns} />
+          <ProductGrid
+            onPick={pick}
+            columns={columns}
+            toolbar={
+              wide ? (
+                <Pressable style={styles.quickAdd} onPress={() => setSheet('quick')}>
+                  <Text style={styles.quickAddPlus}>＋</Text>
+                  <Text style={styles.quickAddText}>زیادکردنی خێرای بەرهەم</Text>
+                </Pressable>
+              ) : undefined
+            }
+          />
         </View>
 
         {/* On a desk the cart stands beside the grid, as it does in the panel.
@@ -382,17 +398,27 @@ function CartPanel({
   busy,
   cashGiven,
   onCash,
-  onPay,
+  method,
+  onMethod,
+  onSell,
+  onHold,
+  onClear,
   onScan,
 }: {
   cart: ReturnType<typeof useCart>;
   busy: boolean;
   cashGiven: string;
   onCash: (next: string) => void;
-  onPay: (method: 'cash' | 'card') => void;
+  method: 'cash' | 'card';
+  onMethod: (next: 'cash' | 'card') => void;
+  onSell: (print: boolean) => void;
+  onHold: () => void;
+  onClear: () => void;
   onScan: () => void;
 }) {
-  const change = Math.max(0, Number(cashGiven || 0) - cart.totals.total);
+  const empty = cart.lines.length === 0;
+  const received = Number(cashGiven || 0);
+  const change = method === 'cash' ? Math.max(0, received - cart.totals.total) : 0;
 
   return (
     <View style={styles.panel}>
@@ -402,18 +428,22 @@ function CartPanel({
           <Text style={styles.scanButtonText}>سکێن</Text>
         </Pressable>
 
-        <Text style={styles.panelTitle}>
-          سەبەتە · {cart.lines.reduce((sum, line) => sum + line.quantity, 0)}
-        </Text>
+        <Text style={styles.panelTitle}>سەبەتە · {cart.totals.itemCount}</Text>
       </View>
 
-      {cart.lines.length === 0 ? (
+      {/* Who it is for: the panel's customer card, at the top of the basket. */}
+      <View style={styles.customerCard}>
+        <View style={styles.customerHead}>
+          <Text style={styles.customerTitle}>زانیاری کڕیار</Text>
+        </View>
+        <CustomerBox customer={cart.customer} onChange={cart.setCustomer} />
+      </View>
+
+      {empty ? (
         <View style={styles.cartEmpty}>
           <NavIcon name="till" size={26} color={colors.textFaint} />
           <Text style={styles.cartEmptyTitle}>سەبەتە بەتاڵە</Text>
-          <Text style={styles.cartEmptyBody}>
-            بەرهەمێک هەڵبژێرە یان بارکۆدێک سکێن بکە.
-          </Text>
+          <Text style={styles.cartEmptyBody}>بەرهەمێک هەڵبژێرە یان بارکۆدێک سکێن بکە.</Text>
         </View>
       ) : (
         <FlatList
@@ -421,62 +451,89 @@ function CartPanel({
           keyExtractor={line => line.key}
           contentContainerStyle={styles.lines}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <Line line={item} onChange={cart.setQuantity} onRemove={cart.remove} />
-          )}
+          style={{ flex: 1 }}
+          renderItem={({ item }) => <Line line={item} onChange={cart.setQuantity} onRemove={cart.remove} />}
         />
       )}
 
       <View style={styles.totals}>
-        <CustomerBox customer={cart.customer} onChange={cart.setCustomer} />
-        <DiscountBox discount={cart.discount} onChange={cart.setDiscount} />
-
-        {cart.totals.discount > 0 && (
-          <View style={styles.totalRow}>
-            <Text style={styles.subLabel}>داشکاندن</Text>
-            <Text style={styles.subValue}>{formatIQD(-cart.totals.discount)}</Text>
+        {/* Discount, and how it is paid: a card or cash. */}
+        <View style={styles.modeRow}>
+          <View style={styles.methodToggle}>
+            {(['cash', 'card'] as const).map(option => (
+              <Pressable
+                key={option}
+                style={[styles.methodBtn, method === option && styles.methodOn]}
+                onPress={() => onMethod(option)}
+              >
+                <Text style={[styles.methodText, method === option && styles.methodTextOn]}>
+                  {option === 'cash' ? 'نەقد' : 'کارت'}
+                </Text>
+              </Pressable>
+            ))}
           </View>
-        )}
-
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>کۆی گشتی</Text>
-          <Text style={styles.totalValue}>{formatIQD(cart.totals.total)}</Text>
+          <View style={{ flex: 1 }}>
+            <DiscountBox discount={cart.discount} onChange={cart.setDiscount} />
+          </View>
         </View>
 
-        <TextInput
-          style={styles.cashInput}
-          value={cashGiven}
-          onChangeText={onCash}
-          keyboardType="number-pad"
-          placeholder="پارەی وەرگیراو (نەقد)"
-          placeholderTextColor={colors.textFaint}
-          textAlign="right"
-        />
-
-        {change > 0 && (
-          <View style={styles.changeRow}>
-            <Text style={styles.changeLabel}>گەڕاوە</Text>
-            <Text style={styles.changeValue}>{formatIQD(change)}</Text>
-          </View>
+        {method === 'cash' && (
+          <TextInput
+            style={styles.cashInput}
+            value={cashGiven}
+            onChangeText={onCash}
+            keyboardType="number-pad"
+            placeholder="پارەی وەرگیراو"
+            placeholderTextColor={colors.textFaint}
+          />
         )}
 
-        <View style={styles.payRow}>
-          <Pressable
-            style={[styles.pay, styles.payCard, cart.lines.length === 0 && styles.payDisabled]}
-            disabled={cart.lines.length === 0 || busy}
-            onPress={() => onPay('card')}
-          >
-            <Text style={styles.payCardText}>کارت</Text>
+        {/* The figures, on the dark card the panel uses. */}
+        <View style={styles.sumCard}>
+          <View style={styles.sumLine}>
+            <Text style={styles.sumLabel}>کۆی لاوەکی:</Text>
+            <Text style={styles.sumValue}>{formatIQD(cart.totals.subtotal)}</Text>
+          </View>
+          {cart.totals.discount > 0 && (
+            <View style={styles.sumLine}>
+              <Text style={styles.sumLabel}>داشکاندن:</Text>
+              <Text style={styles.sumValue}>{formatIQD(-cart.totals.discount)}</Text>
+            </View>
+          )}
+          {change > 0 && (
+            <View style={styles.sumLine}>
+              <Text style={styles.sumLabel}>ماوە بۆ کڕیار:</Text>
+              <Text style={[styles.sumValue, { color: '#6ee7b7' }]}>{formatIQD(change)}</Text>
+            </View>
+          )}
+          <View style={styles.sumDivider} />
+          <View style={styles.sumLine}>
+            <Text style={styles.sumGrandLabel}>کۆی گشتی بۆ پارەدان:</Text>
+            <Text style={styles.sumGrand}>{formatIQD(cart.totals.total)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.actionRow}>
+          <Pressable style={[styles.clearBtn, empty && styles.payDisabled]} disabled={empty} onPress={onClear} accessibilityLabel="پاککردنەوەی سەبەتە">
+            <Text style={styles.clearText}>✕</Text>
+          </Pressable>
+
+          <Pressable style={[styles.holdBtn, empty && styles.payDisabled]} disabled={empty || busy} onPress={onHold}>
+            <Text style={styles.holdText}>هەڵپەسێردن</Text>
           </Pressable>
 
           <Pressable
-            style={[styles.pay, styles.payCash, cart.lines.length === 0 && styles.payDisabled]}
-            disabled={cart.lines.length === 0 || busy}
-            onPress={() => onPay('cash')}
+            style={[styles.sellBtn, (empty || busy) && styles.payDisabled]}
+            disabled={empty || busy}
+            onPress={() => onSell(true)}
           >
-            <Text style={styles.payCashText}>{busy ? 'چاوەڕێ بکە…' : 'نەقد'}</Text>
+            <Text style={styles.sellText}>{busy ? 'چاوەڕێ بکە…' : 'فرۆشتن و چاپکردن'}</Text>
           </Pressable>
         </View>
+
+        <Pressable disabled={empty || busy} onPress={() => onSell(false)} style={styles.noPrint}>
+          <Text style={[styles.noPrintText, (empty || busy) && { opacity: 0.4 }]}>فرۆشتن بێ چاپکردن</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -579,6 +636,61 @@ export function VariationPicker({
 }
 
 const styles = StyleSheet.create({
+  quickAdd: {
+    height: 46,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.ink,
+  },
+  quickAddPlus: { color: '#a5b4fc', fontSize: 15 },
+  quickAddText: { color: '#fff', ...typography.small },
+
+  customerCard: {
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(248,250,252,0.9)',
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  customerHead: { flexDirection: 'row-reverse' },
+  customerTitle: { ...typography.tiny, color: colors.text },
+
+  modeRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
+  methodToggle: {
+    flexDirection: 'row-reverse',
+    padding: 3,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(241,245,249,0.9)',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  methodBtn: { paddingHorizontal: spacing.md, height: 34, justifyContent: 'center', borderRadius: radius.md },
+  methodOn: { backgroundColor: colors.ink },
+  methodText: { ...typography.tiny, color: colors.textMuted },
+  methodTextOn: { color: '#fff' },
+
+  sumCard: { gap: 4, padding: spacing.md, borderRadius: radius.lg, backgroundColor: '#0f172a' },
+  sumLine: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
+  sumLabel: { ...typography.tiny, color: '#94a3b8' },
+  sumValue: { ...typography.small, color: '#fff' },
+  sumDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.12)', marginVertical: 2 },
+  sumGrandLabel: { ...typography.small, color: '#fff' },
+  sumGrand: { fontSize: 22, fontFamily: fonts.bold, lineHeight: 32, color: '#34d399' },
+
+  actionRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
+  sellBtn: { flex: 2, minHeight: 48, borderRadius: radius.lg, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
+  sellText: { color: '#fff', ...typography.heading },
+  holdBtn: { flex: 1.3, minHeight: 48, borderRadius: radius.lg, backgroundColor: '#fbbf24', alignItems: 'center', justifyContent: 'center' },
+  holdText: { color: '#fff', ...typography.heading },
+  clearBtn: { width: 48, height: 48, borderRadius: radius.lg, backgroundColor: '#f43f5e', alignItems: 'center', justifyContent: 'center' },
+  clearText: { color: '#fff', fontSize: 16 },
+  noPrint: { alignItems: 'center', paddingVertical: 2 },
+  noPrintText: { ...typography.tiny, color: colors.textMuted },
+
   screen: { flex: 1 },
   body: { flex: 1, padding: spacing.md, gap: spacing.md },
   bodyWide: { flexDirection: 'row-reverse' },
