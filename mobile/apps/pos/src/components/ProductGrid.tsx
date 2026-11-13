@@ -1,12 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { Image } from 'expo-image';
 import { formatIQD } from '@galokids/core';
 import {
@@ -37,9 +31,18 @@ import { colors, fonts, radius, shadow, spacing, typography } from '@/theme';
 export function ProductGrid({
   onPick,
   columns,
+  toolbar,
+  categoryId,
+  belowSearch,
 }: {
   onPick: (product: LocalProduct, variation: LocalVariation | null) => void;
   columns: number;
+  /** Buttons that sit beside the search box — the page order's barcode and custom item. */
+  toolbar?: React.ReactNode;
+  /** Show only this section's products. */
+  categoryId?: number | null;
+  /** Something between the search box and the products — the page order's section chips. */
+  belowSearch?: React.ReactNode;
 }) {
   const [term, setTerm] = useState('');
   const [products, setProducts] = useState<LocalProduct[]>([]);
@@ -71,11 +74,14 @@ export function ProductGrid({
     return () => clearTimeout(timer);
   }, [term, load]);
 
-  const empty = !loading && products.length === 0;
+  const shown = categoryId ? products.filter(product => product.category_id === categoryId) : products;
+  const empty = !loading && shown.length === 0;
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.searchBar}>
+      <View style={styles.searchRow}>
+      {toolbar}
+      <View style={[styles.searchBar, toolbar ? { flex: 1 } : null]}>
         <NavIcon name="products" size={16} color={colors.brand} />
 
         <TextInput
@@ -94,6 +100,8 @@ export function ProductGrid({
           </Pressable>
         )}
       </View>
+      </View>
+      {belowSearch}
 
       {empty ? (
         <View style={styles.empty}>
@@ -108,7 +116,7 @@ export function ProductGrid({
         </View>
       ) : (
         <FlatList
-          data={products}
+          data={shown}
           key={columns}
           numColumns={columns}
           keyExtractor={product => String(product.id)}
@@ -212,6 +220,7 @@ function ProductTile({
 }
 
 const styles = StyleSheet.create({
+  searchRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
   wrap: { flex: 1, gap: spacing.sm },
 
   searchBar: {
@@ -220,11 +229,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     minHeight: 46,
     paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(241,245,249,0.85)',
     borderWidth: 1,
     borderColor: colors.border,
-    ...shadow.card,
   },
   search: { flex: 1, ...typography.body, color: colors.text },
   clear: { ...typography.small, color: colors.textFaint, paddingHorizontal: spacing.xs },

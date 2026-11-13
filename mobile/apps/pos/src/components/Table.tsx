@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLayout } from '@galokids/core';
 import { colors, radius, shadow, spacing, typography } from '@/theme';
@@ -36,6 +36,15 @@ export interface Column<T> {
   /** The heading line on a phone, drawn large with no label. */
   primary?: boolean;
 }
+
+/**
+ * Whether a cell is being drawn as one of a stacked card's labelled values.
+ *
+ * In a card the label sits on the right and its value on the left, so a cell
+ * that aligns itself to the right — the two-line name and sub-line — would
+ * crowd up against its own label instead of lining up with the other values.
+ */
+const StackedCell = createContext(false);
 
 export function Table<T>({
   columns,
@@ -219,7 +228,9 @@ function StackedRow<T>({
         {rest.map(column => (
           <View key={column.title} style={styles.pair}>
             <Text style={styles.pairLabel}>{column.title}</Text>
-            <Cell align="end">{column.render(row)}</Cell>
+            <StackedCell.Provider value>
+              <Cell align="end">{column.render(row)}</Cell>
+            </StackedCell.Provider>
           </View>
         ))}
       </View>
@@ -315,16 +326,18 @@ export function Titled({
   sub?: string | null;
   leading?: ReactNode;
 }) {
+  const stacked = useContext(StackedCell);
+
   return (
-    <View style={styles.titled}>
+    <View style={[styles.titled, stacked && styles.titledStacked]}>
       {leading}
 
-      <View style={styles.titledText}>
-        <Text style={styles.titledTitle} numberOfLines={1}>
+      <View style={[styles.titledText, stacked && { alignItems: 'flex-start' }]}>
+        <Text style={[styles.titledTitle, stacked && { textAlign: 'left' }]} numberOfLines={1}>
           {title}
         </Text>
         {sub ? (
-          <Text style={styles.titledSub} numberOfLines={1}>
+          <Text style={[styles.titledSub, stacked && { textAlign: 'left' }]} numberOfLines={1}>
             {sub}
           </Text>
         ) : null}
@@ -411,6 +424,7 @@ const styles = StyleSheet.create({
   pillText: { ...typography.tiny },
 
   titled: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm, width: '100%' },
+  titledStacked: { width: 'auto', flexShrink: 1 },
   titledText: { flex: 1, alignItems: 'flex-end', minWidth: 0 },
   titledTitle: { ...typography.small, color: colors.text, textAlign: 'right' },
   titledSub: { ...typography.tiny, color: colors.textFaint, textAlign: 'right' },

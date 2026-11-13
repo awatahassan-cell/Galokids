@@ -1,14 +1,6 @@
 import type { ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { useRouter } from 'expo-router';
 import { ApiError, formatIQD, useLayout } from '@galokids/core';
 import { useSync } from '@/state/useSync';
@@ -46,7 +38,7 @@ export function Screen({
   const { wide, gutter, maxContentWidth } = useLayout();
 
   const header = (
-    <View style={[styles.header, { paddingHorizontal: gutter }]}>
+    <View style={[styles.header, { paddingHorizontal: gutter + (wide ? 8 : 0) }]}>
       {!wide && (
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.back}>
           <Text style={styles.backText}>→</Text>
@@ -281,12 +273,18 @@ export function Button({
 }: {
   label: string;
   onPress: () => void;
-  tone?: 'brand' | 'quiet' | 'danger';
+  tone?: 'brand' | 'quiet' | 'danger' | 'ink';
   disabled?: boolean;
 }) {
   const background =
-    tone === 'brand' ? colors.brand : tone === 'danger' ? colors.dangerSoft : colors.brandSoft;
-  const text = tone === 'brand' ? '#fff' : tone === 'danger' ? colors.danger : colors.brand;
+    tone === 'brand'
+      ? colors.brand
+      : tone === 'ink'
+        ? colors.ink
+        : tone === 'danger'
+          ? colors.dangerSoft
+          : colors.brandSoft;
+  const text = tone === 'brand' || tone === 'ink' ? '#fff' : tone === 'danger' ? colors.danger : colors.brand;
 
   return (
     <Pressable
@@ -301,12 +299,13 @@ export function Button({
 
 const styles = StyleSheet.create({
   chipStrip: { flexGrow: 0, flexShrink: 0 },
-  screen: { flex: 1, backgroundColor: colors.background },
+  // Transparent: the shell's card (wide) or gradient (phone) is the background.
+  screen: { flex: 1 },
   header: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.md,
   },
   headerText: { flex: 1 },
@@ -316,7 +315,7 @@ const styles = StyleSheet.create({
   backText: { ...typography.title, color: colors.brand },
 
   scroll: { paddingBottom: spacing.xxl },
-  body: { gap: spacing.md, width: '100%', alignSelf: 'flex-end' },
+  body: { gap: spacing.md, width: '100%', alignSelf: 'flex-end', flex: 1, paddingBottom: spacing.lg },
 
   centre: { alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
   problemMark: { fontSize: 36 },
@@ -336,7 +335,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: 150,
     padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: radius.xl,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -375,14 +374,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  chipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  // Dark, like the panel's selected filter: indigo is kept for actions.
+  chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   chipText: { ...typography.small, color: colors.textMuted },
   chipTextActive: { color: '#fff' },
 
+  // The panel's field: a tinted well with a hairline, not a white box.
   search: {
     minHeight: TOUCH_TARGET,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(241,245,249,0.85)',
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
@@ -393,7 +394,7 @@ const styles = StyleSheet.create({
   button: {
     minHeight: TOUCH_TARGET,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },

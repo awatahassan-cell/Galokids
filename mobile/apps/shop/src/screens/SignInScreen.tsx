@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { TextInput as RNTextInput } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { displayPhone, isValidPhone } from '@galokids/core';
 import { PageWash, PrimaryButton, TabBar } from '@/components/ui';
@@ -41,7 +34,7 @@ export default function SignInScreen() {
   // A code lasts a few minutes. Counting down stops a shopper waiting for a
   // second message that the server will refuse to send yet.
   const [resendIn, setResendIn] = useState(0);
-  const codeField = useRef<TextInput>(null);
+  const codeField = useRef<RNTextInput>(null);
 
   useEffect(() => {
     if (resendIn <= 0) return;

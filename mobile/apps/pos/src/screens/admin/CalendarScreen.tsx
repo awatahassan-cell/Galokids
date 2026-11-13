@@ -122,7 +122,7 @@ export default function CalendarScreen() {
         <>
           <View style={styles.totals}>
             <Total label="داهاتی مانگ" value={formatIQD(totals.revenue)} />
-            <Total label="قازانج" value={formatIQD(totals.profit)} tone="good" />
+            <Total label="قازانج" value={formatIQD(totals.profit)} tone={totals.profit < 0 ? "bad" : "good"} />
             <Total label="داواکاری" value={String(totals.orders)} />
           </View>
 
@@ -182,7 +182,7 @@ export default function CalendarScreen() {
 
               <View style={styles.detailGrid}>
                 <Total label="داهات" value={formatIQD(chosen.revenue)} />
-                <Total label="قازانج" value={formatIQD(chosen.net_profit)} tone="good" />
+                <Total label="قازانج" value={formatIQD(chosen.net_profit)} tone={chosen.net_profit < 0 ? "bad" : "good"} />
                 <Total label="داواکاری" value={String(chosen.orders_count)} />
                 <Total label="دانە" value={String(chosen.items_sold)} />
                 <Total label="POS" value={formatIQD(chosen.pos_revenue)} />

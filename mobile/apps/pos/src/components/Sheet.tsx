@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { colors, radius, spacing, typography } from '@/theme';
 
 /**
@@ -64,6 +65,32 @@ export function Field({
       multiline={multiline}
       textAlign="right"
     />
+  );
+}
+
+/**
+ * A field with its label above it, the way the panel's forms are laid out:
+ * a small bold caption on the right, then the box.
+ */
+export function Labeled({
+  label,
+  required,
+  children,
+  half,
+}: {
+  label: string;
+  required?: boolean;
+  children: ReactNode;
+  half?: boolean;
+}) {
+  return (
+    <View style={[{ gap: 6 }, half && styles.half]}>
+      <Text style={styles.label}>
+        {label}
+        {required ? <Text style={{ color: colors.danger }}> *</Text> : null}
+      </Text>
+      {children}
+    </View>
   );
 }
 
@@ -133,18 +160,19 @@ const styles = StyleSheet.create({
   groupTitle: { ...typography.eyebrow, color: colors.textMuted, textAlign: 'right' },
 
   input: {
-    minHeight: 42,
+    minHeight: 44,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
     ...typography.small,
     color: colors.text,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(241,245,249,0.85)',
   },
   multiline: { minHeight: 70, paddingTop: spacing.sm, textAlignVertical: 'top' },
   half: { flex: 1, flexBasis: 0, minWidth: 0 },
 
+  label: { ...typography.tiny, color: colors.text, textAlign: 'right' },
   fact: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: spacing.md },
   factLabel: { ...typography.small, color: colors.textMuted },
   factValue: { ...typography.small, color: colors.text, flexShrink: 1, textAlign: 'left' },

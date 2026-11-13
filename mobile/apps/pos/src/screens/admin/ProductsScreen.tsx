@@ -185,7 +185,7 @@ export default function ProductsScreen() {
       title="بەرهەمەکان"
       subtitle="لەسەر ئەم ئامێرە — بێ ئینتەرنێتیش کاردەکات"
       scroll={false}
-      actions={can('products.manage') ? <Button label="بەرهەمی نوێ" onPress={() => setEditing('new')} /> : undefined}
+      actions={can('products.manage') ? <Button tone="ink" label="بەرهەمی نوێ" onPress={() => setEditing('new')} /> : undefined}
     >
       <View style={styles.stats}>
         <Stat label="بەرهەم" value={String(counts.products)} />

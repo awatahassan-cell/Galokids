@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { catalogue, type Category, type Product } from '@galokids/core';
 import { Drawer, Header } from '@/components/Header';

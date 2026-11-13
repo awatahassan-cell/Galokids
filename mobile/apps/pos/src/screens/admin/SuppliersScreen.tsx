@@ -72,7 +72,7 @@ export default function SuppliersScreen() {
       title="دابینکەران"
       subtitle="هەژمار و قەرزەکان"
       scroll={false}
-      actions={manage ? <Button label="دابینکەری نوێ" onPress={() => setEditing('new')} /> : undefined}
+      actions={manage ? <Button tone="ink" label="دابینکەری نوێ" onPress={() => setEditing('new')} /> : undefined}
     >
       {offline ? (
         <NeedsConnection what="دابینکەران" />

@@ -134,7 +134,7 @@ export default function OverviewScreen() {
       <View style={styles.grid}>
         <Figure label="تێچووی کاڵا" value={formatIQD(figures.cogs)} />
         <Figure label="خەرجییەکان" value={formatIQD(figures.expenses)} />
-        <Figure label="قازانجی خاو" value={formatIQD(figures.gross_profit)} tone="good" />
+        <Figure label="قازانجی خاو" value={formatIQD(figures.gross_profit)} tone={figures.gross_profit < 0 ? 'bad' : 'good'} />
         <Figure label="گەڕدراوە" value={formatIQD(figures.refunded)} tone="bad" />
         <Figure label="دانەی فرۆشراو" value={String(figures.items_sold)} />
         <Figure
@@ -153,7 +153,7 @@ export default function OverviewScreen() {
           <>
             <Figure label="داهات" value={formatIQD(today.data.revenue)} />
             <Figure label="داواکاری" value={String(today.data.order_count)} />
-            <Figure label="قازانج" value={formatIQD(today.data.net_profit)} tone="good" />
+            <Figure label="قازانج" value={formatIQD(today.data.net_profit)} tone={today.data.net_profit < 0 ? 'bad' : 'good'} />
           </>
         ) : (
           <Text style={styles.todayWait}>نەتوانرا بخوێندرێتەوە</Text>

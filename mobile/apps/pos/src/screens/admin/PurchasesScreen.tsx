@@ -46,7 +46,7 @@ export default function PurchasesScreen() {
       title="کڕین"
       subtitle="وەصڵی کڕین و تێچووی کۆگا"
       scroll={false}
-      actions={can('purchases.manage') ? <Button label="کڕینی نوێ" onPress={() => setCreating(true)} /> : undefined}
+      actions={can('purchases.manage') ? <Button tone="ink" label="کڕینی نوێ" onPress={() => setCreating(true)} /> : undefined}
     >
       {offline ? (
         <NeedsConnection what="کڕینەکان" />

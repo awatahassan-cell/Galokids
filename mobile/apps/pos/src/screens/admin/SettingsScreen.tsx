@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { Alert, timeAgo } from '@galokids/core';
 import { Button, Row, Screen, Stat } from '@/components/kit';
 import { catalogueSize, devicePrefix, resetCatalogue, setDevicePrefix } from '@/offline';

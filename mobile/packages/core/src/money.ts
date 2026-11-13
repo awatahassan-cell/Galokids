@@ -10,7 +10,11 @@ export function formatIQD(amount: number | string | null | undefined): string {
   const value = Math.round(Number(amount ?? 0));
   if (!Number.isFinite(value)) return '0 د.ع';
 
-  return `${value.toLocaleString('en-US')} د.ع`;
+  // A leading left-to-right mark on a negative: in a right-to-left line the
+  // minus sign otherwise lands after the digits, so -5,000 reads as 5,000-.
+  const sign = value < 0 ? '\u200E-' : '';
+
+  return `${sign}${Math.abs(value).toLocaleString('en-US')} د.ع`;
 }
 
 /** What a line actually sells for: the discount when there is one. */

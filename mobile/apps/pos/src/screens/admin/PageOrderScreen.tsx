@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import * as Crypto from 'expo-crypto';
 import {
   Alert,
   GOVERNORATES,
+  backoffice,
+  catalogue,
+  type Category,
+  type CustomerLookup,
   formatIQD,
   orders as ordersApi,
   shop,
@@ -12,14 +17,18 @@ import {
 } from '@galokids/core';
 import { Button, Chips, Screen } from '@/components/kit';
 import { ProductGrid } from '@/components/ProductGrid';
-import { CustomerBox, DiscountBox, QuickAddSheet } from '@/components/TillTools';
+import { DiscountBox, QuickAddSheet } from '@/components/TillTools';
+import { Labeled } from '@/components/Sheet';
+import { Select } from '@/components/Select';
+import { BarcodeScanner } from '@/components/BarcodeScanner';
+import { NavIcon } from '@/navigation/NavIcon';
 import { printLabelSheet } from '@/labels/print';
 import { buildWaybillHtml, storeInfo, whatsappUrl } from '@/print/receipt';
 import { variationsFor, type LocalProduct, type LocalVariation } from '@/offline';
 import { Line, VariationPicker } from '@/screens/TillScreen';
 import { useCart } from '@/state/useCart';
 import { useFetch } from '@/state/useFetch';
-import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
+import { colors, fonts, radius, spacing, typography } from '@/theme';
 
 /**
  * Entering an order that came in through a page's messages.
@@ -67,6 +76,10 @@ export default function PageOrderScreen() {
   const [quote, setQuote] = useState<number | null>(null);
 
   const [adding, setAdding] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [found, setFound] = useState<CustomerLookup | null>(null);
   const [quick, setQuick] = useState(false);
   const [picking, setPicking] = useState<{ product: LocalProduct; options: LocalVariation[] } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -94,6 +107,45 @@ export default function PageOrderScreen() {
 
   const shipping = customShipping ? Math.max(0, Number(shippingInput) || 0) : (quote ?? 0);
   const grandTotal = goods + shipping;
+
+  useEffect(() => {
+    catalogue.categories().then(setCategories).catch(() => {});
+  }, []);
+
+  // A returning customer, found by phone — best-effort, never in the way.
+  const digits = cart.customer.phone.replace(/\D/g, '');
+  useEffect(() => {
+    setFound(null);
+    if (digits.length < 9) return;
+
+    let alive = true;
+    const timer = setTimeout(() => {
+      backoffice
+        .lookupCustomer(cart.customer.phone)
+        .then(result => {
+          if (!alive) return;
+          setFound(result);
+          if (result.found && result.name && !cart.customer.name) cart.setCustomer({ ...cart.customer, name: result.name });
+        })
+        .catch(() => {});
+    }, 500);
+
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [digits]);
+
+  const handleScan = async (code: string) => {
+    const result = await cart.scan(code);
+    if (result.ok) return setScanning(false);
+
+    if (result.reason === 'unknown') return Alert.alert('نەدۆزرایەوە', `بارکۆدی ${code} لە کەتەلۆگدا نییە.`);
+
+    setScanning(false);
+    setPicking({ product: result.product!, options: await variationsFor(result.product!.id) });
+  };
 
   const pick = async (product: LocalProduct, variation: LocalVariation | null) => {
     const options = variation ? [variation] : await variationsFor(product.id);
@@ -179,101 +231,210 @@ export default function PageOrderScreen() {
     if (url) Linking.openURL(url);
   };
 
-  const form = (
-    <View style={[styles.column, wide && styles.columnWide]}>
-      {/* ---- basket ---- */}
-      <Card title={`بەرهەمەکان · ${cart.totals.itemCount}`}>
-        {cart.lines.map(line => (
-          <Line key={line.key} line={line} onChange={cart.setQuantity} onRemove={cart.remove} />
-        ))}
+  const itemCount = cart.totals.itemCount;
+  const canSubmit = cart.lines.length > 0 && cart.customer.phone.trim().length > 0 && !busy;
 
-        <View style={styles.row}>
-          <Button label="زیادکردنی بەرهەم" onPress={() => setAdding(true)} />
-          <Button label="بەرهەمی خێرا" tone="quiet" onPress={() => setQuick(true)} />
-        </View>
-      </Card>
+  const barcodeTool = (
+    <Pressable style={styles.tool} onPress={() => setScanning(true)}>
+      <NavIcon name="labels" size={15} color={colors.textMuted} />
+      <Text style={styles.toolText}>بارکۆد</Text>
+    </Pressable>
+  );
 
-      {/* ---- customer ---- */}
-      <Card title="کڕیار">
-        <CustomerBox customer={cart.customer} onChange={cart.setCustomer} />
-        <Field value={phone2} onChange={setPhone2} placeholder="مۆبایلی دووەم (ئارەزوومەندانە)" keyboard="phone-pad" />
-        <Field value={handle} onChange={setHandle} placeholder="ناوی پەیج / @ئەکاونت" />
-      </Card>
+  const quickTool = (
+    <Pressable style={[styles.tool, styles.toolPink]} onPress={() => setQuick(true)}>
+      <Text style={styles.toolPlus}>＋</Text>
+      <Text style={[styles.toolText, { color: '#e11d48' }]}>کاڵای دیاریکراو</Text>
+    </Pressable>
+  );
 
-      {/* ---- where ---- */}
-      <Card title="ناونیشان">
-        <Chips
-          value={governorate}
-          onChange={next => {
-            setGovernorate(next);
-            setDistrict('');
-          }}
-          options={GOVERNORATES.map(g => ({ id: g.en, label: g.ku }))}
+  // The catalogue, as the panel has it: search with the barcode and custom-item
+  // buttons, the sections as chips, and the products beneath.
+  const catalogueView = (
+    <View style={styles.catalogue}>
+      <View style={{ flex: 1 }}>
+        <ProductGrid
+          onPick={pick}
+          columns={wide ? 3 : 2}
+          toolbar={wide ? <>{quickTool}{barcodeTool}</> : barcodeTool}
+          categoryId={categoryFilter ? Number(categoryFilter) : null}
+          belowSearch={
+            categories.length > 0 ? (
+              <Chips
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+                options={[{ id: '', label: 'هەموو پۆلەکان' }, ...categories.map(c => ({ id: String(c.id), label: c.name_ku || c.name }))]}
+              />
+            ) : undefined
+          }
         />
+      </View>
+    </View>
+  );
 
-        {gov && gov.districts.length > 0 && (
-          <Chips
-            value={district}
-            onChange={setDistrict}
-            options={[{ id: '', label: 'هەموو' }, ...gov.districts.map(d => ({ id: d.en, label: d.ku }))]}
-          />
+  const panel = (
+    <View style={[styles.panel, wide && styles.panelWide]}>
+      <View style={styles.panelHead}>
+        <View style={styles.panelIcon}>
+          <NavIcon name="suppliers" size={18} color="#fff" />
+        </View>
+        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+          <Text style={styles.panelTitle}>تۆمارکردنی داواکاری و گەیاندن</Text>
+          <Text style={styles.panelSub}>{itemCount} کاڵا دیاریکراوە</Text>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.panelBody} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {cart.lines.length === 0 ? (
+          <Pressable style={styles.dropzone} onPress={() => !wide && setAdding(true)}>
+            <View style={styles.dropIcon}>
+              <NavIcon name="orders" size={20} color="#f9a8b8" />
+            </View>
+            <Text style={styles.dropText}>
+              {wide ? 'کلیک لە کاڵاکانی لای ڕاست بکە بۆ زیادکردن' : 'کلیک بکە بۆ زیادکردنی کاڵا'}
+            </Text>
+          </Pressable>
+        ) : (
+          <View style={{ gap: spacing.xs }}>
+            {cart.lines.map(line => (
+              <Line key={line.key} line={line} onChange={cart.setQuantity} onRemove={cart.remove} />
+            ))}
+            {!wide && (
+              <View style={styles.row}>
+                <Button label="زیادکردنی کاڵا" tone="ink" onPress={() => setAdding(true)} />
+                <Button label="کاڵای دیاریکراو" tone="quiet" onPress={() => setQuick(true)} />
+              </View>
+            )}
+          </View>
         )}
 
-        <Field value={address} onChange={setAddress} placeholder="گەڕەک، شەقام، نزیک…" />
-        <Field value={notes} onChange={setNotes} placeholder="تێبینی بۆ داواکارییەکە" />
-      </Card>
+        <View style={styles.pair}>
+          <Labeled label="ناوی سیانی کڕیار" half>
+            <TextInput style={styles.input} value={cart.customer.name} onChangeText={name => cart.setCustomer({ ...cart.customer, name })} placeholder="ناوی کڕیار…" placeholderTextColor={colors.textFaint} />
+          </Labeled>
+          <Labeled label="ژمارەی مۆبایل" required half>
+            <TextInput style={styles.input} value={cart.customer.phone} onChangeText={phone => cart.setCustomer({ ...cart.customer, phone })} placeholder="0750 123 4567" placeholderTextColor={colors.textFaint} keyboardType="phone-pad" />
+          </Labeled>
+        </View>
+        {found?.found ? (
+          <Text style={styles.found}>
+            کڕیاری جاران · {found.orders_count} داواکاری · {formatIQD(found.total_spent ?? 0)}
+          </Text>
+        ) : null}
 
-      {/* ---- how ---- */}
-      <Card title="پارەدان و دۆخ">
-        <Chips value={payment} onChange={setPayment} options={PAYMENTS.map(p => ({ id: p.id, label: p.label }))} />
-        <Chips value={status} onChange={setStatus} options={STATUSES.map(s => ({ id: s.id, label: s.label }))} />
-      </Card>
-
-      {/* ---- money ---- */}
-      <Card title="کۆی گشتی">
-        <DiscountBox discount={cart.discount} onChange={cart.setDiscount} />
-
-        <View style={styles.shipRow}>
-          <Text style={styles.label}>گەیاندن</Text>
-          {customShipping ? (
-            <TextInput
-              style={[styles.input, { width: 140 }]}
-              value={shippingInput}
-              onChangeText={setShippingInput}
-              keyboardType="number-pad"
-              placeholder="کرێی گەیاندن"
-              placeholderTextColor={colors.textFaint}
-              textAlign="right"
-            />
-          ) : (
-            <Text style={styles.value}>{quote == null ? '—' : quote > 0 ? formatIQD(quote) : 'خۆڕایی'}</Text>
-          )}
-          <Pressable onPress={() => setCustomShipping(v => !v)}>
-            <Text style={styles.link}>{customShipping ? 'نرخی خۆکار' : 'نرخی دەستی'}</Text>
-          </Pressable>
+        <View style={styles.pair}>
+          <Labeled label="ژمارەی دووەم (ئارەزوومەندانە)" half>
+            <TextInput style={styles.input} value={phone2} onChangeText={setPhone2} placeholder="0770 000 0000" placeholderTextColor={colors.textFaint} keyboardType="phone-pad" />
+          </Labeled>
+          <Labeled label="یوزەری پەیج / کۆدی چات" half>
+            <TextInput style={styles.input} value={handle} onChangeText={setHandle} placeholder="username@" placeholderTextColor={colors.textFaint} />
+          </Labeled>
         </View>
 
-        <Total label="کۆی بەرهەمەکان" value={formatIQD(cart.totals.subtotal)} />
-        {cart.totals.discount > 0 && <Total label="داشکاندن" value={`−${formatIQD(cart.totals.discount)}`} />}
-        <Total label="کۆی گشتی" value={formatIQD(grandTotal)} big />
+        <View style={styles.pair}>
+          <Labeled label="پارێزگا" half>
+            <Select
+              value={governorate}
+              options={GOVERNORATES.map(g => ({ id: g.en, label: g.ku }))}
+              onChange={next => {
+                setGovernorate(next);
+                setDistrict('');
+              }}
+            />
+          </Labeled>
+          <Labeled label="قەزا / ناوچە" half>
+            <Select
+              value={district}
+              options={[{ id: '', label: '— هەڵبژێرە —' }, ...(gov?.districts ?? []).map(d => ({ id: d.en, label: d.ku }))]}
+              onChange={setDistrict}
+              disabled={(gov?.districts.length ?? 0) === 0}
+            />
+          </Labeled>
+        </View>
 
-        <Button
-          label={busy ? 'تۆمار دەکرێت…' : 'تۆمارکردنی داواکاری'}
-          onPress={place}
-          disabled={busy || cart.lines.length === 0}
-        />
-      </Card>
+        <Labeled label="ناونیشانی تەواو (گەڕەک، کۆڵان، خاڵی دیار)">
+          <TextInput style={[styles.input, styles.multiline]} value={address} onChangeText={setAddress} placeholder="نموونە: شەقامی ٤٠ مەتری، نزیک مارکێتی بەختیاری…" placeholderTextColor={colors.textFaint} multiline />
+        </Labeled>
+
+        <View style={styles.shipBox}>
+          <View style={styles.shipHead}>
+            <Pressable style={styles.shipToggle} onPress={() => setCustomShipping(v => !v)}>
+              <Text style={styles.shipToggleText}>دەستکاری بە دەستی</Text>
+              <View style={[styles.check, customShipping && styles.checkOn]}>
+                {customShipping && <Text style={styles.checkMark}>●</Text>}
+              </View>
+            </Pressable>
+            <Text style={styles.shipTitle}>کرێی گەیاندن:</Text>
+          </View>
+          <View style={styles.shipRow}>
+            <Text style={styles.shipLabel}>{customShipping ? 'کرێی دیاریکراو' : 'نرخی پێشوەختە بۆ ئەم شارە'}</Text>
+            {customShipping ? (
+              <TextInput style={[styles.input, { width: 130, minHeight: 38 }]} value={shippingInput} onChangeText={setShippingInput} keyboardType="number-pad" placeholder="0" placeholderTextColor={colors.textFaint} />
+            ) : (
+              <Text style={styles.shipValue}>{quote == null ? '—' : quote > 0 ? formatIQD(quote) : 'خۆڕایی'}</Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.pair}>
+          <Labeled label="داشکاندن" half>
+            <DiscountBox discount={cart.discount} onChange={cart.setDiscount} />
+          </Labeled>
+          <Labeled label="شێوازی پارەدان" half>
+            <Select value={payment} options={PAYMENTS.map(p => ({ id: p.id, label: p.label }))} onChange={setPayment} />
+          </Labeled>
+        </View>
+
+        <Labeled label="دۆخی داواکاری">
+          <Select value={status} options={STATUSES.map(st => ({ id: st.id, label: st.label }))} onChange={setStatus} />
+        </Labeled>
+
+        <Labeled label="تێبینی بۆ پاکەت یان دلیڤەری">
+          <TextInput style={styles.input} value={notes} onChangeText={setNotes} placeholder="نموونە: بەستەی دیاری بێت، گەیاندنی ئێواران…" placeholderTextColor={colors.textFaint} />
+        </Labeled>
+
+        <View style={styles.totals}>
+          <View style={styles.totalLine}>
+            <Text style={styles.totalLabel}>کۆی کاڵاکان:</Text>
+            <Text style={styles.totalValue}>{formatIQD(cart.totals.subtotal)}</Text>
+          </View>
+          {cart.totals.discount > 0 && (
+            <View style={styles.totalLine}>
+              <Text style={styles.totalLabel}>داشکاندن:</Text>
+              <Text style={styles.totalValue}>{formatIQD(-cart.totals.discount)}</Text>
+            </View>
+          )}
+          <View style={styles.totalLine}>
+            <Text style={styles.totalLabel}>کرێی گەیاندن:</Text>
+            <Text style={styles.totalValue}>{shipping > 0 ? formatIQD(shipping) : 'خۆڕایی'}</Text>
+          </View>
+          <View style={styles.totalDivider} />
+          <View style={styles.totalLine}>
+            <Text style={styles.grandLabel}>کۆی گشتی بۆ وەرگرتن:</Text>
+            <Text style={styles.grandValue}>{formatIQD(grandTotal)}</Text>
+          </View>
+        </View>
+
+        <Pressable style={[styles.submit, !canSubmit && styles.submitOff]} onPress={place} disabled={!canSubmit}>
+          <Text style={styles.submitText}>{busy ? 'تۆمار دەکرێت…' : 'تۆمارکردنی داواکاری و ناردن'}</Text>
+        </Pressable>
+      </ScrollView>
     </View>
   );
 
   return (
-    <Screen title="داواکاری پەیج" subtitle="تۆمارکردنی داواکاری سۆشیاڵ میدیا" scroll={false}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {form}
-      </ScrollView>
+    <Screen title="داواکاری پەیج" subtitle="تۆمارکردنی فرۆشتن و دلیڤەری پەیجەکان" scroll={false}>
+      {wide ? (
+        <View style={styles.split}>
+          {catalogueView}
+          {panel}
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>{panel}</View>
+      )}
 
-      {/* The catalogue, raised on demand. */}
-      <Modal visible={adding} transparent animationType="slide" onRequestClose={() => setAdding(false)}>
+      {/* The catalogue, raised on demand (phone). */}
+      <Modal visible={adding && !wide} transparent animationType="slide" onRequestClose={() => setAdding(false)}>
         <View style={styles.backdrop}>
           <View style={[styles.sheet, { height: '88%' }]}>
             <View style={styles.sheetHead}>
@@ -284,7 +445,7 @@ export default function PageOrderScreen() {
             </View>
 
             <View style={{ flex: 1, padding: spacing.md }}>
-              <ProductGrid onPick={pick} columns={wide ? 4 : 2} />
+              <ProductGrid onPick={pick} columns={2} />
             </View>
 
             {picking && (
@@ -301,6 +462,35 @@ export default function PageOrderScreen() {
                 />
               </View>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* On a desk the choice of colour and size opens over the page. */}
+      <Modal visible={wide && picking !== null} transparent animationType="fade" onRequestClose={() => setPicking(null)}>
+        <View style={[styles.backdrop, { justifyContent: 'center', padding: spacing.lg }]}>
+          {picking && (
+            <VariationPicker
+              product={picking.product}
+              options={picking.options}
+              onPick={option => {
+                cart.add(picking.product, option);
+                setPicking(null);
+              }}
+              onCancel={() => setPicking(null)}
+            />
+          )}
+        </View>
+      </Modal>
+
+      <Modal visible={scanning} transparent animationType="fade" onRequestClose={() => setScanning(false)}>
+        <View style={[styles.backdrop, { justifyContent: 'center', padding: spacing.lg }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setScanning(false)} />
+          <View style={styles.scanCard}>
+            <BarcodeScanner onScan={handleScan} paused={false} />
+            <Pressable style={{ alignItems: 'center', padding: spacing.md }} onPress={() => setScanning(false)}>
+              <Text style={styles.close}>داخستن</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -330,78 +520,120 @@ export default function PageOrderScreen() {
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
-function Field({
-  value,
-  onChange,
-  placeholder,
-  keyboard,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  keyboard?: 'phone-pad';
-}) {
-  return (
-    <TextInput
-      style={styles.input}
-      value={value}
-      onChangeText={onChange}
-      placeholder={placeholder}
-      placeholderTextColor={colors.textFaint}
-      keyboardType={keyboard}
-      textAlign="right"
-    />
-  );
-}
-
-function Total({ label, value, big }: { label: string; value: string; big?: boolean }) {
-  return (
-    <View style={styles.shipRow}>
-      <Text style={big ? styles.bigLabel : styles.label}>{label}</Text>
-      <Text style={big ? styles.bigValue : styles.value}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xxl },
-  column: { gap: spacing.md },
-  columnWide: { maxWidth: 720, width: '100%', alignSelf: 'center' },
-  card: {
+  split: { flex: 1, flexDirection: 'row-reverse', gap: spacing.lg, paddingBottom: spacing.lg },
+  catalogue: {
+    flex: 1,
+    minWidth: 0,
+    padding: spacing.md,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  panel: {
+    flex: 1,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    overflow: 'hidden',
+  },
+  panelWide: { flexGrow: 0, flexShrink: 0, flexBasis: 520 },
+  panelHead: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSoft,
+    backgroundColor: 'rgba(248,250,252,0.9)',
+  },
+  panelIcon: { width: 38, height: 38, borderRadius: 14, backgroundColor: '#f43f5e', alignItems: 'center', justifyContent: 'center' },
+  panelTitle: { ...typography.heading, color: colors.text },
+  panelSub: { ...typography.tiny, color: colors.textFaint },
+  panelBody: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
+
+  dropzone: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xl,
+    borderRadius: radius.xl,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#e2e8f0',
+    backgroundColor: 'rgba(248,250,252,0.6)',
+  },
+  dropIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#fff1f2', alignItems: 'center', justifyContent: 'center' },
+  dropText: { ...typography.small, color: colors.textFaint, textAlign: 'center' },
+
+  pair: { flexDirection: 'row-reverse', gap: spacing.sm },
+  row: { flexDirection: 'row-reverse', gap: spacing.sm, flexWrap: 'wrap' },
+  input: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    ...typography.small,
+    color: colors.text,
+    backgroundColor: 'rgba(241,245,249,0.85)',
+  },
+  multiline: { minHeight: 72, paddingTop: spacing.sm, textAlignVertical: 'top' },
+  found: { ...typography.tiny, color: colors.success, textAlign: 'right', marginTop: -spacing.xs },
+
+  shipBox: {
     gap: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(248,250,252,0.8)',
   },
-  cardTitle: { ...typography.eyebrow, color: colors.textMuted, textAlign: 'right' },
-  row: { flexDirection: 'row-reverse', gap: spacing.sm, flexWrap: 'wrap' },
-  input: {
-    minHeight: 40,
+  shipHead: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
+  shipTitle: { ...typography.small, color: '#e11d48', fontFamily: fonts.bold },
+  shipToggle: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.xs },
+  shipToggleText: { ...typography.tiny, color: colors.textMuted },
+  check: { width: 16, height: 16, borderRadius: 4, borderWidth: 1, borderColor: colors.border, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  checkOn: { backgroundColor: colors.ink, borderColor: colors.ink },
+  checkMark: { color: '#fff', fontSize: 7 },
+  shipRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: '#fff',
+  },
+  shipLabel: { ...typography.tiny, color: colors.textMuted },
+  shipValue: { ...typography.small, color: colors.text, fontFamily: fonts.bold },
+
+  totals: { gap: 6, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: '#0f172a' },
+  totalLine: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
+  totalLabel: { ...typography.small, color: '#94a3b8' },
+  totalValue: { ...typography.small, color: '#fff' },
+  totalDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.12)', marginVertical: 4 },
+  grandLabel: { ...typography.heading, color: '#fff' },
+  grandValue: { fontSize: 22, fontFamily: fonts.bold, lineHeight: 32, color: '#fb7185' },
+
+  submit: { minHeight: 52, borderRadius: radius.lg, backgroundColor: '#e11d48', alignItems: 'center', justifyContent: 'center' },
+  submitOff: { backgroundColor: '#cbd5e1' },
+  submitText: { color: '#fff', ...typography.heading },
+
+  tool: {
+    height: 46,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(241,245,249,0.85)',
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    ...typography.small,
-    color: colors.text,
-    backgroundColor: colors.surface,
   },
-  shipRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
-  label: { ...typography.small, color: colors.textMuted },
-  value: { ...typography.small, color: colors.text },
-  link: { ...typography.tiny, color: colors.brand },
-  bigLabel: { ...typography.heading, color: colors.textMuted },
-  bigValue: { ...typography.display, color: colors.text },
+  toolPink: { backgroundColor: '#fff1f2', borderColor: '#fecdd3' },
+  toolText: { ...typography.small, color: colors.textMuted },
+  toolPlus: { color: '#e11d48', fontSize: 15 },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end', alignItems: 'center' },
   sheet: {
@@ -421,19 +653,20 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   sheetTitle: { ...typography.title, color: colors.text },
-  close: { fontSize: 20, color: colors.textMuted },
+  close: { fontSize: 16, color: colors.textMuted },
   pickerLayer: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15,23,42,0.45)',
     justifyContent: 'center',
     padding: spacing.lg,
   },
+  scanCard: { width: '100%', maxWidth: 420, borderRadius: radius.xl, backgroundColor: colors.surface, overflow: 'hidden' },
   doneCard: {
     width: '100%',
     maxWidth: 420,
     gap: spacing.md,
     padding: spacing.xl,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     backgroundColor: colors.surface,
     alignItems: 'stretch',
   },

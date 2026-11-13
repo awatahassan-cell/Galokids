@@ -57,7 +57,7 @@ export function buildReceiptHtml(order: Order, store: StoreInfo = {}): string {
     .join('');
 
   const money = (label: string, amount: number, sign = '') =>
-    `<tr><td>${esc(label)}</td><td class="e">${sign}${esc(formatIQD(amount))}</td></tr>`;
+    `<tr><td>${esc(label)}</td><td class="e">${esc(formatIQD(sign ? -amount : amount))}</td></tr>`;
 
   const cash = order.payment_method === 'cash';
 
@@ -151,7 +151,7 @@ export function whatsappUrl(order: Order): string | null {
     lines,
     '--------------------------',
     `🏷️ کۆی کاڵاکان: ${formatIQD(order.subtotal)}`,
-    order.discount_amount > 0 ? `🎁 داشکاندن: -${formatIQD(order.discount_amount)}` : null,
+    order.discount_amount > 0 ? `🎁 داشکاندن: ${formatIQD(-order.discount_amount)}` : null,
     `🚚 کرێی گەیاندن: ${order.shipping_fee > 0 ? formatIQD(order.shipping_fee) : 'بێ بەرامبەر (خۆڕایی)'}`,
     `💰 کۆی گشتی: ${formatIQD(order.total_amount)}`,
     order.shipping_address ? `📍 ناونیشان: ${[order.governorate, order.shipping_address].filter(Boolean).join(' - ')}` : null,

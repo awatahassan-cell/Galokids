@@ -29,15 +29,8 @@ export function SideNav() {
 
   return (
     <View style={styles.rail}>
-      <View style={styles.brand}>
-        <View style={styles.brandText}>
-          <Text style={styles.brandName}>گەلۆ کیدز</Text>
-          <Text style={styles.brandRole}>{user?.name}</Text>
-        </View>
-
-        <View style={styles.brandMark}>
-          <Text style={styles.brandMarkText}>G</Text>
-        </View>
+      <View style={styles.railHead}>
+        <Text style={styles.railHeadText}>لیستی سەرەکی</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.railScroll} showsVerticalScrollIndicator={false}>
@@ -190,12 +183,24 @@ function Tile({
 }
 
 const styles = StyleSheet.create({
+  // A floating card, as in the panel: rounded all round, translucent white on
+  // the blue wash, with the menu scrolling inside it.
   rail: {
-    width: 232,
-    borderStartWidth: 1,
-    borderStartColor: colors.border,
-    backgroundColor: colors.surface,
+    width: 250,
+    borderRadius: 40,
+    paddingTop: spacing.lg,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.9)',
+    overflow: 'hidden',
   },
+  railHead: {
+    marginHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSoft,
+  },
+  railHeadText: { ...typography.heading, color: colors.text, textAlign: 'right' },
   brand: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -231,7 +236,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     minHeight: 42,
     paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: 18,
   },
   // Near-black rather than a tinted row: the panel marks the open tab this
   // way, which says "you are here" without spending the accent colour.

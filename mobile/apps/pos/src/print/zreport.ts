@@ -42,9 +42,9 @@ export function buildZReportHtml(
       ${row('فرۆشتنی نەقد', formatIQD(summary.cash_sales))}
       ${row('فرۆشتنی کارت', formatIQD(summary.card_sales))}
       ${row('کۆی فرۆشتن', formatIQD(summary.total_sales), true)}
-      ${row('گەڕاندنەوەکان', '-' + formatIQD(summary.refunds))}
+      ${row('گەڕاندنەوەکان', formatIQD(-summary.refunds))}
       ${row('پارە چووەتە ناو دراوەر', formatIQD(summary.cash_in))}
-      ${row('پارە دەرچووە', '-' + formatIQD(summary.cash_out))}
+      ${row('پارە دەرچووە', formatIQD(-summary.cash_out))}
       ${row('چاوەڕوانکراو لە دراوەر', formatIQD(summary.expected_cash), true)}
       ${counted != null ? row('ژمێردراو', formatIQD(counted)) : ''}
       ${difference != null ? row(difference < 0 ? 'کەمی' : difference > 0 ? 'زیادی' : 'جیاوازی', formatIQD(Math.abs(difference)), true) : ''}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import {
   Alert,
   backoffice,
@@ -101,7 +102,7 @@ export default function ExpensesScreen() {
       title="خەرجییەکان"
       subtitle={`${formatDay(range.from)} — ${formatDay(range.to)}`}
       scroll={false}
-      actions={<Button label="زیادکردن" onPress={() => setComposing(true)} />}
+      actions={<Button tone="ink" label="زیادکردن" onPress={() => setComposing(true)} />}
     >
       <Chips
         value={key as string}

@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react';
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Alert, ApiError, formatIQD, isValidPhone, normalizePhone, orders } from '@galokids/core';

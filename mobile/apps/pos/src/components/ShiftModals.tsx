@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import {
   Alert,
   formatDateTime,
@@ -193,9 +194,9 @@ function Summary({ summary, counted }: { summary: ShiftSummary; counted?: number
       <Row label="فرۆشتنی نەقد" value={formatIQD(summary.cash_sales)} />
       <Row label="فرۆشتنی کارت" value={formatIQD(summary.card_sales)} />
       <Row label="کۆی فرۆشتن" value={formatIQD(summary.total_sales)} />
-      <Row label="گەڕاندنەوەکان" value={`-${formatIQD(summary.refunds)}`} />
+      <Row label="گەڕاندنەوەکان" value={formatIQD(-summary.refunds)} />
       <Row label="خرایە ناو دراوەر" value={formatIQD(summary.cash_in)} />
-      <Row label="دەرچوو لە دراوەر" value={`-${formatIQD(summary.cash_out)}`} />
+      <Row label="دەرچوو لە دراوەر" value={formatIQD(-summary.cash_out)} />
       <Row label="چاوەڕوانکراو لە دراوەر" value={formatIQD(summary.expected_cash)} />
       {counted != null ? <Row label="ژمێردراو" value={formatIQD(counted)} /> : null}
       {difference != null ? (

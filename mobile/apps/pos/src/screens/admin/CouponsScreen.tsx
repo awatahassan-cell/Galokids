@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { Alert, backoffice, formatIQD, type Coupon } from '@galokids/core';
 import { Button, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
 import { Pill, Table, type Column } from '@/components/Table';
@@ -90,7 +91,7 @@ export default function CouponsScreen() {
       title="کوپۆنەکان"
       subtitle="کۆدی داشکاندن"
       scroll={false}
-      actions={<Button label="نوێ" onPress={() => setEditing('new')} />}
+      actions={<Button tone="ink" label="نوێ" onPress={() => setEditing('new')} />}
     >
       {offline ? (
         <NeedsConnection what="کوپۆنەکان" />

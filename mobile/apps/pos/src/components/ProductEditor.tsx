@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import {

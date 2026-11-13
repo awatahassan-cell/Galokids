@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { Alert, backoffice, catalogue, type Category } from '@galokids/core';
 import { Button, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
 import { Pill, Table, Titled, type Column } from '@/components/Table';
@@ -17,7 +18,7 @@ export default function CategoriesScreen() {
       title="بەشەکان"
       subtitle="پۆلەکانی فرۆشگا"
       scroll={false}
-      actions={<Button label="نوێ" onPress={() => setEditing('new')} />}
+      actions={<Button tone="ink" label="نوێ" onPress={() => setEditing('new')} />}
     >
       {offline ? (
         <NeedsConnection what="بەشەکان" />

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
+import { Modal, StyleSheet, Text, View, Pressable } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { Alert, backoffice, catalogue, formatIQD, inventory, type Category } from '@galokids/core';
 import { Button, Chips, Empty, Loading, Screen, SearchField, Stat } from '@/components/kit';
 import {

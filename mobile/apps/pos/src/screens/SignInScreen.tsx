@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { useSession } from '@/state/useSession';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 

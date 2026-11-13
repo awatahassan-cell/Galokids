@@ -1,15 +1,6 @@
 import { useCallback, useState } from 'react';
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { Image } from 'expo-image';
 import { Alert, formatIQD, shop, useLayout, type Order } from '@galokids/core';
 import { enqueueSale, variationsFor, type LocalProduct, type LocalVariation } from '@/offline';
@@ -443,7 +434,7 @@ function CartPanel({
         {cart.totals.discount > 0 && (
           <View style={styles.totalRow}>
             <Text style={styles.subLabel}>داشکاندن</Text>
-            <Text style={styles.subValue}>−{formatIQD(cart.totals.discount)}</Text>
+            <Text style={styles.subValue}>{formatIQD(-cart.totals.discount)}</Text>
           </View>
         )}
 
@@ -588,7 +579,7 @@ export function VariationPicker({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
+  screen: { flex: 1 },
   body: { flex: 1, padding: spacing.md, gap: spacing.md },
   bodyWide: { flexDirection: 'row-reverse' },
   gridSide: { flex: 1, minWidth: 0 },

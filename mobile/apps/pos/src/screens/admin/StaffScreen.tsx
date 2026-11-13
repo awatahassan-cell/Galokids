@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import { Alert, backoffice, displayPhone, ROLE, type Paginated, type Role, type User } from '@galokids/core';
 import { Button, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
 import { Pill, Table, Titled, type Column } from '@/components/Table';
@@ -39,7 +40,7 @@ export default function StaffScreen() {
       title="ستاف و دەسەڵاتەکان"
       subtitle="کێ دەتوانێت چی بکات"
       scroll={false}
-      actions={<Button label="زیادکردن" onPress={() => setEditing('new')} />}
+      actions={<Button tone="ink" label="زیادکردن" onPress={() => setEditing('new')} />}
     >
       {offline ? (
         <NeedsConnection what="بەڕێوەبردنی ستاف" />

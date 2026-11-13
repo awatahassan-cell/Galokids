@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { TextInput } from '@/components/TextInput';
 import {
   Alert,
   backoffice,
@@ -229,7 +230,7 @@ function Sheet({
               {order.discount_amount > 0 ? (
                 <Line
                   label={order.coupon_code ? `داشکاندن (${order.coupon_code})` : 'داشکاندن'}
-                  value={`-${formatIQD(order.discount_amount)}`}
+                  value={formatIQD(-order.discount_amount)}
                 />
               ) : null}
               {order.shipping_fee > 0 ? <Line label="گەیاندن" value={formatIQD(order.shipping_fee)} /> : null}
@@ -237,7 +238,7 @@ function Sheet({
               {order.amount_paid != null ? <Line label="وەرگیراو" value={formatIQD(order.amount_paid)} /> : null}
               {order.change_due ? <Line label="ماوە بۆ کڕیار" value={formatIQD(order.change_due)} /> : null}
               {order.refunded_amount ? (
-                <Line label="گەڕێنراوەتەوە" value={`-${formatIQD(order.refunded_amount)}`} tone="bad" />
+                <Line label="گەڕێنراوەتەوە" value={formatIQD(-order.refunded_amount)} tone="bad" />
               ) : null}
             </Section>
 
