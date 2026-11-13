@@ -393,32 +393,37 @@ export default function PageOrderScreen() {
           <TextInput style={styles.input} value={notes} onChangeText={setNotes} placeholder="نموونە: بەستەی دیاری بێت، گەیاندنی ئێواران…" placeholderTextColor={colors.textFaint} />
         </Labeled>
 
-        <View style={styles.totals}>
-          <View style={styles.totalLine}>
-            <Text style={styles.totalLabel}>کۆی کاڵاکان:</Text>
-            <Text style={styles.totalValue}>{formatIQD(cart.totals.subtotal)}</Text>
-          </View>
-          {cart.totals.discount > 0 && (
-            <View style={styles.totalLine}>
-              <Text style={styles.totalLabel}>داشکاندن:</Text>
-              <Text style={styles.totalValue}>{formatIQD(-cart.totals.discount)}</Text>
-            </View>
-          )}
-          <View style={styles.totalLine}>
-            <Text style={styles.totalLabel}>کرێی گەیاندن:</Text>
-            <Text style={styles.totalValue}>{shipping > 0 ? formatIQD(shipping) : 'خۆڕایی'}</Text>
-          </View>
-          <View style={styles.totalDivider} />
-          <View style={styles.totalLine}>
-            <Text style={styles.grandLabel}>کۆی گشتی بۆ وەرگرتن:</Text>
-            <Text style={styles.grandValue}>{formatIQD(grandTotal)}</Text>
-          </View>
-        </View>
-
-        <Pressable style={[styles.submit, !canSubmit && styles.submitOff]} onPress={place} disabled={!canSubmit}>
-          <Text style={styles.submitText}>{busy ? 'تۆمار دەکرێت…' : 'تۆمارکردنی داواکاری و ناردن'}</Text>
-        </Pressable>
       </ScrollView>
+
+      {/* Pinned under the form, as the panel has it: the total and the button to
+          send are always on screen, whatever has been scrolled to above. */}
+      <View style={styles.footer}>
+        <View style={styles.totals}>
+            <View style={styles.totalLine}>
+              <Text style={styles.totalLabel}>کۆی کاڵاکان:</Text>
+              <Text style={styles.totalValue}>{formatIQD(cart.totals.subtotal)}</Text>
+            </View>
+            {cart.totals.discount > 0 && (
+              <View style={styles.totalLine}>
+                <Text style={styles.totalLabel}>داشکاندن:</Text>
+                <Text style={styles.totalValue}>{formatIQD(-cart.totals.discount)}</Text>
+              </View>
+            )}
+            <View style={styles.totalLine}>
+              <Text style={styles.totalLabel}>کرێی گەیاندن:</Text>
+              <Text style={styles.totalValue}>{shipping > 0 ? formatIQD(shipping) : 'خۆڕایی'}</Text>
+            </View>
+            <View style={styles.totalDivider} />
+            <View style={styles.totalLine}>
+              <Text style={styles.grandLabel}>کۆی گشتی بۆ وەرگرتن:</Text>
+              <Text style={styles.grandValue}>{formatIQD(grandTotal)}</Text>
+            </View>
+          </View>
+
+          <Pressable style={[styles.submit, !canSubmit && styles.submitOff]} onPress={place} disabled={!canSubmit}>
+            <Text style={styles.submitText}>{busy ? 'تۆمار دەکرێت…' : 'تۆمارکردنی داواکاری و ناردن'}</Text>
+          </Pressable>
+      </View>
     </View>
   );
 
@@ -552,7 +557,14 @@ const styles = StyleSheet.create({
   panelIcon: { width: 38, height: 38, borderRadius: 14, backgroundColor: '#f43f5e', alignItems: 'center', justifyContent: 'center' },
   panelTitle: { ...typography.heading, color: colors.text },
   panelSub: { ...typography.tiny, color: colors.textFaint },
-  panelBody: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
+  panelBody: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.lg },
+  footer: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSoft,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+  },
 
   dropzone: {
     alignItems: 'center',
@@ -608,7 +620,7 @@ const styles = StyleSheet.create({
   shipLabel: { ...typography.tiny, color: colors.textMuted },
   shipValue: { ...typography.small, color: colors.text, fontFamily: fonts.bold },
 
-  totals: { gap: 6, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: '#0f172a' },
+  totals: { gap: 4, padding: spacing.md, borderRadius: radius.xl, backgroundColor: '#0f172a' },
   totalLine: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
   totalLabel: { ...typography.small, color: '#94a3b8' },
   totalValue: { ...typography.small, color: '#fff' },
