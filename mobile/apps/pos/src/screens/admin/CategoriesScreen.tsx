@@ -82,6 +82,7 @@ function CategorySheet({
   const existing = target && target !== 'new' ? target : null;
   const [name, setName] = useState(existing?.name ?? '');
   const [nameKu, setNameKu] = useState(existing?.name_ku ?? '');
+  const [nameAr, setNameAr] = useState(existing?.name_ar ?? '');
   const [saving, setSaving] = useState(false);
 
   if (!target) return null;
@@ -98,6 +99,7 @@ function CategorySheet({
         {
           name: name.trim(),
           name_ku: nameKu.trim() || null,
+          name_ar: nameAr.trim() || null,
           // The server needs a slug for a new one; derive it rather than
           // asking the shopkeeper for something they have no view on.
           slug: existing?.slug ?? name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -112,6 +114,25 @@ function CategorySheet({
     }
   };
 
+  const remove = () =>
+    existing &&
+    Alert.alert('سڕینەوەی بەش', `«${existing.name_ku || existing.name}» دەسڕدرێتەوە. دڵنیایت؟`, [
+      { text: 'نەخێر', style: 'cancel' },
+      {
+        text: 'بیسڕەوە',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await backoffice.deleteCategory(existing.id);
+            onSaved();
+          } catch (error) {
+            // A section that still has products is refused, and the server says why.
+            Alert.alert('نەتوانرا بسڕدرێتەوە', (error as Error).message);
+          }
+        },
+      },
+    ]);
+
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
@@ -122,9 +143,12 @@ function CategorySheet({
             placeholderTextColor={colors.textFaint} value={name} onChangeText={setName} textAlign="right" />
           <TextInput style={styles.input} placeholder="ناو (کوردی)"
             placeholderTextColor={colors.textFaint} value={nameKu} onChangeText={setNameKu} textAlign="right" />
+          <TextInput style={styles.input} placeholder="ناو (عەرەبی)"
+            placeholderTextColor={colors.textFaint} value={nameAr} onChangeText={setNameAr} textAlign="right" />
 
           <View style={styles.sheetActions}>
             <Button label="داخستن" tone="quiet" onPress={onClose} />
+            {existing && <Button label="سڕینەوە" tone="danger" onPress={remove} />}
             <Button label={saving ? 'پاشەکەوت…' : 'پاشەکەوتکردن'} onPress={save} disabled={saving} />
           </View>
         </View>

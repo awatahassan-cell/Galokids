@@ -161,6 +161,24 @@ function StaffSheet({
     }
   };
 
+  const remove = () =>
+    existing &&
+    Alert.alert('سڕینەوەی کارمەند', `«${existing.name}» دەسڕدرێتەوە و ناتوانێت بچێتە ژوورەوە. دڵنیایت؟`, [
+      { text: 'نەخێر', style: 'cancel' },
+      {
+        text: 'بیسڕەوە',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await backoffice.deleteUser(existing.id);
+            onSaved();
+          } catch (error) {
+            Alert.alert('نەتوانرا بسڕدرێتەوە', (error as Error).message);
+          }
+        },
+      },
+    ]);
+
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
@@ -222,6 +240,7 @@ function StaffSheet({
 
           <View style={styles.sheetActions}>
             <Button label="داخستن" tone="quiet" onPress={onClose} />
+            {existing && <Button label="سڕینەوە" tone="danger" onPress={remove} />}
             <Button label={saving ? 'پاشەکەوت…' : 'پاشەکەوتکردن'} onPress={save} disabled={saving} />
           </View>
         </View>

@@ -39,6 +39,7 @@ export type SectionId =
   | 'messages'
   | 'labels'
   | 'activity'
+  | 'store-settings'
   | 'settings';
 
 export interface Section {
@@ -307,10 +308,19 @@ export const SECTIONS: Section[] = [
     group: 'system',
   },
   {
+    id: 'store-settings',
+    route: 'store-settings',
+    title: 'ڕێکخستنی فرۆشگا',
+    subtitle: 'ناو، لۆگۆ، پەیوەندی و گەیاندن',
+    icon: 'settings',
+    permission: 'settings.manage',
+    group: 'system',
+  },
+  {
     id: 'settings',
     route: 'settings',
     title: 'ڕێکخستنەکان',
-    subtitle: 'فرۆشگا، گەیاندن و ئامێر',
+    subtitle: 'ناوی ئامێر، کەتەلۆگ و ناردن',
     icon: 'settings',
     permission: 'settings.manage',
     group: 'system',
