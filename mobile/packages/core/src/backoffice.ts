@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { apiRequest } from './client';
 import type {
   ActivityLog,
@@ -199,6 +200,42 @@ export const backoffice = {
     id
       ? apiRequest<Product>(`products/${id}`, { method: 'PUT', body: product })
       : apiRequest<Product>('products', { method: 'POST', body: product }),
+
+  /** One product in full: descriptions in every language, images, variations. */
+  product: (id: number) => apiRequest<Product>(`products/${id}`),
+
+  /**
+   * Upload photos for a product; answers their urls.
+   *
+   * On the phone a picked photo is a file uri that FormData reads directly. In
+   * a browser it is a blob url, which has to be turned into a real file first
+   * or the server receives the text of the url instead of an image.
+   */
+  uploadProductImages: async (files: { uri: string; name: string; type: string }[]) => {
+    const form = new FormData();
+
+    for (const file of files) {
+      if (Platform.OS === 'web') {
+        const blob = await (await fetch(file.uri)).blob();
+        form.append('images[]', new File([blob], file.name, { type: file.type }));
+      } else {
+        form.append('images[]', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+      }
+    }
+
+    return apiRequest<{ urls: string[] }>('products/upload-images', { method: 'POST', body: form, timeoutMs: 60000 });
+  },
+
+  /** Variations are saved one at a time: a product save that resends them all recreates every id. */
+  createVariation: (variation: {
+    product_id: number;
+    color: string;
+    size: string;
+    stock_quantity: number;
+    sku: string;
+  }) => apiRequest<ProductVariation>('variants', { method: 'POST', body: variation }),
+
+  deleteVariation: (id: number) => apiRequest<void>(`variants/${id}`, { method: 'DELETE' }),
 
   deleteProduct: (id: number) => apiRequest<void>(`products/${id}`, { method: 'DELETE' }),
 

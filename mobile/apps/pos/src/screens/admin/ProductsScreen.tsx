@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { formatIQD } from '@galokids/core';
-import { Empty, Loading, Screen, SearchField, Stat } from '@/components/kit';
+import { Button, Empty, Loading, Screen, SearchField, Stat } from '@/components/kit';
+import { ProductEditor } from '@/components/ProductEditor';
+import { useSync } from '@/state/useSync';
 import {
   catalogueSize,
   browseProducts,
@@ -29,6 +31,8 @@ import { colors, radius, spacing, typography } from '@/theme';
  */
 export default function ProductsScreen() {
   const { can } = useSession();
+  const { syncNow } = useSync();
+  const [editing, setEditing] = useState<number | 'new' | null>(null);
 
   const [term, setTerm] = useState('');
   const [products, setProducts] = useState<LocalProduct[]>([]);
@@ -177,7 +181,12 @@ export default function ProductsScreen() {
   ];
 
   return (
-    <Screen title="بەرهەمەکان" subtitle="لەسەر ئەم ئامێرە — بێ ئینتەرنێتیش کاردەکات" scroll={false}>
+    <Screen
+      title="بەرهەمەکان"
+      subtitle="لەسەر ئەم ئامێرە — بێ ئینتەرنێتیش کاردەکات"
+      scroll={false}
+      actions={can('products.manage') ? <Button label="بەرهەمی نوێ" onPress={() => setEditing('new')} /> : undefined}
+    >
       <View style={styles.stats}>
         <Stat label="بەرهەم" value={String(counts.products)} />
         <Stat label="جۆر (ڕەنگ/قەبارە)" value={String(counts.variations)} />
@@ -203,10 +212,28 @@ export default function ProductsScreen() {
           columns={columns}
           onPress={toggle}
           detailFor={product =>
-            expanded === product.id ? <Variations list={variations} /> : null
+            expanded === product.id ? (
+              <View style={{ gap: spacing.sm }}>
+                <Variations list={variations} />
+                {can('products.manage') && (
+                  <Button label="دەستکاریکردن" tone="quiet" onPress={() => setEditing(product.id)} />
+                )}
+              </View>
+            ) : null
           }
         />
       )}
+
+      <ProductEditor
+        target={editing}
+        onClose={() => setEditing(null)}
+        onSaved={async () => {
+          // The device's catalogue is a copy; pull the change so this list and
+          // the till both show it.
+          await syncNow({ pullCatalogue: true });
+          load(term);
+        }}
+      />
     </Screen>
   );
 }

@@ -251,4 +251,34 @@ class BackOfficeFieldNamesTest extends TestCase
         $this->assertSame(6, $small->fresh()->stock_quantity);
         $this->assertSame(4, $large->fresh()->stock_quantity);
     }
+
+    /**
+     * The app edits a product without resending its variations, then saves each
+     * changed one on its own. That only keeps stock history and past orders
+     * attached if a product save without a `variations` key leaves the
+     * variation rows — and their ids — alone.
+     */
+    public function test_saving_a_product_without_variations_keeps_their_ids(): void
+    {
+        $admin = $this->admin();
+        $tee = Product::create(['name' => 'Tee', 'price' => 20000, 'gender' => 0]);
+        $variation = ProductVariation::create([
+            'product_id' => $tee->id, 'color' => 'Red', 'size' => 'S', 'stock_quantity' => 5, 'sku' => 'GK-1',
+        ]);
+
+        $this->actingAs($admin)->putJson("/api/products/{$tee->id}", ['price' => 22000, 'name_ku' => 'تی'])->assertOk();
+
+        $this->assertSame($variation->id, $tee->fresh()->variations()->first()->id);
+
+        // And a new variation is added on its own, with a barcode the app generated.
+        $this->actingAs($admin)->postJson('/api/variants', [
+            'product_id' => $tee->id, 'color' => 'Blue', 'size' => 'M', 'stock_quantity' => 2, 'sku' => 'GK-2',
+        ])->assertCreated();
+
+        $shown = $this->actingAs($admin)->getJson("/api/products/{$tee->id}")->assertOk()->json();
+        $this->assertCount(2, $shown['variations']);
+        foreach (['name_ku', 'description_ku', 'description_ar', 'images', 'is_active'] as $key) {
+            $this->assertArrayHasKey($key, $shown);
+        }
+    }
 }
