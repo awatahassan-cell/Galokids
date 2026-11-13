@@ -46,6 +46,22 @@ export interface Column<T> {
  */
 const StackedCell = createContext(false);
 
+/** Row selection, for the panel's tick boxes and the bulk bar they feed. */
+export interface Selection {
+  selected: Set<string>;
+  onToggle: (key: string) => void;
+  onToggleAll: () => void;
+  allSelected: boolean;
+}
+
+export function Check({ on, onPress }: { on: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={8} style={[styles.check, on && styles.checkOn]}>
+      {on ? <Text style={styles.checkMark}>✓</Text> : null}
+    </Pressable>
+  );
+}
+
 export function Table<T>({
   columns,
   rows,
@@ -57,6 +73,7 @@ export function Table<T>({
   empty,
   detailFor,
   inline,
+  selection,
 }: {
   /**
    * Draw the rows in place instead of in a scrolling list.
@@ -66,6 +83,8 @@ export function Table<T>({
    * scroll within, and nesting the two is how a table ends up zero pixels tall.
    */
   inline?: boolean;
+  /** Adds a tick box to every row and one to the heading. */
+  selection?: Selection;
   columns: Column<T>[];
   rows: T[];
   keyFor: (row: T) => string;
@@ -92,7 +111,7 @@ export function Table<T>({
         <View style={styles.stackList}>
           {rows.map(row => (
             <View key={keyFor(row)}>
-              <StackedRow columns={columns} row={row} onPress={onPress} />
+              <StackedRow columns={columns} row={row} onPress={onPress} check={selection ? { on: selection.selected.has(keyFor(row)), toggle: () => selection.onToggle(keyFor(row)) } : undefined} />
               {detailFor ? detailFor(row) : null}
             </View>
           ))}
@@ -104,6 +123,11 @@ export function Table<T>({
     return (
       <View style={[styles.frame, styles.frameInline]}>
         <View style={styles.head}>
+          {selection ? (
+            <View style={styles.checkCell}>
+              <Check on={selection.allSelected} onPress={selection.onToggleAll} />
+            </View>
+          ) : null}
           {columns.map(column => (
             <View key={column.title} style={cellStyle(column)}>
               <Text style={[styles.headText, alignText(column.align)]} numberOfLines={1}>
@@ -115,6 +139,11 @@ export function Table<T>({
 
         {rows.map(row => (
           <View key={keyFor(row)} style={styles.row}>
+            {selection ? (
+              <View style={styles.checkCell}>
+                <Check on={selection.selected.has(keyFor(row))} onPress={() => selection.onToggle(keyFor(row))} />
+              </View>
+            ) : null}
             {columns.map(column => (
               <View key={column.title} style={cellStyle(column)}>
                 <Cell align={column.align}>{column.render(row)}</Cell>
@@ -140,7 +169,7 @@ export function Table<T>({
         ListFooterComponent={footer ? <>{footer}</> : null}
         renderItem={({ item }) => (
           <View>
-            <StackedRow columns={columns} row={item} onPress={onPress} />
+            <StackedRow columns={columns} row={item} onPress={onPress} check={selection ? { on: selection.selected.has(keyFor(item)), toggle: () => selection.onToggle(keyFor(item)) } : undefined} />
             {detailFor ? detailFor(item) : null}
           </View>
         )}
@@ -151,6 +180,11 @@ export function Table<T>({
   return (
     <View style={styles.frame}>
       <View style={styles.head}>
+        {selection ? (
+          <View style={styles.checkCell}>
+            <Check on={selection.allSelected} onPress={selection.onToggleAll} />
+          </View>
+        ) : null}
         {columns.map(column => (
           <View key={column.title} style={cellStyle(column)}>
             <Text style={[styles.headText, alignText(column.align)]} numberOfLines={1}>
@@ -170,6 +204,11 @@ export function Table<T>({
         renderItem={({ item }) => {
           const body = (
             <View style={styles.row}>
+              {selection ? (
+                <View style={styles.checkCell}>
+                  <Check on={selection.selected.has(keyFor(item))} onPress={() => selection.onToggle(keyFor(item))} />
+                </View>
+              ) : null}
               {columns.map(column => (
                 <View key={column.title} style={cellStyle(column)}>
                   <Cell align={column.align}>{column.render(item)}</Cell>
@@ -210,10 +249,12 @@ function StackedRow<T>({
   columns,
   row,
   onPress,
+  check,
 }: {
   columns: Column<T>[];
   row: T;
   onPress?: (row: T) => void;
+  check?: { on: boolean; toggle: () => void };
 }) {
   const heading = columns.find(column => column.primary) ?? columns[0]!;
   const rest = columns.filter(column => column !== heading && !column.wideOnly);
@@ -221,7 +262,10 @@ function StackedRow<T>({
   const body = (
     <View style={styles.card}>
       <View style={styles.cardHead}>
-        <Cell align="end">{heading.render(row)}</Cell>
+        {check ? <Check on={check.on} onPress={check.toggle} /> : null}
+        <View style={{ flex: 1 }}>
+          <Cell align="end">{heading.render(row)}</Cell>
+        </View>
       </View>
 
       <View style={styles.cardBody}>
@@ -375,6 +419,19 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     paddingVertical: spacing.sm + 2,
   },
+  checkCell: { width: 44, alignItems: 'center', justifyContent: 'center' },
+  check: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkOn: { backgroundColor: colors.ink, borderColor: colors.ink },
+  checkMark: { color: '#fff', fontSize: 12, lineHeight: 16, fontFamily: undefined },
   headText: { ...typography.eyebrow, color: colors.textMuted },
 
   row: {
@@ -404,7 +461,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     ...shadow.card,
   },
-  cardHead: { alignItems: 'flex-end' },
+  cardHead: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
   cardBody: { gap: 3 },
   pair: {
     flexDirection: 'row-reverse',

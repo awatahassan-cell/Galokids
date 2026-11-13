@@ -105,9 +105,13 @@ export const orders = {
     status?: string;
     search?: string;
     mine?: boolean;
+    from?: string;
+    to?: string;
   } = {}) =>
     apiRequest<Paginated<Order>>('orders', {
       query: {
+        from: params.from,
+        to: params.to,
         page: params.page ?? 1,
         limit: params.limit ?? 25,
         channel: params.channel,

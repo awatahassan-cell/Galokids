@@ -6,7 +6,8 @@ import {
   type Paginated,
   type StockMovement,
 } from '@galokids/core';
-import { Chips, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Chips, Empty, Loading, NeedsConnection, Problem, Screen, SearchField } from '@/components/kit';
+import { DateRange, sendable, type Range } from '@/components/DateRange';
 import { Pill, Table, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 
@@ -30,16 +31,29 @@ const TYPES: { id: string; label: string }[] = [
 
 export default function StockLedgerScreen() {
   const [type, setType] = useState('all');
+  const [term, setTerm] = useState('');
+  const [range, setRange] = useState<Range>({ from: '', to: '' });
 
   const list = useFetch<Paginated<StockMovement>>(
-    () => inventory.movements({ type: type === 'all' ? undefined : type, limit: 100 }),
-    [type]
+    () => inventory.movements({ type: type === 'all' ? undefined : type, limit: 100, ...sendable(range) }),
+    [type, range.from, range.to]
   );
 
   const offline = useNeedsConnection(list.error);
 
+  // The server has no free-text search on the ledger, so this narrows the page
+  // that is on screen — product name and the reason.
+  const needle = term.trim().toLowerCase();
+  const rows = (list.data?.data ?? []).filter(
+    move =>
+      !needle ||
+      `${move.product_name ?? ''} ${move.note ?? ''} ${TYPE_LABEL[move.type] ?? move.type}`.toLowerCase().includes(needle)
+  );
+
   return (
     <Screen title="مێژووی ستۆک" subtitle="هەموو جوڵەیەکی کۆگا، بە هۆکارەوە" scroll={false}>
+      <SearchField value={term} onChange={setTerm} placeholder="گەڕان لەم لاپەڕەیەدا…" />
+      <DateRange value={range} onChange={setRange} />
       <Chips value={type} onChange={setType} options={TYPES} />
 
       {offline ? (
@@ -48,11 +62,11 @@ export default function StockLedgerScreen() {
         <Loading />
       ) : list.error ? (
         <Problem error={list.error} onRetry={list.reload} />
-      ) : (list.data?.data.length ?? 0) === 0 ? (
+      ) : rows.length === 0 ? (
         <Empty title="هیچ جوڵەیەک نییە" />
       ) : (
         <Table
-          rows={list.data!.data}
+          rows={rows}
           keyFor={move => String(move.id)}
           refreshing={list.refreshing}
           onRefresh={list.refresh}

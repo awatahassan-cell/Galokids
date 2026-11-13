@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { Alert, backoffice, displayPhone, timeAgo, type ContactMessage, type Paginated } from '@galokids/core';
-import { Button, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Button, Chips, Empty, Loading, NeedsConnection, Problem, Screen, SearchField } from '@/components/kit';
 import { Fact, Group, Sheet, sheetStyles } from '@/components/Sheet';
 import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
@@ -15,9 +15,12 @@ import { colors, radius, typography } from '@/theme';
  * happening while this screen's requests were going out without a token.
  */
 export default function MessagesScreen() {
+  const [filter, setFilter] = useState<'all' | 'unread' | 'read' | 'replied'>('all');
+  const [term, setTerm] = useState('');
+
   const list = useFetch<ContactMessage[] | Paginated<ContactMessage>>(
-    () => backoffice.messages({ limit: 100 }),
-    []
+    () => backoffice.messages({ limit: 100, status: filter === 'all' ? undefined : filter, search: term.trim() || undefined }),
+    [filter, term]
   );
 
   const [open, setOpen] = useState<ContactMessage | null>(null);
@@ -70,6 +73,17 @@ export default function MessagesScreen() {
       subtitle={unread > 0 ? `${unread} پەیامی نەخوێندراوە` : 'هەموویان خوێندراونەتەوە'}
       scroll={false}
     >
+      <SearchField value={term} onChange={setTerm} placeholder="گەڕان بە ناو، ئیمەیڵ، ژمارە یان دەق…" />
+      <Chips
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { id: 'all', label: 'هەمووی' },
+          { id: 'unread', label: 'نەخوێندراوەتەوە' },
+          { id: 'read', label: 'خوێندراوەتەوە' },
+          { id: 'replied', label: 'وەڵامدراوە' },
+        ]}
+      />
       {offline ? (
         <NeedsConnection what="پەیامەکان" />
       ) : list.loading && !list.data ? (

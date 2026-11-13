@@ -8,7 +8,7 @@ import type {
   ContactMessage,
   Coupon,
   CustomerLookup,
-  CouponReportRow,
+  CouponReport,
   ExchangeResult,
   Expense,
   OrderCounts,
@@ -61,20 +61,22 @@ export const reports = {
     apiRequest<CashierReport>('reports/cashiers', { query: { from: range.from, to: range.to } }),
 
   coupons: (range: DateRange = {}) =>
-    apiRequest<CouponReportRow[]>('reports/coupons', { query: { from: range.from, to: range.to } }),
+    apiRequest<CouponReport>('reports/coupons', { query: { from: range.from, to: range.to } }),
 };
 
 /* --------------------------------------------------------- inventory --- */
 
 export const inventory = {
   /** The ledger: every movement, with why it happened. */
-  movements: (params: { page?: number; limit?: number; type?: string; variationId?: number } = {}) =>
+  movements: (params: { page?: number; limit?: number; type?: string; variationId?: number; from?: string; to?: string } = {}) =>
     apiRequest<Paginated<StockMovement>>('stock-movements', {
       query: {
         page: params.page ?? 1,
         limit: params.limit ?? 50,
         type: params.type,
         product_variation_id: params.variationId,
+        from: params.from,
+        to: params.to,
       },
     }),
 
@@ -292,9 +294,16 @@ export const backoffice = {
     payment: { amount: number; payment_date: string; payment_method?: string; notes?: string; purchase_id?: number }
   ) => apiRequest<unknown>(`suppliers/${id}/payments`, { method: 'POST', body: payment }),
 
-  purchases: (params: { page?: number; limit?: number } = {}) =>
+  purchases: (params: { page?: number; limit?: number; search?: string; status?: string; from?: string; to?: string } = {}) =>
     apiRequest<Paginated<Purchase>>('purchases', {
-      query: { page: params.page ?? 1, limit: params.limit ?? 25 },
+      query: {
+        page: params.page ?? 1,
+        limit: params.limit ?? 25,
+        search: params.search,
+        payment_status: params.status,
+        from: params.from,
+        to: params.to,
+      },
     }),
 
   savePurchase: (purchase: NewPurchase) =>
@@ -309,29 +318,38 @@ export const backoffice = {
 
   deleteReview: (id: number) => apiRequest<void>(`reviews/${id}`, { method: 'DELETE' }),
 
-  messages: (params: { limit?: number; status?: string } = {}) =>
+  messages: (params: { limit?: number; status?: string; search?: string } = {}) =>
     apiRequest<ContactMessage[] | Paginated<ContactMessage>>('contact-messages', {
-      query: { limit: params.limit ?? 100, status: params.status },
+      query: { limit: params.limit ?? 100, status: params.status, search: params.search },
     }),
 
   unreadMessages: () => apiRequest<{ count: number }>('contact-messages/unread-count'),
   markMessageRead: (id: number) => apiRequest<unknown>(`contact-messages/${id}/read`, { method: 'PUT' }),
   deleteMessage: (id: number) => apiRequest<void>(`contact-messages/${id}`, { method: 'DELETE' }),
 
-  activity: (params: { page?: number; limit?: number; action?: string } = {}) =>
+  activity: (params: { page?: number; limit?: number; action?: string; from?: string; to?: string } = {}) =>
     apiRequest<Paginated<ActivityLog>>('activity-logs', {
-      query: { page: params.page ?? 1, limit: params.limit ?? 50, action: params.action },
+      query: { page: params.page ?? 1, limit: params.limit ?? 50, action: params.action, from: params.from, to: params.to },
     }),
 
-  /** Act on many rows at once, as the panel's checkboxes do. */
-  bulk: (
+  /**
+   * Delete many rows at once, as the panel's checkboxes do. Admin only.
+   *
+   * Answers how many went and which were kept back and why — a user cannot
+   * delete themselves or the last admin, a section with products stays — so the
+   * screen can say so rather than claim a clean sweep.
+   */
+  bulkDelete: (
     resource: 'products' | 'orders' | 'users' | 'categories' | 'expenses' | 'coupons' | 'reviews',
-    ids: number[],
-    action: 'delete' | 'status',
-    extra: Record<string, unknown> = {}
+    ids: (number | string)[]
   ) =>
-    apiRequest<{ affected: number }>(
-      action === 'status' ? `bulk/${resource}/status` : `bulk/${resource}`,
-      { method: 'POST', body: { ids, ...extra } }
-    ),
+    apiRequest<{
+      deleted: number;
+      skipped: { id: number | string; name?: string; reason: string }[];
+      message?: string;
+    }>(`bulk/${resource}`, { method: 'POST', body: { ids } }),
+
+  /** Move several orders to one status in a single step. */
+  bulkOrderStatus: (ids: number[], status: string) =>
+    apiRequest<{ updated: number; skipped: unknown[] }>('bulk/orders/status', { method: 'POST', body: { ids, status } }),
 };

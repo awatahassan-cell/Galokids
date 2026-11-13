@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { Alert, backoffice, timeAgo, type Paginated, type Review } from '@galokids/core';
 import { Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { BulkBar, reportBulk } from '@/components/BulkBar';
+import { useSelection } from '@/state/useSelection';
 import { Table, Titled, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { useSession } from '@/state/useSession';
@@ -78,6 +80,12 @@ export default function ReviewsScreen() {
       : []),
   ];
 
+  // Ticking rows and acting on them is the admin's: one slip removes a lot,
+  // and the server refuses it to anyone else.
+  const { user: sessionUser } = useSession();
+  const isAdmin = sessionUser?.role === 1;
+  const selection = useSelection((list.data?.data ?? []).map(review => String(review.id)));
+
   return (
     <Screen title="هەڵسەنگاندنەکان" subtitle="ڕای کڕیاران لەسەر بەرهەمەکان" scroll={false}>
       {offline ? (
@@ -94,10 +102,27 @@ export default function ReviewsScreen() {
           keyFor={review => String(review.id)}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
+          selection={isAdmin ? selection : undefined}
           columns={columns}
         />
       )}
 
+      {isAdmin && (
+        <BulkBar
+          count={selection.count}
+          noun="هەڵسەنگاندن"
+          onClear={selection.clear}
+          onDelete={async () => {
+            try {
+              reportBulk(await backoffice.bulkDelete('reviews', selection.ids.map(id => (/^\d+$/.test(id) ? Number(id) : id))), 'هەڵسەنگاندن');
+              selection.clear();
+              list.refresh();
+            } catch (error) {
+              Alert.alert('نەتوانرا بسڕدرێتەوە', (error as Error).message);
+            }
+          }}
+        />
+      )}
     </Screen>
   );
 }

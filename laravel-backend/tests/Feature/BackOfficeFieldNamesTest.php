@@ -337,4 +337,60 @@ class BackOfficeFieldNamesTest extends TestCase
         $this->assertEquals(70000, $statement['debt_balance']);
         $this->assertSame('part', $statement['payments'][0]['notes']);
     }
+
+    /** The bulk bar: delete answers {deleted, skipped[]}; orders have their own status route answering {updated}. */
+    public function test_bulk_actions_answer_with_counts_and_skipped_reasons(): void
+    {
+        $admin = $this->admin();
+        $order = $this->soldOrder();
+
+        $moved = $this->actingAs($admin)->postJson('/api/bulk/orders/status', ['ids' => [$order->id], 'status' => 'shipped'])
+            ->assertOk()->json();
+        $this->assertSame(1, $moved['updated']);
+        $this->assertSame('shipped', $order->fresh()->status);
+
+        // Cannot delete yourself: it is reported as skipped, not silently dropped.
+        $result = $this->actingAs($admin)->postJson('/api/bulk/users', ['ids' => [$admin->id]])->assertOk()->json();
+        $this->assertSame(0, $result['deleted']);
+        $this->assertSame('self', $result['skipped'][0]['reason']);
+
+        $gone = $this->actingAs($admin)->postJson('/api/bulk/orders', ['ids' => [$order->id]])->assertOk()->json();
+        $this->assertArrayHasKey('deleted', $gone);
+        $this->assertArrayHasKey('skipped', $gone);
+
+        // And a cashier may not do any of it.
+        $cashier = User::factory()->create(['role' => 2]);
+        $this->actingAs($cashier)->postJson('/api/bulk/orders', ['ids' => [1]])->assertForbidden();
+    }
+
+    /** The date range the lists send: from/to on orders, ledger and activity. */
+    public function test_lists_accept_from_and_to(): void
+    {
+        $admin = $this->admin();
+        $this->soldOrder();
+
+        $today = now()->toDateString();
+        $in = $this->actingAs($admin)->getJson("/api/orders?from=$today&to=$today")->assertOk()->json();
+        $this->assertGreaterThanOrEqual(1, count($in['data'] ?? $in));
+
+        $out = $this->actingAs($admin)->getJson('/api/orders?from=2001-01-01&to=2001-01-02')->assertOk()->json();
+        $this->assertCount(0, $out['data'] ?? $out);
+
+        $this->actingAs($admin)->getJson("/api/stock-movements?from=$today&to=$today")->assertOk();
+        $this->actingAs($admin)->getJson("/api/activity-logs?from=$today&to=$today")->assertOk();
+    }
+
+    /** The coupon dashboard reads one object: figures for the window plus a row per code. */
+    public function test_the_coupon_report_is_one_object_with_headline_figures(): void
+    {
+        Coupon::create(['id' => 'c9', 'code' => 'TEST', 'discount_percentage' => 10, 'is_active' => true]);
+
+        $report = $this->actingAs($this->admin())->getJson('/api/reports/coupons')->assertOk()->json();
+
+        foreach (['performance', 'timeline', 'total_uses', 'total_discount', 'order_count', 'conversion_rate', 'average_discount_percentage'] as $key) {
+            $this->assertArrayHasKey($key, $report);
+        }
+        $this->assertSame('TEST', $report['performance'][0]['code']);
+        $this->assertArrayHasKey('uses', $report['performance'][0]);
+    }
 }

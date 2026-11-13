@@ -68,6 +68,9 @@ export default function CalendarScreen() {
     return {
       revenue: rows.reduce((sum, row) => sum + row.revenue, 0),
       orders: rows.reduce((sum, row) => sum + row.orders_count, 0),
+      items: rows.reduce((sum, row) => sum + row.items_sold, 0),
+      pos: rows.reduce((sum, row) => sum + row.pos_revenue, 0),
+      online: rows.reduce((sum, row) => sum + row.online_revenue + row.social_revenue, 0),
       profit: rows.reduce((sum, row) => sum + row.net_profit, 0),
       best: rows.reduce<DailyReportRow | null>(
         (best, row) => (!best || row.revenue > best.revenue ? row : best),
@@ -122,6 +125,9 @@ export default function CalendarScreen() {
         <>
           <View style={styles.totals}>
             <Total label="داهاتی مانگ" value={formatIQD(totals.revenue)} />
+            <Total label="فرۆشتنی دوکان" value={formatIQD(totals.pos)} />
+            <Total label="وێبسایت و پەیج" value={formatIQD(totals.online)} />
+            <Total label="کۆی کاڵای فرۆشراو" value={`${totals.items} دانە`} />
             <Total label="قازانج" value={formatIQD(totals.profit)} tone={totals.profit < 0 ? "bad" : "good"} />
             <Total label="داواکاری" value={String(totals.orders)} />
           </View>

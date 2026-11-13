@@ -3,7 +3,10 @@ import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 're
 import { TextInput } from '@/components/TextInput';
 import { Alert, backoffice, displayPhone, ROLE, type Paginated, type Role, type User } from '@galokids/core';
 import { Button, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { BulkBar, reportBulk } from '@/components/BulkBar';
+import { useSelection } from '@/state/useSelection';
 import { Pill, Table, Titled, type Column } from '@/components/Table';
+import { useSession } from '@/state/useSession';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { ALL_PERMISSIONS, PRESETS } from '@/navigation/permissions';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
@@ -35,6 +38,12 @@ export default function StaffScreen() {
 
   const staff = (list.data?.data ?? []).filter(user => user.role !== ROLE.CUSTOMER);
 
+  // Ticking rows and acting on them is the admin's: one slip removes a lot,
+  // and the server refuses it to anyone else.
+  const { user: sessionUser } = useSession();
+  const isAdmin = sessionUser?.role === 1;
+  const selection = useSelection(staff.map(user => String(user.id)));
+
   return (
     <Screen
       title="ستاف و دەسەڵاتەکان"
@@ -57,6 +66,7 @@ export default function StaffScreen() {
           refreshing={list.refreshing}
           onRefresh={list.refresh}
           onPress={setEditing}
+          selection={isAdmin ? selection : undefined}
           columns={COLUMNS}
         />
       )}
@@ -66,6 +76,22 @@ export default function StaffScreen() {
         onClose={() => setEditing(null)}
         onSaved={() => { setEditing(null); list.refresh(); }}
       />
+      {isAdmin && (
+        <BulkBar
+          count={selection.count}
+          noun="کارمەند"
+          onClear={selection.clear}
+          onDelete={async () => {
+            try {
+              reportBulk(await backoffice.bulkDelete('users', selection.ids.map(id => (/^\d+$/.test(id) ? Number(id) : id))), 'کارمەند');
+              selection.clear();
+              list.refresh();
+            } catch (error) {
+              Alert.alert('نەتوانرا بسڕدرێتەوە', (error as Error).message);
+            }
+          }}
+        />
+      )}
     </Screen>
   );
 }

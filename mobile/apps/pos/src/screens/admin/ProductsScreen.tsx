@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { formatIQD } from '@galokids/core';
+import { Alert, backoffice, formatIQD } from '@galokids/core';
 import { Button, Empty, Loading, Screen, SearchField, Stat } from '@/components/kit';
 import { ProductEditor } from '@/components/ProductEditor';
 import { useSync } from '@/state/useSync';
@@ -14,6 +14,8 @@ import {
   type LocalProduct,
   type LocalVariation,
 } from '@/offline';
+import { BulkBar, reportBulk } from '@/components/BulkBar';
+import { useSelection } from '@/state/useSelection';
 import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useSession } from '@/state/useSession';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -180,6 +182,12 @@ export default function ProductsScreen() {
     },
   ];
 
+  // Ticking rows and acting on them is the admin's: one slip removes a lot,
+  // and the server refuses it to anyone else.
+  const { user: sessionUser } = useSession();
+  const isAdmin = sessionUser?.role === 1;
+  const selection = useSelection(products.map(product => String(product.id)));
+
   return (
     <Screen
       title="بەرهەمەکان"
@@ -210,6 +218,7 @@ export default function ProductsScreen() {
           rows={products}
           keyFor={product => String(product.id)}
           columns={columns}
+          selection={isAdmin ? selection : undefined}
           onPress={toggle}
           detailFor={product =>
             expanded === product.id ? (
@@ -234,6 +243,22 @@ export default function ProductsScreen() {
           load(term);
         }}
       />
+      {isAdmin && (
+        <BulkBar
+          count={selection.count}
+          noun="بەرهەم"
+          onClear={selection.clear}
+          onDelete={async () => {
+            try {
+              reportBulk(await backoffice.bulkDelete('products', selection.ids.map(id => (/^\d+$/.test(id) ? Number(id) : id))), 'بەرهەم');
+              selection.clear();
+              syncNow({ pullCatalogue: true }).then(() => load(term));
+            } catch (error) {
+              Alert.alert('نەتوانرا بسڕدرێتەوە', (error as Error).message);
+            }
+          }}
+        />
+      )}
     </Screen>
   );
 }

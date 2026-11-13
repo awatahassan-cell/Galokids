@@ -12,7 +12,8 @@ import {
   type Purchase,
   type Supplier,
 } from '@galokids/core';
-import { Button, Chips, Empty, Loading, NeedsConnection, Problem, Screen, Stat } from '@/components/kit';
+import { Button, Chips, Empty, Loading, NeedsConnection, Problem, Screen, SearchField, Stat } from '@/components/kit';
+import { DateRange, sendable, type Range } from '@/components/DateRange';
 import { ProductGrid } from '@/components/ProductGrid';
 import { Fact, Field, Group, Sheet, sheetStyles } from '@/components/Sheet';
 import { Pill, Table, Titled, type Column } from '@/components/Table';
@@ -32,13 +33,28 @@ import { colors, radius, spacing, typography } from '@/theme';
  */
 export default function PurchasesScreen() {
   const { can } = useSession();
-  const list = useFetch<Paginated<Purchase>>(() => backoffice.purchases({ limit: 50 }), []);
+  const [term, setTerm] = useState('');
+  const [payStatus, setPayStatus] = useState<'all' | 'paid' | 'partial' | 'unpaid'>('all');
+  const [range, setRange] = useState<Range>({ from: '', to: '' });
+
+  const list = useFetch<Paginated<Purchase>>(
+    () =>
+      backoffice.purchases({
+        limit: 50,
+        search: term.trim() || undefined,
+        status: payStatus === 'all' ? undefined : payStatus,
+        ...sendable(range),
+      }),
+    [term, payStatus, range.from, range.to]
+  );
   const offline = useNeedsConnection(list.error);
   const [open, setOpen] = useState<Purchase | null>(null);
   const [creating, setCreating] = useState(false);
 
   const rows = list.data?.data ?? [];
   const owed = rows.reduce((sum, p) => sum + Math.max(0, p.total_amount - p.paid_amount), 0);
+  const paidTotal = rows.reduce((sum, p) => sum + Number(p.paid_amount), 0);
+  const pieces = rows.reduce((sum, p) => sum + (p.items ?? []).reduce((n, item) => n + item.quantity, 0), 0);
   const spent = rows.reduce((sum, p) => sum + Number(p.total_amount), 0);
 
   return (
@@ -48,6 +64,19 @@ export default function PurchasesScreen() {
       scroll={false}
       actions={can('purchases.manage') ? <Button tone="ink" label="کڕینی نوێ" onPress={() => setCreating(true)} /> : undefined}
     >
+      <SearchField value={term} onChange={setTerm} placeholder="گەڕان بە ژمارەی پسووڵە، دابینکەر یان تێبینی…" />
+      <DateRange value={range} onChange={setRange} />
+      <Chips
+        value={payStatus}
+        onChange={setPayStatus}
+        options={[
+          { id: 'all', label: 'هەموو' },
+          { id: 'paid', label: 'دراوە' },
+          { id: 'partial', label: 'بەشێکی دراوە' },
+          { id: 'unpaid', label: 'نەدراوە' },
+        ]}
+      />
+
       {offline ? (
         <NeedsConnection what="کڕینەکان" />
       ) : list.loading && !list.data ? (
@@ -57,8 +86,10 @@ export default function PurchasesScreen() {
       ) : (
         <>
           <View style={styles.stats}>
-            <Stat label="کۆی کڕین" value={formatIQD(spent)} />
-            <Stat label="قەرزی ماوە" value={formatIQD(owed)} tone={owed > 0 ? 'bad' : 'good'} />
+            <Stat label="کۆی کڕینەکان" value={formatIQD(spent)} hint={`${rows.length} پسووڵە`} />
+            <Stat label="بڕی پارەی دراو" value={formatIQD(paidTotal)} tone="good" />
+            <Stat label="کۆی قەرزی سەپلایەرەکان" value={formatIQD(owed)} tone={owed > 0 ? 'bad' : 'good'} />
+            <Stat label="کۆی دانەی هاتووی عەمبار" value={`${pieces} دانە`} />
           </View>
 
           {rows.length === 0 ? (

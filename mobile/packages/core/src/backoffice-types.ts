@@ -306,12 +306,23 @@ export interface CashierReport {
   grand_total: number;
 }
 
-export interface CouponReportRow {
-  code: string;
-  is_active: boolean;
-  discount_percentage: number;
-  redemptions: number;
-  discount_given: number;
+/**
+ * `GET /reports/coupons`: one object for the window, not a list of coupons —
+ * a performance row per code, the days they were used on, and the headline
+ * figures the dashboard shows.
+ */
+export interface CouponReport {
+  from: string;
+  to: string;
+  performance: { code: string; uses: number; total_discount: number; total_sales: number; is_active: boolean }[];
+  timeline: { day: string; uses: number; discount: number; sales: number }[];
+  total_uses: number;
+  total_discount: number;
+  total_sales_with_coupons: number;
+  /** Every order in the window, the denominator for the share that used a coupon. */
+  order_count: number;
+  conversion_rate: number;
+  average_discount_percentage: number;
 }
 
 /** What the orders screen puts on its tabs. */

@@ -21,7 +21,10 @@ import {
   Screen,
   Stat,
 } from '@/components/kit';
+import { BulkBar, reportBulk } from '@/components/BulkBar';
+import { useSelection } from '@/state/useSelection';
 import { Pill, Table, type Column } from '@/components/Table';
+import { useSession } from '@/state/useSession';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 
@@ -97,6 +100,12 @@ export default function ExpensesScreen() {
     },
   ];
 
+  // Ticking rows and acting on them is the admin's: one slip removes a lot,
+  // and the server refuses it to anyone else.
+  const { user: sessionUser } = useSession();
+  const isAdmin = sessionUser?.role === 1;
+  const selection = useSelection((list.data?.data ?? []).map(expense => String(expense.id)));
+
   return (
     <Screen
       title="خەرجییەکان"
@@ -131,6 +140,7 @@ export default function ExpensesScreen() {
               keyFor={expense => String(expense.id)}
               refreshing={list.refreshing}
               onRefresh={list.refresh}
+              selection={isAdmin ? selection : undefined}
               columns={columns}
             />
           )}
@@ -146,6 +156,22 @@ export default function ExpensesScreen() {
           list.refresh();
         }}
       />
+      {isAdmin && (
+        <BulkBar
+          count={selection.count}
+          noun="خەرجی"
+          onClear={selection.clear}
+          onDelete={async () => {
+            try {
+              reportBulk(await backoffice.bulkDelete('expenses', selection.ids.map(id => (/^\d+$/.test(id) ? Number(id) : id))), 'خەرجی');
+              selection.clear();
+              list.refresh();
+            } catch (error) {
+              Alert.alert('نەتوانرا بسڕدرێتەوە', (error as Error).message);
+            }
+          }}
+        />
+      )}
     </Screen>
   );
 }

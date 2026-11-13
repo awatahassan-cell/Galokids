@@ -13,7 +13,7 @@ import { TextInput as NativeTextInput, type TextInputProps } from 'react-native'
 // Numbers, phone numbers and addresses are read left to right even in a
 // right-to-left form. Laid out as RTL, "0750 123 4567" is shuffled into
 // "4567 123 0750" — each group stays in order but the groups swap places.
-const LATIN_KEYBOARDS = new Set(['phone-pad', 'number-pad', 'numeric', 'decimal-pad', 'email-address', 'url']);
+const LATIN_KEYBOARDS = new Set(['phone-pad', 'number-pad', 'numeric', 'decimal-pad', 'email-address', 'url', 'numbers-and-punctuation']);
 
 export const TextInput = forwardRef<NativeTextInput, TextInputProps>((props, ref) => {
   const latin = LATIN_KEYBOARDS.has(String(props.keyboardType));

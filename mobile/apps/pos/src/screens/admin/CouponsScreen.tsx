@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { TextInput } from '@/components/TextInput';
-import { Alert, backoffice, formatIQD, type Coupon } from '@galokids/core';
-import { Button, Empty, Loading, NeedsConnection, Problem, Screen } from '@/components/kit';
+import { Alert, backoffice, formatIQD, reports, toDateKey, type Coupon, type CouponReport } from '@galokids/core';
+import { Button, Empty, Loading, NeedsConnection, Problem, Screen, Stat } from '@/components/kit';
+import { DateRange, sendable, type Range } from '@/components/DateRange';
+import { BulkBar, reportBulk } from '@/components/BulkBar';
+import { useSelection } from '@/state/useSelection';
 import { Pill, Table, type Column } from '@/components/Table';
+import { useSession } from '@/state/useSession';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 
@@ -17,6 +21,12 @@ import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/theme';
 export default function CouponsScreen() {
   const [editing, setEditing] = useState<Coupon | 'new' | null>(null);
   const list = useFetch<Coupon[]>(() => backoffice.coupons(), []);
+
+  // How the codes have done over a window — the panel's coupon dashboard.
+  // Defaults to this month, as the server does.
+  const monthStart = toDateKey(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [range, setRange] = useState<Range>({ from: monthStart, to: toDateKey() });
+  const stats = useFetch<CouponReport>(() => reports.coupons(sendable(range)), [range.from, range.to]);
   const offline = useNeedsConnection(list.error);
 
   const remove = (coupon: Coupon) => {
@@ -86,6 +96,12 @@ export default function CouponsScreen() {
     },
   ];
 
+  // Ticking rows and acting on them is the admin's: one slip removes a lot,
+  // and the server refuses it to anyone else.
+  const { user: sessionUser } = useSession();
+  const isAdmin = sessionUser?.role === 1;
+  const selection = useSelection((list.data ?? []).map(coupon => String(coupon.id)));
+
   return (
     <Screen
       title="کوپۆنەکان"
@@ -102,14 +118,28 @@ export default function CouponsScreen() {
       ) : (list.data?.length ?? 0) === 0 ? (
         <Empty title="هیچ کوپۆنێک نییە" body="کۆدێکی داشکاندن دروست بکە." />
       ) : (
+        <>
+        <DateRange value={range} onChange={setRange} />
+
+        {stats.data && (
+          <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm }}>
+            <Stat label="کۆی داشکاندنی دراو" value={formatIQD(stats.data.total_discount)} tone="good" />
+            <Stat label="کۆی بەکارهێنانی کۆپۆن" value={`${stats.data.total_uses} جار`} hint={`لە ${stats.data.order_count} داواکاری`} />
+            <Stat label="گۆڕینی پڕۆمۆ" value={`٪${stats.data.conversion_rate}`} hint="لە کۆی داواکارییەکان" />
+            <Stat label="ناوەندی ڕێژەی داشکاندن" value={`٪${stats.data.average_discount_percentage}`} />
+          </View>
+        )}
+
         <Table
           rows={list.data!}
           keyFor={coupon => String(coupon.id)}
           onPress={setEditing}
           refreshing={list.refreshing}
           onRefresh={list.refresh}
+          selection={isAdmin ? selection : undefined}
           columns={columns}
         />
+        </>
       )}
 
       <CouponSheet
@@ -117,6 +147,22 @@ export default function CouponsScreen() {
         onClose={() => setEditing(null)}
         onSaved={() => { setEditing(null); list.refresh(); }}
       />
+      {isAdmin && (
+        <BulkBar
+          count={selection.count}
+          noun="کۆپۆن"
+          onClear={selection.clear}
+          onDelete={async () => {
+            try {
+              reportBulk(await backoffice.bulkDelete('coupons', selection.ids.map(id => (/^\d+$/.test(id) ? Number(id) : id))), 'کۆپۆن');
+              selection.clear();
+              list.refresh();
+            } catch (error) {
+              Alert.alert('نەتوانرا بسڕدرێتەوە', (error as Error).message);
+            }
+          }}
+        />
+      )}
     </Screen>
   );
 }

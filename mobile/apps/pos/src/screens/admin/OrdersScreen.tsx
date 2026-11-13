@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   Alert,
   backoffice,
@@ -13,7 +13,10 @@ import {
   type Paginated,
 } from '@galokids/core';
 import { Chips, Empty, Loading, NeedsConnection, Problem, Screen, SearchField } from '@/components/kit';
+import { BulkBar, reportBulk } from '@/components/BulkBar';
+import { DateRange, sendable, type Range } from '@/components/DateRange';
 import { OrderSheet } from '@/components/OrderSheet';
+import { useSelection } from '@/state/useSelection';
 import { Pill, Table, Titled, type Column } from '@/components/Table';
 import { useFetch, useNeedsConnection } from '@/state/useFetch';
 import { useSession } from '@/state/useSession';
@@ -52,11 +55,12 @@ export function OrdersScreen({
   title: string;
   subtitle: string;
 }) {
-  const { can } = useSession();
+  const { can, user } = useSession();
   const [status, setStatus] = useState<OrderStatus | 'all'>('all');
   const [search, setSearch] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
   const [open, setOpen] = useState<Order | null>(null);
+  const [range, setRange] = useState<Range>({ from: '', to: '' });
 
   const list = useFetch<Paginated<Order>>(
     () =>
@@ -64,9 +68,10 @@ export function OrdersScreen({
         channel,
         status: status === 'all' ? undefined : status,
         search: search.trim() || undefined,
+        ...sendable(range),
         limit: 50,
       }),
-    [channel, status, search]
+    [channel, status, search, range.from, range.to]
   );
 
   const offline = useNeedsConnection(list.error);
@@ -74,6 +79,23 @@ export function OrdersScreen({
   // The panel's chips carry a count each, taken over the whole channel rather
   // than the page on screen.
   const counts = useFetch<OrderCounts>(() => backoffice.orderCounts({ channel }), [channel]);
+
+  // Ticking rows and acting on them is for the admin: one slip removes a lot,
+  // and the server refuses it to anyone else.
+  const isAdmin = user?.role === 1;
+  const selection = useSelection((list.data?.data ?? []).map(order => String(order.id)));
+
+  const bulkStatus = async (to: OrderStatus) => {
+    try {
+      const result = await backoffice.bulkOrderStatus(selection.ids.map(Number), to);
+      Alert.alert('تەواو بوو', `${result.updated} داواکاری گۆڕدرا.`);
+      selection.clear();
+      list.refresh();
+      counts.refresh();
+    } catch (error) {
+      Alert.alert('نەتوانرا بگۆڕدرێت', (error as Error).message);
+    }
+  };
 
   const advance = useCallback(
     async (order: Order) => {
@@ -102,7 +124,7 @@ export function OrdersScreen({
   const columns: Column<Order>[] = [
     {
       title: 'داواکاری',
-      width: 1.2,
+      width: 1.9,
       primary: true,
       render: order => (
         <Titled
@@ -128,9 +150,24 @@ export function OrdersScreen({
       ),
     },
     {
+      title: 'بەرهەمەکان',
+      width: 2,
+      wideOnly: false,
+      render: order => (
+        <Text style={styles.items} numberOfLines={2}>
+          {(order.items ?? [])
+            .map(item =>
+              `${item.product_name_ku || item.product_name || ''}${item.variation_label ? ` (${item.variation_label})` : ''} ×${item.quantity}`
+            )
+            .join('، ') || '—'}
+        </Text>
+      ),
+    },
+    {
       title: 'دانە',
       width: 0.6,
       align: 'center',
+      wideOnly: true,
       render: order =>
         String(order.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0),
     },
@@ -175,6 +212,8 @@ export function OrdersScreen({
     <Screen title={title} subtitle={subtitle} scroll={false}>
       <SearchField value={search} onChange={setSearch} placeholder="ژمارەی پسووڵە، ناو یان مۆبایل…" />
 
+      <DateRange value={range} onChange={setRange} />
+
       <Chips
         value={status as string}
         onChange={next => setStatus(next as OrderStatus | 'all')}
@@ -201,7 +240,32 @@ export function OrdersScreen({
           onRefresh={list.refresh}
           columns={columns}
           onPress={setOpen}
+          selection={isAdmin ? selection : undefined}
         />
+      )}
+
+      {isAdmin && (
+        <BulkBar
+          count={selection.count}
+          noun="داواکاری"
+          onClear={selection.clear}
+          onDelete={async () => {
+            try {
+              reportBulk(await backoffice.bulkDelete('orders', selection.ids.map(Number)), 'داواکاری');
+              selection.clear();
+              list.refresh();
+              counts.refresh();
+            } catch (error) {
+              Alert.alert('نەتوانرا بسڕدرێتەوە', (error as Error).message);
+            }
+          }}
+        >
+          {(['processing', 'shipped', 'delivered'] as const).map(to => (
+            <Pressable key={to} style={styles.bulkStatus} onPress={() => bulkStatus(to)}>
+              <Text style={styles.bulkStatusText}>{STATUS_TONE[to]?.label}</Text>
+            </Pressable>
+          ))}
+        </BulkBar>
       )}
 
       <OrderSheet
@@ -229,6 +293,9 @@ const STATUS_TONE: Record<
 };
 
 const styles = StyleSheet.create({
+  items: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
+  bulkStatus: { paddingHorizontal: spacing.md, minHeight: 44, justifyContent: 'center', borderRadius: radius.lg, backgroundColor: 'rgba(255,255,255,0.14)' },
+  bulkStatusText: { color: '#fff', ...typography.small },
   total: { ...typography.heading, color: colors.text },
   none: { ...typography.small, color: colors.textFaint },
   advance: {
