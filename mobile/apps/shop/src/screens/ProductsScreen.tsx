@@ -8,27 +8,31 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { catalogue, type Category, type Product } from '@galokids/core';
+import { Drawer, Header } from '@/components/Header';
 import { ProductCard } from '@/components/ProductCard';
 import { Empty, Loading, PageWash, Problem, TabBar } from '@/components/ui';
-import { useWishlist } from '@/state/useWishlist';
 import { colors, fonts, radius, shadow, spacing, TOUCH_TARGET, typography } from '@/theme';
 
 /**
- * What the shop is selling.
+ * The whole catalogue, searched and filtered.
  *
  * Pages as the shopper scrolls rather than fetching the lot: a catalogue of a
  * few thousand garments over mobile data is a long wait before anything
  * appears, and most shoppers never reach the second screen.
  */
-export default function ShopScreen() {
+export default function ProductsScreen() {
   const router = useRouter();
-  const wishlist = useWishlist();
+  // Arrives set when a department was tapped on the home strip or in the menu.
+  const { category: fromLink } = useLocalSearchParams<{ category?: string }>();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [category, setCategory] = useState<number | null>(null);
+  const [category, setCategory] = useState<number | null>(
+    fromLink ? Number(fromLink) || null : null
+  );
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
@@ -80,41 +84,19 @@ export default function ShopScreen() {
     <View style={styles.screen}>
       <PageWash />
 
-      <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <Pressable
-            style={styles.saved}
-            onPress={() => router.replace('/wishlist')}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityLabel="دڵخوازەکان"
-          >
-            <Text style={styles.savedMark}>♥</Text>
-            {wishlist.count > 0 && (
-              <View style={styles.savedCount}>
-                <Text style={styles.savedCountText}>{wishlist.count}</Text>
-              </View>
-            )}
-          </Pressable>
+      <Header onMenu={() => setMenuOpen(true)} />
 
-          <View style={styles.brandText}>
-            <Text style={styles.brandName}>گەلۆ کیدز</Text>
-            <Text style={styles.brandLine}>جلوبەرگی منداڵان</Text>
-          </View>
-        </View>
-
-        <View style={styles.searchWrap}>
-          <Text style={styles.searchMark}>⌕</Text>
-          <TextInput
-            style={styles.search}
-            placeholder="گەڕان بۆ بەرهەم…"
-            placeholderTextColor={colors.textFaint}
-            value={search}
-            onChangeText={setSearch}
-            textAlign="right"
-            returnKeyType="search"
-          />
-        </View>
+      <View style={styles.searchWrap}>
+        <Text style={styles.searchMark}>⌕</Text>
+        <TextInput
+          style={styles.search}
+          placeholder="گەڕان بۆ پۆشاک، جانتا…"
+          placeholderTextColor={colors.textFaint}
+          value={search}
+          onChangeText={setSearch}
+          textAlign="right"
+          returnKeyType="search"
+        />
       </View>
 
       {categories.length > 0 && (
@@ -183,6 +165,10 @@ export default function ShopScreen() {
       )}
 
       <TabBar />
+
+      {/* After the tab bar, so the scrim covers it: a drawer that leaves the
+          tabs live lets a shopper navigate from behind its own dimming. */}
+      <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} categories={categories} />
     </View>
   );
 }
@@ -190,41 +176,8 @@ export default function ShopScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
 
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.md },
-  brandRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
-  brandText: { flex: 1, alignItems: 'flex-end' },
-  brandName: { ...typography.display, color: colors.text, textAlign: 'right' },
-  brandLine: { ...typography.tiny, color: colors.textMuted, textAlign: 'right' },
-
-  saved: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.card,
-  },
-  savedMark: { fontSize: 17, color: colors.brandDeep, lineHeight: 22 },
-  savedCount: {
-    position: 'absolute',
-    top: -5,
-    insetInlineStart: -5,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brandDeep,
-    borderWidth: 2,
-    borderColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  savedCountText: { color: '#fff', fontSize: 9, fontFamily: fonts.bold, lineHeight: 13 },
-
   searchWrap: {
+    marginHorizontal: spacing.md,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: spacing.sm,

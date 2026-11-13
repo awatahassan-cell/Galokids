@@ -10,6 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { usePathname, useRouter } from 'expo-router';
 import { ApiError, ORDER_STATUS_FLOW, orderStatusLabel, type OrderStatus } from '@galokids/core';
+import { KidsIcon, type KidsIconName } from '@/components/KidsIcon';
 import { useBasket } from '@/state/useBasket';
 import { useWishlist } from '@/state/useWishlist';
 import { colors, fonts, radius, shadow, spacing, TOUCH_TARGET, typography } from '@/theme';
@@ -95,7 +96,7 @@ export function Page({
 }
 
 /**
- * The four places a shopper goes.
+ * The five places a shopper goes.
  *
  * The website's phone bar: a tinted tile behind the active icon, a candy rule
  * across the top of it, and a count badge in a white ring. Fixed to the bottom
@@ -109,14 +110,15 @@ export function TabBar() {
   const basket = useBasket();
   const wishlist = useWishlist();
 
-  // All four from the same family. Mixing a colour emoji with monochrome
-  // typographic glyphs — a basket next to a line-drawn house — reads as four
-  // icons borrowed from four different places, which is exactly how it looked.
-  const tabs: { href: string; icon: string; label: string; badge?: number }[] = [
-    { href: '/', icon: '🏠', label: 'فرۆشگا' },
-    { href: '/wishlist', icon: '💗', label: 'دڵخوازەکان', badge: wishlist.count },
-    { href: '/basket', icon: '🧺', label: 'سەبەتە', badge: basket.itemCount },
-    { href: '/account', icon: '👤', label: 'هەژمار' },
+  // The website's own five, drawn with the website's own icons. Emoji were
+  // standing in for these: four glyphs borrowed from four different places,
+  // none of which matched what a customer had just been looking at on the site.
+  const tabs: { href: string; icon: KidsIconName; label: string; badge?: number }[] = [
+    { href: '/', icon: 'home', label: 'سەرەکی' },
+    { href: '/products', icon: 'shop', label: 'بەرهەم' },
+    { href: '/basket', icon: 'basket', label: 'سەبەتە', badge: basket.itemCount },
+    { href: '/wishlist', icon: 'heart', label: 'دڵخواز', badge: wishlist.count },
+    { href: '/account', icon: 'user', label: 'هەژمار' },
   ];
 
   return (
@@ -135,7 +137,14 @@ export function TabBar() {
             {active && <View style={styles.tabRule} />}
 
             <View style={[styles.tabTile, active && styles.tabTileActive]}>
-              <Text style={[styles.tabIcon, active && styles.tabIconActive]}>{tab.icon}</Text>
+              <View style={active ? undefined : styles.tabIconIdle}>
+                <KidsIcon
+                  name={tab.icon}
+                  size={20}
+                  color={active ? colors.brandDeep : colors.textMuted}
+                  filled={active && (tab.icon === 'heart' || tab.icon === 'home')}
+                />
+              </View>
 
               {tab.badge ? (
                 <View style={styles.tabBadge}>
@@ -466,8 +475,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   tabTile: {
-    width: 36,
-    height: 32,
+    width: 38,
+    height: 34,
     borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
@@ -475,10 +484,9 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   tabTileActive: { backgroundColor: colors.brandSoft, borderColor: colors.brandLine },
-  // Emoji carry their own colour, so the active state is told by the tinted
-  // tile, the candy rule above it and the label — not by the glyph.
-  tabIcon: { fontSize: 17, lineHeight: 22, opacity: 0.55 },
-  tabIconActive: { opacity: 1 },
+  // The idle glyph is dimmed as well as greyed: at this size a thin outline in
+  // muted ink still reads as "on" beside its neighbours.
+  tabIconIdle: { opacity: 0.75 },
   tabLabel: { ...typography.tiny, color: colors.textFaint },
   tabLabelActive: { color: colors.brandText },
   tabBadge: {

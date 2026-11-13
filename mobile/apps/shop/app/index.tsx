@@ -1,3 +1,2 @@
-import ShopScreen from '@/screens/ShopScreen';
-
-export default ShopScreen;
+import HomeScreen from '@/screens/HomeScreen';
+export default HomeScreen;
