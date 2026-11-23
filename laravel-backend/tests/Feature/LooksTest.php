@@ -149,4 +149,48 @@ class LooksTest extends TestCase
         $this->postJson('/api/looks', $this->payload([$product]))->assertUnauthorized();
         $this->actingAs($customer)->postJson('/api/looks', $this->payload([$product]))->assertForbidden();
     }
+
+    /**
+     * The apps' `Look`, `LookItem` and `ProductVariation` types are written
+     * against these names. A renamed column would otherwise only show as a blank
+     * screen on a phone, so the contract is pinned here, shopper's view included.
+     */
+    public function test_the_look_json_has_exactly_the_fields_the_apps_read(): void
+    {
+        $look = Look::create([
+            'title' => 'Spring', 'gender' => 2, 'image_url' => '/uploads/looks/s.png',
+            'accent_color' => '#ec4899', 'is_active' => true, 'sort_order' => 0,
+        ]);
+        $product = $this->product('Dress');
+        $look->items()->create(['product_id' => $product->id, 'slot' => 'top', 'hotspot_x' => 40, 'hotspot_y' => 35, 'sort_order' => 0]);
+
+        // Signed out: this is the shopper's response, the one the shop app gets.
+        $row = $this->getJson('/api/looks')->assertOk()->json(0);
+
+        foreach ([
+            'id', 'title', 'title_ku', 'title_ar', 'subtitle', 'subtitle_ku', 'subtitle_ar',
+            'gender', 'age_range', 'accent_color', 'image_url', 'sort_order', 'is_active', 'items',
+        ] as $field) {
+            $this->assertArrayHasKey($field, $row, "look.$field");
+        }
+
+        $item = $row['items'][0];
+        foreach (['id', 'look_id', 'product_id', 'slot', 'hotspot_x', 'hotspot_y', 'sort_order', 'product'] as $field) {
+            $this->assertArrayHasKey($field, $item, "item.$field");
+        }
+
+        foreach (['id', 'name', 'name_ku', 'price', 'discount_price', 'image_url', 'variations'] as $field) {
+            $this->assertArrayHasKey($field, $item['product'], "product.$field");
+        }
+        // A shopper must never see what the shop paid for a garment.
+        $this->assertArrayNotHasKey('cost', $item['product']);
+
+        foreach (['id', 'product_id', 'color', 'size', 'stock_quantity', 'price_override'] as $field) {
+            $this->assertArrayHasKey($field, $item['product']['variations'][0], "variation.$field");
+        }
+
+        $this->assertIsNumeric($row['gender']);
+        $this->assertIsNumeric($item['hotspot_x']);
+        $this->assertTrue((bool) $row['is_active']);
+    }
 }

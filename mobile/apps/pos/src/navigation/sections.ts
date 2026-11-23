@@ -35,6 +35,7 @@ export type SectionId =
   | 'customers'
   | 'staff'
   | 'categories'
+  | 'looks'
   | 'reviews'
   | 'messages'
   | 'labels'
@@ -196,6 +197,15 @@ export const SECTIONS: Section[] = [
     subtitle: 'پۆلەکانی فرۆشگا',
     icon: 'categories',
     permission: 'categories.manage',
+    group: 'stock',
+  },
+  {
+    id: 'looks',
+    route: 'looks',
+    title: 'ستایلەکان',
+    subtitle: 'جلی تەواو لەسەر مۆدێل',
+    icon: 'looks',
+    permission: 'products.manage',
     group: 'stock',
   },
   {

@@ -210,3 +210,58 @@ export interface LoginResult {
   token_type: string;
   user: User;
 }
+
+/** What a garment in a look is, so the outfit lays out in order on screen. */
+export type LookSlot = 'top' | 'bottom' | 'shoes' | 'hat' | 'other';
+
+export const LOOK_SLOTS: LookSlot[] = ['top', 'bottom', 'shoes', 'hat', 'other'];
+
+export interface LookItem {
+  id: number;
+  look_id: number;
+  product_id: number;
+  slot: LookSlot;
+  /** Where the numbered dot sits on the model: 0–100 % across. */
+  hotspot_x: number;
+  /** 0–100 % down. */
+  hotspot_y: number;
+  sort_order: number;
+  /** Always with its variations, so a colour and size can be chosen. */
+  product: Product;
+}
+
+/** "Try the Look": an outfit on a model, made of real products. */
+export interface Look {
+  id: number;
+  title: string;
+  title_ku: string | null;
+  title_ar: string | null;
+  subtitle: string | null;
+  subtitle_ku: string | null;
+  subtitle_ar: string | null;
+  /** 0 everyone, 1 boys, 2 girls — the codes products use. */
+  gender: 0 | 1 | 2;
+  age_range: string | null;
+  accent_color: string;
+  /** Absolute URL of the model picture. */
+  image_url: string;
+  sort_order: number;
+  is_active: boolean;
+  items: LookItem[];
+}
+
+/** What an admin sends when creating or editing a look. */
+export interface LookInput {
+  title: string;
+  title_ku?: string | null;
+  title_ar?: string | null;
+  subtitle?: string | null;
+  subtitle_ku?: string | null;
+  subtitle_ar?: string | null;
+  gender: 0 | 1 | 2;
+  age_range?: string | null;
+  accent_color: string;
+  image_url: string;
+  is_active: boolean;
+  items: { product_id: number; slot: LookSlot; hotspot_x: number; hotspot_y: number }[];
+}

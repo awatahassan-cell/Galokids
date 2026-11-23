@@ -108,6 +108,15 @@ export default function HomeScreen() {
 
           <CategoryStrip categories={categories} />
 
+          <Pressable style={styles.looksCard} onPress={() => router.push('/looks' as never)} accessibilityRole="button">
+            <Text style={styles.looksMark}>✨</Text>
+            <View style={styles.looksText}>
+              <Text style={styles.looksTitle}>ستایلەکە تاقی بکەرەوە</Text>
+              <Text style={styles.looksBody}>هەموو جلەکان لەسەر یەک مۆدێل ببینە و بیکڕە</Text>
+            </View>
+            <Text style={styles.looksArrow}>‹</Text>
+          </Pressable>
+
           {deals.length > 0 && (
             <View style={styles.section}>
               <SectionHead title="کڕینی ئەمڕۆ" onAll={() => router.replace('/products')} />
@@ -200,6 +209,24 @@ function parseSlides(raw: unknown): HeroSlide[] {
 }
 
 const styles = StyleSheet.create({
+  looksCard: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandLine,
+  },
+  looksMark: { fontSize: 28 },
+  looksText: { flex: 1, alignItems: 'flex-end' },
+  looksTitle: { ...typography.heading, color: colors.text },
+  looksBody: { ...typography.small, color: colors.textMuted, textAlign: 'right' },
+  looksArrow: { fontSize: 24, color: colors.brandDeep },
+
   screen: { flex: 1, backgroundColor: colors.background },
   body: { paddingBottom: spacing.xxl },
 

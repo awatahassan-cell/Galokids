@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Smartphone,
+  Sparkles,
   Star,
   Store,
   Tags,
@@ -47,7 +48,7 @@ export type NavIconName =
   | 'page-order' | 'shifts' | 'products' | 'purchases' | 'inventory' | 'ledger'
   | 'suppliers' | 'categories' | 'labels' | 'expenses' | 'coupons' | 'banner'
   | 'customers' | 'staff' | 'cashiers' | 'messages' | 'reviews' | 'activity'
-  | 'settings';
+  | 'settings' | 'looks';
 
 const GLYPHS: Record<NavIconName, ComponentType<LucideProps>> = {
   dashboard: LayoutDashboard,
@@ -76,6 +77,7 @@ const GLYPHS: Record<NavIconName, ComponentType<LucideProps>> = {
   reviews: Star,
   activity: ShieldCheck,
   settings: Settings,
+  looks: Sparkles,
 };
 
 export function NavIcon({
