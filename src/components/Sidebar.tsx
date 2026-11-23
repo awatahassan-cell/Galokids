@@ -50,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const browse: NavItem[] = [
     { name: t('home'), path: '/', icon: 'home' },
+    { name: L('ستایل', 'إطلالات', 'Looks'), path: '/looks', icon: 'clothes' },
     { name: t('about'), path: '/about', icon: 'info' },
     { name: L('پەیوەندی', 'اتصل بنا', 'Contact'), path: '/contact', icon: 'mail' },
   ];

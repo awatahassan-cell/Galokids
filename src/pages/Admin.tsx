@@ -25,6 +25,7 @@ import { useToast, useConfirm } from "../components/ui/Feedback";
 import { AdminStoreSettings } from "../components/AdminStoreSettings";
 import { AdminHeroSettings } from "../components/AdminHeroSettings";
 import { AdminPromoBannerSettings } from "../components/AdminPromoBannerSettings";
+import { AdminLooksTab } from "../components/admin/AdminLooksTab";
 import { adminTr } from "../i18n/adminDict";
 import { AdminHeader } from "../components/admin/AdminHeader";
 import { AdminNavigationSidebar } from "../components/admin/AdminNavigationSidebar";
@@ -119,7 +120,7 @@ export const Admin: React.FC = () => {
   
   const { tab: urlTab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
-  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'purchases', 'inventory', 'stock-ledger', 'categories', 'orders', 'social-orders', 'pos-sales', 'users', 'messages', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'settings', 'activity-log'], []);
+  const validTabs = useMemo(() => ['overview', 'reports', 'products', 'purchases', 'inventory', 'stock-ledger', 'categories', 'orders', 'social-orders', 'pos-sales', 'users', 'messages', 'expenses', 'reviews', 'banner', 'calendar', 'translations', 'labels', 'barcode-stickers', 'coupons', 'looks', 'settings', 'activity-log'], []);
 
   const isTabPermitted = useCallback((tab: string) => {
     const requiredPerm = TAB_PERMISSION_MAP[tab];
@@ -2802,6 +2803,8 @@ export const Admin: React.FC = () => {
             </div>
           </div>
         )}
+
+        {activeTab === 'looks' && <AdminLooksTab />}
 
         {activeTab === 'banner' && (
           <div className="space-y-8">

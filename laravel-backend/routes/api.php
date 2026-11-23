@@ -44,6 +44,8 @@ Route::get('/products/best-sellers', [ProductController::class, 'bestSellers']);
 Route::get('/media/products/{name}', [ProductController::class, 'media']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
+// Public: the "Try the Look" outfits and the products each is made of.
+Route::get('/looks', [\App\Http\Controllers\LookController::class, 'index']);
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{category}', [CategoryController::class, 'show']);
 // Public: validate a single coupon code (does not expose the full list)
@@ -100,6 +102,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{product}', [ProductController::class, 'update']);
     Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+
+    // Looks (write operations)
+    Route::post('/looks/reorder', [\App\Http\Controllers\LookController::class, 'reorder']);
+    Route::post('/looks', [\App\Http\Controllers\LookController::class, 'store']);
+    Route::put('/looks/{id}', [\App\Http\Controllers\LookController::class, 'update']);
+    Route::delete('/looks/{id}', [\App\Http\Controllers\LookController::class, 'destroy']);
 
     // Categories (write operations)
     Route::post('/categories', [CategoryController::class, 'store']);

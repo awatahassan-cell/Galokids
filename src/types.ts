@@ -274,3 +274,37 @@ export interface ContactMessage {
 }
 
 
+
+/** What a garment in a look is, for laying the outfit out and ordering it on screen. */
+export type LookSlot = 'top' | 'bottom' | 'shoes' | 'hat' | 'other';
+
+export interface LookItem {
+  id?: string;
+  productId: string;
+  slot: LookSlot;
+  /** Where the numbered dot sits on the model, 0–100 % across the picture. */
+  hotspotX: number;
+  /** 0–100 % down the picture. */
+  hotspotY: number;
+  product: Product;
+}
+
+/** "Try the Look": an outfit on a model, made of real products. */
+export interface Look {
+  id: string;
+  title: string;
+  titleKu?: string;
+  titleAr?: string;
+  subtitle?: string;
+  subtitleKu?: string;
+  subtitleAr?: string;
+  /** 0 both, 1 boys, 2 girls — the codes products use. */
+  gender: 0 | 1 | 2;
+  ageRange?: string;
+  accentColor: string;
+  /** The model, full length, on a transparent background. */
+  imageUrl: string;
+  sortOrder: number;
+  isActive: boolean;
+  items: LookItem[];
+}

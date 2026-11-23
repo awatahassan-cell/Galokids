@@ -95,6 +95,10 @@ export const HeaderNav: React.FC = () => {
         </span>
       </Link>
 
+      <Link to="/looks" className={pill(isOn('/looks'))}>
+        {L('ستایل', 'إطلالات', 'Looks')}
+      </Link>
+
       <Menu
         label={L('فرۆشگا', 'المتجر', 'Shop')}
         to="/products"

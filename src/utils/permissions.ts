@@ -297,6 +297,7 @@ export const TAB_PERMISSION_MAP: Record<string, string> = {
   'expenses': 'expenses.manage',
   'coupons': 'coupons.manage',
   'banner': 'settings.manage',
+  'looks': 'products.manage',
   'users': 'customers.view',
   'reviews': 'products.view',
   'messages': 'messages.view',

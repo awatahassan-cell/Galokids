@@ -12,6 +12,7 @@ const ProductDetail = lazy(() => import('./pages/ProductDetail').then(m => ({ de
 const Cart = lazy(() => import('./pages/Cart').then(m => ({ default: m.Cart })));
 const Checkout = lazy(() => import('./pages/Checkout').then(m => ({ default: m.Checkout })));
 const Wishlist = lazy(() => import('./pages/Wishlist').then(m => ({ default: m.Wishlist })));
+const Looks = lazy(() => import('./pages/Looks').then(m => ({ default: m.Looks })));
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register').then(m => ({ default: m.Register })));
 const MyOrders = lazy(() => import('./pages/MyOrders').then(m => ({ default: m.MyOrders })));
@@ -102,6 +103,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       '/faq': 'FAQ — Galo Kids',
       '/track': 'Track Your Order — Galo Kids',
       '/wishlist': 'Wishlist — Galo Kids',
+      '/looks': 'Try the Look — Galo Kids',
       '/checkout': 'Checkout — Galo Kids',
       '/page-orders': 'Social Orders — Galo Kids',
     };
@@ -435,6 +437,7 @@ const AnimatedRoutes: React.FC = () => {
         <Route path="/cart" element={<PageTransition key={routeKey}><Cart /></PageTransition>} />
         <Route path="/checkout" element={<PageTransition key={routeKey}><Checkout /></PageTransition>} />
         <Route path="/wishlist" element={<PageTransition key={routeKey}><Wishlist /></PageTransition>} />
+        <Route path="/looks" element={<PageTransition key={routeKey}><Looks /></PageTransition>} />
         <Route path="/about" element={<PageTransition key={routeKey}><About /></PageTransition>} />
         <Route path="/contact" element={<PageTransition key={routeKey}><Contact /></PageTransition>} />
         <Route path="/faq" element={<PageTransition key={routeKey}><FAQ /></PageTransition>} />
