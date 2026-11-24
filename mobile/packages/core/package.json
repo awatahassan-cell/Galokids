@@ -6,7 +6,7 @@
   "types": "src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "tsx __tests__/code128.test.ts && tsx __tests__/dates.test.ts"
+    "test": "tsx __tests__/code128.test.ts && tsx __tests__/dates.test.ts && tsx __tests__/looks.test.ts"
   },
   "devDependencies": {
     "typescript": "~5.9.2",

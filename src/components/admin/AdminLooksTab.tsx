@@ -6,6 +6,7 @@ import { uploadImages } from '../../services/uploadService';
 import {
   deleteLook, fetchLooks, reorderLooks, saveLook, searchProducts, type LookDraft,
 } from '../../services/looksService';
+import { defaultHotspot, guessSlot } from '../../utils/looks';
 import type { Look, LookSlot, Product } from '../../types';
 
 /**
@@ -30,6 +31,23 @@ const toDraft = (l: Look): LookDraft => ({
   imageUrl: l.imageUrl, isActive: l.isActive,
   items: l.items.map(i => ({ productId: i.productId, slot: i.slot, hotspotX: i.hotspotX, hotspotY: i.hotspotY })),
 });
+
+/** Every dot at its slot's usual place, two pieces in one slot side by side. */
+const arranged = (items: LookDraft['items']): LookDraft['items'] =>
+  items.map((item, i) => {
+    const nth = items.slice(0, i).filter(other => other.slot === item.slot).length;
+    const { x, y } = defaultHotspot(item.slot, nth);
+    return { ...item, hotspotX: x, hotspotY: y };
+  });
+
+/** Where one piece's dot goes, leaving every other dot where the admin put it. */
+const placedAt = (items: LookDraft['items'], index: number): LookDraft['items'] =>
+  items.map((item, i) => {
+    if (i !== index) return item;
+    const nth = items.slice(0, i).filter(other => other.slot === item.slot).length;
+    const { x, y } = defaultHotspot(item.slot, nth);
+    return { ...item, hotspotX: x, hotspotY: y };
+  });
 
 const input = 'w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-slate-900';
 const label = 'block text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1';
@@ -215,12 +233,13 @@ const LookEditor: React.FC<{
   const addPiece = (p: Product) => {
     if (draft.items.some(i => i.productId === p.id)) return;
     if (draft.items.length >= 12) { toast(T('زیاتر لە ١٢ پارچە ناکرێت', 'الحد الأقصى 12 قطعة', 'A look holds at most 12 pieces'), 'info'); return; }
-    // Start in the middle so the dot is visible; the admin then clicks it into place.
+    // The slot is guessed from the name and the dot goes where that slot
+    // usually sits, so the admin only corrects the odd one.
+    const slot = guessSlot(p.name);
     setDraft(d => ({
       ...d,
-      items: [...d.items, { productId: p.id, slot: 'top', hotspotX: 50, hotspotY: 30 + d.items.length * 12 }],
+      items: placedAt([...d.items, { productId: p.id, slot, hotspotX: 50, hotspotY: 30 }], d.items.length),
     }));
-    setPlacing(draft.items.length);
     setTerm('');
     setResults([]);
   };
@@ -292,9 +311,9 @@ const LookEditor: React.FC<{
               <ImagePlus className="w-4 h-4" />{uploading ? '…' : draft.imageUrl ? T('گۆڕینی وێنە', 'تغيير الصورة', 'Replace picture') : T('بارکردنی وێنە', 'رفع صورة', 'Upload picture')}
             </button>
             <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
-              {T('باشترین: PNG بێ پاشخان، مۆدێلی تەواو. دوای هەڵبژاردنی پارچەیەک، کرتە لەسەر وێنەکە بکە بۆ دانانی خاڵەکە.',
-                 'الأفضل: PNG بخلفية شفافة وعارض كامل. اختر قطعة ثم انقر على الصورة لوضع النقطة.',
-                 'Best: a full-length PNG with a transparent background. Pick a piece, then click the picture to put its dot there.')}
+              {T('باشترین: PNG بێ پاشخان، مۆدێلی تەواو. خاڵەکان خۆیان دادەنرێن؛ ئەگەر پێویست بوو، دوگمەی ◎ ـی پارچەکە دابگرە و کرتە لەسەر وێنەکە بکە.',
+                 'الأفضل: PNG بخلفية شفافة وعارض كامل. تُوضع النقاط تلقائياً؛ للتعديل اضغط ◎ على القطعة ثم انقر على الصورة.',
+                 'Best: a full-length PNG with a transparent background. Dots place themselves; to adjust one, press ◎ on its piece and click the picture.')}
             </p>
           </div>
 
@@ -348,15 +367,27 @@ const LookEditor: React.FC<{
                 )}
               </div>
 
+              {draft.items.length > 1 && (
+                <button type="button" onClick={() => setDraft(d => ({ ...d, items: arranged(d.items) }))}
+                        className="mt-2 text-xs font-black text-candy-700 hover:underline">
+                  {T('ڕێکخستنی خۆکاری خاڵەکان', 'ترتيب النقاط تلقائياً', 'Arrange dots automatically')}
+                </button>
+              )}
+
               <div className="mt-3 space-y-2">
                 {draft.items.map((it, i) => {
                   const p = products[it.productId];
+                  const stock = (p?.variations ?? []).reduce((n, v) => n + (Number(v.stockQuantity) || 0), 0);
+                  const noStock = !!p && stock <= 0;
                   return (
                     <div key={it.productId} className={`flex items-center gap-3 rounded-xl border p-2 ${placing === i ? 'border-slate-900 bg-slate-50' : 'border-slate-200'}`}>
                       <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[11px] font-black flex items-center justify-center shrink-0">{i + 1}</span>
                       {p?.imageUrl && <img src={p.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover bg-slate-100" />}
-                      <div className="min-w-0 flex-1 text-sm font-bold text-slate-800 truncate">{p?.name ?? `#${it.productId}`}</div>
-                      <select className="h-9 rounded-lg border border-slate-200 text-xs font-bold px-2" value={it.slot} onChange={e => patchItem(i, { slot: e.target.value as LookSlot })}>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-bold text-slate-800 truncate">{p?.name ?? `#${it.productId}`}</div>
+                        {noStock && <div className="text-[11px] font-black text-candy-700">{T('ستۆکی نەماوە — کڕیار ناتوانێت بیکڕێت', 'نفد المخزون — لا يمكن شراؤه', 'Out of stock — shoppers cannot buy it')}</div>}
+                      </div>
+                      <select className="h-9 rounded-lg border border-slate-200 text-xs font-bold px-2" value={it.slot} onChange={e => setDraft(d => ({ ...d, items: placedAt(d.items.map((it, k) => (k === i ? { ...it, slot: e.target.value as LookSlot } : it)), i) }))}>
                         {SLOTS.map(s => <option key={s} value={s}>{slotName(s)}</option>)}
                       </select>
                       <button onClick={() => setPlacing(placing === i ? null : i)} aria-label="Place dot" title={T('دانانی خاڵ', 'وضع النقطة', 'Place dot')}

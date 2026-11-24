@@ -9,7 +9,8 @@ import { fetchLooks } from '../services/looksService';
 import { getUnitPrice } from '../utils/pricing';
 import { formatIQDLabel } from '../utils/currency';
 import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../utils/colors';
-import type { Look, LookItem, Product, ProductVariation } from '../types';
+import { inStock, resolveChoice, sizesOf, sortSizes } from '../utils/looks';
+import type { Look, LookItem, Product } from '../types';
 
 /**
  * "Try the Look" — outfits on a model, built from real products.
@@ -20,15 +21,13 @@ import type { Look, LookItem, Product, ProductVariation } from '../types';
  * the basket is a real, in-stock line the server will price the same way.
  */
 
-type Pick = { color: string; size: string };
-
 const COPY = {
   ku: {
     title: 'ستایلەکە تاقی بکەرەوە',
     lead: 'تەواوی جلەکان لەسەر یەک مۆدێل ببینە و هەر پارچەیەک یان هەموو ستایلەکە بخەرە سەبەتەوە.',
     all: 'هەمووی', boys: 'کوڕان', girls: 'کچان',
     pieces: 'پارچەکانی ئەم ستایلە', addPiece: 'زیادکردن', added: 'زیادکرا', addAll: 'هەموو ستایلەکە بخە سەبەتەوە',
-    total: 'کۆی ستایلەکە', soldOut: 'نەماوە', color: 'ڕەنگ', size: 'قەبارە', empty: 'هێشتا هیچ ستایلێک بڵاونەکراوەتەوە.',
+    total: 'کۆی ستایلەکە', yourSize: 'قەبارەی منداڵەکەت', sizeHint: 'یەکجار هەڵیبژێرە، بۆ هەموو پارچەکان جێبەجێ دەبێت', notInSize: 'لەم قەبارەیەدا نەماوە', anySize: 'قەبارە بۆ هەر پارچەیەک بە جیا', soldOut: 'نەماوە', color: 'ڕەنگ', size: 'قەبارە', empty: 'هێشتا هیچ ستایلێک بڵاونەکراوەتەوە.',
     next: 'دواتر', prev: 'پێشوو', addedAll: 'ستایلەکە خرایە سەبەتەوە', someMissing: 'هەندێک پارچە نەماون و نەخران', look: 'ستایل', view: 'بینینی کاڵا',
   },
   ar: {
@@ -36,7 +35,7 @@ const COPY = {
     lead: 'شاهد القطع كاملة على عارض واحد وأضف أي قطعة أو الإطلالة كلها إلى السلة.',
     all: 'الكل', boys: 'أولاد', girls: 'بنات',
     pieces: 'قطع هذه الإطلالة', addPiece: 'إضافة', added: 'تمت الإضافة', addAll: 'أضف الإطلالة كاملة إلى السلة',
-    total: 'مجموع الإطلالة', soldOut: 'نفد', color: 'اللون', size: 'المقاس', empty: 'لا توجد إطلالات منشورة بعد.',
+    total: 'مجموع الإطلالة', yourSize: 'مقاس طفلك', sizeHint: 'اختره مرة واحدة ليُطبَّق على كل القطع', notInSize: 'غير متوفر بهذا المقاس', anySize: 'مقاس مختلف لكل قطعة', soldOut: 'نفد', color: 'اللون', size: 'المقاس', empty: 'لا توجد إطلالات منشورة بعد.',
     next: 'التالي', prev: 'السابق', addedAll: 'أُضيفت الإطلالة إلى السلة', someMissing: 'بعض القطع نفدت ولم تُضف', look: 'إطلالة', view: 'عرض المنتج',
   },
   en: {
@@ -44,7 +43,7 @@ const COPY = {
     lead: 'See the whole outfit on one model, then add a single piece or the entire look to your basket.',
     all: 'All', boys: 'Boys', girls: 'Girls',
     pieces: 'Pieces in this look', addPiece: 'Add', added: 'Added', addAll: 'Add the whole look to basket',
-    total: 'Look total', soldOut: 'Sold out', color: 'Colour', size: 'Size', empty: 'No looks have been published yet.',
+    total: 'Look total', yourSize: "Your child's size", sizeHint: 'Pick it once and it applies to every piece', notInSize: 'Not available in this size', anySize: 'Choose a size for each piece', soldOut: 'Sold out', color: 'Colour', size: 'Size', empty: 'No looks have been published yet.',
     next: 'Next', prev: 'Previous', addedAll: 'Look added to your basket', someMissing: 'Some pieces are sold out and were skipped', look: 'Look', view: 'View product',
   },
 } as const;
@@ -56,17 +55,6 @@ const productName = (p: Product, lang: string) => localized(p.name, (p as any).n
 
 const firstImage = (p: Product) => p.imageUrl || p.images?.[0] || '';
 
-/** In-stock variation matching the chosen colour and size, if there is one. */
-const variationFor = (p: Product, pick: Pick): ProductVariation | undefined =>
-  (p.variations ?? []).find(v => v.color === pick.color && v.size === pick.size);
-
-/** The first colour/size that can actually be bought, so the page opens ready to add. */
-const defaultPick = (p: Product): Pick => {
-  const list = p.variations ?? [];
-  const best = list.find(v => v.stockQuantity > 0) ?? list[0];
-  return { color: best?.color ?? '', size: best?.size ?? '' };
-};
-
 export const Looks: React.FC = () => {
   const { addToCart } = useStore();
   const { language, dir } = useLanguage();
@@ -77,7 +65,9 @@ export const Looks: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [gender, setGender] = useState<0 | 1 | 2>(0);
   const [index, setIndex] = useState(0);
-  const [picks, setPicks] = useState<Record<string, Pick>>({});
+  const [picks, setPicks] = useState<Record<string, { color?: string; size?: string }>>({});
+  // One size for the whole outfit: a parent knows their child's size once.
+  const [childSize, setChildSize] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [justAdded, setJustAdded] = useState<string | null>(null);
 
@@ -99,17 +89,17 @@ export const Looks: React.FC = () => {
 
   const look = visible[Math.min(index, Math.max(visible.length - 1, 0))];
 
-  const pickFor = (item: LookItem): Pick => picks[`${look?.id}:${item.productId}`] ?? defaultPick(item.product);
-  const setPick = (item: LookItem, patch: Partial<Pick>) => {
-    const next = { ...pickFor(item), ...patch };
-    // Changing colour can leave the size with no stock — move to a size that exists.
-    const list = item.product.variations ?? [];
-    if (!variationFor(item.product, next)) {
-      next.size = list.find(v => v.color === next.color && v.stockQuantity > 0)?.size
-        ?? list.find(v => v.color === next.color)?.size ?? next.size;
-    }
-    setPicks(prev => ({ ...prev, [`${look!.id}:${item.productId}`]: next }));
-  };
+  const key = (item: LookItem) => `${look?.id}:${item.productId}`;
+  const choiceOf = (item: LookItem) => resolveChoice(item.product, picks[key(item)], childSize);
+  const setOwn = (item: LookItem, patch: { color?: string; size?: string }) =>
+    setPicks(prev => ({ ...prev, [key(item)]: { ...prev[key(item)], ...patch } }));
+
+  const lookSizes = useMemo(() => (look ? sizesOf(look.items.map(i => i.product)) : []), [look]);
+  // A size chosen on one look may not exist on the next; drop it rather than
+  // silently leaving every piece "not available".
+  useEffect(() => {
+    if (childSize && look && !lookSizes.includes(childSize)) setChildSize(null);
+  }, [look, lookSizes, childSize]);
 
   const go = (delta: number) => {
     if (!visible.length) return;
@@ -117,9 +107,21 @@ export const Looks: React.FC = () => {
     setActive(null);
   };
 
+  // Arrow keys move through looks; "next" is the way the language reads.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const towardsNext = (e.key === 'ArrowLeft') === (dir === 'rtl');
+      go(towardsNext ? 1 : -1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   const buyable = (item: LookItem) => {
-    const v = variationFor(item.product, pickFor(item));
-    return v && v.stockQuantity > 0 ? v : undefined;
+    const v = choiceOf(item).variation;
+    return inStock(v) ? v : undefined;
   };
 
   const addOne = (item: LookItem) => {
@@ -140,10 +142,20 @@ export const Looks: React.FC = () => {
     toast(skipped ? copy.someMissing : copy.addedAll, skipped ? 'info' : 'success');
   };
 
+  // Tapping a dot on a phone must show something: the piece is below the picture.
+  const showPiece = (productId: string) => {
+    setActive(productId);
+    const card = document.getElementById(`look-piece-${productId}`);
+    if (!card) return;
+    // Only when it is out of sight: on a wide screen both are already visible.
+    const box = card.getBoundingClientRect();
+    if (box.top < 80 || box.bottom > window.innerHeight) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   const total = look
     ? look.items.reduce((sum, item) => {
-        const v = variationFor(item.product, pickFor(item));
-        return v && v.stockQuantity > 0 ? sum + getUnitPrice(item.product, v) : sum;
+        const v = buyable(item);
+        return v ? sum + getUnitPrice(item.product, v) : sum;
       }, 0)
     : 0;
 
@@ -185,7 +197,7 @@ export const Looks: React.FC = () => {
       {!loading && look && (
         <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
           {/* Stage */}
-          <div className="relative rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm"
+          <div className="relative rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm lg:sticky lg:top-24"
                style={{ background: `radial-gradient(circle at 50% 35%, ${look.accentColor}22, ${look.accentColor}08 55%, #fff 100%)` }}>
             <AnimatePresence mode="wait">
               <motion.div
@@ -194,14 +206,23 @@ export const Looks: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.97 }}
                 transition={{ duration: 0.25 }}
-                className="relative mx-auto aspect-[3/4] max-h-[70vh] w-full"
+                className="relative mx-auto aspect-[3/4] max-h-[70vh] w-full touch-pan-y"
+                drag={visible.length > 1 ? 'x' : false}
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.25}
+                onDragEnd={(_, info) => {
+                  if (Math.abs(info.offset.x) < 60) return;
+                  // Dragging towards the right reveals what sits on the left,
+                  // which in a right-to-left language is the next look.
+                  go((info.offset.x > 0) === (dir === 'rtl') ? 1 : -1);
+                }}
               >
                 <img src={look.imageUrl} alt={localized(look.title, look.titleKu, look.titleAr, language)}
                      className="absolute inset-0 w-full h-full object-contain" draggable={false} />
                 {look.items.map((item, i) => (
                   <button
                     key={item.productId}
-                    onClick={() => setActive(item.productId)}
+                    onClick={() => showPiece(item.productId)}
                     aria-label={productName(item.product, language)}
                     className={`absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-xs font-black flex items-center justify-center shadow-lg border-2 border-white transition-transform ${
                       active === item.productId ? 'scale-125 bg-slate-900 text-white' : 'bg-white text-slate-900 hover:scale-110'
@@ -248,19 +269,40 @@ export const Looks: React.FC = () => {
 
           {/* Pieces */}
           <div className="rounded-[2rem] border border-slate-100 bg-white shadow-sm p-5 sm:p-6">
+            {lookSizes.length > 0 && (
+              <div className="mb-5 rounded-2xl bg-slate-50 border border-slate-100 p-4">
+                <div className="flex items-baseline justify-between gap-2 mb-2">
+                  <span className="text-sm font-black text-slate-800">{copy.yourSize}</span>
+                  <span className="text-[11px] text-slate-500 text-end">{childSize ? '' : copy.sizeHint}</span>
+                </div>
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={copy.yourSize}>
+                  {lookSizes.map(s => (
+                    <button key={s} role="radio" aria-checked={childSize === s}
+                            onClick={() => setChildSize(childSize === s ? null : s)}
+                            className={`min-w-12 px-3 h-9 rounded-full text-xs font-black border transition-colors ${
+                              childSize === s ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                            }`}>
+                      {getLocalizedSizeName(s, language)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-4">{copy.pieces}</h3>
             <div className="space-y-3">
               {look.items.map((item, i) => {
                 const p = item.product;
-                const pick = pickFor(item);
+                const pick = choiceOf(item);
                 const list = p.variations ?? [];
                 const colors: string[] = Array.from(new Set<string>(list.map(v => v.color).filter(Boolean)));
-                const sizes: string[] = Array.from(new Set<string>(list.filter(v => v.color === pick.color).map(v => v.size).filter(Boolean)));
-                const v = variationFor(p, pick);
-                const inStock = !!v && v.stockQuantity > 0;
+                const sizes: string[] = sortSizes(Array.from(new Set<string>(list.filter(v => v.color === pick.color).map(v => v.size).filter(Boolean))));
+                const v = pick.variation;
+                const available = inStock(v);
+                const unit = getUnitPrice(p, v);
+                const was = Number(p.price) > unit && !v?.priceOverride ? Number(p.price) : 0;
 
                 return (
-                  <div key={item.productId}
+                  <div key={item.productId} id={`look-piece-${item.productId}`}
                        className={`rounded-2xl border p-3 transition-colors ${active === item.productId ? 'border-slate-900 bg-slate-50' : 'border-slate-100'}`}
                        onMouseEnter={() => setActive(item.productId)}>
                     <div className="flex gap-3">
@@ -272,12 +314,15 @@ export const Looks: React.FC = () => {
                         <Link to={`/product/${p.id}`} className="block text-sm font-black text-slate-800 leading-snug line-clamp-2">
                           {productName(p, language)}
                         </Link>
-                        <div className="mt-1 text-sm font-black text-candy-700">{formatIQDLabel(getUnitPrice(p, v))}</div>
+                        <div className="mt-1 flex items-baseline gap-2">
+                          <span className="text-sm font-black text-candy-700">{formatIQDLabel(unit)}</span>
+                          {was > 0 && <span className="text-[11px] font-bold text-slate-400 line-through">{formatIQDLabel(was)}</span>}
+                        </div>
 
                         {colors.length > 0 && (
                           <div className="flex gap-1.5 mt-2" aria-label={copy.color}>
                             {colors.map(c => (
-                              <button key={c} onClick={() => setPick(item, { color: c })}
+                              <button key={c} onClick={() => setOwn(item, { color: c })}
                                       title={getLocalizedColorName(c, language)}
                                       aria-pressed={pick.color === c}
                                       className={`w-6 h-6 rounded-full border-2 ${pick.color === c ? 'border-slate-900 ring-2 ring-offset-1 ring-slate-300' : 'border-slate-200'}`}
@@ -286,13 +331,19 @@ export const Looks: React.FC = () => {
                           </div>
                         )}
 
-                        {sizes.length > 0 && (
+                        {childSize && (
+                          <div className={`mt-2 text-[11px] font-black ${available ? 'text-slate-500' : 'text-candy-700'}`}>
+                            {available ? <>{copy.size}: <bdi dir="ltr">{getLocalizedSizeName(childSize, language)}</bdi></> : copy.notInSize}
+                          </div>
+                        )}
+
+                        {!childSize && sizes.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2" aria-label={copy.size}>
                             {sizes.map(s => {
-                              const sv = variationFor(p, { color: pick.color, size: s });
-                              const out = !sv || sv.stockQuantity <= 0;
+                              const sv = list.find(x => x.color === pick.color && x.size === s);
+                              const out = !inStock(sv);
                               return (
-                                <button key={s} onClick={() => setPick(item, { size: s })} aria-pressed={pick.size === s}
+                                <button key={s} onClick={() => setOwn(item, { size: s })} aria-pressed={pick.size === s}
                                         className={`min-w-9 px-2 h-7 rounded-lg text-[11px] font-black border ${
                                           pick.size === s ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'
                                         } ${out ? 'opacity-40 line-through' : ''}`}>
@@ -304,12 +355,12 @@ export const Looks: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <button onClick={() => addOne(item)} disabled={!inStock}
+                    <button onClick={() => addOne(item)} disabled={!available}
                             className={`mt-3 w-full h-10 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-colors ${
-                              !inStock ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                              !available ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                 : justAdded === item.productId ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white hover:bg-slate-700'
                             }`}>
-                      {!inStock ? copy.soldOut : justAdded === item.productId
+                      {!available ? (childSize ? copy.notInSize : copy.soldOut) : justAdded === item.productId
                         ? (<><Check className="w-4 h-4" />{copy.added}</>)
                         : (<><Plus className="w-4 h-4" />{copy.addPiece}</>)}
                     </button>

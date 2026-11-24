@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { PanResponder, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   colorHex,
   effectivePrice,
   formatIQD,
+  inStock,
   looks as looksApi,
+  resolveChoice,
+  sizesOf,
+  sortSizes,
   type Look,
   type LookItem,
-  type ProductVariation,
 } from '@galokids/core';
 import { Empty, Loading, Page, Problem } from '@/components/ui';
 import { useBasket } from '@/state/useBasket';
@@ -24,23 +27,11 @@ import { colors, fonts, radius, shadow, spacing, typography } from '@/theme';
  * the same way it prices any other.
  */
 
-type Pick = { color: string | null; size: string | null };
-
 const GENDERS: { code: 0 | 1 | 2; label: string }[] = [
   { code: 0, label: 'هەمووی' },
   { code: 1, label: 'کوڕان' },
   { code: 2, label: 'کچان' },
 ];
-
-const find = (item: LookItem, pick: Pick): ProductVariation | undefined =>
-  item.product.variations.find(v => v.color === pick.color && v.size === pick.size);
-
-/** The first colour and size that can actually be bought, so a piece opens ready to add. */
-const initialPick = (item: LookItem): Pick => {
-  const list = item.product.variations;
-  const best = list.find(v => v.stock_quantity > 0) ?? list[0];
-  return { color: best?.color ?? null, size: best?.size ?? null };
-};
 
 export default function LooksScreen() {
   const router = useRouter();
@@ -52,9 +43,14 @@ export default function LooksScreen() {
   const [gender, setGender] = useState<0 | 1 | 2>(0);
   const [index, setIndex] = useState(0);
   const [active, setActive] = useState<number | null>(null);
-  const [picks, setPicks] = useState<Record<string, Pick>>({});
+  const [picks, setPicks] = useState<Record<string, { color?: string | null; size?: string | null }>>({});
+  // One size for the whole outfit: a parent knows their child's size once.
+  const [childSize, setChildSize] = useState<string | null>(null);
   const [added, setAdded] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const scroller = useRef<ScrollView>(null);
+  const pieceY = useRef<Record<number, number>>({});
 
   const load = () => {
     setError(null);
@@ -69,34 +65,51 @@ export default function LooksScreen() {
 
   const look = visible[Math.min(index, Math.max(visible.length - 1, 0))];
 
-  if (error) return <Page title="ستایلەکان"><Problem error={error} onRetry={load} /></Page>;
-  if (!all) return <Page title="ستایلەکان"><Loading /></Page>;
-
-  const pickFor = (item: LookItem): Pick => picks[`${look!.id}:${item.product_id}`] ?? initialPick(item);
-
-  const setPick = (item: LookItem, patch: Partial<Pick>) => {
-    const next = { ...pickFor(item), ...patch };
-    const list = item.product.variations;
-
-    // A colour change can leave the chosen size without stock; move to one that has it.
-    if (!find(item, next)) {
-      next.size =
-        list.find(v => v.color === next.color && v.stock_quantity > 0)?.size ??
-        list.find(v => v.color === next.color)?.size ??
-        next.size;
-    }
-    setPicks(prev => ({ ...prev, [`${look!.id}:${item.product_id}`]: next }));
-  };
-
-  const buyable = (item: LookItem) => {
-    const v = find(item, pickFor(item));
-    return v && v.stock_quantity > 0 ? v : undefined;
-  };
+  const lookSizes = useMemo(() => (look ? sizesOf(look.items.map(i => i.product)) : []), [look]);
+  // A size chosen on one look may not exist on the next.
+  useEffect(() => {
+    if (childSize && look && !lookSizes.includes(childSize)) setChildSize(null);
+  }, [look, lookSizes, childSize]);
 
   const go = (delta: number) => {
     if (!visible.length) return;
     setIndex(i => (i + delta + visible.length) % visible.length);
     setActive(null);
+  };
+
+  // Swiping the picture changes look. The page reads right to left, so a drag
+  // towards the right brings the next one in from the left.
+  const goRef = useRef(go);
+  goRef.current = go;
+  const swipe = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 18 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+        onPanResponderRelease: (_, g) => {
+          if (Math.abs(g.dx) > 50) goRef.current(g.dx > 0 ? 1 : -1);
+        },
+      }),
+    []
+  );
+
+  if (error) return <Page title="ستایلەکان"><Problem error={error} onRetry={load} /></Page>;
+  if (!all) return <Page title="ستایلەکان"><Loading /></Page>;
+
+  const key = (item: LookItem) => `${look!.id}:${item.product_id}`;
+  const choiceOf = (item: LookItem) => resolveChoice(item.product, picks[key(item)], childSize);
+  const setOwn = (item: LookItem, patch: { color?: string | null; size?: string | null }) =>
+    setPicks(prev => ({ ...prev, [key(item)]: { ...prev[key(item)], ...patch } }));
+
+  const buyable = (item: LookItem) => {
+    const v = choiceOf(item).variation;
+    return inStock(v) ? v : undefined;
+  };
+
+  // The pieces are below the picture, so tapping a dot has to bring its piece up.
+  const showPiece = (productId: number) => {
+    setActive(productId);
+    const y = pieceY.current[productId];
+    if (y != null) scroller.current?.scrollTo({ y: Math.max(0, y - 90), animated: true });
   };
 
   const addOne = (item: LookItem) => {
@@ -129,7 +142,8 @@ export default function LooksScreen() {
   const stage = Math.min(width - spacing.lg * 2, 460);
 
   return (
-    <Page title="ستایلەکە تاقی بکەرەوە" subtitle="هەموو جلەکان لەسەر یەک مۆدێل ببینە">
+    <Page title="ستایلەکە تاقی بکەرەوە" subtitle="هەموو جلەکان لەسەر یەک مۆدێل ببینە" scroll={false}>
+      <ScrollView ref={scroller} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.pills}>
         {GENDERS.map(g => (
           <Pressable
@@ -148,13 +162,13 @@ export default function LooksScreen() {
         <Empty mark="✨" title="هێشتا هیچ ستایلێک نییە" body="دوای زیادکردنی ستایل لە بەڕێوەبەر لێرە دەردەکەوێت" />
       ) : (
         <>
-          <View style={[styles.stage, { width: stage, height: stage * 1.25, backgroundColor: `${look.accent_color}1f` }]}>
+          <View {...swipe.panHandlers} style={[styles.stage, { width: stage, height: stage * 1.25, backgroundColor: `${look.accent_color}1f` }]}>
             <Image source={{ uri: look.image_url }} style={StyleSheet.absoluteFill} contentFit="contain" />
 
             {look.items.map((item, i) => (
               <Pressable
                 key={item.product_id}
-                onPress={() => setActive(item.product_id)}
+                onPress={() => showPiece(item.product_id)}
                 style={[
                   styles.dot,
                   active === item.product_id && styles.dotOn,
@@ -198,19 +212,41 @@ export default function LooksScreen() {
             )}
           </View>
 
+          {lookSizes.length > 0 && (
+            <View style={styles.sizeBar}>
+              <View style={styles.sizeHead}>
+                <Text style={styles.sizeTitle}>قەبارەی منداڵەکەت</Text>
+                {!childSize && <Text style={styles.sizeHint}>یەکجار هەڵیبژێرە بۆ هەموو پارچەکان</Text>}
+              </View>
+              <View style={styles.row}>
+                {lookSizes.map(s => (
+                  <Pressable key={s} onPress={() => setChildSize(childSize === s ? null : s)}
+                             style={[styles.bigSize, childSize === s && styles.sizeOn]} accessibilityRole="radio"
+                             accessibilityState={{ selected: childSize === s }}>
+                    <Text style={[styles.sizeText, childSize === s && styles.sizeTextOn]}>{s}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
+
           <Text style={styles.section}>پارچەکانی ئەم ستایلە</Text>
 
           {look.items.map((item, i) => {
             const p = item.product;
-            const pick = pickFor(item);
+            const pick = choiceOf(item);
             const list = p.variations;
             const colorsList = [...new Set(list.map(v => v.color).filter((c): c is string => !!c))];
-            const sizes = [...new Set(list.filter(v => v.color === pick.color).map(v => v.size).filter((s): s is string => !!s))];
-            const v = find(item, pick);
-            const inStock = !!v && v.stock_quantity > 0;
+            const sizes = sortSizes([...new Set(list.filter(v => v.color === pick.color).map(v => v.size).filter((s): s is string => !!s))]);
+            const v = pick.variation;
+            const available = inStock(v);
+            const unit = effectivePrice(p, v);
+            const was = p.price > unit && !(v?.price_override && v.price_override > 0) ? p.price : 0;
 
             return (
-              <View key={item.product_id} style={[styles.piece, active === item.product_id && styles.pieceOn]}>
+              <View key={item.product_id}
+                    onLayout={e => { pieceY.current[item.product_id] = e.nativeEvent.layout.y; }}
+                    style={[styles.piece, active === item.product_id && styles.pieceOn]}>
                 <View style={styles.pieceTop}>
                   <Pressable onPress={() => router.push(`/product/${p.id}` as never)} style={styles.thumbWrap}>
                     {p.image_url ? <Image source={{ uri: p.image_url }} style={styles.thumb} contentFit="cover" /> : null}
@@ -219,12 +255,15 @@ export default function LooksScreen() {
 
                   <View style={styles.pieceBody}>
                     <Text style={styles.pieceName} numberOfLines={2}>{p.name_ku || p.name}</Text>
-                    <Text style={styles.piecePrice}>{formatIQD(effectivePrice(p, v))}</Text>
+                    <View style={styles.priceRow}>
+                      <Text style={styles.piecePrice}>{formatIQD(unit)}</Text>
+                      {was > 0 && <Text style={styles.wasPrice}>{formatIQD(was)}</Text>}
+                    </View>
 
                     {colorsList.length > 0 && (
                       <View style={styles.row}>
                         {colorsList.map(c => (
-                          <Pressable key={c} onPress={() => setPick(item, { color: c })} hitSlop={4}
+                          <Pressable key={c} onPress={() => setOwn(item, { color: c })} hitSlop={4}
                                      style={[styles.swatchRing, pick.color === c && styles.swatchRingOn]}>
                             <View style={[styles.swatch, { backgroundColor: colorHex(c) }]} />
                           </Pressable>
@@ -232,31 +271,36 @@ export default function LooksScreen() {
                       </View>
                     )}
 
-                    {sizes.length > 0 && (
-                      <View style={styles.row}>
-                        {sizes.map(s => {
-                          const sv = find(item, { color: pick.color, size: s });
-                          const out = !sv || sv.stock_quantity <= 0;
-                          return (
-                            <Pressable key={s} onPress={() => setPick(item, { size: s })}
-                                       style={[styles.size, pick.size === s && styles.sizeOn]}>
-                              <Text style={[styles.sizeText, pick.size === s && styles.sizeTextOn, out && styles.sizeOut]}>{s}</Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
+                    {childSize ? (
+                      <Text style={[styles.sizeNote, !available && styles.sizeNoteBad]}>
+                        {available ? `قەبارە: ${childSize}` : 'لەم قەبارەیەدا نەماوە'}
+                      </Text>
+                    ) : (
+                      sizes.length > 0 && (
+                        <View style={styles.row}>
+                          {sizes.map(s => {
+                            const sv = list.find(x => x.color === pick.color && x.size === s);
+                            return (
+                              <Pressable key={s} onPress={() => setOwn(item, { size: s })}
+                                         style={[styles.size, pick.size === s && styles.sizeOn]}>
+                                <Text style={[styles.sizeText, pick.size === s && styles.sizeTextOn, !inStock(sv) && styles.sizeOut]}>{s}</Text>
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      )
                     )}
                   </View>
                 </View>
 
                 <Pressable
                   onPress={() => addOne(item)}
-                  disabled={!inStock}
-                  style={[styles.add, !inStock && styles.addOff, added === item.product_id && styles.addDone]}
+                  disabled={!available}
+                  style={[styles.add, !available && styles.addOff, added === item.product_id && styles.addDone]}
                   accessibilityRole="button"
                 >
-                  <Text style={[styles.addText, !inStock && styles.addTextOff]}>
-                    {!inStock ? 'نەماوە' : added === item.product_id ? '✓ زیادکرا' : '+ زیادکردن'}
+                  <Text style={[styles.addText, !available && styles.addTextOff]}>
+                    {!available ? (childSize ? 'لەم قەبارەیەدا نەماوە' : 'نەماوە') : added === item.product_id ? '✓ زیادکرا' : '+ زیادکردن'}
                   </Text>
                 </Pressable>
               </View>
@@ -275,11 +319,15 @@ export default function LooksScreen() {
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
         </>
       )}
+      </ScrollView>
     </Page>
   );
 }
 
 const styles = StyleSheet.create({
+  // What `Page` gives its own scroller, since this screen owns the scrolling.
+  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
+
   pills: { flexDirection: 'row-reverse', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.lg },
   pill: { paddingHorizontal: 18, height: 38, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface, justifyContent: 'center' },
   pillOn: { backgroundColor: colors.ink, borderColor: colors.ink },
@@ -305,6 +353,16 @@ const styles = StyleSheet.create({
   pagerOn: { width: 24, backgroundColor: colors.ink },
 
   section: { ...typography.heading, color: colors.textMuted, textAlign: 'right', marginBottom: spacing.md },
+
+  sizeBar: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.lg },
+  sizeHead: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 },
+  sizeTitle: { ...typography.heading, color: colors.text },
+  sizeHint: { ...typography.tiny, color: colors.textMuted },
+  bigSize: { minWidth: 52, height: 38, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  sizeNote: { ...typography.tiny, color: colors.textMuted, marginTop: spacing.sm },
+  sizeNoteBad: { color: colors.danger },
+  priceRow: { flexDirection: 'row-reverse', alignItems: 'baseline', gap: spacing.sm },
+  wasPrice: { ...typography.tiny, color: colors.textFaint, textDecorationLine: 'line-through' },
 
   piece: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md, ...shadow.card },
   pieceOn: { borderColor: colors.ink },

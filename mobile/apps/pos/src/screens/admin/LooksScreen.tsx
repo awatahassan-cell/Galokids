@@ -7,6 +7,8 @@ import {
   LOOK_SLOTS,
   backoffice,
   catalogue,
+  defaultHotspot,
+  guessSlot,
   lookToInput,
   looks as looksApi,
   type Look,
@@ -36,6 +38,19 @@ const SLOT_LABEL: Record<LookSlot, string> = {
 const ACCENTS = ['#141518', '#ec4899', '#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4'];
 
 const GENDER_LABEL = { 0: 'هەمووی', 1: 'کوڕان', 2: 'کچان' } as const;
+
+/** Where one piece's dot goes, leaving every other dot where the admin put it. */
+const placedAt = (items: LookInput['items'], index: number): LookInput['items'] =>
+  items.map((item, i) => {
+    if (i !== index) return item;
+    const nth = items.slice(0, i).filter(other => other.slot === item.slot).length;
+    const { x, y } = defaultHotspot(item.slot, nth);
+    return { ...item, hotspot_x: x, hotspot_y: y };
+  });
+
+/** Every dot at its slot's usual place. Only when the admin asks. */
+const arranged = (items: LookInput['items']): LookInput['items'] =>
+  items.reduce((acc, _, i) => placedAt(acc, i), items);
 
 const blank = (): LookInput => ({
   title: '', title_ku: '', title_ar: '', subtitle: '', subtitle_ku: '', subtitle_ar: '',
@@ -205,10 +220,14 @@ function LookEditor({
     if (draft.items.some(item => item.product_id === product.id)) return;
     if (draft.items.length >= 12) return Alert.alert('زۆرە', 'ستایلێک زیاتر لە ١٢ پارچە ناگرێت.');
 
+    // The slot is guessed from the name and the dot goes where that slot
+    // usually sits, so the admin only corrects the odd one.
     setDraft(d => ({
       ...d,
-      // Start inside the picture so the dot is visible; the admin taps it into place.
-      items: [...d.items, { product_id: product.id, slot: 'top', hotspot_x: 50, hotspot_y: 30 + d.items.length * 12 }],
+      items: placedAt(
+        [...d.items, { product_id: product.id, slot: guessSlot(`${product.name} ${product.name_ku ?? ''}`), hotspot_x: 50, hotspot_y: 30 }],
+        d.items.length
+      ),
     }));
     setTerm('');
     setResults([]);
@@ -284,7 +303,7 @@ function LookEditor({
         <Button tone="ink" label="دانانی خاڵەکان لەسەر وێنە" onPress={() => setPlacer(true)}
                 disabled={!draft.image_url || draft.items.length === 0} />
         <Text style={sheetStyles.hint}>
-          باشترین: PNG ـی بێ پاشخان و مۆدێلی تەواو. دوای زیادکردنی پارچەکان، «دانانی خاڵەکان» بکە و لەسەر وێنەکە پەنجە بنێ بۆ ئەوەی هەر ژمارەیەک لەسەر جلەکەی دابنرێت.
+          باشترین: PNG ـی بێ پاشخان و مۆدێلی تەواو. خاڵەکان خۆیان دادەنرێن؛ ئەگەر پێویست بوو «دانانی خاڵەکان» بکە و لەسەر وێنەکە پەنجە بنێ بۆ ڕاستکردنەوەی.
         </Text>
       </Group>
 
@@ -331,6 +350,9 @@ function LookEditor({
 
       <Group title={`پارچەکان (${draft.items.length}/12)`}>
         <SearchField value={term} onChange={search} placeholder="گەڕان بە ناوی بەرهەم بۆ زیادکردن…" />
+        {draft.items.length > 1 && (
+          <Button tone="quiet" label="ڕێکخستنی خۆکاری خاڵەکان" onPress={() => setDraft(d => ({ ...d, items: arranged(d.items) }))} />
+        )}
 
         {results.map(product => (
           <Pressable key={product.id} style={styles.result} onPress={() => addPiece(product)}
@@ -343,16 +365,19 @@ function LookEditor({
 
         {draft.items.map((item, index) => {
           const product = products[item.product_id];
+          const stock = (product?.variations ?? []).reduce((n, v) => n + (v.stock_quantity || 0), 0);
+          const noStock = !!product && stock <= 0;
           return (
             <View key={item.product_id} style={styles.piece}>
               <View style={styles.pieceNo}><Text style={styles.pieceNoText}>{index + 1}</Text></View>
               {product?.image_url ? <Image source={{ uri: product.image_url }} style={styles.resultImg} contentFit="cover" /> : <View style={styles.resultImg} />}
               <View style={styles.pieceBody}>
                 <Text style={styles.resultName} numberOfLines={1}>{product ? product.name_ku || product.name : `#${item.product_id}`}</Text>
+                {noStock && <Text style={styles.noStock}>ستۆکی نەماوە — کڕیار ناتوانێت بیکڕێت</Text>}
                 <Select
                   value={item.slot}
                   options={LOOK_SLOTS.map(slot => ({ id: slot, label: SLOT_LABEL[slot] }))}
-                  onChange={slot => patchItem(index, { slot })}
+                  onChange={slot => setDraft(d => ({ ...d, items: placedAt(d.items.map((it, i) => (i === index ? { ...it, slot } : it)), index) }))}
                 />
               </View>
               <View style={styles.pieceActions}>
@@ -524,6 +549,7 @@ const styles = StyleSheet.create({
   },
   resultImg: { width: 40, height: 40, borderRadius: 8, backgroundColor: colors.borderSoft },
   resultName: { ...typography.small, color: colors.text, flex: 1, textAlign: 'right' },
+  noStock: { ...typography.tiny, color: colors.danger, textAlign: 'right' },
   resultAdd: { fontSize: 18, color: colors.brand },
 
   piece: {
