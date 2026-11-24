@@ -31,8 +31,18 @@ app.use(['/API/api', '/api'], async (req, res) => {
       headers,
     };
 
-    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && req.body && Object.keys(req.body).length > 0) {
-      fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+      if (req.headers['content-type']?.includes('multipart')) {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        if (chunks.length > 0) {
+          fetchOptions.body = Buffer.concat(chunks);
+        }
+      } else if (req.body && (typeof req.body === 'string' || Object.keys(req.body).length > 0)) {
+        fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+      }
     }
 
     const response = await fetch(targetUrl, fetchOptions);
