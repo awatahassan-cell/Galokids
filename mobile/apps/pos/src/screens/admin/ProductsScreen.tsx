@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { Alert, backoffice, formatIQD } from '@galokids/core';
 import { Button, Empty, Loading, Screen, SearchField, Stat } from '@/components/kit';
 import { ProductEditor } from '@/components/ProductEditor';
+import { DiscountSheet } from '@/components/DiscountSheet';
 import { useSync } from '@/state/useSync';
 import {
   catalogueSize,
@@ -35,6 +36,7 @@ export default function ProductsScreen() {
   const { can } = useSession();
   const { syncNow } = useSync();
   const [editing, setEditing] = useState<number | 'new' | null>(null);
+  const [discounting, setDiscounting] = useState(false);
 
   const [term, setTerm] = useState('');
   const [products, setProducts] = useState<LocalProduct[]>([]);
@@ -193,7 +195,14 @@ export default function ProductsScreen() {
       title="بەرهەمەکان"
       subtitle="لەسەر ئەم ئامێرە — بێ ئینتەرنێتیش کاردەکات"
       scroll={false}
-      actions={can('products.manage') ? <Button tone="ink" label="بەرهەمی نوێ" onPress={() => setEditing('new')} /> : undefined}
+      actions={
+        can('products.manage') ? (
+          <View style={styles.actions}>
+            <Button tone="quiet" label="داشکاندنی کۆمەڵ" onPress={() => setDiscounting(true)} />
+            <Button tone="ink" label="بەرهەمی نوێ" onPress={() => setEditing('new')} />
+          </View>
+        ) : undefined
+      }
     >
       <View style={styles.stats}>
         <Stat label="بەرهەم" value={String(counts.products)} />
@@ -230,6 +239,21 @@ export default function ProductsScreen() {
               </View>
             ) : null
           }
+        />
+      )}
+
+      {discounting && (
+        <DiscountSheet
+          ids={isAdmin ? selection.ids.map(Number).filter(Number.isFinite) : []}
+          onClose={() => setDiscounting(false)}
+          onDone={async () => {
+            setDiscounting(false);
+            selection.clear();
+            // The till sells from this device's copy of the catalogue, so pull
+            // the new prices now rather than at the next scheduled sync.
+            await syncNow({ pullCatalogue: true });
+            load(term);
+          }}
         />
       )}
 
@@ -286,6 +310,7 @@ function Variations({ list }: { list: LocalVariation[] }) {
 }
 
 const styles = StyleSheet.create({
+  actions: { flexDirection: 'row-reverse', gap: spacing.sm },
   stats: { flexDirection: 'row-reverse', gap: spacing.sm },
   thumb: { width: 42, height: 42, borderRadius: radius.sm, backgroundColor: colors.background },
   thumbEmpty: { borderWidth: 1, borderColor: colors.border },

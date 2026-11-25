@@ -2,6 +2,8 @@ import { Platform } from 'react-native';
 import { apiRequest } from './client';
 import type {
   ActivityLog,
+  BulkDiscountInput,
+  BulkDiscountResult,
   CashMovement,
   CashierReport,
   DailyReport,
@@ -204,6 +206,13 @@ export const backoffice = {
     id
       ? apiRequest<Product>(`products/${id}`, { method: 'PUT', body: product })
       : apiRequest<Product>('products', { method: 'POST', body: product }),
+
+  /**
+   * One percentage off the catalogue. Ask with `dry_run` first to see the
+   * numbers, then again without it to save.
+   */
+  bulkDiscount: (input: BulkDiscountInput) =>
+    apiRequest<BulkDiscountResult>('products/bulk-discount', { method: 'POST', body: input }),
 
   /** One product in full: descriptions in every language, images, variations. */
   product: (id: number) => apiRequest<Product>(`products/${id}`),

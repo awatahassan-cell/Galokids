@@ -254,6 +254,8 @@ export interface DailyReportRow {
   social_revenue: number;
   orders_count: number;
   items_sold: number;
+  /** What customers paid for delivery that day; not part of `revenue`. */
+  delivery_fees?: number;
   cogs: number;
   expenses: number;
   net_profit: number;
@@ -275,6 +277,8 @@ export interface SalesReport {
   online_revenue: number;
   social_revenue: number;
   refunded: number;
+  /** Collected from customers for the courier. Not in `revenue`, so not in any profit. */
+  delivery_fees: number;
   /** Cost of the goods sold. */
   cogs: number;
   gross_profit: number;
@@ -365,4 +369,39 @@ export interface ExchangeResult {
   /** Positive: collect from the customer. Negative: give back. */
   difference: number;
   replacement_order: { id: number; invoice_no: string | null };
+}
+
+/** `POST /products/bulk-discount`: one percentage off the catalogue. */
+export interface BulkDiscountInput {
+  /** 1–90 to discount; 0 takes every discount in scope off again. */
+  percent: number;
+  scope: 'all' | 'category' | 'ids';
+  category_id?: number;
+  ids?: number[];
+  /** Leave products that already have a hand-set discount alone. */
+  keep_existing?: boolean;
+  /** Round the new price to the nearest this many dinar (default 250). */
+  round_to?: 1 | 50 | 100 | 250 | 500 | 1000;
+  /** Answer what would change without changing it. */
+  dry_run?: boolean;
+}
+
+export interface BulkDiscountResult {
+  percent: number;
+  dry_run: boolean;
+  affected: number;
+  skipped_existing: number;
+  skipped_too_small: number;
+  /** Products whose new price is lower than what they cost. */
+  below_cost: number;
+  /** Variations with their own price, which a discount does not change. */
+  variations_with_own_price: number;
+  samples: {
+    id: number;
+    name: string;
+    name_ku: string | null;
+    price: number;
+    old_discount_price: number | null;
+    new_discount_price: number | null;
+  }[];
 }

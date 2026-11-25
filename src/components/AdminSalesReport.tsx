@@ -106,6 +106,11 @@ export const AdminSalesReport: React.FC = () => {
             {stat(L('Net Profit'), formatIQDLabel(report.net_profit), Percent, 'bg-rose-50 text-rose-600')}
             {stat(L('Orders'), String(report.order_count), Package, 'bg-amber-50 text-amber-600')}
           </div>
+          {Number(report.delivery_fees) > 0 && (
+            <p className="text-xs font-bold text-slate-500 -mt-2">
+              {L('Delivery fees (not in profit)')}: {formatIQDLabel(report.delivery_fees)}
+            </p>
+          )}
 
           {/* POS vs Website vs Social Page Breakdown Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

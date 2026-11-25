@@ -42,6 +42,7 @@ import { AdminUsersTab } from "../components/admin/AdminUsersTab";
 import { AdminMessagesTab } from "../components/admin/AdminMessagesTab";
 import { orderNotifier } from "../utils/notifications";
 import { BulkStockModal } from "../components/admin/BulkStockModal";
+import { BulkDiscountModal } from "../components/admin/BulkDiscountModal";
 import { BulkActionBar } from "../components/admin/BulkActionBar";
 import { BulkCheckbox } from "../components/admin/BulkCheckbox";
 import { useBulkSelection } from "../components/admin/useBulkSelection";
@@ -117,6 +118,7 @@ export const Admin: React.FC = () => {
     setFailedImages(prev => (prev.has(url) ? prev : new Set(prev).add(url)));
   }, []);
   const [isBulkStockModalOpen, setIsBulkStockModalOpen] = useState(false);
+  const [isBulkDiscountOpen, setIsBulkDiscountOpen] = useState(false);
   
   const { tab: urlTab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
@@ -619,6 +621,7 @@ export const Admin: React.FC = () => {
       filteredOrders: orders,
       filteredExpenses: expenses,
       totalRevenue,
+      deliveryFees: Number(t.deliveryFees || 0),
       totalCogs,
       totalExpenseAmt,
       grossProfit,
@@ -1727,6 +1730,15 @@ export const Admin: React.FC = () => {
               >
                 <Boxes className="w-4 h-4 text-indigo-500" />
                 <span className="hidden sm:inline">{language === 'ku' ? 'ڕێکخستنەوەی ستۆک' : language === 'ar' ? 'تعديل المخزون' : 'Stock Adjustment'}</span>
+              </button>
+
+              <button
+                onClick={() => setIsBulkDiscountOpen(true)}
+                className="bg-white border border-slate-200 hover:border-candy-300 hover:text-candy-700 text-slate-700 px-4 py-2.5 rounded-full font-extrabold transition-all flex items-center shadow-2xs text-xs cursor-pointer active:scale-95 gap-1.5"
+                title={language === 'ku' ? 'داشکاندنی سەدی بۆ هەموو کاڵاکان یان بەشێک' : 'Percentage discount on many products'}
+              >
+                <Percent className="w-4 h-4 text-candy-500" />
+                <span className="hidden sm:inline">{language === 'ku' ? 'داشکاندنی کۆمەڵ' : language === 'ar' ? 'خصم جماعي' : 'Bulk discount'}</span>
               </button>
 
               <button
@@ -3072,6 +3084,18 @@ export const Admin: React.FC = () => {
           </div>
         </div>
       )}
+
+      <BulkDiscountModal
+        isOpen={isBulkDiscountOpen}
+        onClose={() => setIsBulkDiscountOpen(false)}
+        categories={categories}
+        selectedIds={productSelection.ids}
+        onDone={() => {
+          refreshProducts(productsPage, PRODUCTS_PER_PAGE, productsQuery, false, true);
+          productSelection.clear();
+        }}
+        toast={toast}
+      />
 
       {/* Bulk Stock Restock & Adjustment Modal */}
       <BulkStockModal

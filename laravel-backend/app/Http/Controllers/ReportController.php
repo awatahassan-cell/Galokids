@@ -43,13 +43,13 @@ class ReportController extends Controller
                 'orders.user_id',
                 DB::raw("COALESCE(users.name, 'Unknown') as name"),
                 DB::raw('COUNT(*) as orders_count'),
-                DB::raw('SUM(orders.total_amount) - SUM(COALESCE(orders.refunded_amount, 0)) as total'),
+                DB::raw('SUM(orders.total_amount - COALESCE(orders.shipping_fee, 0) - COALESCE(orders.refunded_amount, 0)) as total'),
                 // Net of refunds, exactly like the `total` beside them. Taking
                 // the raw charge here made the per-channel cards add up to more
                 // than the revenue figure printed above them.
-                DB::raw("SUM(CASE WHEN orders.channel = 'pos' THEN orders.total_amount - COALESCE(orders.refunded_amount, 0) ELSE 0 END) as pos_total"),
-                DB::raw("SUM(CASE WHEN orders.channel = 'online' THEN orders.total_amount - COALESCE(orders.refunded_amount, 0) ELSE 0 END) as online_total"),
-                DB::raw("SUM(CASE WHEN orders.channel = 'social' THEN orders.total_amount - COALESCE(orders.refunded_amount, 0) ELSE 0 END) as social_total")
+                DB::raw("SUM(CASE WHEN orders.channel = 'pos' THEN orders.total_amount - COALESCE(orders.shipping_fee, 0) - COALESCE(orders.refunded_amount, 0) ELSE 0 END) as pos_total"),
+                DB::raw("SUM(CASE WHEN orders.channel = 'online' THEN orders.total_amount - COALESCE(orders.shipping_fee, 0) - COALESCE(orders.refunded_amount, 0) ELSE 0 END) as online_total"),
+                DB::raw("SUM(CASE WHEN orders.channel = 'social' THEN orders.total_amount - COALESCE(orders.shipping_fee, 0) - COALESCE(orders.refunded_amount, 0) ELSE 0 END) as social_total")
             )
             ->groupBy('orders.user_id', 'users.name')
             ->orderByDesc('total')
@@ -83,8 +83,13 @@ class ReportController extends Controller
 
         // Money side: a cancelled order was never a sale, so it is out. An order
         // with returns on it stays in — its revenue is what was kept, which the
-        // refund subtraction below works out — and a delivery fee on a returned
-        // order was still charged and still paid to the courier.
+        // refund subtraction below works out.
+        //
+        // Revenue is the GOODS only. The delivery fee is what the customer pays
+        // for the courier, so counting it here put the courier's money into the
+        // shop's profit: a 4,000 delivery on a 22,000 order showed 4,000 of
+        // profit that was handed straight to the driver. It is reported on its
+        // own as `delivery_fees`.
         $ordersQuery = Order::whereBetween('created_at', [$from . ' 00:00:00', $to . ' 23:59:59'])
             ->where('status', '!=', Order::STATUS_CANCELLED);
         if ($request->filled('channel')) {
@@ -99,18 +104,20 @@ class ReportController extends Controller
         // into PHP and then passed the whole id list into `whereIn(...)` — which
         // grows without bound and eventually breaks the query.
         $totals = (clone $ordersQuery)
-            ->selectRaw('COALESCE(SUM(total_amount), 0) as revenue')
+            ->selectRaw('COALESCE(SUM(total_amount - COALESCE(shipping_fee, 0)), 0) as revenue')
+            ->selectRaw('COALESCE(SUM(shipping_fee), 0) as delivery_fees')
             ->selectRaw('COALESCE(SUM(refunded_amount), 0) as refunded')
             ->first();
 
         $grossRevenue = (float) ($totals->revenue ?? 0);
         $refunded = (float) ($totals->refunded ?? 0);
+        $deliveryFees = (float) ($totals->delivery_fees ?? 0);
 
         // The same money split by where the sale happened.
         $byChannel = (clone $ordersQuery)
-            ->selectRaw("COALESCE(SUM(CASE WHEN channel = 'pos' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as pos")
-            ->selectRaw("COALESCE(SUM(CASE WHEN channel = 'online' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as online")
-            ->selectRaw("COALESCE(SUM(CASE WHEN channel = 'social' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as social")
+            ->selectRaw("COALESCE(SUM(CASE WHEN channel = 'pos' THEN total_amount - COALESCE(shipping_fee, 0) - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as pos")
+            ->selectRaw("COALESCE(SUM(CASE WHEN channel = 'online' THEN total_amount - COALESCE(shipping_fee, 0) - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as online")
+            ->selectRaw("COALESCE(SUM(CASE WHEN channel = 'social' THEN total_amount - COALESCE(shipping_fee, 0) - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as social")
             ->first();
 
         // Money actually kept: refunds were handed back to the customer, so the
@@ -164,7 +171,7 @@ class ReportController extends Controller
         $daily = (clone $ordersQuery)
             ->select(
                 DB::raw('DATE(created_at) as day'),
-                DB::raw('SUM(total_amount) - SUM(COALESCE(refunded_amount, 0)) as revenue'),
+                DB::raw('SUM(total_amount - COALESCE(shipping_fee, 0) - COALESCE(refunded_amount, 0)) as revenue'),
                 DB::raw('COUNT(*) as orders')
             )
             ->groupBy('day')->orderBy('day')->get();
@@ -187,6 +194,8 @@ class ReportController extends Controller
             'online_revenue' => round((float) ($byChannel->online ?? 0)),
             'social_revenue' => round((float) ($byChannel->social ?? 0)),
             'refunded' => round($refunded),
+            // Collected from customers for the courier. Not in `revenue`, so not in profit.
+            'delivery_fees' => round($deliveryFees),
             'cogs' => round($cogs),
             'gross_profit' => round($grossProfit),
             'expenses' => round($expenses),
@@ -245,10 +254,11 @@ class ReportController extends Controller
             ->where('status', '!=', Order::STATUS_CANCELLED)
             ->select(
                 DB::raw('DATE(created_at) as day'),
-                DB::raw('COALESCE(SUM(total_amount - COALESCE(refunded_amount, 0)), 0) as revenue'),
-                DB::raw("COALESCE(SUM(CASE WHEN channel = 'pos' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as pos_revenue"),
-                DB::raw("COALESCE(SUM(CASE WHEN channel = 'online' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as online_revenue"),
-                DB::raw("COALESCE(SUM(CASE WHEN channel = 'social' THEN total_amount - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as social_revenue"),
+                DB::raw('COALESCE(SUM(total_amount - COALESCE(shipping_fee, 0) - COALESCE(refunded_amount, 0)), 0) as revenue'),
+                DB::raw("COALESCE(SUM(CASE WHEN channel = 'pos' THEN total_amount - COALESCE(shipping_fee, 0) - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as pos_revenue"),
+                DB::raw("COALESCE(SUM(CASE WHEN channel = 'online' THEN total_amount - COALESCE(shipping_fee, 0) - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as online_revenue"),
+                DB::raw("COALESCE(SUM(CASE WHEN channel = 'social' THEN total_amount - COALESCE(shipping_fee, 0) - COALESCE(refunded_amount, 0) ELSE 0 END), 0) as social_revenue"),
+                DB::raw('COALESCE(SUM(shipping_fee), 0) as delivery_fees'),
                 DB::raw("SUM(CASE WHEN status = '$returned' THEN 0 ELSE 1 END) as orders_count"),
                 DB::raw("SUM(CASE WHEN channel = 'pos' AND status != '$returned' THEN 1 ELSE 0 END) as pos_orders"),
                 DB::raw("SUM(CASE WHEN channel = 'online' AND status != '$returned' THEN 1 ELSE 0 END) as online_orders"),
@@ -300,6 +310,7 @@ class ReportController extends Controller
                     'pos_revenue' => round((float) ($m->pos_revenue ?? 0)),
                     'online_revenue' => round((float) ($m->online_revenue ?? 0)),
                     'social_revenue' => round((float) ($m->social_revenue ?? 0)),
+                    'delivery_fees' => round((float) ($m->delivery_fees ?? 0)),
                     'orders_count' => (int) ($m->orders_count ?? 0),
                     'pos_orders' => (int) ($m->pos_orders ?? 0),
                     'online_orders' => (int) ($m->online_orders ?? 0),
@@ -322,6 +333,7 @@ class ReportController extends Controller
                 'pos_revenue' => round((float) $days->sum('pos_revenue')),
                 'online_revenue' => round((float) $days->sum('online_revenue')),
                 'social_revenue' => round((float) $days->sum('social_revenue')),
+                'delivery_fees' => round((float) $days->sum('delivery_fees')),
                 'orders_count' => (int) $days->sum('orders_count'),
                 'pos_orders' => (int) $days->sum('pos_orders'),
                 'online_orders' => (int) $days->sum('online_orders'),
@@ -370,7 +382,7 @@ class ReportController extends Controller
                 'coupon_code as code',
                 DB::raw('COUNT(*) as uses'),
                 DB::raw('COALESCE(SUM(discount_amount), 0) as total_discount'),
-                DB::raw('COALESCE(SUM(total_amount - COALESCE(refunded_amount, 0)), 0) as total_sales')
+                DB::raw('COALESCE(SUM(total_amount - COALESCE(shipping_fee, 0) - COALESCE(refunded_amount, 0)), 0) as total_sales')
             )
             ->groupBy('coupon_code')
             ->orderByDesc('uses')
@@ -383,7 +395,7 @@ class ReportController extends Controller
                 DB::raw('DATE(created_at) as day'),
                 DB::raw('COUNT(*) as uses'),
                 DB::raw('COALESCE(SUM(discount_amount), 0) as discount'),
-                DB::raw('COALESCE(SUM(total_amount - COALESCE(refunded_amount, 0)), 0) as sales')
+                DB::raw('COALESCE(SUM(total_amount - COALESCE(shipping_fee, 0) - COALESCE(refunded_amount, 0)), 0) as sales')
             )
             ->groupBy('day')->orderBy('day')->get();
 

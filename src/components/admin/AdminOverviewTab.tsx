@@ -44,6 +44,7 @@ export interface AdminOverviewTabProps {
   setSelectedYear: (y: string) => void;
   reportData: {
     totalRevenue: number;
+    deliveryFees?: number;
     totalOrderCount: number;
     totalCogs: number;
     totalExpenseAmt: number;
@@ -192,6 +193,11 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
             <div className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
               {formatIQDLabel(reportData.totalRevenue)}
             </div>
+            {Number(reportData.deliveryFees) > 0 && (
+              <span className="text-[11px] font-bold text-slate-400 block mt-1">
+                {L('Delivery fees (not in profit)')}: {formatIQDLabel(Number(reportData.deliveryFees))}
+              </span>
+            )}
           </div>
 
           {/* Connected Glowing Pods */}

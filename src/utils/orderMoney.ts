@@ -22,16 +22,19 @@ export const isCompletedSale = (order: any): boolean =>
   isCountableOrder(order) && order.status !== 'returned';
 
 /**
- * Money kept: what was charged, less anything handed back.
+ * Money kept from the goods: what was charged, less the delivery fee and
+ * anything handed back.
  *
- * A delivery fee on a returned order stays in — it was charged, and the shop
- * still paid the courier.
+ * The delivery fee is the courier's money, not the shop's, so it is not
+ * revenue and never reaches profit — the server's reports leave it out the
+ * same way and report it on its own as `delivery_fees`.
  */
 export const getOrderRevenue = (order: any): number => {
   if (!isCountableOrder(order)) return 0;
   const charged = Number(order.totalAmount ?? order.total_amount ?? 0) || 0;
+  const delivery = Number(order.shippingFee ?? order.shipping_fee ?? 0) || 0;
   const refunded = Number(order.refundedAmount ?? order.refunded_amount ?? 0) || 0;
-  return charged - refunded;
+  return charged - delivery - refunded;
 };
 
 /** Pieces of a line the shop actually parted with. */

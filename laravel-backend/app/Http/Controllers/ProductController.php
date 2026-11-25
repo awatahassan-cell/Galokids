@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Support\ActivityLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -444,6 +445,140 @@ class ProductController extends Controller
         ActivityLogger::log('product.created', 'product', $product->id, $product->name);
 
         return response()->json($product->load('variations'), 201);
+    }
+
+    /**
+     * One percentage off the catalogue, in one step.
+     *
+     * Until now a sale meant opening every product and typing a new price, or
+     * handing customers a coupon code. This sets each product's discount price
+     * to `price − percent`, rounded to a price a shop would actually write
+     * (nearest 250 dinar unless told otherwise), for everything, one section,
+     * or the products ticked. `percent: 0` takes the discounts off again.
+     *
+     * `dry_run` answers what would change without changing it, so the admin
+     * sees the numbers — including any product that would end up below what it
+     * cost — before committing.
+     *
+     * A variation with its own price keeps it: that price wins over any
+     * discount at checkout, so the count of those is reported rather than
+     * pretending they were reduced.
+     */
+    public function bulkDiscount(Request $request)
+    {
+        $this->requirePermission($request, 'products.manage');
+
+        $data = $request->validate([
+            'percent' => 'required|numeric|min:0|max:90',
+            'scope' => 'required|string|in:all,category,ids',
+            'category_id' => 'required_if:scope,category|nullable|integer|exists:categories,id',
+            'ids' => 'required_if:scope,ids|nullable|array|min:1',
+            'ids.*' => 'integer',
+            'keep_existing' => 'sometimes|boolean',
+            'round_to' => 'sometimes|integer|in:1,50,100,250,500,1000',
+            'dry_run' => 'sometimes|boolean',
+        ]);
+
+        $percent = (float) $data['percent'];
+        $roundTo = (int) ($data['round_to'] ?? 250);
+        $keepExisting = (bool) ($data['keep_existing'] ?? false);
+        $dryRun = (bool) ($data['dry_run'] ?? false);
+
+        $query = Product::query()->with('variations:id,product_id,price_override');
+        if ($data['scope'] === 'category') {
+            $query->where('category_id', $data['category_id']);
+        } elseif ($data['scope'] === 'ids') {
+            $query->whereIn('id', $data['ids']);
+        }
+
+        $affected = 0;
+        $skippedExisting = 0;
+        $skippedTooSmall = 0;
+        $belowCost = 0;
+        $ownPrice = 0;
+        $samples = [];
+
+        $run = function () use ($query, $percent, $roundTo, $keepExisting, $dryRun, &$affected, &$skippedExisting, &$skippedTooSmall, &$belowCost, &$ownPrice, &$samples) {
+            $query->orderBy('id')->chunkById(200, function ($products) use ($percent, $roundTo, $keepExisting, $dryRun, &$affected, &$skippedExisting, &$skippedTooSmall, &$belowCost, &$ownPrice, &$samples) {
+                foreach ($products as $product) {
+                    $price = (float) $product->price;
+                    $old = $product->discount_price !== null ? (float) $product->discount_price : null;
+
+                    if ($percent > 0) {
+                        if ($keepExisting && $old !== null && $old > 0) {
+                            $skippedExisting++;
+                            continue;
+                        }
+
+                        $new = round(($price * (1 - $percent / 100)) / $roundTo) * $roundTo;
+
+                        // A price that rounds to nothing, or back up to the full
+                        // price, is not a discount.
+                        if ($new <= 0 || $new >= $price) {
+                            $skippedTooSmall++;
+                            continue;
+                        }
+                    } else {
+                        if ($old === null) {
+                            continue;
+                        }
+                        $new = null;
+                    }
+
+                    $affected++;
+                    $ownPrice += $product->variations->filter(fn ($v) => (float) $v->price_override > 0)->count();
+
+                    if ($new !== null && (float) $product->cost > 0 && $new < (float) $product->cost) {
+                        $belowCost++;
+                    }
+
+                    if (count($samples) < 5) {
+                        $samples[] = [
+                            'id' => $product->id,
+                            'name' => $product->name,
+                            'name_ku' => $product->name_ku,
+                            'price' => $price,
+                            'old_discount_price' => $old,
+                            'new_discount_price' => $new,
+                        ];
+                    }
+
+                    if (!$dryRun) {
+                        // save(), not a bulk UPDATE: it moves updated_at, which
+                        // is what makes a till pick the new price up on its next sync.
+                        $product->discount_price = $new;
+                        $product->save();
+                    }
+                }
+            });
+        };
+
+        if ($dryRun) {
+            $run();
+        } else {
+            DB::transaction($run);
+
+            ActivityLogger::log(
+                $percent > 0 ? 'product.bulk_discount' : 'product.bulk_discount_removed',
+                'product',
+                null,
+                $percent > 0
+                    ? "{$percent}% off · {$affected} products · scope: {$data['scope']}"
+                    : "Removed discounts · {$affected} products · scope: {$data['scope']}",
+                ['percent' => $percent, 'scope' => $data['scope'], 'affected' => $affected]
+            );
+        }
+
+        return response()->json([
+            'percent' => $percent,
+            'dry_run' => $dryRun,
+            'affected' => $affected,
+            'skipped_existing' => $skippedExisting,
+            'skipped_too_small' => $skippedTooSmall,
+            'below_cost' => $belowCost,
+            'variations_with_own_price' => $ownPrice,
+            'samples' => $samples,
+        ]);
     }
 
     public function update(Request $request, $id)

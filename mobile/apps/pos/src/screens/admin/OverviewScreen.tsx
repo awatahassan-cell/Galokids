@@ -136,6 +136,9 @@ export default function OverviewScreen() {
         <Figure label="خەرجییەکان" value={formatIQD(figures.expenses)} />
         <Figure label="قازانجی خاو" value={formatIQD(figures.gross_profit)} tone={figures.gross_profit < 0 ? 'bad' : 'good'} />
         <Figure label="گەڕدراوە" value={formatIQD(figures.refunded)} tone="bad" />
+        {figures.delivery_fees > 0 && (
+          <Figure label="گەیاندن (بۆ شۆفێر، لە قازانج نییە)" value={formatIQD(figures.delivery_fees)} />
+        )}
         <Figure label="دانەی فرۆشراو" value={String(figures.items_sold)} />
         <Figure
           label="ناوەندی داواکاری"

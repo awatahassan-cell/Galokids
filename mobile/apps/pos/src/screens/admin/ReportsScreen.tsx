@@ -104,6 +104,10 @@ export default function ReportsScreen() {
               <Stat label="تێچووی کاڵا" value={formatIQD(summary.data.cogs)} />
             )}
 
+            {(summary.data?.delivery_fees ?? 0) > 0 && (
+              <Stat label="پارەی گەیاندن (بۆ شۆفێر، لە قازانج نییە)" value={formatIQD(summary.data!.delivery_fees)} />
+            )}
+
             {summary.data?.expenses != null && (
               <Stat label="خەرجی" value={formatIQD(summary.data.expenses)} tone="bad" />
             )}

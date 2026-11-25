@@ -264,6 +264,7 @@ export const adminDict: Record<string, Pair> = {
   'Add': { ku: 'زیادکردن', ar: 'إضافة' },
   'Revenue': { ku: 'داهات', ar: 'الإيرادات' },
   'Gross Profit': { ku: 'قازانجی گشتی', ar: 'إجمالي الربح' },
+  'Delivery fees (not in profit)': { ku: 'پارەی گەیاندن (بۆ شۆفێرە، لە قازانج نییە)', ar: 'رسوم التوصيل (للسائق، ليست من الربح)' },
   'Grand total': { ku: 'کۆی کۆتایی', ar: 'المجموع الكلي' },
   'Daily Revenue': { ku: 'داهاتی ڕۆژانە', ar: 'الإيرادات اليومية' },
   'Top Products': { ku: 'باشترین بەرهەمەکان', ar: 'أفضل المنتجات' },
