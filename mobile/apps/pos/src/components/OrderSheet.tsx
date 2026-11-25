@@ -1,3 +1,4 @@
+import { RefundMethodPicker, defaultRefundMethod, type RefundMethodId } from '@/components/RefundMethod';
 import { useCallback, useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { TextInput } from '@/components/TextInput';
@@ -76,6 +77,7 @@ function Sheet({
   const [refunding, setRefunding] = useState(false);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [reason, setReason] = useState('');
+  const [method, setMethod] = useState<RefundMethodId>(() => defaultRefundMethod(order));
 
   const history = useFetch<OrderHistoryEntry[]>(() => backoffice.orderHistory(order.id), [order.id, order.status]);
 
@@ -151,7 +153,7 @@ function Sheet({
 
   const refund = () =>
     run(async () => {
-      await backoffice.refundOrder(order.id, { items: chosen, reason: reason.trim() || undefined });
+      await backoffice.refundOrder(order.id, { items: chosen, reason: reason.trim() || undefined, method });
       setRefunding(false);
       setQuantities({});
       setReason('');
@@ -245,6 +247,7 @@ function Sheet({
             {/* ---- refund form ---- */}
             {refunding && (
               <Section title="گەڕاندنەوە">
+                <RefundMethodPicker value={method} onChange={setMethod} />
                 <TextInput
                   style={styles.input}
                   value={reason}

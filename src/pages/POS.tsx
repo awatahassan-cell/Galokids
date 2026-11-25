@@ -117,13 +117,22 @@ export const POS: React.FC = () => {
   const [returnOrder, setReturnOrder] = useState<any>(null);
   const [returnQty, setReturnQty] = useState<Record<number, number>>({});
   const [returnReason, setReturnReason] = useState('');
+  // Where the refunded money comes from. Only cash leaves the drawer, so it is
+  // the only kind the shift's expected-cash count subtracts.
+  const [returnMethod, setReturnMethod] = useState<'cash' | 'card' | 'other'>('cash');
   const [returnLoading, setReturnLoading] = useState(false);
 
   const loadReturnOrder = async () => {
     setReturnLoading(true);
     const o = await getOrderById(returnOrderId.trim());
     setReturnLoading(false);
-    if (o) { setReturnOrder(o); setReturnQty({}); }
+    if (o) {
+      setReturnOrder(o);
+      setReturnQty({});
+      // A till sale goes back the way it came in; a website or page order was
+      // never paid at the counter. Same default the server uses.
+      setReturnMethod(o.paymentMethod === 'card' ? 'card' : o.channel === 'pos' ? 'cash' : 'other');
+    }
     else toast('Order not found', 'error');
   };
 
@@ -185,7 +194,7 @@ export const POS: React.FC = () => {
       .map(([id, q]) => ({ order_item_id: Number(id), quantity: Number(q) }));
     if (items.length === 0) { toast('Select at least one item to return', 'error'); return; }
     setReturnLoading(true);
-    const res = await refundOrder(returnOrder.id, items, returnReason);
+    const res = await refundOrder(returnOrder.id, items, returnReason, returnMethod);
     setReturnLoading(false);
     if (res.success) {
       toast('Refund processed ✅');
@@ -1068,6 +1077,26 @@ export const POS: React.FC = () => {
                       </div>
                     ))}
                   </div>
+
+                  {!isExchange && (
+                    <div>
+                      <label className={`block text-xs font-semibold text-slate-600 mb-1 ${isRTL ? 'text-right' : ''}`}>
+                        {language === 'ku' ? 'پارە چۆن گەڕێندرایەوە؟' : language === 'ar' ? 'كيف أُعيد المبلغ؟' : 'How was the money paid back?'}
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {([
+                          ['cash', language === 'ku' ? 'لە دراوی تیل' : language === 'ar' ? 'من الصندوق' : 'From the drawer'],
+                          ['card', language === 'ku' ? 'بۆ کارت' : language === 'ar' ? 'إلى البطاقة' : 'To the card'],
+                          ['other', language === 'ku' ? 'گواستنەوە / تر' : language === 'ar' ? 'تحويل / آخر' : 'Transfer / other'],
+                        ] as const).map(([id, label]) => (
+                          <button key={id} type="button" onClick={() => setReturnMethod(id)} aria-pressed={returnMethod === id}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold border ${returnMethod === id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300'}`}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label className={`block text-xs font-semibold text-slate-600 mb-1 ${isRTL ? 'text-right' : ''}`}>

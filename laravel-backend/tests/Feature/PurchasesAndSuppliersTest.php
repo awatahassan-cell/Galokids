@@ -110,6 +110,9 @@ class PurchasesAndSuppliersTest extends TestCase
     public function test_a_purchase_updates_the_product_cost_and_price(): void
     {
         $v = $this->variation();
+        // With nothing on the shelf the new cost is simply the cost. (With
+        // stock, it is averaged in — see PurchaseCostAndPriceTest.)
+        $v->update(['stock_quantity' => 0]);
 
         $this->buy($this->admin(), $v, [
             'items' => [[

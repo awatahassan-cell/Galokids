@@ -164,7 +164,15 @@ export const backoffice = {
    * names an order *item*, not a product. Quantities above what is still
    * refundable are clamped server side, so a double tap cannot refund twice.
    */
-  refundOrder: (id: number, body: { items: { order_item_id: number; quantity: number }[]; reason?: string }) =>
+  refundOrder: (
+    id: number,
+    body: {
+      items: { order_item_id: number; quantity: number }[];
+      reason?: string;
+      /** How the money went back. Only `cash` comes out of the cashier's drawer. */
+      method?: 'cash' | 'card' | 'other';
+    }
+  ) =>
     apiRequest<unknown>(`orders/${id}/refund`, { method: 'POST', body }),
 
   /** Swap goods on an order for others in one step, with the price difference worked out. */

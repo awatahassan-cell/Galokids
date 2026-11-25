@@ -138,14 +138,24 @@ class PurchaseController extends Controller
                 $variation = ProductVariation::lockForUpdate()->findOrFail($itemData['product_variation_id']);
 
                 $previousCost = (float)($product->cost ?? 0);
-                $newCost = (float)$itemData['cost_price'];
+                $paidCost = (float)$itemData['cost_price'];
+
+                // The cost of a product is what ALL of its pieces cost, not just
+                // the newest delivery. Ten on the shelf at 12,000 plus ten bought
+                // at 14,000 cost 13,000 each; calling every piece 14,000 made the
+                // old ones look dearer and the profit on them smaller than it was.
+                // Counted across every size, since the cost sits on the product.
+                $onShelf = (int) max(0, ProductVariation::where('product_id', $product->id)->sum('stock_quantity'));
+                $newCost = ($paidCost > 0 && $onShelf > 0 && $previousCost > 0)
+                    ? round(($onShelf * $previousCost + $itemData['quantity'] * $paidCost) / ($onShelf + $itemData['quantity']))
+                    : $paidCost;
 
                 $previousPrice = (float)($product->price ?? 0);
                 $newPrice = isset($itemData['retail_price']) && $itemData['retail_price'] > 0 
                     ? (float)$itemData['retail_price'] 
                     : $previousPrice;
 
-                $subtotal = $itemData['quantity'] * $newCost;
+                $subtotal = $itemData['quantity'] * $paidCost;
 
                 PurchaseItem::create([
                     'purchase_id' => $purchase->id,
@@ -153,7 +163,8 @@ class PurchaseController extends Controller
                     'product_variation_id' => $variation->id,
                     'quantity' => $itemData['quantity'],
                     'previous_cost' => $previousCost,
-                    'cost_price' => $newCost,
+                    // What was actually paid per piece, not the blended cost.
+                    'cost_price' => $paidCost,
                     'previous_price' => $previousPrice,
                     'retail_price' => $newPrice,
                     'subtotal' => $subtotal,
@@ -182,6 +193,12 @@ class PurchaseController extends Controller
                 }
                 if ($newPrice > 0 && $newPrice != $previousPrice) {
                     $productUpdates['price'] = $newPrice;
+
+                    // A discount that is no longer below the new price would
+                    // charge more than the price itself.
+                    if ($product->discount_price !== null && (float) $product->discount_price >= $newPrice) {
+                        $productUpdates['discount_price'] = null;
+                    }
                 }
                 if (!empty($productUpdates)) {
                     $product->update($productUpdates);

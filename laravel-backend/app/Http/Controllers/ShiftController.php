@@ -81,7 +81,13 @@ class ShiftController extends Controller
 
         $cashSales = (float) $orders->where('payment_method', 'cash')->sum('total_amount');
         $cardSales = (float) $orders->where('payment_method', 'card')->sum('total_amount');
-        $refundsTotal = (float) Refund::where('shift_id', $shift->id)->sum('amount');
+        // Only refunds paid out of the drawer: a card refund or a website
+        // order's transfer never left it, and counting them made every such
+        // shift look short.
+        $refundsTotal = (float) Refund::where('shift_id', $shift->id)
+            ->where(fn ($q) => $q->where('method', Refund::CASH)->orWhereNull('method'))
+            ->sum('amount');
+        $refundsAll = (float) Refund::where('shift_id', $shift->id)->sum('amount');
 
         // Cash paid into or taken out of the drawer outside of a sale (paying a
         // driver, buying supplies). Without these the count never matched.
@@ -98,6 +104,8 @@ class ShiftController extends Controller
             'card_sales' => round($cardSales),
             'total_sales' => round((float) $orders->sum('total_amount')),
             'refunds' => round($refundsTotal),
+            // Everything refunded on this shift, however it was paid back.
+            'refunds_all' => round($refundsAll),
             'cash_in' => round($cashIn),
             'cash_out' => round($cashOut),
             'opening_float' => round((float) $shift->opening_float),

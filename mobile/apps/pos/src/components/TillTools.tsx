@@ -1,3 +1,4 @@
+import { RefundMethodPicker, defaultRefundMethod, type RefundMethodId } from '@/components/RefundMethod';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { TextInput } from '@/components/TextInput';
@@ -502,6 +503,7 @@ export function ReturnSheet({
   const [order, setOrder] = useState<Order | null>(null);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [reason, setReason] = useState('');
+  const [method, setMethod] = useState<RefundMethodId>('cash');
   const [busy, setBusy] = useState(false);
 
   const replacements = cartLines
@@ -526,7 +528,9 @@ export function ReturnSheet({
 
       if (!hit) return Alert.alert('نەدۆزرایەوە', 'هیچ فرۆشتنێک بەم ژمارەیە نەدۆزرایەوە.');
 
-      setOrder(await ordersApi.get(hit.id));
+      const found = await ordersApi.get(hit.id);
+      setOrder(found);
+      setMethod(defaultRefundMethod(found));
       setQuantities({});
     } catch (error) {
       Alert.alert('نەتوانرا بگەڕێت', (error as Error).message);
@@ -540,7 +544,7 @@ export function ReturnSheet({
 
     setBusy(true);
     try {
-      await backoffice.refundOrder(order.id, { items: chosen, reason: reason.trim() || undefined });
+      await backoffice.refundOrder(order.id, { items: chosen, reason: reason.trim() || undefined, method });
       Alert.alert('گەڕێنرایەوە', 'پارەکە بگەڕێنەوە بۆ کڕیار.');
       onClose();
     } catch (error) {
@@ -639,6 +643,8 @@ export function ReturnSheet({
               </View>
             );
           })}
+
+          <RefundMethodPicker value={method} onChange={setMethod} />
 
           <TextInput
             style={styles.input}

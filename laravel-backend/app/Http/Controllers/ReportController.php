@@ -153,8 +153,8 @@ class ReportController extends Controller
 
         // Estimated cost of goods sold using each product's current cost.
         $cogs = (float) OrderItem::whereIn('order_items.order_id', $inWindow)
-            ->join('products', 'order_items.product_id', '=', 'products.id')
-            ->sum(DB::raw("COALESCE(products.cost, 0) * $net"));
+            ->leftJoin('products', 'order_items.product_id', '=', 'products.id')
+            ->sum(DB::raw("COALESCE(order_items.unit_cost, products.cost, 0) * $net"));
 
         // A date column holds midnight, so comparing it against the plain end
         // date as a string dropped everything recorded on the last day of the
@@ -276,9 +276,9 @@ class ReportController extends Controller
             ->select(
                 DB::raw('DATE(orders.created_at) as day'),
                 DB::raw("COALESCE(SUM($net), 0) as items_sold"),
-                DB::raw("COALESCE(SUM(COALESCE(products.cost, 0) * $net), 0) as cogs"),
-                DB::raw("COALESCE(SUM(CASE WHEN orders.channel = 'pos' THEN COALESCE(products.cost, 0) * $net ELSE 0 END), 0) as pos_cogs"),
-                DB::raw("COALESCE(SUM(CASE WHEN orders.channel != 'pos' THEN COALESCE(products.cost, 0) * $net ELSE 0 END), 0) as online_cogs")
+                DB::raw("COALESCE(SUM(COALESCE(order_items.unit_cost, products.cost, 0) * $net), 0) as cogs"),
+                DB::raw("COALESCE(SUM(CASE WHEN orders.channel = 'pos' THEN COALESCE(order_items.unit_cost, products.cost, 0) * $net ELSE 0 END), 0) as pos_cogs"),
+                DB::raw("COALESCE(SUM(CASE WHEN orders.channel != 'pos' THEN COALESCE(order_items.unit_cost, products.cost, 0) * $net ELSE 0 END), 0) as online_cogs")
             )
             ->groupBy('day')
             ->get()

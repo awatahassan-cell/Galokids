@@ -120,6 +120,7 @@ class OrderController extends Controller
                     'product_variation_id' => $variation->id,
                     'quantity' => $qty,
                     'price' => $unitPrice,
+                    'unit_cost' => $variation->product->cost,
                 ];
 
                 StockLedger::move(
@@ -144,6 +145,8 @@ class OrderController extends Controller
                 'user_id' => $user->id,
                 'shift_id' => $shift?->id,
                 'amount' => $returnedValue,
+                // An exchange nets against the new sale in the same drawer.
+                'method' => Refund::CASH,
                 'reason' => 'Exchange' . (!empty($data['reason']) ? ': ' . $data['reason'] : ''),
                 'items' => $snapshot,
             ]);
@@ -720,6 +723,8 @@ class OrderController extends Controller
                         'variation_label' => $variationLabel ?: null,
                         'quantity' => $qty,
                         'price' => $unitPrice,
+                        // Frozen now, so a later cost change cannot move this sale's profit.
+                        'unit_cost' => $product?->cost,
                     ];
                 }
 
@@ -987,12 +992,16 @@ class OrderController extends Controller
             // refund, so neither is restocked again here.
             if (!in_array($order->status, Order::STATUSES_WITHOUT_STOCK_HELD, true)) {
                 foreach ($order->items as $item) {
-                    if ($item->product_variation_id) {
+                    // What is still with the customer: the returned units were
+                    // already put back when they came in.
+                    $outstanding = (int) $item->quantity - (int) $item->returned_quantity;
+
+                    if ($item->product_variation_id && $outstanding > 0) {
                         $variation = ProductVariation::lockForUpdate()->find($item->product_variation_id);
                         if ($variation) {
                             StockLedger::move(
                                 $variation,
-                                (int) $item->quantity,
+                                $outstanding,
                                 StockMovement::TYPE_ADJUSTMENT,
                                 'Order deleted: ' . $label,
                                 null,
@@ -1027,6 +1036,9 @@ class OrderController extends Controller
             'items.*.order_item_id' => 'required|integer|exists:order_items,id',
             'items.*.quantity' => 'required|integer|min:1',
             'reason' => 'nullable|string|max:1000',
+            // How the money went back. Left out, it follows how the order was
+            // paid; only `cash` comes out of the drawer.
+            'method' => 'nullable|string|in:cash,card,other',
         ]);
 
         $result = DB::transaction(function () use ($data, $id, $user) {
@@ -1095,6 +1107,7 @@ class OrderController extends Controller
                 'user_id' => $user->id,
                 'shift_id' => $shift?->id,
                 'amount' => round($amount),
+                'method' => $data['method'] ?? $order->defaultRefundMethod(),
                 'reason' => $data['reason'] ?? null,
                 'items' => $snapshot,
             ]);

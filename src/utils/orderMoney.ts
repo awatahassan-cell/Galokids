@@ -64,7 +64,9 @@ export const getOrderCost = (order: any, products: Product[] = []): number => {
 
   return (order.items || []).reduce((sum: number, item: any) => {
     const catalogue = products.find(p => String(p.id) === String(item?.product?.id));
-    const unitCost = Number(catalogue?.cost ?? item?.product?.cost ?? 0) || 0;
+    // The cost recorded on the day of the sale wins; the catalogue's current
+    // cost only fills in for lines sold before costs were kept.
+    const unitCost = Number(item?.unitCost ?? item?.unit_cost ?? catalogue?.cost ?? item?.product?.cost ?? 0) || 0;
     return sum + unitCost * getItemNetQuantity(item);
   }, 0);
 };

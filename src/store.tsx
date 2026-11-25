@@ -116,7 +116,7 @@ interface StoreContextType {
   getShiftReport: () => Promise<any>;
   closeShift: (countedCash: number, note?: string) => Promise<any>;
   getOrderById: (orderId: string) => Promise<any>;
-  refundOrder: (orderId: string, items: { order_item_id: number; quantity: number }[], reason?: string) => Promise<{ success: boolean; message?: string; data?: any }>;
+  refundOrder: (orderId: string, items: { order_item_id: number; quantity: number }[], reason?: string, method?: 'cash' | 'card' | 'other') => Promise<{ success: boolean; message?: string; data?: any }>;
 
   updatePromoBanner: (banner: PromoBanner) => void;
   addCategory: (category: Category) => void;
@@ -815,10 +815,10 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     } catch { return null; }
   };
 
-  const refundOrder = async (orderId: string, items: { order_item_id: number; quantity: number }[], reason?: string): Promise<{ success: boolean; message?: string; data?: any }> => {
+  const refundOrder = async (orderId: string, items: { order_item_id: number; quantity: number }[], reason?: string, method?: 'cash' | 'card' | 'other'): Promise<{ success: boolean; message?: string; data?: any }> => {
     try {
       const res = await fetch(`${LARAVEL_API_BASE}/orders/${orderId}/refund`, {
-        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ items, reason }),
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ items, reason, method }),
       });
       const data = await res.json();
       if (res.ok) return { success: true, data };

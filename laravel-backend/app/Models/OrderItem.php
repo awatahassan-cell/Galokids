@@ -23,14 +23,30 @@ class OrderItem extends Model
         // How many of this line the customer brought back. Kept here rather
         // than only inside the refund record so reports can net it out in SQL.
         'returned_quantity',
-        'price'
+        'price',
+        // What one piece cost the shop when it was sold. Frozen, so a later
+        // change to the product's cost cannot rewrite profit already made.
+        'unit_cost',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
         'returned_quantity' => 'integer',
         'price' => 'float',
+        'unit_cost' => 'float',
     ];
+
+    /** What the shop paid is for the shop: customers' order lines never carry it. */
+    public function toArray()
+    {
+        $data = parent::toArray();
+
+        if (!Product::viewerIsPrivileged()) {
+            unset($data['unit_cost']);
+        }
+
+        return $data;
+    }
 
     /** Pieces of this line the shop actually parted with. */
     public function netQuantity(): int

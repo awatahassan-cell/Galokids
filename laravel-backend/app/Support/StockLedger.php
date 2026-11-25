@@ -43,12 +43,6 @@ final class StockLedger
             return;
         }
 
-        // An order with returns on it has already had those units put back,
-        // line by line. Moving the whole order again would double-count.
-        if ($order->returnedQuantity() > 0) {
-            return;
-        }
-
         $label = $order->invoice_no ?: ('#' . $order->id);
         $direction = $isHeld ? -1 : 1;
         $reason = $isHeld ? 'Order reopened: ' . $label : 'Order ' . $to . ': ' . $label;
@@ -63,9 +57,17 @@ final class StockLedger
                 continue;
             }
 
+            // Only the units still with the customer. Returned ones were put
+            // back line by line when they came back; moving the whole line
+            // again would either lose the rest (cancelling) or invent stock.
+            $outstanding = (int) $item->quantity - (int) $item->returned_quantity;
+            if ($outstanding <= 0) {
+                continue;
+            }
+
             self::move(
                 $variation,
-                $direction * (int) $item->quantity,
+                $direction * $outstanding,
                 StockMovement::TYPE_ADJUSTMENT,
                 $reason,
                 $order->id,

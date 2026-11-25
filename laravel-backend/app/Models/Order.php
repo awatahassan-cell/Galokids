@@ -91,6 +91,22 @@ class Order extends Model
      * copy, and they had already drifted apart — one subtracted the delivery
      * fee and the other did not.
      */
+    /**
+     * How a refund on this order is most likely paid back.
+     *
+     * A till sale goes back the way it came in — cash from the drawer, or to the
+     * card. A website or page order was never paid at the counter, so its refund
+     * is not drawer money unless the cashier says it was.
+     */
+    public function defaultRefundMethod(): string
+    {
+        if ($this->payment_method === 'card') {
+            return Refund::CARD;
+        }
+
+        return $this->channel === 'pos' ? Refund::CASH : Refund::OTHER;
+    }
+
     public function paidRatio(): float
     {
         $subtotal = (float) $this->subtotal;

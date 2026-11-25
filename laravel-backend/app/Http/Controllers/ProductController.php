@@ -288,6 +288,18 @@ class ProductController extends Controller
             $data['discount_price'] = null;
         }
 
+        // Lowering the price under an existing discount, without touching the
+        // discount, would leave the "discount" dearer than the price: checkout
+        // charges the discount price whenever there is one. Such a discount no
+        // longer discounts anything, so it goes.
+        if ($existing
+            && array_key_exists('price', $data)
+            && !array_key_exists('discount_price', $data)
+            && $existing->discount_price !== null
+            && (float) $existing->discount_price >= (float) $data['price']) {
+            $data['discount_price'] = null;
+        }
+
         // A discount above the normal price would charge the customer MORE than
         // the price shown struck through next to it. The price to compare
         // against is the one being saved, or — when this edit does not touch
