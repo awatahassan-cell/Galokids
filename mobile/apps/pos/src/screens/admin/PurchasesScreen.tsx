@@ -430,7 +430,7 @@ function PurchaseForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =
 }
 
 const styles = StyleSheet.create({
-  stats: { flexDirection: 'row-reverse', gap: spacing.sm },
+  stats: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
   total: { ...typography.heading, color: colors.text },
   line: {
     flexDirection: 'row-reverse',

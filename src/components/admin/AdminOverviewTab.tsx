@@ -190,7 +190,7 @@ export const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({
             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
               {L("Total Balance")}
             </span>
-            <div className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
+            <div className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight whitespace-nowrap">
               {formatIQDLabel(reportData.totalRevenue)}
             </div>
             {Number(reportData.deliveryFees) > 0 && (

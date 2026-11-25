@@ -161,7 +161,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <button
                   type="button"
                   onClick={() => setIsMobileSearchOpen(true)}
-                  className={`${iconBtn} md:hidden`}
+                  // The full pill only fits from 1440px; below that, down to lg, the navigation
+                  // needs the room, so search is the same icon the phone has.
+                  className={`${iconBtn} md:hidden lg:grid min-[1440px]:hidden`}
                   aria-label={t('search') || 'Search'}
                 >
                   <Search className="w-[19px] h-[19px]" />

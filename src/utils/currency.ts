@@ -8,6 +8,7 @@ export const formatIQD = (value: number) => {
 export const formatIQDLabel = (value: number, lang?: string) => {
   const currentLang = lang || (typeof window !== 'undefined' ? localStorage.getItem('kidskart_language') : null) || 'ku';
   const currencySymbol = (currentLang === 'ku' || currentLang === 'ar') ? 'د.ع' : 'IQD';
-  return `${formatIQD(value)} ${currencySymbol}`;
+  // Non-breaking: the unit must never wrap onto a line of its own.
+  return `${formatIQD(value)}\u00A0${currencySymbol}`;
 };
 

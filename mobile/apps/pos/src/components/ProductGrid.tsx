@@ -276,7 +276,9 @@ const styles = StyleSheet.create({
   stockTextOut: { color: '#fff' },
 
   name: { ...typography.tiny, color: colors.text, textAlign: 'right' },
-  priceRow: { flexDirection: 'row-reverse', alignItems: 'baseline', gap: spacing.xs },
+  // Wraps as a unit: with a discount there are two prices, and in a narrow
+  // card the old one drops to its own line instead of splitting a number.
+  priceRow: { flexDirection: 'row-reverse', flexWrap: 'wrap', alignItems: 'baseline', columnGap: spacing.xs, rowGap: 0 },
   price: { fontSize: 12, fontFamily: fonts.bold, color: colors.text, lineHeight: 18 },
   wasPrice: {
     fontSize: 9,

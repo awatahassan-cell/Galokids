@@ -311,7 +311,7 @@ function Variations({ list }: { list: LocalVariation[] }) {
 
 const styles = StyleSheet.create({
   actions: { flexDirection: 'row-reverse', gap: spacing.sm },
-  stats: { flexDirection: 'row-reverse', gap: spacing.sm },
+  stats: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
   thumb: { width: 42, height: 42, borderRadius: radius.sm, backgroundColor: colors.background },
   thumbEmpty: { borderWidth: 1, borderColor: colors.border },
   code: { ...typography.tiny, ...typography.mono, color: colors.textMuted },

@@ -301,7 +301,7 @@ function ExpenseComposer({
 }
 
 const styles = StyleSheet.create({
-  stats: { flexDirection: 'row-reverse', gap: spacing.sm },
+  stats: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
   amount: { ...typography.heading, color: colors.danger },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },

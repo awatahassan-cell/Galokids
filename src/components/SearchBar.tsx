@@ -65,7 +65,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ isMobileModalOpen, onClose
   return (
     <>
       {/* Desktop search pill — icon leads, input fills the rest. */}
-      <div ref={wrapperRef} className="relative hidden md:block min-w-[230px] lg:w-[260px] font-arabic">
+      <div ref={wrapperRef} className="relative hidden md:block lg:hidden min-[1440px]:block min-w-[230px] min-[1440px]:w-[260px] font-arabic">
         <form
           onSubmit={handleSearch}
           className="flex items-center gap-2 bg-[#F6F5FA] border border-slate-200/80 rounded-full px-4 py-2.5 focus-within:border-candy-300 focus-within:bg-white transition-colors"

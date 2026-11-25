@@ -29,7 +29,7 @@ export const HeaderNav: React.FC = () => {
     exact ? location.pathname === path : location.pathname.startsWith(path);
 
   const pill = (on: boolean) =>
-    `inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full text-sm font-bold transition-colors ${
+    `inline-flex items-center gap-1.5 px-1.5 min-[1100px]:px-2 min-[1200px]:px-3 min-[1440px]:px-3.5 py-2.5 rounded-full text-sm font-bold transition-colors ${
       on ? 'bg-candy-50 text-candy-700' : 'text-slate-900 hover:bg-candy-50 hover:text-candy-700'
     }`;
 

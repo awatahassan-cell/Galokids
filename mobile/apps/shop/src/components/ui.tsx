@@ -36,7 +36,9 @@ import { colors, fonts, radius, shadow, spacing, TOUCH_TARGET, typography } from
  */
 export function PageWash() {
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    // Clipped: the blobs sit partly off-screen on purpose, and unclipped they
+    // made every page wider than the phone — so it could be dragged sideways.
+    <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
       <View style={[styles.blob, styles.blobOne]} />
       <View style={[styles.blob, styles.blobTwo]} />
       <View style={[styles.blob, styles.blobThree]} />

@@ -247,7 +247,7 @@ export const AdminSalesReport: React.FC = () => {
               </thead>
               <tbody>
                 {cashiers.cashiers.map((c: any, i: number) => (
-                  <tr key={c.user_id ?? i} className="border-b border-slate-50">
+                  <tr key={c.user_id != null ? `user-${c.user_id}` : `unknown-${i}`} className="border-b border-slate-50">
                     <td className="py-2 font-bold text-slate-800">{c.name}</td>
                     <td className="py-2 text-center text-slate-600">{c.orders_count}</td>
                     <td className="py-2 text-right text-slate-600">{formatIQDLabel(Number(c.pos_total || 0))}</td>

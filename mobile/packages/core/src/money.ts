@@ -8,13 +8,15 @@
  */
 export function formatIQD(amount: number | string | null | undefined): string {
   const value = Math.round(Number(amount ?? 0));
-  if (!Number.isFinite(value)) return '0 د.ع';
+  if (!Number.isFinite(value)) return '0\u00A0د.ع';
 
   // A leading left-to-right mark on a negative: in a right-to-left line the
   // minus sign otherwise lands after the digits, so -5,000 reads as 5,000-.
   const sign = value < 0 ? '\u200E-' : '';
 
-  return `${sign}${Math.abs(value).toLocaleString('en-US')} د.ع`;
+  // A non-breaking space before the currency: in a narrow card the line broke
+  // between the number and "د.ع", leaving the unit alone on the next row.
+  return `${sign}${Math.abs(value).toLocaleString('en-US')}\u00A0د.ع`;
 }
 
 /** What a line actually sells for: the discount when there is one. */
