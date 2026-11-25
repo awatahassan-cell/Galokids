@@ -1,10 +1,28 @@
 // Single Centralized API Base URL for all requests across the application
 const rawEnvUrl = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_API_BASE;
-const defaultBackendUrl = 'https://galo.prodental.dev/API/api';
 
-export const API_BASE_URL = (rawEnvUrl && rawEnvUrl.trim())
-  ? rawEnvUrl.trim().replace(/\/+$/, '')
-  : defaultBackendUrl;
+function getApiBaseUrl(): string {
+  if (rawEnvUrl && rawEnvUrl.trim()) {
+    const trimmed = rawEnvUrl.trim().replace(/\/+$/, '');
+    // If running in browser on localhost / 127.0.0.1 and an absolute cross-origin URL is provided,
+    // route through local /api to avoid browser CORS errors.
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return '/api';
+      }
+    }
+    return trimmed;
+  }
+
+  // When running in the browser on localhost / 127.0.0.1, use '/api' to proxy through local server
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return '/api';
+  }
+
+  return '/api';
+}
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export const REMOTE_API_BASE = API_BASE_URL;
 
