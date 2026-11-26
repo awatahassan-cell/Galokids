@@ -604,7 +604,7 @@ export const PageOrders: React.FC = () => {
         discountAmount: discountNum,
         channel: 'social',
         source: 'social',
-      } as any);
+      } as any, { strict: true });
 
       const invoiceNo = res?.invoiceNo || res?.invoice_no || `INV-${Date.now().toString().slice(-6)}`;
 
@@ -643,7 +643,7 @@ export const PageOrders: React.FC = () => {
 
     } catch (err: any) {
       console.error('Failed to create page order:', err);
-      toast(err.message || 'Failed to submit order', 'error');
+      toast(err?.details?.message || err.message || 'Failed to submit order', 'error');
     } finally {
       setIsSubmitting(false);
     }

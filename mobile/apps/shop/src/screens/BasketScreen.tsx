@@ -42,6 +42,27 @@ export default function BasketScreen() {
   const [address, setAddress] = useState('');
   const [placing, setPlacing] = useState(false);
 
+  // The basket is kept on the phone and can be days old: check it against the
+  // shop when it opens, and say what had to change.
+  useEffect(() => {
+    // Only once the saved basket has been read back: opened any sooner it is
+    // an empty list and there is nothing to check.
+    if (!basket.ready) return;
+
+    basket.refresh().then(({ removed, trimmed }) => {
+      if (removed || trimmed) {
+        Alert.alert(
+          'سەبەتەکەت نوێکرایەوە',
+          [
+            removed ? `${removed} کاڵا لابرا چونکە نەماوە.` : '',
+            trimmed ? `بڕی ${trimmed} کاڵا کەمکرایەوە بەپێی ئەوەی ماوە.` : '',
+          ].filter(Boolean).join('\n')
+        );
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [basket.ready]);
+
   // Fill in what the account already knows, so a returning shopper types an
   // address and nothing else.
   useEffect(() => {
@@ -95,6 +116,22 @@ export default function BasketScreen() {
       // No idempotency key here on purpose: a shopper's order is placed by a
       // person who sees the result and can decide for themselves whether to
       // try again. The key exists for the till, which retries unattended.
+      if (error instanceof ApiError && error.code === 'insufficient_stock') {
+        // Someone else bought the last piece first. Bring the basket in line and
+        // say so, instead of leaving an English server message on screen.
+        const { removed, trimmed } = await basket.refresh();
+        Alert.alert(
+          'ستۆکی هەندێک کاڵا کەم بووەتەوە',
+          [
+            error.message,
+            removed ? `${removed} کاڵا لە سەبەتە لابرا چونکە نەماوە.` : '',
+            trimmed ? `بڕی ${trimmed} کاڵا کەمکرایەوە.` : '',
+            'سەبەتەکەت نوێکرایەوە، پێداچوونەوە بکە و دووبارە هەوڵبدەرەوە.',
+          ].filter(Boolean).join('\n')
+        );
+        return;
+      }
+
       Alert.alert(
         'نەتوانرا تۆمار بکرێت',
         error instanceof ApiError && error.isOffline
@@ -261,6 +298,8 @@ function Line({
   onChange: (key: string, quantity: number) => void;
   onRemove: (key: string) => void;
 }) {
+  const atLimit = line.stock != null && line.quantity >= line.stock;
+
   return (
     <View style={styles.line}>
       <MediaWash wash={mediaWash(line.productId)} style={styles.thumb}>
@@ -286,10 +325,17 @@ function Line({
               <Text style={styles.stepText}>−</Text>
             </Pressable>
             <Text style={styles.quantity}>{line.quantity}</Text>
-            <Pressable style={styles.step} onPress={() => onChange(line.key, line.quantity + 1)}>
+            <Pressable
+              style={[styles.step, atLimit && { opacity: 0.35 }]}
+              disabled={atLimit}
+              onPress={() => onChange(line.key, line.quantity + 1)}
+              accessibilityState={{ disabled: atLimit }}
+            >
               <Text style={styles.stepText}>+</Text>
             </Pressable>
           </View>
+
+          {atLimit ? <Text style={styles.limitNote}>تەنیا {line.stock} دانە ماوە</Text> : null}
 
           <Pressable style={styles.remove} onPress={() => onRemove(line.key)} hitSlop={8}>
             <Text style={styles.removeText}>سڕینەوە</Text>
@@ -301,6 +347,7 @@ function Line({
 }
 
 const styles = StyleSheet.create({
+  limitNote: { fontSize: 11.5, fontFamily: fonts.semibold, color: colors.sunnyText, lineHeight: 18 },
   screen: { flex: 1, backgroundColor: colors.background },
 
   head: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, alignItems: 'flex-end' },

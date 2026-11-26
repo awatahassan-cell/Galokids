@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from 'react';
 import { shopToday, shopDate } from './utils/shopTime';
 import { Category, Product, CartItem, ProductVariation, Review, User, Order, Expense, PromoBanner, PaginationMeta, Coupon, Purchase, PurchaseItem, Supplier, SupplierPayment } from './types';
 import { useToast } from './components/ui/Feedback';
@@ -138,7 +138,10 @@ interface StoreContextType {
   ordersError: null | 'unauthorized' | 'unreachable';
   refreshExpenses: (page?: number, limit?: number) => void;
   refreshCategories: () => void;
-  addToCart: (product: Product, variation: ProductVariation, quantity: number) => void;
+  /** Units actually added: fewer than asked (or none) when the shop does not have that many. */
+  addToCart: (product: Product, variation: ProductVariation, quantity: number) => number;
+  /** Re-read stock and prices for what is in the basket, dropping or trimming what is no longer there. */
+  refreshCartStock: () => Promise<void>;
   removeFromCart: (cartItemId: string) => void;
   updateCartItemQuantity: (cartItemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -146,7 +149,12 @@ interface StoreContextType {
   addReview: (productId: string, review: Omit<Review, 'id' | 'productId' | 'date'>) => void;
   updateOrderStatus: (orderId: string, status: Order['status']) => void;
   addExpense: (expense: Omit<Expense, 'id' | 'date'>) => void;
-  addOrder: (order: Omit<Order, 'id' | 'date'>) => Promise<any>;
+  /**
+   * With `strict`, the order is only reported as placed once the server has
+   * accepted it, and a refusal is thrown (the server's reason is in
+   * `.details`) — nothing is recorded locally as if it had succeeded.
+   */
+  addOrder: (order: Omit<Order, 'id' | 'date'>, options?: { strict?: boolean }) => Promise<any>;
   deleteProduct: (productId: string) => void;
   deleteCategory: (categoryId: string) => void;
   deleteExpense: (expenseId: string) => void;
@@ -1911,38 +1919,131 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       });
   };
 
-  const addToCart = (product: Product, variation: ProductVariation, quantity: number) => {
-    setCart(prev => {
-      const cartItemId = `${product.id}-${variation.id}`;
-      const existingItem = prev.find(item => item.id === cartItemId);
-      if (existingItem) {
-        return prev.map(item =>
-          item.id === cartItemId
-            ? { ...item, quantity: Math.min(item.quantity + quantity, variation.stockQuantity) }
-            : item
-        );
-      }
-      return [...prev, { id: cartItemId, product, variation, quantity }];
-    });
+  // What the shop has RIGHT NOW for a variation. The basket stores a copy of the
+  // variation from the moment it was added, so its own stock figure goes stale —
+  // a customer saw "1 left" turn into 3 in their basket, or into 0x.
+  const liveVariation = (product: Product, variation: ProductVariation): ProductVariation => {
+    const fresh = products
+      .find(p => String(p?.id) === String(product.id))
+      ?.variations?.find(v => String(v.id) === String(variation.id));
+    return fresh ?? variation;
+  };
+
+  // Written to synchronously as well as through state, so two adds in the same
+  // tick (add a whole look, add several sizes) each see the other.
+  const cartRef = useRef<CartItem[]>(cart);
+  cartRef.current = cart;
+  const commitCart = (next: CartItem[]) => {
+    cartRef.current = next;
+    setCart(next);
+  };
+
+  const storeLang = () => {
+    try { return localStorage.getItem('kidskart_language') || 'ku'; } catch { return 'ku'; }
+  };
+  const say = (ku: string, ar: string, en: string) => { const l = storeLang(); return l === 'ku' ? ku : l === 'ar' ? ar : en; };
+
+  const addToCart = (product: Product, variation: ProductVariation, quantity: number): number => {
+    const live = liveVariation(product, variation);
+    const stock = Math.max(0, Math.floor(Number(live.stockQuantity) || 0));
+    const wanted = Math.max(1, Math.floor(Number(quantity) || 1));
+    const cartItemId = `${product.id}-${variation.id}`;
+    const existing = cartRef.current.find(item => item.id === cartItemId);
+    const inBasket = existing?.quantity ?? 0;
+    const room = stock - inBasket;
+
+    if (stock <= 0) {
+      toast(say('ئەم قەبارەیە نەماوە', 'هذا المقاس غير متوفر', 'This size is sold out'), 'error');
+      return 0;
+    }
+    if (room <= 0) {
+      toast(say(`تەنیا ${stock} دانە ماوە و هەموویان لە سەبەتەکەتدان`, `المتوفر ${stock} فقط وكلها في سلتك`, `Only ${stock} left and they are all in your basket`), 'info');
+      return 0;
+    }
+
+    const added = Math.min(wanted, room);
+    if (added < wanted) {
+      toast(say(`تەنیا ${stock} دانە ماوە`, `المتوفر ${stock} فقط`, `Only ${stock} left`), 'info');
+    }
+
+    commitCart(existing
+      ? cartRef.current.map(item => item.id === cartItemId ? { ...item, variation: live, quantity: inBasket + added } : item)
+      : [...cartRef.current, { id: cartItemId, product, variation: live, quantity: added }]);
+
+    return added;
   };
 
   const removeFromCart = (cartItemId: string) => {
-    setCart(prev => prev.filter(item => item.id !== cartItemId));
+    commitCart(cartRef.current.filter(item => item.id !== cartItemId));
   };
 
   const updateCartItemQuantity = (cartItemId: string, quantity: number) => {
-    setCart(prev =>
-      prev.map(item => {
-        if (item.id === cartItemId) {
-          return { ...item, quantity: Math.min(Math.max(1, quantity), item.variation.stockQuantity) };
-        }
-        return item;
-      })
-    );
+    commitCart(cartRef.current.map(item => {
+      if (item.id !== cartItemId) return item;
+      const stock = Math.max(1, Math.floor(Number(liveVariation(item.product, item.variation).stockQuantity) || 0));
+      return { ...item, quantity: Math.min(Math.max(1, Math.floor(Number(quantity) || 1)), stock) };
+    }));
+  };
+
+  /**
+   * Check the basket against the shop as it is now.
+   *
+   * The basket is kept in the browser, so a line can outlive the stock it was
+   * added against: the last piece sells to someone else, a size is deactivated,
+   * a price changes. Each product is re-read from the server; a line whose size
+   * is gone is dropped, one that asks for more than is left is trimmed, and the
+   * rest pick up the current price. If the server cannot be reached nothing is
+   * changed — an unreachable shop is not a reason to empty someone's basket.
+   */
+  const refreshCartStock = async (): Promise<void> => {
+    const ids: string[] = Array.from(new Set<string>(cartRef.current.map(item => String(item.product.id))));
+    if (ids.length === 0) return;
+
+    const fresh = new Map<string, Product | 'gone' | 'unknown'>();
+    await Promise.all(ids.map(async id => {
+      try {
+        const res = await fetch(`${LARAVEL_API_BASE}/products/${id}`, { headers: { Accept: 'application/json' } });
+        if (res.status === 404) return void fresh.set(id, 'gone');
+        if (!res.ok) return void fresh.set(id, 'unknown');
+        fresh.set(id, convertKeysToCamelCase(await res.json()) as Product);
+      } catch {
+        fresh.set(id, 'unknown');
+      }
+    }));
+
+    let removed = 0;
+    let trimmed = 0;
+    let changed = false;
+    const next: CartItem[] = [];
+
+    for (const item of cartRef.current) {
+      const found = fresh.get(String(item.product.id));
+      if (!found || found === 'unknown') { next.push(item); continue; }
+      if (found === 'gone') { removed++; changed = true; continue; }
+
+      const variation = (found.variations || []).find(v => String(v.id) === String(item.variation.id));
+      const stock = Math.max(0, Math.floor(Number(variation?.stockQuantity) || 0));
+      if (!variation || stock <= 0) { removed++; changed = true; continue; }
+
+      const quantity = Math.min(item.quantity, stock);
+      if (quantity < item.quantity) trimmed++;
+      changed = true;
+      next.push({
+        ...item,
+        product: { ...item.product, ...found, variations: found.variations },
+        variation: { ...item.variation, ...variation, stockQuantity: stock },
+        quantity,
+      });
+    }
+
+    if (!changed) return;
+    commitCart(next);
+    if (removed) toast(say(`${removed} کاڵا لە سەبەتە لابرا چونکە نەماوە`, `أُزيل ${removed} منتج من السلة لأنه نفد`, `${removed} item(s) removed from your basket — sold out`), 'info');
+    if (trimmed) toast(say(`بڕی ${trimmed} کاڵا کەمکرایەوە بەپێی ستۆکی ماوە`, `خُفّضت كمية ${trimmed} منتج حسب المتوفر`, `${trimmed} item(s) reduced to what is left`), 'info');
   };
 
   const clearCart = () => {
-    setCart([]);
+    commitCart([]);
   };
 
   const toggleWishlist = (productId: string) => {
@@ -2065,7 +2166,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     discountAmount?: number;
     amountPaid?: number;
     paymentMethod?: string;
-  }): Promise<any> => {
+  }, options: { strict?: boolean } = {}): Promise<any> => {
+    const strict = !!options.strict;
     const tempId = `ord_temp_${Date.now()}`;
     const newOrder: Order = {
       ...(orderData as Order),
@@ -2073,13 +2175,19 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       date: shopToday()
     };
 
-    setOrders(prev => {
-      const updated = [newOrder, ...prev.filter(o => o?.id !== tempId)];
-      try {
-        localStorage.setItem('kidskart_orders_local', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+    // A strict order is only recorded once the server has taken it. Writing a
+    // local copy first made a refused order (out of stock, bad coupon, no
+    // connection) look placed: the customer saw "order confirmed", the basket
+    // emptied, and the shop never heard of it.
+    if (!strict) {
+      setOrders(prev => {
+        const updated = [newOrder, ...prev.filter(o => o?.id !== tempId)];
+        try {
+          localStorage.setItem('kidskart_orders_local', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+    }
 
     const isNumericId = (v: any) => v !== undefined && v !== null && /^\d+$/.test(String(v));
 
@@ -2124,11 +2232,22 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(payload),
-    }).then(async res => { if (!res.ok) { const err = await res.text(); throw new Error(`API Error: ${res.status} ${err}`); } return res.json(); })
+    }).then(async res => {
+      if (!res.ok) {
+        const text = await res.text();
+        const error: any = new Error(`API Error: ${res.status} ${text}`);
+        error.status = res.status;
+        try { error.details = JSON.parse(text); } catch { error.details = { message: text }; }
+        throw error;
+      }
+      return res.json();
+    })
       .then(savedOrder => {
         const camelOrder = convertKeysToCamelCase(savedOrder);
         setOrders(prev => {
-          const updated = prev.map(o => o?.id === tempId ? camelOrder : o);
+          const updated = strict
+            ? [camelOrder, ...prev.filter(o => o?.id !== camelOrder.id)]
+            : prev.map(o => o?.id === tempId ? camelOrder : o);
           try {
             localStorage.setItem('kidskart_orders_local', JSON.stringify(updated));
           } catch (e) {}
@@ -2136,9 +2255,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         });
         return camelOrder;
       })
-      .catch(err => { 
-        console.warn('Order save note:', err); 
-        return newOrder; 
+      .catch(err => {
+        if (strict) {
+          // The server said no, or could not be reached: tell the caller.
+          if (err && err.status === undefined) {
+            err.details = { message: say('نەتوانرا پەیوەندی بە فرۆشگاوە بکرێت. ئینتەرنێتەکەت بپشکنە و دووبارە هەوڵبدەرەوە.', 'تعذر الاتصال بالمتجر. تحقق من الإنترنت وأعد المحاولة.', 'Could not reach the shop. Check your connection and try again.') };
+          }
+          throw err;
+        }
+        console.warn('Order save note:', err);
+        return newOrder;
       });
   };
 
@@ -2873,7 +2999,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     <StoreContext.Provider value={{ 
       categories, products, cart, wishlist, users, orders, expenses, purchases, purchasesPagination, isPurchasesLoading, currentUser, promoBanner, productsPagination, ordersPagination, expensesPagination, isProductsLoading, productsRevision,
       updatePromoBanner, addCategory, addProduct, refreshProducts, fetchAllProducts, refreshCategories, refreshOrders, ordersError, refreshUsers, bulkDelete, bulkOrderStatus, refreshExpenses, addToCart, removeFromCart, 
-      updateCartItemQuantity, clearCart, toggleWishlist, addReview, updateOrderStatus, addExpense, addOrder,
+      updateCartItemQuantity, refreshCartStock, clearCart, toggleWishlist, addReview, updateOrderStatus, addExpense, addOrder,
       deleteProduct, deleteCategory, deleteExpense, deleteUser, deleteOrder, addUser,
       updateProduct, updateCategory, updateExpense, updateUser,
       isPhoneRegistered, checkPhoneRegistered, login, loginWithPhone, registerWithPhone, logout, register, updateProfile,

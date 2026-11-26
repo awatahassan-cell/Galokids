@@ -572,7 +572,12 @@ export const POS: React.FC = () => {
     };
     const custName = customerName;
 
-    const saved = await addOrder({
+    // Strict: the receipt is only printed and the basket only cleared once the
+    // server has the sale. Before, a sale that never arrived (session expired,
+    // no connection) still printed a receipt and said "completed".
+    let saved: any;
+    try {
+    saved = await addOrder({
       userId: 'u1', // Admin/Cashier
       customerName: customerName || 'POS Cash Sale',
       customerEmail: 'cashier@galokids.com',
@@ -588,7 +593,11 @@ export const POS: React.FC = () => {
       source: 'pos',
       shippingFee: 0,
       shipping_fee: 0,
-    } as any);
+    } as any, { strict: true });
+    } catch (err: any) {
+      toast(err?.details?.message || 'The sale was not saved. Nothing was charged — try again.', 'error');
+      return;
+    }
 
     const invoiceNo = saved?.invoiceNo;
     printReceipt(orderItems, totals, custName, invoiceNo);

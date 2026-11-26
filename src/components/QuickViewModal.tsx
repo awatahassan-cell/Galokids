@@ -37,9 +37,10 @@ export const QuickViewModal: React.FC<Props> = ({ product, onClose }) => {
 
   const handleAdd = () => {
     if (!selectedVar) return;
-    addToCart(product, selectedVar, 1);
-    setAdded(true);
-    setTimeout(() => setAdded(false), 1500);
+    if (addToCart(product, selectedVar, 1) > 0) {
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1500);
+    }
   };
 
   const modalContent = (

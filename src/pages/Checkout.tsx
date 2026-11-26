@@ -24,13 +24,18 @@ import {
 
 export const Checkout: React.FC = () => {
   const { 
-    cart, clearCart, addOrder, currentUser, users, appliedCoupon, 
+    cart, clearCart, addOrder, refreshCartStock, currentUser, users, appliedCoupon, 
     setAppliedCoupon, applyCoupon, coupons, registerWithPhone, 
     login, updateProfile, fetchShippingQuote
   } = useStore();
   const navigate = useNavigate();
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPlacing, setIsPlacing] = useState(false);
+  // Why the shop would not take the order, shown where the button is.
+  const [placeError, setPlaceError] = useState<string | null>(null);
+
+  // Check the basket against the shop as it is now before anyone fills in a form.
+  useEffect(() => { refreshCartStock(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const [couponCode, setCouponCode] = useState('');
   const [couponError, setCouponError] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
@@ -384,6 +389,7 @@ export const Checkout: React.FC = () => {
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isPlacing) return;
+    setPlaceError(null);
 
     const savedUserStr = localStorage.getItem('kidskart_user');
     const userToUse = currentUser || (savedUserStr ? (() => { try { return JSON.parse(savedUserStr); } catch { return null; } })() : null);
@@ -438,8 +444,12 @@ export const Checkout: React.FC = () => {
       }
     }
 
-    setTimeout(() => {
-      addOrder({
+    try {
+      // Strict: the order is only "placed" once the shop has accepted it. This
+      // used to show "order confirmed" and empty the basket whatever the server
+      // said, so a refused order (the last piece sold to someone else) looked
+      // like a success and the shop never received it.
+      await addOrder({
         userId: activeUser?.id || 'u-guest',
         customerName: name,
         customerEmail: activeUser?.email || `${mobile.replace(/[^\d]/g, '')}@phone.user`,
@@ -453,13 +463,33 @@ export const Checkout: React.FC = () => {
         governorate: selectedGovernorate,
         channel: 'online',
         source: 'online',
-      } as any);
+      } as any, { strict: true });
 
       setIsPlacing(false);
       setIsSuccess(true);
       clearCart();
       setAppliedCoupon(null);
-    }, 1200);
+    } catch (err: any) {
+      setIsPlacing(false);
+      const d = err?.details || {};
+      if (d.code === 'insufficient_stock') {
+        const name = (language === 'ku' && d.product_name_ku) || (language === 'ar' && d.product_name_ar) || d.product_name || '';
+        const variant = d.variation_label ? ` (${d.variation_label})` : '';
+        setPlaceError(
+          d.available > 0
+            ? (language === 'ku' ? `${name}${variant}: تەنیا ${d.available} دانە ماوە. بڕەکە کەم بکەرەوە و دووبارە هەوڵبدەرەوە.`
+              : language === 'ar' ? `${name}${variant}: المتوفر ${d.available} فقط. قلّل الكمية وأعد المحاولة.`
+              : `${name}${variant}: only ${d.available} left. Lower the quantity and try again.`)
+            : (language === 'ku' ? `${name}${variant} نەماوە. لە سەبەتەکە لابرا.`
+              : language === 'ar' ? `${name}${variant} نفد. أُزيل من السلة.`
+              : `${name}${variant} is sold out. It was removed from your basket.`)
+        );
+      } else {
+        setPlaceError(d.message || (language === 'ku' ? 'داواکارییەکە وەرنەگیرا. دووبارە هەوڵبدەرەوە.' : language === 'ar' ? 'لم يتم قبول الطلب. حاول مرة أخرى.' : 'The order was not accepted. Please try again.'));
+      }
+      // Bring the basket in line with the shop so the next try can succeed.
+      await refreshCartStock();
+    }
   };
 
   if (isSuccess) {
@@ -488,7 +518,15 @@ export const Checkout: React.FC = () => {
     return (
       <div className="grow flex flex-col items-center justify-center p-6 text-center">
         <h2 className="text-2xl font-black text-slate-900 mb-4">{t('emptyCart')}</h2>
-        <p className="text-slate-600 mb-8">{t('emptyCart')}</p>
+        {placeError ? (
+          // The basket was emptied BECAUSE the order was refused — say why, or it
+          // looks like the order simply vanished.
+          <p role="alert" className="mb-8 max-w-md rounded-2xl border border-candy-200 bg-candy-50 px-4 py-3 text-sm font-bold text-candy-800 leading-relaxed">
+            {placeError}
+          </p>
+        ) : (
+          <p className="text-slate-600 mb-8">{t('emptyCart')}</p>
+        )}
         <Link 
           to="/products"
           className="inline-flex items-center justify-center px-6 py-3.5 border border-transparent text-base font-bold rounded-full text-white bg-candy-600 hover:bg-candy-700 transition-all shadow-md active:scale-98"
@@ -980,6 +1018,12 @@ export const Checkout: React.FC = () => {
                 <p className="font-mono text-2xl font-black text-candy-700">{formatIQDLabel(totalAmount)}</p>
               </div>
             </div>
+
+            {placeError && (
+              <div role="alert" className="mt-6 rounded-2xl border border-candy-200 bg-candy-50 px-4 py-3 text-sm font-bold text-candy-800 leading-relaxed">
+                {placeError}
+              </div>
+            )}
 
             <button
               type="submit"

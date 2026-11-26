@@ -94,6 +94,11 @@ export default function ProductScreen() {
     ? chosen.stock_quantity <= 0
     : options.length > 0 && options.every(v => v.stock_quantity <= 0);
 
+  // Every piece the shop has of this size may already be in the basket.
+  const inBasket = chosen ? (basket.lines.find(line => line.key === `v${chosen.id}`)?.quantity ?? 0) : 0;
+  const allInBasket = !!chosen && chosen.stock_quantity > 0 && inBasket >= chosen.stock_quantity;
+  const lowStock = !!chosen && chosen.stock_quantity > 0 && chosen.stock_quantity <= 5;
+
   const saved = wishlist.has(product.id);
 
   return (
@@ -175,24 +180,29 @@ export default function ProductScreen() {
         <View style={styles.footerPrice}>
           <Text style={styles.footerLabel}>نرخ</Text>
           <Text style={styles.footerValue}>{formatIQD(price)}</Text>
+          {lowStock ? <Text style={styles.footerLow}>تەنیا {chosen!.stock_quantity} دانە ماوە</Text> : null}
         </View>
 
         <Pressable
           style={({ pressed }) => [
             styles.add,
-            (needsChoice || soldOut) && styles.addOff,
+            (needsChoice || soldOut || allInBasket) && styles.addOff,
             pressed && styles.addPressed,
           ]}
-          disabled={needsChoice || soldOut}
+          disabled={needsChoice || soldOut || allInBasket}
           onPress={() => {
-            basket.add(product, chosen);
-            router.push('/basket');
+            // Nothing added means the basket already holds every piece the shop
+            // has of this size; the note below says so. Going on to the basket
+            // would look like it worked.
+            if (basket.add(product, chosen) > 0) router.push('/basket');
           }}
         >
           <Text style={styles.addText}>
             {soldOut
               ? 'تەواو بووە'
-              : needsChoice
+              : allInBasket
+                ? 'هەموویان لە سەبەتەدان'
+                : needsChoice
                 ? 'ڕەنگ و قەبارە هەڵبژێرە'
                 : 'زیادکردن بۆ سەبەتە'}
           </Text>
@@ -319,6 +329,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   footerPrice: { alignItems: 'flex-end' },
+  footerLow: { ...typography.tiny, color: colors.sunnyText },
   footerLabel: { ...typography.tiny, color: colors.textMuted },
   footerValue: { ...typography.title, color: colors.text },
   add: {

@@ -187,10 +187,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, compact = fal
 
             setIsAdding(true);
             setTimeout(() => {
-              addToCart(product, firstAvailable, 1);
+              const addedUnits = addToCart(product, firstAvailable, 1);
               setIsAdding(false);
-              setAdded(true);
-              setTimeout(() => setAdded(false), 1500);
+              // "Added" only if something was — the store explains when not.
+              if (addedUnits > 0) {
+                setAdded(true);
+                setTimeout(() => setAdded(false), 1500);
+              }
             }, 600);
           }}
           title={t('addToCart') || 'سەبەتە'}

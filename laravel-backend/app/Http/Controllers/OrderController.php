@@ -669,6 +669,11 @@ class OrderController extends Controller
                 $lineItems = [];
                 $stockToDeduct = [];
                 $stockConflict = false;
+                // Units already asked for per variation in THIS order. Stock is
+                // only taken off once the order exists, so each line used to be
+                // checked against the full shelf on its own: 3 + 3 passed against
+                // 4 in stock.
+                $requestedUnits = [];
 
                 foreach ($validated['items'] as $item) {
                     $qty = (int) $item['quantity'];
@@ -688,9 +693,30 @@ class OrderController extends Controller
                             $unitPrice = $this->effectiveUnitPrice($product, $variation);
 
                             // Stock control: never let a customer oversell.
-                            if ($variation->stock_quantity < $qty && !$isStaff) {
+                            $alreadyAsked = $requestedUnits[$variation->id] ?? 0;
+                            $requestedUnits[$variation->id] = $alreadyAsked + $qty;
+
+                            if ($variation->stock_quantity < $alreadyAsked + $qty && !$isStaff) {
+                                $label = trim(implode(' · ', array_filter([$variation->color, $variation->size])));
+
+                                // Says which item and how many are left, so the shop's
+                                // own pages can tell the customer exactly what to change
+                                // instead of "one of the items".
                                 abort(response()->json([
-                                    'message' => 'Insufficient stock for one of the selected items.',
+                                    'message' => 'Insufficient stock for ' . ($product->name ?? 'an item')
+                                        . ($label !== '' ? " ({$label})" : '')
+                                        . ': ' . max(0, (int) $variation->stock_quantity) . ' left.',
+                                    'code' => 'insufficient_stock',
+                                    // The phone apps read their machine-readable code from `error`.
+                                    'error' => 'insufficient_stock',
+                                    'product_id' => $productId,
+                                    'product_variation_id' => $variation->id,
+                                    'product_name' => $product->name,
+                                    'product_name_ku' => $product->name_ku,
+                                    'product_name_ar' => $product->name_ar,
+                                    'variation_label' => $label !== '' ? $label : null,
+                                    'available' => max(0, (int) $variation->stock_quantity),
+                                    'requested' => $alreadyAsked + $qty,
                                 ], 422));
                             }
 
@@ -700,7 +726,7 @@ class OrderController extends Controller
                             // stock figure that may have moved since, so note
                             // that this sale and the shelf disagree. The sale
                             // stands; the shop is told, and can count.
-                            if ($isStaff && $variation->stock_quantity < $qty) {
+                            if ($isStaff && $variation->stock_quantity < $alreadyAsked + $qty) {
                                 $stockConflict = true;
                             }
                             // Recorded in the stock ledger further down, once

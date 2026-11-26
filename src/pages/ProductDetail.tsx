@@ -202,11 +202,14 @@ export const ProductDetail: React.FC = () => {
   }, [product]);
 
   // Set initial selected color
+  // Opens on a colour that has something in stock, not simply the first one:
+  // landing on a sold-out colour made the page look unbuyable.
   React.useEffect(() => {
     if (availableColors.length > 0 && !selectedColor) {
-      setSelectedColor(availableColors[0]);
+      const inStock = availableColors.find(c => (product?.variations || []).some(v => v.color === c && Number(v.stockQuantity) > 0));
+      setSelectedColor(inStock ?? availableColors[0]);
     }
-  }, [availableColors, selectedColor]);
+  }, [availableColors, selectedColor, product]);
 
   // Available sizes for selected color
   const availableSizes = useMemo(() => {
@@ -219,9 +222,10 @@ export const ProductDetail: React.FC = () => {
   // Set initial selected size when color changes
   React.useEffect(() => {
     if (availableSizes.length > 0 && !availableSizes.includes(selectedSize)) {
-      setSelectedSize(availableSizes[0]);
+      const inStock = availableSizes.find(sz => (product?.variations || []).some(v => v.color === selectedColor && v.size === sz && Number(v.stockQuantity) > 0));
+      setSelectedSize(inStock ?? availableSizes[0]);
     }
-  }, [availableSizes, selectedSize]);
+  }, [availableSizes, selectedSize, selectedColor, product]);
 
   // Selected variation
   const selectedVariation = useMemo(() => {
@@ -251,18 +255,33 @@ export const ProductDetail: React.FC = () => {
     );
   }
 
+  // How many of the chosen size can still be added: what the shop has, less
+  // what is already in the basket and what is lined up to be added. The
+  // quantity buttons used to count up without limit, and the basket was then
+  // trusted to sort it out — it did not.
+  const stockOfSelected = selectedVariation ? Math.max(0, Math.floor(Number(selectedVariation.stockQuantity) || 0)) : 0;
+  const inBasketOfSelected = selectedVariation ? (cart.find(i => i.id === `${product.id}-${selectedVariation.id}`)?.quantity ?? 0) : 0;
+  const queuedOfSelected = selectedVariation ? (queuedVariants.find(q => q.variation.id === selectedVariation.id)?.quantity ?? 0) : 0;
+  const room = Math.max(0, stockOfSelected - inBasketOfSelected - queuedOfSelected);
+  const shownQuantity = Math.min(Math.max(1, quantity), Math.max(1, room));
+  const soldOut = !!selectedVariation && stockOfSelected <= 0;
+  const allInBasket = !!selectedVariation && stockOfSelected > 0 && room <= 0;
+  const stockOf = (color: string, size: string) =>
+    Math.max(0, Math.floor(Number((product.variations || []).find(v => v.color === color && v.size === size)?.stockQuantity) || 0));
+
   const handleQueueVariation = () => {
-    if (selectedVariation && quantity > 0) {
+    if (selectedVariation && room > 0) {
+      const add = Math.min(shownQuantity, room);
       setQueuedVariants(prev => {
         const existing = prev.find(item => item.variation.id === selectedVariation.id);
         if (existing) {
           return prev.map(item =>
             item.variation.id === selectedVariation.id
-              ? { ...item, quantity: Math.min(item.quantity + quantity, selectedVariation.stockQuantity) }
+              ? { ...item, quantity: item.quantity + add }
               : item
           );
         }
-        return [...prev, { variation: selectedVariation, quantity }];
+        return [...prev, { variation: selectedVariation, quantity: add }];
       });
       setQuantity(1);
     }
@@ -278,21 +297,25 @@ export const ProductDetail: React.FC = () => {
     if (queuedVariants.length > 0) {
       setIsAddingToCart(true);
       setTimeout(() => {
-        queuedVariants.forEach(item => {
-          addToCart(product!, item.variation, item.quantity);
-        });
+        const added = queuedVariants.reduce((sum, item) => sum + addToCart(product!, item.variation, item.quantity), 0);
         setIsAddingToCart(false);
-        setAddedToCart(true);
         setQueuedVariants([]); // reset
-        setTimeout(() => setAddedToCart(false), 1500);
+        // "Added!" only when something was — the store says why when it was not.
+        if (added > 0) {
+          setAddedToCart(true);
+          setTimeout(() => setAddedToCart(false), 1500);
+        }
       }, 400);
-    } else if (selectedVariation) {
+    } else if (selectedVariation && room > 0) {
       setIsAddingToCart(true);
       setTimeout(() => {
-        addToCart(product!, selectedVariation, quantity);
+        const added = addToCart(product!, selectedVariation, shownQuantity);
         setIsAddingToCart(false);
-        setAddedToCart(true);
-        setTimeout(() => setAddedToCart(false), 1500);
+        setQuantity(1);
+        if (added > 0) {
+          setAddedToCart(true);
+          setTimeout(() => setAddedToCart(false), 1500);
+        }
       }, 400);
     }
   };
@@ -572,7 +595,7 @@ export const ProductDetail: React.FC = () => {
                       selectedColor === color 
                         ? 'border-candy-500 ring-2 ring-candy-500/20 scale-105 shadow-sm' 
                         : 'border-slate-200 hover:scale-102 hover:border-slate-300 bg-white'
-                    }`}
+                    } ${(product.variations || []).some(v => v.color === color && Number(v.stockQuantity) > 0) ? '' : 'opacity-35'}`}
                     style={{ backgroundColor: getColorHex(color) }}
                     title={getLocalizedColorName(color, language)}
                   />
@@ -609,7 +632,7 @@ export const ProductDetail: React.FC = () => {
                           isSelected
                             ? 'bg-candy-500 text-white shadow-md shadow-candy-500/30 scale-105'
                             : 'bg-white text-slate-700 border border-slate-200 hover:border-candy-500'
-                        }`}
+                        } ${stockOf(selectedColor, String(size)) > 0 ? '' : 'opacity-40 line-through'}`}
                       >
                         {getLocalizedSizeName(String(size), language)}
                       </button>
@@ -631,21 +654,38 @@ export const ProductDetail: React.FC = () => {
               <div className="bg-white border border-slate-200/90 rounded-full px-3 py-1 flex items-center gap-3 font-black text-slate-800 shadow-2xs">
                 <button 
                   type="button"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer active:scale-90 text-lg font-bold"
+                  disabled={soldOut || shownQuantity <= 1}
+                  onClick={() => setQuantity(Math.max(1, shownQuantity - 1))}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer active:scale-90 text-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                 >
                   -
                 </button>
-                <span className="w-6 text-center font-black text-base">{quantity}</span>
+                <span className="w-6 text-center font-black text-base">{soldOut || allInBasket ? 0 : shownQuantity}</span>
                 <button 
                   type="button"
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer active:scale-90 text-lg font-bold"
+                  disabled={soldOut || shownQuantity >= room}
+                  onClick={() => setQuantity(Math.min(shownQuantity + 1, room))}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer active:scale-90 text-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                 >
                   +
                 </button>
               </div>
             </div>
+
+            {selectedVariation && (
+              <p
+                role="status"
+                className={`text-xs font-black px-1 ${soldOut || allInBasket ? 'text-candy-700' : stockOfSelected <= 5 ? 'text-amber-600' : 'text-emerald-600'}`}
+              >
+                {soldOut
+                  ? (language === 'ku' ? 'ئەم قەبارەیە نەماوە' : language === 'ar' ? 'هذا المقاس غير متوفر' : 'This size is sold out')
+                  : allInBasket
+                  ? (language === 'ku' ? `تەنیا ${stockOfSelected} دانە ماوە و هەموویان لە سەبەتەکەتدان` : language === 'ar' ? `المتوفر ${stockOfSelected} فقط وكلها في سلتك` : `Only ${stockOfSelected} left and they are all in your basket`)
+                  : stockOfSelected <= 5
+                  ? (language === 'ku' ? `تەنیا ${stockOfSelected} دانە ماوە` : language === 'ar' ? `المتوفر ${stockOfSelected} فقط` : `Only ${stockOfSelected} left`)
+                  : (language === 'ku' ? 'بەردەستە' : language === 'ar' ? 'متوفر' : 'In stock')}
+              </p>
+            )}
 
             {/* Row 2: Add to Bag + Wishlist Buttons */}
             <div className="flex items-center gap-3 w-full">
@@ -653,8 +693,8 @@ export const ProductDetail: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={isAddingToCart}
-                className="bg-candy-500 hover:bg-[#FF4D73] text-white font-black h-13 px-6 rounded-full flex items-center justify-center gap-2.5 shadow-lg shadow-candy-500/30 active:scale-95 text-sm sm:text-base flex-1 cursor-pointer transition-all"
+                disabled={isAddingToCart || (queuedVariants.length === 0 && (!selectedVariation || room <= 0))}
+                className="bg-candy-500 hover:bg-[#FF4D73] text-white font-black h-13 px-6 rounded-full flex items-center justify-center gap-2.5 shadow-lg shadow-candy-500/30 active:scale-95 text-sm sm:text-base flex-1 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100"
               >
                 {isAddingToCart ? (
                   <Loader2 className="w-5 h-5 animate-spin text-white shrink-0" />
@@ -666,7 +706,13 @@ export const ProductDetail: React.FC = () => {
                 ) : (
                   <>
                     <ShoppingBag className="w-5 h-5 text-white shrink-0" />
-                    <span>{t('addToPlaygroundBag') || (language === 'ku' ? 'زیادکردن بۆ سەبەتە' : language === 'ar' ? 'إضافة إلى السلة' : 'Add to Bag')}</span>
+                    <span>
+                      {queuedVariants.length === 0 && soldOut
+                        ? (language === 'ku' ? 'نەماوە' : language === 'ar' ? 'نفد' : 'Sold out')
+                        : queuedVariants.length === 0 && allInBasket
+                        ? (language === 'ku' ? 'هەموویان لە سەبەتەدان' : language === 'ar' ? 'كلها في السلة' : 'All in your basket')
+                        : (t('addToPlaygroundBag') || (language === 'ku' ? 'زیادکردن بۆ سەبەتە' : language === 'ar' ? 'إضافة إلى السلة' : 'Add to Bag'))}
+                    </span>
                   </>
                 )}
               </button>

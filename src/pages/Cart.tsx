@@ -19,7 +19,7 @@ import { getColorHex, getLocalizedColorName, getLocalizedSizeName } from '../uti
  */
 export const Cart: React.FC = () => {
   const navigate = useNavigate();
-  const { cart, removeFromCart, updateCartItemQuantity, appliedCoupon, setAppliedCoupon, applyCoupon, fetchShippingQuote } =
+  const { cart, removeFromCart, updateCartItemQuantity, refreshCartStock, appliedCoupon, setAppliedCoupon, applyCoupon, fetchShippingQuote } =
     useStore();
   const { t, language } = useLanguage();
   const isRTL = language === 'ku' || language === 'ar';
@@ -29,6 +29,11 @@ export const Cart: React.FC = () => {
   const [couponCode, setCouponCode] = useState('');
   const [couponError, setCouponError] = useState('');
   const [couponBusy, setCouponBusy] = useState(false);
+
+  // The basket is kept in the browser and can be days old. Opening it checks
+  // each line against the shop as it is now, so what is shown — stock, price —
+  // is what checkout will accept.
+  useEffect(() => { refreshCartStock(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const items = (cart || []).filter(Boolean);
   const count = items.reduce((n, i) => n + (i.quantity || 0), 0);
@@ -180,6 +185,12 @@ export const Cart: React.FC = () => {
                       <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
+
+                  {item.quantity >= item.variation.stockQuantity && (
+                    <span className="basis-full text-[11.5px] font-black text-amber-600" role="status">
+                      {L(`تەنیا ${item.variation.stockQuantity} دانە ماوە`, `المتوفر ${item.variation.stockQuantity} فقط`, `Only ${item.variation.stockQuantity} left`)}
+                    </span>
+                  )}
 
                   <p className="font-mono text-base font-black text-candy-700">
                     {formatIQDLabel(getLineTotal(item.product, item.variation, item.quantity))}

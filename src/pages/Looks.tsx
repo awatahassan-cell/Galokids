@@ -127,9 +127,10 @@ export const Looks: React.FC = () => {
   const addOne = (item: LookItem) => {
     const v = buyable(item);
     if (!v) return;
-    addToCart(item.product, v, 1);
-    setJustAdded(item.productId);
-    window.setTimeout(() => setJustAdded(null), 1400);
+    if (addToCart(item.product, v, 1) > 0) {
+      setJustAdded(item.productId);
+      window.setTimeout(() => setJustAdded(null), 1400);
+    }
   };
 
   const addAll = () => {
@@ -137,7 +138,8 @@ export const Looks: React.FC = () => {
     let skipped = 0;
     look.items.forEach(item => {
       const v = buyable(item);
-      if (v) addToCart(item.product, v, 1); else skipped += 1;
+      if (v && addToCart(item.product, v, 1) > 0) return;
+      skipped += 1;
     });
     toast(skipped ? copy.someMissing : copy.addedAll, skipped ? 'info' : 'success');
   };
