@@ -25,7 +25,13 @@ function getApiBaseUrl(): string {
   const configured = (rawEnvUrl && String(rawEnvUrl).trim()) ? String(rawEnvUrl).trim().replace(/\/+$/, '') : '';
 
   if (isLocalhost) {
-    return !configured || configured === PRODUCTION_API ? '/api' : configured;
+    return !configured || configured === PRODUCTION_API || configured === '/API/api' ? '/api' : configured;
+  }
+
+  // On production, the backend is mounted at /API/api (with capital /API).
+  // If configured was /api, map it to /API/api so requests hit the live Laravel routes instead of the SPA HTML fallback.
+  if (!configured || configured === '/api') {
+    return '/API/api';
   }
 
   return configured || PRODUCTION_API;
