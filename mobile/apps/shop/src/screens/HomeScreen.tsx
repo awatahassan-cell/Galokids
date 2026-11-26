@@ -108,14 +108,14 @@ export default function HomeScreen() {
 
           <CategoryStrip categories={categories} />
 
-          <Pressable style={styles.looksCard} onPress={() => router.push('/looks' as never)} accessibilityRole="button">
+          {/* <Pressable style={styles.looksCard} onPress={() => router.push('/looks' as never)} accessibilityRole="button">
             <Text style={styles.looksMark}>✨</Text>
             <View style={styles.looksText}>
               <Text style={styles.looksTitle}>ستایلەکە تاقی بکەرەوە</Text>
               <Text style={styles.looksBody}>هەموو جلەکان لەسەر یەک مۆدێل ببینە و بیکڕە</Text>
             </View>
             <Text style={styles.looksArrow}>‹</Text>
-          </Pressable>
+          </Pressable> */}
 
           {deals.length > 0 && (
             <View style={styles.section}>

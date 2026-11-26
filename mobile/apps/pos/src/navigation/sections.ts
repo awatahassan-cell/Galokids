@@ -199,7 +199,7 @@ export const SECTIONS: Section[] = [
     permission: 'categories.manage',
     group: 'stock',
   },
-  {
+  /* {
     id: 'looks',
     route: 'looks',
     title: 'ستایلەکان',
@@ -207,7 +207,7 @@ export const SECTIONS: Section[] = [
     icon: 'looks',
     permission: 'products.manage',
     group: 'stock',
-  },
+  }, */
   {
     id: 'labels',
     route: 'labels',
