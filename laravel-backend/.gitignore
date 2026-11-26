@@ -25,3 +25,8 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Local databases. The shop runs on MySQL; a stray sqlite file must never be
+# where real orders end up being committed.
+/database/*.sqlite
+/database/*.sqlite-journal

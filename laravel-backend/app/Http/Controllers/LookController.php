@@ -36,7 +36,8 @@ class LookController extends Controller
                 // Products taken off the website stay off it, here too.
                 $look->setRelation(
                     'items',
-                    $look->items->filter(fn (LookItem $item) => $item->product && $item->product->is_active)->values()
+                    // Same rule as scopeVisibleToShoppers: only an explicit false hides it.
+                    $look->items->filter(fn (LookItem $item) => $item->product && $item->product->is_active !== false)->values()
                 );
             }
 

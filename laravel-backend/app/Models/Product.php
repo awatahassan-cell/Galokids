@@ -125,7 +125,12 @@ class Product extends Model
         // under, which is also what the upload endpoint hands back when it
         // saves an image. Outside a request (console, queue) there is no root
         // to read, so app.url stands in.
-        $root = request() ? request()->root() : config('app.url');
+        // `request()` is never null — outside a web request it is a blank request
+        // whose root is http://localhost — so the console has to be asked
+        // directly. (Tests run in the console too, and fake a request root.)
+        $root = (app()->runningInConsole() && !app()->runningUnitTests())
+            ? config('app.url')
+            : request()->root();
 
         return rtrim((string) $root, '/') . '/' . ltrim($image, '/');
     }

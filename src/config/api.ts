@@ -1,25 +1,34 @@
 // Single Centralized API Base URL for all requests across the application
 const rawEnvUrl = (import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_API_BASE;
 
+/** The live shop's API. */
+const PRODUCTION_API = 'https://galo.prodental.dev/API/api';
+
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+/**
+ * Where the API is.
+ *
+ * - On a developer's machine the live API is reached through the local
+ *   server's `/api` proxy, because calling it straight from `localhost` is a
+ *   cross-origin request the browser blocks. That only applies to the live
+ *   address (or to nothing configured): a developer who deliberately points
+ *   the app at some other backend — a local Laravel, say — gets exactly that.
+ * - Anywhere else a configured address is used as given, and with nothing
+ *   configured it is the live API, as it always was. A relative `/api` would
+ *   only work behind `server.ts`; a build uploaded to a plain static host
+ *   would send every request to a path that does not exist there.
+ */
 function getApiBaseUrl(): string {
-  if (rawEnvUrl && rawEnvUrl.trim()) {
-    const trimmed = rawEnvUrl.trim().replace(/\/+$/, '');
-    // If running in browser on localhost / 127.0.0.1 and an absolute cross-origin URL is provided,
-    // route through local /api to avoid browser CORS errors.
-    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-        return '/api';
-      }
-    }
-    return trimmed;
+  const configured = (rawEnvUrl && String(rawEnvUrl).trim()) ? String(rawEnvUrl).trim().replace(/\/+$/, '') : '';
+
+  if (isLocalhost) {
+    return !configured || configured === PRODUCTION_API ? '/api' : configured;
   }
 
-  // When running in the browser on localhost / 127.0.0.1, use '/api' to proxy through local server
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return '/api';
-  }
-
-  return '/api';
+  return configured || PRODUCTION_API;
 }
 
 export const API_BASE_URL = getApiBaseUrl();

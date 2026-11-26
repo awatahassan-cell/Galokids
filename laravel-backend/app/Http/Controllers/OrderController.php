@@ -634,15 +634,37 @@ class OrderController extends Controller
         $idempotencyKey = $isStaff ? ($validated['idempotency_key'] ?? null) : null;
 
         if ($idempotencyKey) {
-            $existing = Order::with('items')->where('idempotency_key', $idempotencyKey)->first();
+            $existing = Order::with('items.product', 'items.variation')->where('idempotency_key', $idempotencyKey)->first();
 
             if ($existing) {
                 return response()->json($existing, 200);
             }
         }
 
+        // When the sale happened, if the till says so — decided up front because
+        // the shift it belongs to depends on it, not on the moment it reached us.
+        //
+        // The till sends the moment it took the money. We trust it within
+        // reason: a few minutes ahead is clock drift, not the future, but a
+        // sale dated further ahead, or more than a month back, is not believed —
+        // a wrong clock on one device must not rewrite last quarter.
+        $soldAt = null;
+        $soldAtRejected = null;
+
+        if ($isStaff && !empty($validated['sold_at'])) {
+            $claimed = \Carbon\Carbon::parse($validated['sold_at']);
+
+            if ($claimed->greaterThan(now()->addMinutes(10))) {
+                $soldAtRejected = 'is in the future';
+            } elseif ($claimed->lessThan(now()->subDays(31))) {
+                $soldAtRejected = 'is more than 31 days old';
+            } else {
+                $soldAt = $claimed->greaterThan(now()) ? now() : $claimed;
+            }
+        }
+
         try {
-            $order = DB::transaction(function () use ($validated, $request, $user, $isStaff, $idempotencyKey) {
+            $order = DB::transaction(function () use ($validated, $request, $user, $isStaff, $idempotencyKey, $soldAt) {
                 $subtotal = 0;
                 $lineItems = [];
                 $stockToDeduct = [];
@@ -797,9 +819,21 @@ class OrderController extends Controller
                 $changeDue = $amountPaid !== null ? max(0, $amountPaid - $total) : null;
 
                 // Attach the cashier's open shift only for POS in-store sales.
+                //
+                // The shift that was open WHEN the money was taken. A sale rung
+                // up offline on Tuesday and synced on Thursday belongs to
+                // Tuesday's drawer; taking whatever is open at sync time put it
+                // in Thursday's (inflating its expected cash) or, with none open,
+                // in nobody's. A sale with no shift covering its time is left
+                // unattached rather than pushed into a drawer it never touched.
                 $shiftId = null;
                 if ($isStaff && $isPosSale) {
-                    $shift = Shift::where('user_id', $user->id)->where('status', 'open')->first();
+                    $shift = $soldAt
+                        ? Shift::where('user_id', $user->id)
+                            ->where('opened_at', '<=', $soldAt)
+                            ->where(fn ($q) => $q->whereNull('closed_at')->orWhere('closed_at', '>=', $soldAt))
+                            ->orderByDesc('opened_at')->first()
+                        : Shift::where('user_id', $user->id)->where('status', 'open')->first();
                     $shiftId = $shift?->id;
                 }
                 $order = Order::create([
@@ -828,22 +862,11 @@ class OrderController extends Controller
                     'offline_stock_conflict' => $stockConflict,
                 ]);
 
-                // When the sale actually happened, not when it reached us.
-                //
-                // A sale rung up on Tuesday while the till was offline and
-                // synced on Thursday landed in Thursday's takings, so the
-                // day's cash never matched the day's report and the shift it
-                // belonged to had already been closed. The till sends the
-                // moment it took the money; we trust it within reason — not
-                // the future, and not further back than a month, because a
-                // wrong clock on one device must not rewrite last quarter.
-                if ($isStaff && !empty($validated['sold_at'])) {
-                    $soldAt = \Carbon\Carbon::parse($validated['sold_at']);
-
-                    if ($soldAt->lessThanOrEqualTo(now()) && $soldAt->greaterThan(now()->subDays(31))) {
-                        $order->created_at = $soldAt;
-                        $order->save();
-                    }
+                // When the sale actually happened, not when it reached us (see
+                // the checks above).
+                if ($soldAt) {
+                    $order->created_at = $soldAt;
+                    $order->save();
                 }
 
                 foreach ($lineItems as $li) {
@@ -858,10 +881,21 @@ class OrderController extends Controller
                 // device used, as long as no other order has it; otherwise
                 // fall back to ours rather than collide.
                 $deviceInvoice = $isStaff ? trim((string) ($validated['invoice_no'] ?? '')) : '';
+                $taken = fn (string $number) => Order::where('invoice_no', $number)->where('id', '!=', $order->id)->exists();
 
-                $order->invoice_no = ($deviceInvoice !== '' && !Order::where('invoice_no', $deviceInvoice)->exists())
+                $number = ($deviceInvoice !== '' && !$taken($deviceInvoice))
                     ? $deviceInvoice
                     : 'INV-' . $order->created_at->format('Ymd') . '-' . str_pad((string) $order->id, 4, '0', STR_PAD_LEFT);
+
+                // A number a till printed can equal one the server would make
+                // later (INV-…-0050 for order 50). Never hand out a number that
+                // is already someone's receipt.
+                $candidate = $number;
+                for ($n = 2; $taken($candidate); $n++) {
+                    $candidate = $number . '-' . $n;
+                }
+
+                $order->invoice_no = $candidate;
                 $order->save();
 
                 // Stock ledger: one entry per line, pointing back at the order.
@@ -892,6 +926,32 @@ class OrderController extends Controller
             });
         } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
             throw $e;
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            // Two copies of the same sale arrived at once (a retry overlapping
+            // the original): both passed the lookup above and one lost the race
+            // for the unique key. The sale exists, so answer with it — not a 500
+            // that makes the till send it a third time.
+            $existing = $idempotencyKey
+                ? Order::with('items.product', 'items.variation')->where('idempotency_key', $idempotencyKey)->first()
+                : null;
+
+            if ($existing) {
+                return response()->json($existing, 200);
+            }
+
+            throw $e;
+        }
+
+        // A till's claimed time that was not believed is booked at sync time
+        // instead — say so where the shop can see it, rather than silently.
+        if ($soldAtRejected) {
+            ActivityLogger::log(
+                'order.sold_at_ignored',
+                'order',
+                $order->id,
+                ($order->invoice_no ?: ('#' . $order->id)) . ': the till said it was sold at ' . $validated['sold_at']
+                    . ', which ' . $soldAtRejected . ' — booked at ' . $order->created_at
+            );
         }
 
         // Tell the shop, if this came from the website.
