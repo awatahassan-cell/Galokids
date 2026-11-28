@@ -5,7 +5,7 @@ import { API_BASE_URL, apiFetch } from '../config/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useStore } from '../store';
-import { Plus, Save, Package, Settings, Tags, Users, ShoppingBag, DollarSign, Star, Image as ImageIcon, AlertTriangle, BarChart3, TrendingUp, TrendingDown, Calendar, Trash2, Edit, Menu, X, UserPlus, ChevronLeft, ChevronRight, ShoppingCart, FileText, Languages, Search, Ticket, Pencil, Percent, Boxes, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Plus, Save, Package, Settings, Tags, Tag, Users, ShoppingBag, DollarSign, Star, Image as ImageIcon, AlertTriangle, BarChart3, TrendingUp, TrendingDown, Calendar, Trash2, Edit, Menu, X, UserPlus, ChevronLeft, ChevronRight, ShoppingCart, FileText, Languages, Search, Ticket, Pencil, Percent, Boxes, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { ProductVariation, Expense, Order, Category, Product, User } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie } from 'recharts';
@@ -119,6 +119,7 @@ export const Admin: React.FC = () => {
   }, []);
   const [isBulkStockModalOpen, setIsBulkStockModalOpen] = useState(false);
   const [isBulkDiscountOpen, setIsBulkDiscountOpen] = useState(false);
+  const [discountTargetProduct, setDiscountTargetProduct] = useState<Product | null>(null);
   
   const { tab: urlTab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
@@ -1733,12 +1734,15 @@ export const Admin: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setIsBulkDiscountOpen(true)}
-                className="bg-white border border-slate-200 hover:border-candy-300 hover:text-candy-700 text-slate-700 px-4 py-2.5 rounded-full font-extrabold transition-all flex items-center shadow-2xs text-xs cursor-pointer active:scale-95 gap-1.5"
-                title={language === 'ku' ? 'داشکاندنی سەدی بۆ هەموو کاڵاکان یان بەشێک' : 'Percentage discount on many products'}
+                onClick={() => {
+                  setDiscountTargetProduct(null);
+                  setIsBulkDiscountOpen(true);
+                }}
+                className="bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-700 text-slate-700 px-4 py-2.5 rounded-full font-extrabold transition-all flex items-center shadow-2xs text-xs cursor-pointer active:scale-95 gap-1.5"
+                title={language === 'ku' ? 'داشکاندنی بەرهەمەکان بە ڕێژە یان بڕی سابت' : 'Discount products by percent or fixed amount'}
               >
-                <Percent className="w-4 h-4 text-candy-500" />
-                <span className="hidden sm:inline">{language === 'ku' ? 'داشکاندنی کۆمەڵ' : language === 'ar' ? 'خصم جماعي' : 'Bulk discount'}</span>
+                <Tag className="w-4 h-4 text-rose-500" />
+                <span className="hidden sm:inline">{language === 'ku' ? 'داشکاندن' : language === 'ar' ? 'خصومات' : 'Discounts'}</span>
               </button>
 
               <button
@@ -1969,7 +1973,26 @@ export const Admin: React.FC = () => {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-500 text-center" onClick={(e) => e.stopPropagation()}>
                           {product.id && (
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDiscountTargetProduct(product);
+                                  setIsBulkDiscountOpen(true);
+                                }}
+                                className={`p-2 rounded-xl transition-all cursor-pointer ${
+                                  product.discountPrice && Number(product.discountPrice) > 0
+                                    ? 'text-rose-600 bg-rose-50 hover:bg-rose-100 ring-1 ring-rose-200'
+                                    : 'text-slate-500 hover:text-amber-600 hover:bg-amber-50'
+                                }`}
+                                title={
+                                  product.discountPrice && Number(product.discountPrice) > 0
+                                    ? (language === 'ku' ? `داشکاندن هەیە (${formatIQDLabel(Number(product.discountPrice))}) - دەستکاری` : 'Has discount - click to edit')
+                                    : (language === 'ku' ? 'داشکاندن بۆ بەرهەم' : 'Discount product')
+                                }
+                              >
+                                <Tag className="w-4 h-4" />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => setEditingProduct(product)}
@@ -3087,9 +3110,14 @@ export const Admin: React.FC = () => {
 
       <BulkDiscountModal
         isOpen={isBulkDiscountOpen}
-        onClose={() => setIsBulkDiscountOpen(false)}
+        onClose={() => {
+          setIsBulkDiscountOpen(false);
+          setDiscountTargetProduct(null);
+        }}
         categories={categories}
-        selectedIds={productSelection.ids}
+        selectedIds={discountTargetProduct ? [discountTargetProduct.id] : productSelection.ids}
+        targetProduct={discountTargetProduct}
+        updateProduct={updateProduct}
         onDone={() => {
           refreshProducts(productsPage, PRODUCTS_PER_PAGE, productsQuery, false, true);
           productSelection.clear();

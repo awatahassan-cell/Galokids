@@ -481,7 +481,9 @@ class ProductController extends Controller
         $this->requirePermission($request, 'products.manage');
 
         $data = $request->validate([
-            'percent' => 'required|numeric|min:0|max:90',
+            'discount_type' => 'sometimes|string|in:percentage,fixed',
+            'percent' => 'sometimes|nullable|numeric|min:0|max:90',
+            'amount' => 'sometimes|nullable|numeric|min:0',
             'scope' => 'required|string|in:all,category,ids',
             'category_id' => 'required_if:scope,category|nullable|integer|exists:categories,id',
             'ids' => 'required_if:scope,ids|nullable|array|min:1',
@@ -491,7 +493,9 @@ class ProductController extends Controller
             'dry_run' => 'sometimes|boolean',
         ]);
 
-        $percent = (float) $data['percent'];
+        $discountType = $data['discount_type'] ?? 'percentage';
+        $percent = (float) ($data['percent'] ?? 0);
+        $amount = (float) ($data['amount'] ?? 0);
         $roundTo = (int) ($data['round_to'] ?? 250);
         $keepExisting = (bool) ($data['keep_existing'] ?? false);
         $dryRun = (bool) ($data['dry_run'] ?? false);
@@ -510,31 +514,53 @@ class ProductController extends Controller
         $ownPrice = 0;
         $samples = [];
 
-        $run = function () use ($query, $percent, $roundTo, $keepExisting, $dryRun, &$affected, &$skippedExisting, &$skippedTooSmall, &$belowCost, &$ownPrice, &$samples) {
-            $query->orderBy('id')->chunkById(200, function ($products) use ($percent, $roundTo, $keepExisting, $dryRun, &$affected, &$skippedExisting, &$skippedTooSmall, &$belowCost, &$ownPrice, &$samples) {
+        $run = function () use ($query, $discountType, $percent, $amount, $roundTo, $keepExisting, $dryRun, &$affected, &$skippedExisting, &$skippedTooSmall, &$belowCost, &$ownPrice, &$samples) {
+            $query->orderBy('id')->chunkById(200, function ($products) use ($discountType, $percent, $amount, $roundTo, $keepExisting, $dryRun, &$affected, &$skippedExisting, &$skippedTooSmall, &$belowCost, &$ownPrice, &$samples) {
                 foreach ($products as $product) {
                     $price = (float) $product->price;
                     $old = $product->discount_price !== null ? (float) $product->discount_price : null;
 
-                    if ($percent > 0) {
-                        if ($keepExisting && $old !== null && $old > 0) {
-                            $skippedExisting++;
-                            continue;
-                        }
+                    if ($discountType === 'fixed') {
+                        if ($amount > 0) {
+                            if ($keepExisting && $old !== null && $old > 0) {
+                                $skippedExisting++;
+                                continue;
+                            }
 
-                        $new = round(($price * (1 - $percent / 100)) / $roundTo) * $roundTo;
+                            $new = max(0, $price - $amount);
+                            if ($roundTo > 1) {
+                                $new = round($new / $roundTo) * $roundTo;
+                            }
 
-                        // A price that rounds to nothing, or back up to the full
-                        // price, is not a discount.
-                        if ($new <= 0 || $new >= $price) {
-                            $skippedTooSmall++;
-                            continue;
+                            if ($new <= 0 || $new >= $price) {
+                                $skippedTooSmall++;
+                                continue;
+                            }
+                        } else {
+                            if ($old === null) {
+                                continue;
+                            }
+                            $new = null;
                         }
                     } else {
-                        if ($old === null) {
-                            continue;
+                        if ($percent > 0) {
+                            if ($keepExisting && $old !== null && $old > 0) {
+                                $skippedExisting++;
+                                continue;
+                            }
+
+                            $new = round(($price * (1 - $percent / 100)) / $roundTo) * $roundTo;
+
+                            if ($new <= 0 || $new >= $price) {
+                                $skippedTooSmall++;
+                                continue;
+                            }
+                        } else {
+                            if ($old === null) {
+                                continue;
+                            }
+                            $new = null;
                         }
-                        $new = null;
                     }
 
                     $affected++;
